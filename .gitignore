@@ -1,0 +1,17 @@
+.DS_Store
+.build/
+*.xcodeproj
+DerivedData/
+__pycache__/
+
+# Original game data. Copyrighted, supply your own.
+game/
+
+# Third-party sources, cloned separately (see README).
+vendor/
+ref-hojy/
+ref-kys-pascal/
+legacy-rewrite/
+
+# Emulator snapshots.
+saves/*.state
