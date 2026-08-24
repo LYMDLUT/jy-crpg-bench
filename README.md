@@ -8,11 +8,15 @@ the Sound Blaster output.
 ## Setup
 
 ```sh
-# original game files (not in this repo)
-mkdir -p game && cp -R /path/to/jinyong/* game/
-
+git clone https://github.com/hanxiao/jy-metal.git
+cd jy-metal
 ./Scripts/run.sh
 ```
+
+That is the whole setup. The game data ships in the repo as
+`assets/game-data.tar.gz` (24 MB compressed, 123 MB unpacked) and `run.sh`
+unpacks it into `game/` on first run. `Scripts/pack-game.sh` repacks it if you
+change the files.
 
 The prebuilt core is in `Cores/`. To rebuild it:
 
@@ -114,7 +118,8 @@ Sources/QunXia/      Emulator (emulation thread + action queue), MetalView,
                      AudioOut, ControlAPI, HistoryView
 mcp-server/          MCP wrapper plus the game knowledge an agent needs
 Cores/               dosbox_pure_libretro.dylib
-game/                original game files
+assets/              game-data.tar.gz, unpacked into game/ on first run
+game/                unpacked game files (not tracked)
 saves/               emulator snapshots
 ```
 

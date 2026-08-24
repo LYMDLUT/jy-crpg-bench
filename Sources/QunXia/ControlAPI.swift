@@ -25,8 +25,21 @@ final class ControlAPI {
             conn.start(queue: q)
             self?.receive(conn, buffer: Data())
         }
+        // start() is async: without this a failed bind is silent and the whole
+        // agent API just never answers.
+        listener.stateUpdateHandler = { [weak log] state in
+            switch state {
+            case .ready:
+                log?.add("LISTEN", "http://127.0.0.1:\(port)")
+            case .failed(let err), .waiting(let err):
+                let msg = "control API cannot listen on port \(port): \(err)"
+                log?.add("LISTEN", ":\(port)", payload: "\(err)", ok: false)
+                FileHandle.standardError.write(Data((msg + "\n").utf8))
+            default:
+                break
+            }
+        }
         listener.start(queue: DispatchQueue(label: "qunxia.api"))
-        log.add("LISTEN", "http://127.0.0.1:\(port)")
     }
 
     // MARK: - connection

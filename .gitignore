@@ -4,7 +4,8 @@
 DerivedData/
 __pycache__/
 
-# Original game data. Copyrighted, supply your own.
+# Game data is committed compressed as assets/game-data.tar.gz and unpacked
+# here on first run.
 game/
 
 # Third-party sources, cloned separately (see README).
