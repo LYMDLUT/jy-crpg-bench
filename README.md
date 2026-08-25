@@ -60,6 +60,42 @@ a static screen; `ticks` always rises while the emulator runs.
 Boot takes about 14s. Poll `/state` and watch the `screen` hash to know when it
 has finished.
 
+## Let an LLM play it
+
+The repo ships its own agent harness, so nothing has to understand MCP or write
+a tool loop. You supply an OpenAI-compatible endpoint; everything else is here.
+
+```sh
+npm i -g @earendil-works/pi-coding-agent   # once
+
+export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1   # or any OpenAI-compatible URL
+export QUNXIA_LLM_API_KEY=sk-...                       # anything for local servers
+export QUNXIA_LLM_MODEL=qwen3-vl:32b
+./Scripts/play-agent.sh
+```
+
+That starts the game if it is not running, waits for the title screen, and drops
+you into [pi](https://pi.dev) with the game loaded. `-p "play the opening"` runs
+it non-interactively instead.
+
+Everything the agent needs is in `pi-agent/`, used as pi's config directory so
+your own `~/.pi` is untouched:
+
+- `SYSTEM.md` replaces the coding-agent prompt with the game: controls, the 注音
+  name-entry layout, the mission, and the cutscene trap that otherwise makes a
+  model conclude the controls are broken.
+- `extensions/qunxia/` registers nine `game_*` tools. Each one applies input,
+  waits for the screen to settle, and returns the frame as an image, so the
+  model sees the result of its own action.
+
+The model keeps pi's normal `bash`, `read`, `write` and `edit` tools too, and
+the prompt tells it to keep a notes file as it plays: pi compacts context
+automatically as a session grows, and those notes are what survive it.
+
+Use a vision model. `QUNXIA_LLM_INPUT='"text"'` drops images for a text-only
+model, `QUNXIA_SCALE` changes screenshot size (default 2, so 640x400),
+`QUNXIA_LLM_CONTEXT` sets the context window.
+
 ## MCP
 
 `mcp-server/` exposes the same thing over MCP, with the controls, the 注音
@@ -116,6 +152,7 @@ its own idle spin loops. Fixed 77000 is the default. Override with
 Sources/CoreHost/    libretro host: dlopen, env callbacks, video/audio/input
 Sources/QunXia/      Emulator (emulation thread + action queue), MetalView,
                      AudioOut, ControlAPI, HistoryView
+pi-agent/            built-in agent harness: system prompt plus game_* tools
 mcp-server/          MCP wrapper plus the game knowledge an agent needs
 Cores/               dosbox_pure_libretro.dylib
 assets/              game-data.tar.gz, unpacked into game/ on first run
