@@ -27,11 +27,13 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   teaches the controls, the two rules that are not discoverable by pressing
   keys, and enough of the opening to get moving. It is deliberately not a
   walkthrough.
-- `/api/screen` look at the screen. JSON with a base64 PNG, or `?format=png`
-  for raw bytes. One endpoint, not two envelopes around the same thing.
-- `/api/key`, `/api/keys`, `/api/text`, `/api/wait` mirror the native runner:
-  apply input, wait for the screen to react and then settle, return the
-  resulting PNG.
+- `/api/screen` look at the screen, at its native 320x200. JSON with a base64
+  PNG, or `?format=png` for raw bytes. One endpoint, not two envelopes around
+  the same thing, and no scaling knob: upscaling server-side only made a bigger
+  PNG out of the same pixels.
+- `/api/key`, `/api/keys`, `/api/text`, `/api/wait` apply input and wait for
+  the screen to react and then settle, but return no picture. Acting and
+  looking are separate calls.
 - `/api/history` the action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the

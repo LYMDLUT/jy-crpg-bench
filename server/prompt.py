@@ -39,8 +39,8 @@ happens: objectives, choices, and prompts that expect a specific key.
     GET  {base}/api/help                          this skill
 
 Only `/api/screen` returns a picture: JSON with `image` (base64 PNG data URI),
-or `?format=png` for raw bytes, and `?scale=1..6` to enlarge the 320x200 image
-when glyphs are hard to read. Action calls return `changed` and `frame` only.
+or `?format=png` for raw bytes. It is the screen at its native size, normally
+320x200. Action calls return `changed` and `frame` only.
 
     curl -s -X POST {base}/api/key -H 'content-type: application/json' \\
          -d '{{"key":"enter"}}'
@@ -114,8 +114,8 @@ def _zh(base: str) -> str:
     GET  {base}/api/help                          本技能說明
 
 只有 `/api/screen` 會回傳畫面：JSON 含 `image`（base64 PNG data URI），或加
-`?format=png` 取得 PNG 位元組，加 `?scale=1..6` 可放大這張 320x200 的畫面，
-字看不清楚時很有用。動作類的呼叫只回傳 `changed` 與 `frame`。
+`?format=png` 取得 PNG 位元組。回傳的是畫面的原始大小，通常是 320x200。
+動作類的呼叫只回傳 `changed` 與 `frame`。
 
     curl -s -X POST {base}/api/key -H 'content-type: application/json' \\
          -d '{{"key":"enter"}}'

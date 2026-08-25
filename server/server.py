@@ -70,7 +70,8 @@ for _k, _v in {";": 59, "'": 39, ",": 44, ".": 46, "/": 47, "-": 45, "=": 61,
                "[": 91, "]": 93, "\\": 92, "`": 96}.items():
     KEYS[_k] = _v
 
-SNAP = ctypes.create_string_buffer(6 * 6 * 640 * 400 * 3)
+# Native resolution only, so the largest frame the core produces is 640x400.
+SNAP = ctypes.create_string_buffer(640 * 400 * 3 + 4096)
 api_lock = asyncio.Lock()     # one action at a time; the game is single-player
 
 clients: set[web.WebSocketResponse] = set()
@@ -235,10 +236,12 @@ def encode_png(w, h, rgb):
             + chunk(b"IEND", b""))
 
 
-def snapshot(scale=2):
+def snapshot():
+    """The screen at its native size. No scaling: the client can zoom, and
+    upscaling here only made a bigger PNG out of the same pixels."""
     w = ctypes.c_int(0)
     h = ctypes.c_int(0)
-    n = LIB.fb_snapshot(SNAP, len(SNAP), scale, ctypes.byref(w), ctypes.byref(h))
+    n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
     if n <= 0:
         return None, 0, 0
     return encode_png(w.value, h.value, SNAP.raw[:n]), w.value, h.value
@@ -366,9 +369,8 @@ async def api_wait(request):
 
 async def api_screen(request):
     """The only way to look at the screen. JSON by default, ?format=png for bytes."""
-    scale = max(1, min(6, int(request.query.get("scale", 2))))
     log_action("api", "GET", "screen", thumb=True)
-    png, w, h = snapshot(scale)
+    png, w, h = snapshot()
     if not png:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
     if request.query.get("format") == "png":
