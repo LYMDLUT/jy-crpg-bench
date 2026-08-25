@@ -7,7 +7,9 @@ back over the same socket. No audio.
 """
 import asyncio
 import base64
+import collections
 import ctypes
+import json
 import os
 import pathlib
 import struct
@@ -72,6 +74,36 @@ api_lock = asyncio.Lock()     # one action at a time; the game is single-player
 clients: set[web.WebSocketResponse] = set()
 stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0}
 
+# Everything anyone does to this session, so the page can show who is doing
+# what. The game is shared, so this doubles as "why did the screen just move".
+history: collections.deque = collections.deque(maxlen=300)
+_seq = [0]
+
+
+def log_action(src, verb, target, detail="", ok=True):
+    _seq[0] += 1
+    entry = {"id": _seq[0], "at": time.time(), "src": src, "verb": verb,
+             "target": str(target)[:60], "detail": str(detail)[:60], "ok": ok}
+    history.append(entry)
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return entry
+    asyncio.create_task(broadcast_log(entry))
+    return entry
+
+
+async def broadcast_log(entry):
+    msg = json.dumps({"t": "log", "e": [entry]})
+    for ws in list(clients):
+        if ws.closed:
+            clients.discard(ws)
+            continue
+        try:
+            await ws.send_str(msg)
+        except Exception:
+            clients.discard(ws)
+
 
 def emulate():
     """Own thread. ctypes drops the GIL for each call, so asyncio keeps running."""
@@ -131,6 +163,8 @@ async def ws_handler(request):
     await ws.prepare(request)
     clients.add(ws)
     await send_keyframe(ws)
+    if history:
+        await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:]}))
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
@@ -138,12 +172,18 @@ async def ws_handler(request):
             d = msg.json()
             t = d.get("t")
             if t == "key":
-                code = KEYS.get(str(d.get("k", "")).lower())
+                name = str(d.get("k", "")).lower()
+                code = KEYS.get(name)
                 if code:
-                    LIB.core_key(code, bool(d.get("down")))
+                    down = bool(d.get("down"))
+                    LIB.core_key(code, down)
+                    if down:                      # keyup would just double every line
+                        log_action("web", "KEY", name)
             elif t == "tap":
-                code = KEYS.get(str(d.get("k", "")).lower())
+                name = str(d.get("k", "")).lower()
+                code = KEYS.get(name)
                 if code:
+                    log_action("web", "KEY", name)
                     LIB.core_key(code, True)
                     await asyncio.sleep(0.06)
                     LIB.core_key(code, False)
@@ -213,9 +253,10 @@ async def tap(code, hold_frames):
     await asyncio.sleep(ft * 2)
 
 
-async def run_action(request, steps, note):
+async def run_action(request, steps, note, verb="KEY"):
     """steps: list of (retrok, hold_frames) or ("wait", seconds)."""
     scale = max(1, min(6, int(request.query.get("scale", 2))))
+    log_action("api", verb, note)
     async with api_lock:
         baseline = LIB.core_frame_hash()
         for kind, val in steps:
@@ -261,7 +302,7 @@ async def api_key(request):
         steps.append((code, hold))
         if i != times - 1:
             steps.append(("wait", 0.08))
-    return await run_action(request, steps, str(d.get("key")))
+    return await run_action(request, steps, str(d.get("key")) + (f" x{times}" if times > 1 else ""))
 
 
 async def api_keys(request):
@@ -276,7 +317,7 @@ async def api_keys(request):
         steps.append((c, hold))
         if i != len(codes) - 1:
             steps.append(("wait", 0.08))
-    return await run_action(request, steps, " ".join(map(str, names)))
+    return await run_action(request, steps, " ".join(map(str, names)), verb="KEYS")
 
 
 async def api_text(request):
@@ -290,17 +331,18 @@ async def api_text(request):
         if c:
             steps.append((c, 3))
             steps.append(("wait", 0.05))
-    return await run_action(request, steps, f"type {text!r}")
+    return await run_action(request, steps, text, verb="TEXT")
 
 
 async def api_wait(request):
     d = await body_of(request)
     ms = max(0, min(int(d.get("ms", 1000)), 60000))
-    return await run_action(request, [("wait", ms / 1000)], f"wait {ms}ms")
+    return await run_action(request, [("wait", ms / 1000)], f"{ms}ms", verb="WAIT")
 
 
 async def api_state(request):
     scale = max(1, min(6, int(request.query.get("scale", 2))))
+    log_action("api", "GET", "state")
     png, w, h = snapshot(scale)
     body = {"ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
             "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h}
@@ -311,6 +353,7 @@ async def api_state(request):
 
 async def api_frame(request):
     scale = max(1, min(6, int(request.query.get("scale", 2))))
+    log_action("api", "GET", "frame.png")
     png, _, _ = snapshot(scale)
     if not png:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
@@ -323,7 +366,12 @@ def base_url(request):
     return f"{scheme}://{request.host}"
 
 
+async def api_history(_request):
+    return web.json_response({"history": list(history)})
+
+
 async def api_help(request):
+    log_action("api", "GET", "help")
     return web.Response(text=system_prompt(base_url(request)),
                         content_type="text/plain", charset="utf-8")
 
@@ -364,6 +412,7 @@ def main():
         web.get("/api/state", api_state),
         web.get("/api/frame.png", api_frame),
         web.get("/api/help", api_help),
+        web.get("/api/history", api_history),
         web.post("/api/key", api_key),
         web.post("/api/keys", api_keys),
         web.post("/api/text", api_text),

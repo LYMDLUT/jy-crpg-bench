@@ -27,6 +27,10 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 - `/api/state`, `/api/frame.png`, `/api/key`, `/api/keys`, `/api/text`,
   `/api/wait` mirror the native runner: apply input, wait for the screen to
   react and then settle, return the resulting PNG.
+- `/api/history` the action log. Every REST call and every key pressed in a
+  browser is recorded and pushed to all connected pages over the same
+  WebSocket, so the activity panel shows an agent and a human acting on the
+  shared session side by side.
 
 PNGs are written by a ~10 line encoder over `zlib` rather than pulling in an
 image library.
