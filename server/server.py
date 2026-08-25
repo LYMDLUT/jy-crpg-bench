@@ -369,24 +369,20 @@ async def api_wait(request):
     return await run_action(request, [("wait", ms / 1000)], f"{ms}ms", verb="WAIT")
 
 
-async def api_state(request):
+async def api_screen(request):
+    """The only way to look at the screen. JSON by default, ?format=png for bytes."""
     scale = max(1, min(6, int(request.query.get("scale", 2))))
-    log_action("api", "GET", "state", thumb=True)
+    log_action("api", "GET", "screen", thumb=True)
     png, w, h = snapshot(scale)
-    body = {"ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
-            "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h}
-    if png:
-        body["image"] = "data:image/png;base64," + base64.b64encode(png).decode()
-    return web.json_response(body)
-
-
-async def api_frame(request):
-    scale = max(1, min(6, int(request.query.get("scale", 2))))
-    log_action("api", "GET", "frame.png", thumb=True)
-    png, _, _ = snapshot(scale)
     if not png:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
-    return web.Response(body=png, content_type="image/png")
+    if request.query.get("format") == "png":
+        return web.Response(body=png, content_type="image/png")
+    return web.json_response({
+        "ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
+        "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h,
+        "image": "data:image/png;base64," + base64.b64encode(png).decode(),
+    })
 
 
 def base_url(request):
@@ -400,8 +396,9 @@ async def api_history(_request):
 
 
 async def api_help(request):
-    log_action("api", "GET", "help")
-    return web.Response(text=system_prompt(base_url(request)),
+    lang = request.query.get("lang", "en")
+    log_action("api", "GET", f"help ({lang})")
+    return web.Response(text=system_prompt(base_url(request), lang),
                         content_type="text/plain", charset="utf-8")
 
 
@@ -438,8 +435,7 @@ def main():
         web.get("/", index),
         web.get("/ws", ws_handler),
         web.get("/status", status),
-        web.get("/api/state", api_state),
-        web.get("/api/frame.png", api_frame),
+        web.get("/api/screen", api_screen),
         web.get("/api/help", api_help),
         web.get("/api/history", api_history),
         web.post("/api/key", api_key),

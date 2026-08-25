@@ -107,6 +107,13 @@
     white-space: pre; overflow: auto;
   }
   #promptbar { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .lang { display: flex; gap: 0; margin-left: auto; }
+  .lang button {
+    border-radius: 0; border-left-width: 0; padding: 5px 11px; font-size: 11px;
+  }
+  .lang button:first-child { border-radius: 4px 0 0 4px; border-left-width: 1px; }
+  .lang button:last-child { border-radius: 0 4px 4px 0; }
+  .lang button[aria-pressed=true] { background: #2a2a33; color: #fff; border-color: #4a4a58; }
   #copied { color: #64b47a; font-size: 11px; opacity: 0; transition: opacity .2s; }
   #copied.on { opacity: 1; }
 </style>
@@ -137,14 +144,18 @@
 <details>
   <summary>
     <b>Let your own LLM play this</b>
-    <span class="hint">copy the prompt into your model's system prompt, no harness of ours needed</span>
+    <span class="hint">paste into your model's system prompt, no harness needed</span>
   </summary>
   <div id="promptbox">
     <textarea id="prompt" readonly spellcheck="false">loading…</textarea>
     <div id="promptbar">
-      <button id="copy">Copy prompt</button>
+      <button id="copy">Copy skill</button>
       <button id="open">Open as text</button>
       <span id="copied">copied</span>
+      <span class="lang">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="zh" aria-pressed="false">中文</button>
+      </span>
     </div>
   </div>
 </details>
@@ -332,10 +343,22 @@ for (const b of document.querySelectorAll("button[data-k]")) {
 
 cv.addEventListener("click", () => cv.focus());
 
-// The prompt is generated server-side so the endpoints carry this exact host.
+// Generated server-side so the endpoints in it carry this exact host.
 const promptEl = document.getElementById("prompt");
-fetch("/api/help").then(r => r.text()).then(t => promptEl.value = t)
-  .catch(() => promptEl.value = "could not load /api/help");
+let lang = "en";
+function loadSkill() {
+  fetch("/api/help?lang=" + lang).then(r => r.text()).then(t => promptEl.value = t)
+    .catch(() => promptEl.value = "could not load /api/help");
+}
+for (const b of document.querySelectorAll(".lang button")) {
+  b.onclick = () => {
+    lang = b.dataset.lang;
+    document.querySelectorAll(".lang button").forEach(
+      x => x.setAttribute("aria-pressed", String(x === b)));
+    loadSkill();
+  };
+}
+loadSkill();
 document.getElementById("copy").onclick = async () => {
   try {
     await navigator.clipboard.writeText(promptEl.value);
@@ -347,7 +370,7 @@ document.getElementById("copy").onclick = async () => {
   c.classList.add("on");
   setTimeout(() => c.classList.remove("on"), 1400);
 };
-document.getElementById("open").onclick = () => window.open("/api/help", "_blank");
+document.getElementById("open").onclick = () => window.open("/api/help?lang=" + lang, "_blank");
 
 fit();
 connect();
