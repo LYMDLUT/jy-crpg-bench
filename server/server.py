@@ -6,14 +6,18 @@ framebuffer to a canvas as deflated 16x10 tile deltas. Keyboard input comes
 back over the same socket. No audio.
 """
 import asyncio
+import base64
 import ctypes
 import os
 import pathlib
+import struct
 import threading
 import time
 import zlib
 
 from aiohttp import WSMsgType, web
+
+from prompt import system_prompt
 
 ROOT = pathlib.Path(__file__).resolve().parent
 LIB = ctypes.CDLL(str(ROOT / "libqunxia.so"))
@@ -32,6 +36,10 @@ LIB.core_frame_serial.restype = ctypes.c_uint64
 LIB.core_last_error.restype = ctypes.c_char_p
 LIB.fb_encode_delta.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 LIB.fb_encode_delta.restype = ctypes.c_int
+LIB.core_frame_hash.restype = ctypes.c_uint64
+LIB.fb_snapshot.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
+                            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+LIB.fb_snapshot.restype = ctypes.c_int
 LIB.core_save_state.argtypes = [ctypes.c_char_p]
 LIB.core_save_state.restype = ctypes.c_bool
 LIB.core_load_state.argtypes = [ctypes.c_char_p]
@@ -57,6 +65,9 @@ for _f in range(1, 13):
 for _k, _v in {";": 59, "'": 39, ",": 44, ".": 46, "/": 47, "-": 45, "=": 61,
                "[": 91, "]": 93, "\\": 92, "`": 96}.items():
     KEYS[_k] = _v
+
+SNAP = ctypes.create_string_buffer(6 * 6 * 640 * 400 * 3)
+api_lock = asyncio.Lock()     # one action at a time; the game is single-player
 
 clients: set[web.WebSocketResponse] = set()
 stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0}
@@ -143,6 +154,180 @@ async def ws_handler(request):
     return ws
 
 
+def encode_png(w, h, rgb):
+    """Minimal PNG writer: avoids pulling in an image library for one job."""
+    raw = b"".join(b"\x00" + rgb[y * w * 3:(y + 1) * w * 3] for y in range(h))
+
+    def chunk(tag, data):
+        body = tag + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 6))
+            + chunk(b"IEND", b""))
+
+
+def snapshot(scale=2):
+    w = ctypes.c_int(0)
+    h = ctypes.c_int(0)
+    n = LIB.fb_snapshot(SNAP, len(SNAP), scale, ctypes.byref(w), ctypes.byref(h))
+    if n <= 0:
+        return None, 0, 0
+    return encode_png(w.value, h.value, SNAP.raw[:n]), w.value, h.value
+
+
+async def settle(baseline, react=30, stable=9, maxframes=150):
+    """Wait for the game to react, then for the picture to hold still.
+
+    The emulator free-runs on its own thread, so waiting here is just wall
+    clock. Without the react phase we would snapshot the screen from before the
+    action, and dialogue is drawn with a typewriter effect that pauses between
+    glyphs, so `stable` has to be generous or lines come back half-written.
+    """
+    ft = 1.0 / max(1.0, LIB.core_fps())
+    reacted = react == 0
+    last, runs, n = baseline, 0, 0
+    while n < maxframes:
+        await asyncio.sleep(ft)
+        n += 1
+        h = LIB.core_frame_hash()
+        if not reacted:
+            if h != baseline:
+                reacted, runs, last = True, 0, h
+            elif n >= react:
+                break
+        else:
+            runs = runs + 1 if h == last else 0
+            last = h
+            if n >= 6 and runs >= stable:
+                break
+    return n, reacted
+
+
+async def tap(code, hold_frames):
+    ft = 1.0 / max(1.0, LIB.core_fps())
+    LIB.core_key(code, True)
+    await asyncio.sleep(ft * max(1, hold_frames))
+    LIB.core_key(code, False)
+    await asyncio.sleep(ft * 2)
+
+
+async def run_action(request, steps, note):
+    """steps: list of (retrok, hold_frames) or ("wait", seconds)."""
+    scale = max(1, min(6, int(request.query.get("scale", 2))))
+    async with api_lock:
+        baseline = LIB.core_frame_hash()
+        for kind, val in steps:
+            if kind == "wait":
+                await asyncio.sleep(val)
+            else:
+                await tap(kind, val)
+        waited, changed = await settle(baseline)
+    png, w, h = snapshot(scale)
+    if request.query.get("format") == "png":
+        return web.Response(body=png or b"", content_type="image/png")
+    body = {
+        "ok": True, "action": note, "changed": changed,
+        "width": LIB.core_width(), "height": LIB.core_height(),
+        "frame": LIB.core_frame_serial(), "settled_frames": waited,
+        "image_width": w, "image_height": h,
+    }
+    if png:
+        body["image"] = "data:image/png;base64," + base64.b64encode(png).decode()
+    return web.json_response(body)
+
+
+async def body_of(request):
+    try:
+        return await request.json()
+    except Exception:
+        return {}
+
+
+def keycode(name):
+    return KEYS.get(str(name).strip().lower())
+
+
+async def api_key(request):
+    d = await body_of(request)
+    code = keycode(d.get("key", ""))
+    if not code:
+        return web.json_response({"ok": False, "error": "unknown key"}, status=400)
+    hold = int(d.get("hold", 4))
+    times = max(1, min(int(d.get("times", 1)), 100))
+    steps = []
+    for i in range(times):
+        steps.append((code, hold))
+        if i != times - 1:
+            steps.append(("wait", 0.08))
+    return await run_action(request, steps, str(d.get("key")))
+
+
+async def api_keys(request):
+    d = await body_of(request)
+    names = d.get("keys") or []
+    codes = [keycode(k) for k in names]
+    if not names or any(c is None for c in codes):
+        return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
+    hold = int(d.get("hold", 4))
+    steps = []
+    for i, c in enumerate(codes):
+        steps.append((c, hold))
+        if i != len(codes) - 1:
+            steps.append(("wait", 0.08))
+    return await run_action(request, steps, " ".join(map(str, names)))
+
+
+async def api_text(request):
+    d = await body_of(request)
+    text = str(d.get("text", ""))
+    if not text:
+        return web.json_response({"ok": False, "error": "text required"}, status=400)
+    steps = []
+    for ch in text:
+        c = keycode(ch)
+        if c:
+            steps.append((c, 3))
+            steps.append(("wait", 0.05))
+    return await run_action(request, steps, f"type {text!r}")
+
+
+async def api_wait(request):
+    d = await body_of(request)
+    ms = max(0, min(int(d.get("ms", 1000)), 60000))
+    return await run_action(request, [("wait", ms / 1000)], f"wait {ms}ms")
+
+
+async def api_state(request):
+    scale = max(1, min(6, int(request.query.get("scale", 2))))
+    png, w, h = snapshot(scale)
+    body = {"ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
+            "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h}
+    if png:
+        body["image"] = "data:image/png;base64," + base64.b64encode(png).decode()
+    return web.json_response(body)
+
+
+async def api_frame(request):
+    scale = max(1, min(6, int(request.query.get("scale", 2))))
+    png, _, _ = snapshot(scale)
+    if not png:
+        return web.json_response({"ok": False, "error": "no frame"}, status=503)
+    return web.Response(body=png, content_type="image/png")
+
+
+def base_url(request):
+    forwarded = request.headers.get("X-Forwarded-Proto")
+    scheme = forwarded or request.scheme
+    return f"{scheme}://{request.host}"
+
+
+async def api_help(request):
+    return web.Response(text=system_prompt(base_url(request)),
+                        content_type="text/plain", charset="utf-8")
+
+
 async def index(_request):
     return web.FileResponse(ROOT / "index.html")
 
@@ -176,6 +361,13 @@ def main():
         web.get("/", index),
         web.get("/ws", ws_handler),
         web.get("/status", status),
+        web.get("/api/state", api_state),
+        web.get("/api/frame.png", api_frame),
+        web.get("/api/help", api_help),
+        web.post("/api/key", api_key),
+        web.post("/api/keys", api_keys),
+        web.post("/api/text", api_text),
+        web.post("/api/wait", api_wait),
     ])
     # on_startup handlers are awaited, so the pump has to be detached as a task
     # rather than returned, or startup blocks on a loop that never ends.

@@ -46,6 +46,27 @@
     background: #1c1c22; border: 1px solid #33333d; border-bottom-width: 2px;
     border-radius: 3px; padding: 1px 5px; font-size: 11px; color: #b9b9c2;
   }
+  details {
+    width: min(100%, 900px); border: 1px solid #26262c; border-radius: 5px;
+    background: #101014;
+  }
+  summary {
+    cursor: pointer; padding: 11px 14px; color: #c9c9cf; font-size: 12px;
+    letter-spacing: .05em; list-style: none; display: flex;
+    align-items: center; justify-content: space-between; gap: 12px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary span.hint { color: #6c6c78; font-size: 11px; letter-spacing: 0; }
+  #promptbox { padding: 0 14px 14px; }
+  #prompt {
+    width: 100%; height: 260px; resize: vertical;
+    background: #08080a; color: #b6b6bf; border: 1px solid #26262c;
+    border-radius: 4px; padding: 10px; font: 11px/1.55 ui-monospace, Menlo, monospace;
+    white-space: pre; overflow: auto;
+  }
+  #promptbar { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  #copied { color: #64b47a; font-size: 11px; opacity: 0; transition: opacity .2s; }
+  #copied.on { opacity: 1; }
 </style>
 
 <h1>金庸群俠傳</h1>
@@ -70,6 +91,21 @@
     <button data-k="n">N</button>
   </div>
 </div>
+
+<details>
+  <summary>
+    <b>Let your own LLM play this</b>
+    <span class="hint">copy the prompt into your model's system prompt, no harness of ours needed</span>
+  </summary>
+  <div id="promptbox">
+    <textarea id="prompt" readonly spellcheck="false">loading…</textarea>
+    <div id="promptbar">
+      <button id="copy">Copy prompt</button>
+      <button id="open">Open as text</button>
+      <span id="copied">copied</span>
+    </div>
+  </div>
+</details>
 
 <div id="hud">
   click the screen, then use <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
@@ -175,6 +211,24 @@ for (const b of document.querySelectorAll("button[data-k]")) {
 }
 
 cv.addEventListener("click", () => cv.focus());
+
+// The prompt is generated server-side so the endpoints carry this exact host.
+const promptEl = document.getElementById("prompt");
+fetch("/api/help").then(r => r.text()).then(t => promptEl.value = t)
+  .catch(() => promptEl.value = "could not load /api/help");
+document.getElementById("copy").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(promptEl.value);
+  } catch {
+    promptEl.select();                    // clipboard API needs https or localhost
+    document.execCommand("copy");
+  }
+  const c = document.getElementById("copied");
+  c.classList.add("on");
+  setTimeout(() => c.classList.remove("on"), 1400);
+};
+document.getElementById("open").onclick = () => window.open("/api/help", "_blank");
+
 fit();
 connect();
 </script>

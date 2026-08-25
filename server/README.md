@@ -18,6 +18,19 @@ python3 -m venv .venv && .venv/bin/pip install aiohttp
 
 Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 
+## Endpoints
+
+- `/` browser client, WebSocket tile stream at `/ws`
+- `/api/help` the whole game briefing as flat text, with this host's URLs baked
+  in. The page shows it in a copy box so a user can paste it into their own
+  LLM's system prompt and play without any harness of ours.
+- `/api/state`, `/api/frame.png`, `/api/key`, `/api/keys`, `/api/text`,
+  `/api/wait` mirror the native runner: apply input, wait for the screen to
+  react and then settle, return the resulting PNG.
+
+PNGs are written by a ~10 line encoder over `zlib` rather than pulling in an
+image library.
+
 ## Why 26800 cycles
 
 Measured on the target VM: at 77000 cycles the core runs 1.75x faster than the

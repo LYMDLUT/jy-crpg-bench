@@ -98,6 +98,36 @@ int fb_encode_delta(uint8_t *out, int out_cap, int force_key) {
     return header + count * 2 + count * tilebytes;
 }
 
+/* Whole framebuffer as RGB, nearest-neighbour scaled. Used by the REST API,
+ * which hands agents a PNG rather than a tile delta. */
+int fb_snapshot(uint8_t *out, int cap, int scale, int *w_out, int *h_out) {
+    if (scale < 1) scale = 1;
+    if (scale > 6) scale = 6;
+    core_lock();
+    const int w = core_width(), h = core_height(), pitch = core_pitch();
+    const uint8_t *src = core_pixels();
+    if (w <= 0 || h <= 0 || !src) { core_unlock(); return -1; }
+    const int ow = w * scale, oh = h * scale;
+    if (cap < ow * oh * 3) { core_unlock(); return -1; }
+    for (int y = 0; y < h; y++) {
+        const uint32_t *row = (const uint32_t *)(src + (size_t)y * pitch);
+        for (int sy = 0; sy < scale; sy++) {
+            uint8_t *o = out + ((size_t)(y * scale + sy) * ow) * 3;
+            for (int x = 0; x < w; x++) {
+                const uint32_t p = row[x];
+                const uint8_t r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
+                for (int sx = 0; sx < scale; sx++) {
+                    *o++ = r; *o++ = g; *o++ = b;
+                }
+            }
+        }
+    }
+    core_unlock();
+    if (w_out) *w_out = ow;
+    if (h_out) *h_out = oh;
+    return ow * oh * 3;
+}
+
 void fb_reset(void) {
     free(g_prev);
     g_prev = NULL;
