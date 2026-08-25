@@ -30,10 +30,10 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 - `/api/history` the action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the
-  shared session side by side. Calls that return a frame also carry a 150px
-  WebP thumbnail (about 2 KB) of the resulting screen, so the panel reads as
-  a visual transcript of what an agent saw. Only the newest 40 entries keep
-  their image.
+  shared session side by side. Only the calls that explicitly ask to see the
+  screen, `/api/frame.png` and `/api/state`, carry a 150px WebP thumbnail
+  (about 2 KB). Attaching one to every keypress buried the log. Only the
+  newest 40 entries keep their image.
 
 PNGs are written by a ~10 line encoder over `zlib` rather than pulling in an
 image library.

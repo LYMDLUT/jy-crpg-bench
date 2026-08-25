@@ -291,7 +291,9 @@ async def run_action(request, steps, note, verb="KEY"):
             else:
                 await tap(kind, val)
         waited, changed = await settle(baseline)
-        log_action("api", verb, note, thumb=True)
+        # No thumbnail here: an image on every keypress buries the log. The
+        # screen is only pictured when something explicitly asks to see it.
+        log_action("api", verb, note)
     png, w, h = snapshot(scale)
     if request.query.get("format") == "png":
         return web.Response(body=png or b"", content_type="image/png")
