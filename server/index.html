@@ -291,7 +291,6 @@ function addLog(e) {
   else if (e.verb === "TEXT") tgt.textContent = JSON.stringify(e.target);
   else tgt.textContent = e.target + (e.detail ? " " + e.detail : "");
   if (!e.ok) row.style.color = "#ff6b6b";
-  const stuck = rows.scrollTop + rows.clientHeight >= rows.scrollHeight - 30;
   rows.appendChild(row);
   if (e.thumb) {
     const box = document.createElement("div");
@@ -300,11 +299,12 @@ function addLog(e) {
     img.src = e.thumb;
     img.title = "what the API returned";
     img.onclick = () => window.open(e.thumb, "_blank");
+    img.onload = () => { rows.scrollTop = rows.scrollHeight; };
     box.append(img);
     rows.appendChild(box);
   }
   while (rows.children.length > 400) rows.firstChild.remove();
-  if (stuck) rows.scrollTop = rows.scrollHeight;
+  rows.scrollTop = rows.scrollHeight;
   logcount.textContent = ++logged;
 }
 

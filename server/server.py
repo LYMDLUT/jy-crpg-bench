@@ -281,8 +281,12 @@ async def tap(code, hold_frames):
 
 
 async def run_action(request, steps, note, verb="KEY"):
-    """steps: list of (retrok, hold_frames) or ("wait", seconds)."""
-    scale = max(1, min(6, int(request.query.get("scale", 2))))
+    """steps: list of (retrok, hold_frames) or ("wait", seconds).
+
+    Deliberately does not return a screenshot. Encoding a PNG for every
+    keypress cost real CPU on a shared-core box and most of those images were
+    never looked at. Ask for /api/screen when you actually want to see.
+    """
     async with api_lock:
         baseline = LIB.core_frame_hash()
         for kind, val in steps:
@@ -291,21 +295,12 @@ async def run_action(request, steps, note, verb="KEY"):
             else:
                 await tap(kind, val)
         waited, changed = await settle(baseline)
-        # No thumbnail here: an image on every keypress buries the log. The
-        # screen is only pictured when something explicitly asks to see it.
         log_action("api", verb, note)
-    png, w, h = snapshot(scale)
-    if request.query.get("format") == "png":
-        return web.Response(body=png or b"", content_type="image/png")
-    body = {
+    return web.json_response({
         "ok": True, "action": note, "changed": changed,
         "width": LIB.core_width(), "height": LIB.core_height(),
         "frame": LIB.core_frame_serial(), "settled_frames": waited,
-        "image_width": w, "image_height": h,
-    }
-    if png:
-        body["image"] = "data:image/png;base64," + base64.b64encode(png).decode()
-    return web.json_response(body)
+    })
 
 
 async def body_of(request):

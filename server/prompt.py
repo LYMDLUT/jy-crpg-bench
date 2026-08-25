@@ -18,9 +18,13 @@ how you play it is up to you.
 
 ## The loop
 
-Every call applies your input, waits for the screen to settle, and returns a
-screenshot of the result. One call is one action and one observation. Look at
-the image before choosing the next action.
+Acting and looking are separate calls. A key press applies your input and waits
+for the screen to settle, but returns no picture; `GET /api/screen` returns one.
+So: act, then look when you need to see the result. Sending several keys and
+looking once at the end is fine and cheaper.
+
+`changed: false` in an action response means nothing visible happened, which is
+often enough to know without looking.
 
 The game is entirely in Traditional Chinese, and the text is where everything
 happens: objectives, choices, and prompts that expect a specific key.
@@ -34,9 +38,9 @@ happens: objectives, choices, and prompts that expect a specific key.
     POST {base}/api/wait  {{"ms":1000}}             let the game run
     GET  {base}/api/help                          this skill
 
-Responses are JSON with `image` (base64 PNG data URI) and `changed` (false
-means your action had no visible effect). Add `?format=png` for raw bytes,
-`?scale=1..6` to enlarge the 320x200 picture when glyphs are hard to read.
+Only `/api/screen` returns a picture: JSON with `image` (base64 PNG data URI),
+or `?format=png` for raw bytes, and `?scale=1..6` to enlarge the 320x200 image
+when glyphs are hard to read. Action calls return `changed` and `frame` only.
 
     curl -s -X POST {base}/api/key -H 'content-type: application/json' \\
          -d '{{"key":"enter"}}'
@@ -92,8 +96,11 @@ def _zh(base: str) -> str:
 
 ## 運作方式
 
-每次呼叫都會送出輸入、等畫面穩定，然後回傳結果的截圖。一次呼叫就是一個動作加
-一次觀察。決定下一步之前先看圖。
+「動作」和「看畫面」是分開的兩種呼叫。送按鍵會等畫面穩定，但不回傳圖片；
+要看畫面請用 `GET /api/screen`。所以：先動作，需要時再看。連送幾個按鍵、
+最後只看一次，這樣也可以，而且更省。
+
+動作回應中的 `changed: false` 代表沒有任何可見變化，通常不用看圖也能判斷。
 
 遊戲全是繁體中文，而所有事情都發生在文字裡：目標、選擇，以及等待特定按鍵的提問。
 
@@ -106,9 +113,9 @@ def _zh(base: str) -> str:
     POST {base}/api/wait  {{"ms":1000}}             讓遊戲自己跑一段時間
     GET  {base}/api/help                          本技能說明
 
-回應為 JSON，含 `image`（base64 PNG data URI）與 `changed`（false 代表這個動作
-沒有任何可見效果）。加 `?format=png` 可取得 PNG 位元組，加 `?scale=1..6` 可放大
-這張 320x200 的畫面，字看不清楚時很有用。
+只有 `/api/screen` 會回傳畫面：JSON 含 `image`（base64 PNG data URI），或加
+`?format=png` 取得 PNG 位元組，加 `?scale=1..6` 可放大這張 320x200 的畫面，
+字看不清楚時很有用。動作類的呼叫只回傳 `changed` 與 `frame`。
 
     curl -s -X POST {base}/api/key -H 'content-type: application/json' \\
          -d '{{"key":"enter"}}'
