@@ -34,6 +34,11 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 - `/api/key`, `/api/keys`, `/api/text`, `/api/wait` apply input and wait for
   the screen to react and then settle, but return no picture. Acting and
   looking are separate calls.
+- `POST /api/reset?token=...` hidden. Reboots the emulated machine back to the
+  title screen and wipes the activity log. Unlisted in `/api/help`, and 404s
+  without the token from `QUNXIA_RESET_TOKEN` rather than 403, so the path
+  cannot be confirmed by probing. Pauses the emulation thread first, since
+  `retro_reset` underneath a running `retro_run` is a race.
 - `/api/history` the action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the

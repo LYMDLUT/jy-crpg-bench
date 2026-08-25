@@ -40,6 +40,8 @@ LIB.core_last_error.restype = ctypes.c_char_p
 LIB.fb_encode_delta.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 LIB.fb_encode_delta.restype = ctypes.c_int
 LIB.core_frame_hash.restype = ctypes.c_uint64
+LIB.core_reset.restype = None
+LIB.fb_reset.restype = None
 LIB.fb_snapshot.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
                             ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
 LIB.fb_snapshot.restype = ctypes.c_int
@@ -72,6 +74,8 @@ for _k, _v in {";": 59, "'": 39, ",": 44, ".": 46, "/": 47, "-": 45, "=": 61,
 # Native resolution only, so the largest frame the core produces is 640x400.
 SNAP = ctypes.create_string_buffer(640 * 400 * 3 + 4096)
 api_lock = asyncio.Lock()     # one action at a time; the game is single-player
+paused = threading.Event()    # held while the core is rebooted, so retro_reset
+                              # is never called underneath a running retro_run
 
 clients: set[web.WebSocketResponse] = set()
 stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0}
@@ -137,6 +141,10 @@ def emulate():
     budget = 1.0 / max(1.0, LIB.core_fps())
     nxt = time.perf_counter()
     while True:
+        if paused.is_set():
+            time.sleep(0.02)
+            nxt = time.perf_counter()
+            continue
         LIB.core_run_frame()
         stats["frames"] += 1
         nxt += budget
@@ -221,13 +229,12 @@ async def ws_handler(request):
     return ws
 
 
-def snapshot(fmt="webp"):
+def snapshot(fmt="png"):
     """The screen at native size.
 
-    WebP lossless by default: measured on a real dialogue frame it is 40% the
-    size of PNG with zero loss, while JPEG at comparable quality was both
-    larger and lossy, which mangles 8-pixel Chinese glyphs. PNG stays available
-    for clients that cannot decode WebP.
+    PNG by default: WebP is smaller and equally lossless, but PNG is what
+    vision stacks handle most reliably, and being read correctly matters more
+    here than the bytes. ?format=webp is there when size does matter.
     """
     w = ctypes.c_int(0)
     h = ctypes.c_int(0)
@@ -236,12 +243,12 @@ def snapshot(fmt="webp"):
         return None, 0, 0, ""
     img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n])
     out = io.BytesIO()
-    if fmt == "png":
-        img.save(out, "PNG", optimize=True)
-        mime = "image/png"
-    else:
+    if fmt == "webp":
         img.save(out, "WEBP", lossless=True, method=4)
         mime = "image/webp"
+    else:
+        img.save(out, "PNG", optimize=True)
+        mime = "image/png"
     return out.getvalue(), w.value, h.value, mime
 
 
@@ -369,7 +376,7 @@ async def api_screen(request):
     """The only way to look at the screen. JSON, or ?format=png|webp for bytes."""
     fmt = request.query.get("format", "")
     log_action("api", "GET", "screen", thumb=True)
-    data, w, h, mime = snapshot("png" if fmt == "png" else "webp")
+    data, w, h, mime = snapshot("webp" if fmt == "webp" else "png")
     if not data:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
     if fmt in ("png", "webp"):
@@ -385,6 +392,38 @@ def base_url(request):
     forwarded = request.headers.get("X-Forwarded-Proto")
     scheme = forwarded or request.scheme
     return f"{scheme}://{request.host}"
+
+
+async def api_reset(request):
+    """Hidden. Reboots the emulated machine back to the title screen and wipes
+    the activity log. Unlisted in /api/help and 404s unless the token matches,
+    so a visitor who stumbles on the path cannot wipe someone's game."""
+    want = os.environ.get("QUNXIA_RESET_TOKEN")
+    got = request.query.get("token") or request.headers.get("X-Reset-Token")
+    if not want or got != want:
+        raise web.HTTPNotFound()
+
+    async with api_lock:
+        paused.set()
+        await asyncio.sleep(0.1)          # let the in-flight frame finish
+        try:
+            LIB.core_release_all_keys()
+            LIB.core_reset()
+            LIB.fb_reset()
+        finally:
+            paused.clear()
+        history.clear()
+        _seq[0] = 0
+        await asyncio.sleep(1.5)          # give the machine a moment to start booting
+
+    for ws in list(clients):
+        try:
+            await ws.send_str(json.dumps({"t": "clear"}))
+            await send_keyframe(ws)
+        except Exception:
+            clients.discard(ws)
+    log_action("api", "RESET", "rebooted to title screen")
+    return web.json_response({"ok": True, "reset": True})
 
 
 async def api_history(_request):
@@ -434,6 +473,7 @@ def main():
         web.get("/api/screen", api_screen),
         web.get("/api/help", api_help),
         web.get("/api/history", api_history),
+        web.post("/api/reset", api_reset),
         web.post("/api/key", api_key),
         web.post("/api/keys", api_keys),
         web.post("/api/text", api_text),

@@ -229,6 +229,7 @@ function connect() {
     if (typeof e.data === "string") {
       const m = JSON.parse(e.data);
       if (m.t === "log") m.e.forEach(addLog);
+      else if (m.t === "clear") clearLog();
     } else {
       onFrame(e.data);
     }
@@ -267,6 +268,13 @@ function keySpans(text) {
     out.append(s);
   }
   return out;
+}
+
+function clearLog() {
+  rows.textContent = "";
+  lastId = 0;                 // ids restart after a reset, so the dedupe must too
+  logged = 0;
+  logcount.textContent = "";
 }
 
 function addLog(e) {
