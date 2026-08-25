@@ -9,6 +9,7 @@ import asyncio
 import base64
 import collections
 import ctypes
+import io
 import json
 import os
 import pathlib
@@ -18,6 +19,7 @@ import time
 import zlib
 
 from aiohttp import WSMsgType, web
+from PIL import Image
 
 from prompt import system_prompt
 
@@ -78,12 +80,37 @@ stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0}
 # what. The game is shared, so this doubles as "why did the screen just move".
 history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
+THUMB_W = 150
+THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
 
-def log_action(src, verb, target, detail="", ok=True):
+def make_thumb():
+    """Small WebP of the current screen, for the activity panel."""
+    w = ctypes.c_int(0)
+    h = ctypes.c_int(0)
+    n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
+    if n <= 0:
+        return None
+    img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n])
+    img = img.resize((THUMB_W, max(1, round(THUMB_W * h.value / w.value))), Image.NEAREST)
+    out = io.BytesIO()
+    img.save(out, "WEBP", quality=72, method=0)
+    return "data:image/webp;base64," + base64.b64encode(out.getvalue()).decode()
+
+
+def log_action(src, verb, target, detail="", ok=True, thumb=False):
     _seq[0] += 1
     entry = {"id": _seq[0], "at": time.time(), "src": src, "verb": verb,
              "target": str(target)[:60], "detail": str(detail)[:60], "ok": ok}
+    if thumb:
+        try:
+            entry["thumb"] = make_thumb()
+        except Exception:
+            pass
+        # drop images from older entries so the buffer stays small
+        withimg = [e for e in history if e.get("thumb")]
+        for e in withimg[:max(0, len(withimg) - THUMB_KEEP + 1)]:
+            e.pop("thumb", None)
     history.append(entry)
     try:
         asyncio.get_running_loop()
@@ -256,7 +283,6 @@ async def tap(code, hold_frames):
 async def run_action(request, steps, note, verb="KEY"):
     """steps: list of (retrok, hold_frames) or ("wait", seconds)."""
     scale = max(1, min(6, int(request.query.get("scale", 2))))
-    log_action("api", verb, note)
     async with api_lock:
         baseline = LIB.core_frame_hash()
         for kind, val in steps:
@@ -265,6 +291,7 @@ async def run_action(request, steps, note, verb="KEY"):
             else:
                 await tap(kind, val)
         waited, changed = await settle(baseline)
+        log_action("api", verb, note, thumb=True)
     png, w, h = snapshot(scale)
     if request.query.get("format") == "png":
         return web.Response(body=png or b"", content_type="image/png")
@@ -342,7 +369,7 @@ async def api_wait(request):
 
 async def api_state(request):
     scale = max(1, min(6, int(request.query.get("scale", 2))))
-    log_action("api", "GET", "state")
+    log_action("api", "GET", "state", thumb=True)
     png, w, h = snapshot(scale)
     body = {"ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
             "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h}
@@ -353,7 +380,7 @@ async def api_state(request):
 
 async def api_frame(request):
     scale = max(1, min(6, int(request.query.get("scale", 2))))
-    log_action("api", "GET", "frame.png")
+    log_action("api", "GET", "frame.png", thumb=True)
     png, _, _ = snapshot(scale)
     if not png:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
