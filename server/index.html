@@ -1,0 +1,180 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>金庸群俠傳</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0b0b0d; color: #e8e8ea;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; gap: 14px; padding: 18px 12px 28px;
+  }
+  h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .12em; color: #c9c9cf; }
+  #wrap { position: relative; line-height: 0; }
+  canvas {
+    image-rendering: pixelated;
+    background: #000;
+    border: 1px solid #26262c;
+    border-radius: 3px;
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+  #veil {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    background: #000c; font-size: 12px; letter-spacing: .1em; border-radius: 3px;
+  }
+  #veil.gone { display: none; }
+  #pad { display: grid; grid-template-columns: repeat(3, 46px); gap: 6px; }
+  #pad [data-k=up]    { grid-area: 1 / 2; }
+  #pad [data-k=left]  { grid-area: 2 / 1; }
+  #pad [data-k=down]  { grid-area: 2 / 2; }
+  #pad [data-k=right] { grid-area: 2 / 3; }
+  button {
+    background: #17171b; color: #d8d8dd; border: 1px solid #2e2e36;
+    border-radius: 5px; padding: 9px 0; font: inherit; cursor: pointer;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  button:active { background: #2a2a33; border-color: #4a4a58; }
+  #keys { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 380px; }
+  #keys button { padding: 9px 13px; }
+  .row { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  #hud { color: #6c6c78; font-size: 11px; letter-spacing: .04em; text-align: center; }
+  kbd {
+    background: #1c1c22; border: 1px solid #33333d; border-bottom-width: 2px;
+    border-radius: 3px; padding: 1px 5px; font-size: 11px; color: #b9b9c2;
+  }
+</style>
+
+<h1>金庸群俠傳</h1>
+
+<div id="wrap">
+  <canvas id="screen" width="320" height="200"></canvas>
+  <div id="veil">connecting…</div>
+</div>
+
+<div class="row">
+  <div id="pad">
+    <button data-k="up">↑</button>
+    <button data-k="left">←</button>
+    <button data-k="down">↓</button>
+    <button data-k="right">→</button>
+  </div>
+  <div id="keys">
+    <button data-k="enter">Enter 確定</button>
+    <button data-k="space">Space</button>
+    <button data-k="esc">Esc 選單</button>
+    <button data-k="y">Y</button>
+    <button data-k="n">N</button>
+  </div>
+</div>
+
+<div id="hud">
+  click the screen, then use <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
+  <kbd>Enter</kbd> <kbd>Esc</kbd> <kbd>Y</kbd> <kbd>N</kbd>
+  <span id="stat"></span>
+</div>
+
+<script>
+const cv = document.getElementById("screen");
+const ctx = cv.getContext("2d", { alpha: false });
+const veil = document.getElementById("veil");
+const stat = document.getElementById("stat");
+let sock, tileImg = null, got = 0, bytes = 0;
+
+function fit() {
+  // integer-scale the 320x200 picture to whatever the viewport allows
+  const k = Math.max(1, Math.min(Math.floor((window.innerWidth - 40) / cv.width),
+                                 Math.floor((window.innerHeight - 260) / cv.height)));
+  cv.style.width = cv.width * k + "px";
+}
+addEventListener("resize", fit);
+
+async function inflate(buf) {
+  const s = new Blob([buf]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+async function onFrame(raw) {
+  const d = await inflate(raw);
+  const dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
+  const w = dv.getUint16(1, true), h = dv.getUint16(3, true);
+  const tw = d[5], th = d[6];
+  const cols = dv.getUint16(7, true);
+  const count = dv.getUint16(11, true);
+
+  if (cv.width !== w || cv.height !== h) {
+    cv.width = w; cv.height = h; fit();
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+  }
+  if (!tileImg || tileImg.width !== tw || tileImg.height !== th) {
+    tileImg = ctx.createImageData(tw, th);
+  }
+
+  const idxOff = 13, dataOff = idxOff + count * 2, tileLen = tw * th * 3;
+  const px = tileImg.data;
+  for (let i = 0; i < count; i++) {
+    const t = dv.getUint16(idxOff + i * 2, true);
+    let s = dataOff + i * tileLen;
+    for (let p = 0; p < tw * th; p++) {
+      px[p * 4] = d[s++]; px[p * 4 + 1] = d[s++]; px[p * 4 + 2] = d[s++]; px[p * 4 + 3] = 255;
+    }
+    ctx.putImageData(tileImg, (t % cols) * tw, Math.floor(t / cols) * th);
+  }
+  got++; bytes += raw.byteLength;
+  stat.textContent = ` · ${w}×${h} · ${count} tiles, ${(raw.byteLength / 1024).toFixed(1)} KB`
+                   + ` · ${(bytes / 1024).toFixed(0)} KB total`;
+  veil.classList.add("gone");
+}
+
+function connect() {
+  sock = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  sock.binaryType = "arraybuffer";
+  sock.onmessage = e => onFrame(e.data);
+  sock.onopen = () => veil.textContent = "waiting for the first frame…";
+  sock.onclose = () => {
+    veil.textContent = "disconnected, retrying…";
+    veil.classList.remove("gone");
+    setTimeout(connect, 1500);
+  };
+}
+
+const send = o => sock?.readyState === 1 && sock.send(JSON.stringify(o));
+
+const MAP = {
+  ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+  Enter: "enter", Escape: "esc", " ": "space", Backspace: "backspace", Tab: "tab",
+};
+const held = new Set();
+addEventListener("keydown", e => {
+  const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
+  if (!k) return;
+  e.preventDefault();
+  if (held.has(k)) return;          // ignore auto-repeat, the game does its own
+  held.add(k);
+  send({ t: "key", k, down: true });
+});
+addEventListener("keyup", e => {
+  const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
+  if (!k) return;
+  e.preventDefault();
+  held.delete(k);
+  send({ t: "key", k, down: false });
+});
+
+for (const b of document.querySelectorAll("button[data-k]")) {
+  const k = b.dataset.k;
+  const down = e => { e.preventDefault(); send({ t: "key", k, down: true }); };
+  const up = e => { e.preventDefault(); send({ t: "key", k, down: false }); };
+  b.addEventListener("pointerdown", down);
+  b.addEventListener("pointerup", up);
+  b.addEventListener("pointerleave", up);
+  b.addEventListener("pointercancel", up);
+}
+
+cv.addEventListener("click", () => cv.focus());
+fit();
+connect();
+</script>
