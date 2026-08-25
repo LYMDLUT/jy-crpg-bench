@@ -38,9 +38,17 @@ happens: objectives, choices, and prompts that expect a specific key.
     POST {base}/api/wait  {{"ms":1000}}             let the game run
     GET  {base}/api/help                          this skill
 
-Only `/api/screen` returns a picture: JSON with `image` (base64 PNG data URI),
-or `?format=png` for raw bytes. It is the screen at its native size, normally
-320x200. Action calls return `changed` and `frame` only.
+Only `/api/screen` returns a picture: JSON with `image`, a base64 WebP data URI
+(add `?format=png` if your client cannot decode WebP). Action calls return
+`changed` and `frame` only.
+
+**The picture is small.** It is the raw VGA framebuffer, normally 320x200, and
+it is pixel art: a line of dialogue is about 16 pixels tall and a character on
+the map is a couple of dozen pixels. Read it as a scene, not as a coordinate
+system. Judge things relatively, "the door is below and left of the table",
+"the sprite is two tiles above me". Do not reason about exact pixel positions
+or try to derive tile coordinates from them, and expect your own client to have
+rescaled the image before you ever see it.
 
     curl -s -X POST {base}/api/key -H 'content-type: application/json' \\
          -d '{{"key":"enter"}}'
@@ -113,9 +121,14 @@ def _zh(base: str) -> str:
     POST {base}/api/wait  {{"ms":1000}}             讓遊戲自己跑一段時間
     GET  {base}/api/help                          本技能說明
 
-只有 `/api/screen` 會回傳畫面：JSON 含 `image`（base64 PNG data URI），或加
-`?format=png` 取得 PNG 位元組。回傳的是畫面的原始大小，通常是 320x200。
-動作類的呼叫只回傳 `changed` 與 `frame`。
+只有 `/api/screen` 會回傳畫面：JSON 含 `image`，是 base64 的 WebP data URI
+（若你的客戶端無法解 WebP，可加 `?format=png`）。動作類的呼叫只回傳
+`changed` 與 `frame`。
+
+**畫面很小。** 那是原始的 VGA 畫面，通常 320x200，而且是點陣圖：一行對話大約
+16 像素高，地圖上的人物也不過幾十像素。請把它當成一個場景來看，不要當成座標系。
+用相對關係判斷，例如「門在桌子的左下方」「那個角色在我上面兩格」。不要推算精確的
+像素座標或由此換算格子座標，也要預期你的客戶端在你看到之前已經縮放過這張圖。
 
     curl -s -X POST {base}/api/key -H 'content-type: application/json' \\
          -d '{{"key":"enter"}}'

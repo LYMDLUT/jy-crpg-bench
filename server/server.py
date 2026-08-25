@@ -13,7 +13,6 @@ import io
 import json
 import os
 import pathlib
-import struct
 import threading
 import time
 import zlib
@@ -222,29 +221,28 @@ async def ws_handler(request):
     return ws
 
 
-def encode_png(w, h, rgb):
-    """Minimal PNG writer: avoids pulling in an image library for one job."""
-    raw = b"".join(b"\x00" + rgb[y * w * 3:(y + 1) * w * 3] for y in range(h))
+def snapshot(fmt="webp"):
+    """The screen at native size.
 
-    def chunk(tag, data):
-        body = tag + data
-        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
-
-    return (b"\x89PNG\r\n\x1a\n"
-            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(raw, 6))
-            + chunk(b"IEND", b""))
-
-
-def snapshot():
-    """The screen at its native size. No scaling: the client can zoom, and
-    upscaling here only made a bigger PNG out of the same pixels."""
+    WebP lossless by default: measured on a real dialogue frame it is 40% the
+    size of PNG with zero loss, while JPEG at comparable quality was both
+    larger and lossy, which mangles 8-pixel Chinese glyphs. PNG stays available
+    for clients that cannot decode WebP.
+    """
     w = ctypes.c_int(0)
     h = ctypes.c_int(0)
     n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
     if n <= 0:
-        return None, 0, 0
-    return encode_png(w.value, h.value, SNAP.raw[:n]), w.value, h.value
+        return None, 0, 0, ""
+    img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n])
+    out = io.BytesIO()
+    if fmt == "png":
+        img.save(out, "PNG", optimize=True)
+        mime = "image/png"
+    else:
+        img.save(out, "WEBP", lossless=True, method=4)
+        mime = "image/webp"
+    return out.getvalue(), w.value, h.value, mime
 
 
 async def settle(baseline, react=30, stable=9, maxframes=150):
@@ -368,17 +366,18 @@ async def api_wait(request):
 
 
 async def api_screen(request):
-    """The only way to look at the screen. JSON by default, ?format=png for bytes."""
+    """The only way to look at the screen. JSON, or ?format=png|webp for bytes."""
+    fmt = request.query.get("format", "")
     log_action("api", "GET", "screen", thumb=True)
-    png, w, h = snapshot()
-    if not png:
+    data, w, h, mime = snapshot("png" if fmt == "png" else "webp")
+    if not data:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
-    if request.query.get("format") == "png":
-        return web.Response(body=png, content_type="image/png")
+    if fmt in ("png", "webp"):
+        return web.Response(body=data, content_type=mime)
     return web.json_response({
         "ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
         "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h,
-        "image": "data:image/png;base64," + base64.b64encode(png).decode(),
+        "image": f"data:{mime};base64," + base64.b64encode(data).decode(),
     })
 
 
