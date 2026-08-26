@@ -1,10 +1,61 @@
-# QunXia
+# jy-crpg-bench
 
-The original 1996 DOS game 金庸群俠傳 (河洛工作室), running unmodified, with an
-HTTP interface so a person or an LLM can play it. Two runners share one control
-API and one key vocabulary: a native macOS app that presents the VGA
-framebuffer through Metal, and a headless Linux server that streams it to a
-browser. The game binary is untouched. DOSBox Pure emulates the PC.
+> 「你們這些人都是這樣的，自以為厲害，都不看說明書。」
+> "You people are all alike. You think you are clever, and you never read the manual."
+> The game says this to you in the first five minutes.
+
+A long-horizon benchmark for frontier agents, built on an unmodified 1996 wuxia
+CRPG. An agent is given raw 320×200 frames, a key vocabulary, and one page of
+objectives, then left to find twelve books in an open world it has never seen.
+
+| | |
+|---|---|
+| Environment | 金庸群俠傳 (河洛工作室, 1996), DOS, unmodified binary |
+| Observation | raw VGA frames, 320×200, Traditional Chinese text |
+| Action | 16 keys, isometric movement on four diagonal axes |
+| Horizon | open world, no fixed episode length |
+| Objective | recover twelve books and return to the present |
+| Interfaces | HTTP, MCP, built-in pi harness, browser |
+| Runners | native macOS (Metal), headless Linux (browser stream) |
+
+## Motivation
+
+Frontier models score well on coding and mathematics while remaining weak at
+what a twelve-year-old does without thinking: reading a scene, holding a map in
+mind, and pursuing a goal across hours of unfamiliar terrain. Games expose that
+gap directly, which is why BALROG evaluates agentic reasoning on reinforcement
+learning environments, and VideoGameBench asks vision-language models to
+complete 1990s titles from raw pixels alone. Both report frontier models
+failing near the beginning of their games.
+
+This environment adds four properties those suites do not combine.
+
+**Long-horizon open world.** A CRPG has no level to clear. Progress comes from
+recruiting characters, learning martial arts, and locating twelve books spread
+across a large map, so an episode is measured in hours and the reward signal is
+whatever the agent can infer from dialogue.
+
+**Reading is the task.** Every objective, refusal and branch is delivered as
+Traditional Chinese prose rendered at roughly sixteen pixels a line. Perception
+and language comprehension cannot be separated here, and character naming runs
+through the 注音 input method, so even starting the game requires understanding
+a mechanism rather than pressing a key.
+
+**Isometric spatial reasoning.** The four movement axes are diagonals on
+screen, the camera stays centred on the player, and no key moves straight in
+any screen direction. An agent that reasons in screen coordinates walks in
+circles, which is the dominant observed failure.
+
+**Minimal scaffolding.** The agent receives frames and a key list. There is no
+accessibility tree, no game state dump, no reward shaping and no walkthrough.
+The briefing in `skills/` teaches the controls and the mechanics that are not
+discoverable by pressing keys, and stops there.
+
+Two runners share one control API and one key vocabulary: a native macOS app
+that presents the framebuffer through Metal, and a headless Linux server that
+streams it to a browser. The game binary is untouched. DOSBox Pure emulates the
+PC, and the emulator runs continuously, so the environment does not pause while
+a model thinks.
 
 ![Native macOS runner](docs/native.png)
 
@@ -20,8 +71,8 @@ panel shows a human and an agent acting on the same session.
 ## Running it
 
 ```sh
-git clone https://github.com/hanxiao/jy-metal.git
-cd jy-metal
+git clone https://github.com/hanxiao/jy-crpg-bench.git
+cd jy-crpg-bench
 ./Scripts/run.sh
 ```
 
@@ -225,4 +276,22 @@ Cores/               dosbox_pure_libretro.dylib
 saves/               emulator snapshots
 ```
 
-DOSBox Pure is GPLv2, from `schellingb/dosbox-pure` at `7f6e8fb`.
+## Licensing
+
+Three different things live in this repository and they are not under one
+licence.
+
+**The code written here** (`Sources/`, `server/`, `mcp-server/`, `pi-agent/`,
+`Scripts/`, `skills/`) is MIT, in `LICENSE`.
+
+**DOSBox Pure** (`Cores/dosbox_pure_libretro.dylib`) is GPLv2, built from
+`schellingb/dosbox-pure` at `7f6e8fb`. It is loaded at runtime through the
+libretro C API and is redistributed here unmodified. Source is available from
+upstream.
+
+**The game data** (`assets/game-data.tar.gz`) is the 1996 commercial release,
+copyright 智冠科技 and 河洛工作室. It is not licensed for redistribution and it
+is not ours to relicense. It is bundled here only so a private checkout
+reproduces the environment. Before this repository is made public the archive
+must be removed from the working tree and from history, and `Scripts/run.sh`
+pointed at a copy the user supplies.
