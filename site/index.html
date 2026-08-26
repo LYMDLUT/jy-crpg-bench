@@ -232,7 +232,7 @@
       <span>复制</span>
     </button>
   </div>
-  <div class="rules"><div title="每局时长"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.4V8l2.4 1.6"/><circle cx="8" cy="8" r="6"/></svg><b>20:00</b></div><div title="无动作即结束"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2h7M4.5 14h7M5.5 2v2.4L8 7l2.5-2.6V2M5.5 14v-2.4L8 9l2.5 2.6V14"/></svg><b>10:00</b></div><div title="每个 agent 一台机器"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="4.2" rx="1"/><rect x="2" y="8.8" width="12" height="4.2" rx="1"/><path d="M4.4 5.1h.01M4.4 10.9h.01"/></svg><b>1</b></div><div title="游戏逻辑改动"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 3 8l3 5M10 3l3 5-3 5"/></svg><b>0</b></div></div>
+  <div class="rules" id="stats"><div title="正在进行"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8h3l2-4.5L9 12.5l2-4.5h3.5"/></svg><b data-s="0">-</b></div><div title="已完成"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="3.5" width="12.4" height="9" rx="1.4"/><path d="M6.5 6.4v3.2l3-1.6z"/></svg><b data-s="1">-</b></div><div title="模型"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="7" height="7" rx="1"/><path d="M6.6 1.8v2.7M9.4 1.8v2.7M6.6 11.5v2.7M9.4 11.5v2.7M1.8 6.6h2.7M1.8 9.4h2.7M11.5 6.6h2.7M11.5 9.4h2.7"/></svg><b data-s="2">-</b></div><div title="累计游玩"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.4V8l2.4 1.6"/></svg><b data-s="3">-</b></div></div>
 </header>
 
 <div class="bar">
@@ -303,7 +303,7 @@
 </div>
 
 <script>
-const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "stats": ["正在进行", "已完成", "模型", "累计游玩"], "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
@@ -380,6 +380,24 @@ const seen = new IntersectionObserver(es => es.forEach(e => {
 
 let runs = [], view = "grid", sort = "started", desc = true;
 
+// The four numbers under the copy box. All derived, none hardcoded, redrawn on
+// both the catalogue poll and the five second live poll.
+function drawStats() {
+  const secs = runs.reduce((a, r) => a + (r.played || 0), 0);
+  const dur = secs >= 3600 ? (secs / 3600).toFixed(1) + "h"
+            : secs >= 60 ? Math.round(secs / 60) + "m" : secs + "s";
+  const vals = [live.length, runs.length,
+                new Set(runs.map(r => r.agent)).size, dur];
+  document.querySelectorAll("#stats b[data-s]").forEach(b => {
+    b.textContent = vals[+b.dataset.s];
+  });
+  const cell = document.querySelector("#stats div");
+  const dot = cell.querySelector(".pulse");
+  if (live.length && !dot) cell.insertAdjacentHTML("beforeend",
+    '<span class="pulse" style="margin-left:2px"></span>');
+  else if (!live.length && dot) dot.remove();
+}
+
 function sorted() {
   return [...runs].sort((a, b) => {
     const x = a[sort], y = b[sort], bad = v => v == null || v === "";
@@ -438,6 +456,7 @@ async function load() {
     runs = Array.isArray(data) ? data : (data.runs || []);
     document.getElementById("count").textContent =
       runs.length + " " + (runs.length === 1 ? T.run1 : T.runs);
+    drawStats();
     render();
   } catch (e) {
     if (!runs.length) {
@@ -514,6 +533,7 @@ async function pollLive() {
     live = d.running || [];
   } catch { live = []; }
   drawLive();
+  drawStats();
   if (watchId) {
     const s = live.find(x => x.id === watchId);
     $("wleft").textContent = s ? `${T.left} ${mmss(s.remaining)}` : T.over;

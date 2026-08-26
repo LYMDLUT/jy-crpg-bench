@@ -20,8 +20,7 @@ ZH = {
     "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。",
     "view": "查看", "raw": "原始档",
     "copy": "复制", "copied": "已复制",
-    "rules": [("20:00", "每局时长"), ("10:00", "无动作即结束"),
-              ("1", "每个 agent 一台机器"), ("0", "游戏逻辑改动")],
+    "stats": ["正在进行", "已完成", "模型", "累计游玩"],
     "sort": "排序", "runs": "局", "run1": "局",
     "loading": "载入中", "empty": "还没有记录", "gone": "读不到记录",
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
@@ -47,8 +46,7 @@ EN = {
     "oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it.",
     "view": "view", "raw": "raw",
     "copy": "copy", "copied": "copied",
-    "rules": [("20:00", "per run"), ("10:00", "silence ends it"),
-              ("1", "machine per agent"), ("0", "lines of game logic changed")],
+    "stats": ["live", "runs", "models", "played"],
     "sort": "sort", "runs": "runs", "run1": "run",
     "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
@@ -298,7 +296,7 @@ TEMPLATE = r"""<!doctype html>
       <span>{copy}</span>
     </button>
   </div>
-  <div class="rules">{rules}</div>
+  <div class="rules" id="stats">{stats_skeleton}</div>
 </header>
 
 <div class="bar">
@@ -446,6 +444,24 @@ const seen = new IntersectionObserver(es => es.forEach(e => {{
 
 let runs = [], view = "grid", sort = "started", desc = true;
 
+// The four numbers under the copy box. All derived, none hardcoded, redrawn on
+// both the catalogue poll and the five second live poll.
+function drawStats() {{
+  const secs = runs.reduce((a, r) => a + (r.played || 0), 0);
+  const dur = secs >= 3600 ? (secs / 3600).toFixed(1) + "h"
+            : secs >= 60 ? Math.round(secs / 60) + "m" : secs + "s";
+  const vals = [live.length, runs.length,
+                new Set(runs.map(r => r.agent)).size, dur];
+  document.querySelectorAll("#stats b[data-s]").forEach(b => {{
+    b.textContent = vals[+b.dataset.s];
+  }});
+  const cell = document.querySelector("#stats div");
+  const dot = cell.querySelector(".pulse");
+  if (live.length && !dot) cell.insertAdjacentHTML("beforeend",
+    '<span class="pulse" style="margin-left:2px"></span>');
+  else if (!live.length && dot) dot.remove();
+}}
+
 function sorted() {{
   return [...runs].sort((a, b) => {{
     const x = a[sort], y = b[sort], bad = v => v == null || v === "";
@@ -504,6 +520,7 @@ async function load() {{
     runs = Array.isArray(data) ? data : (data.runs || []);
     document.getElementById("count").textContent =
       runs.length + " " + (runs.length === 1 ? T.run1 : T.runs);
+    drawStats();
     render();
   }} catch (e) {{
     if (!runs.length) {{
@@ -580,6 +597,7 @@ async function pollLive() {{
     live = d.running || [];
   }} catch {{ live = []; }}
   drawLive();
+  drawStats();
   if (watchId) {{
     const s = live.find(x => x.id === watchId);
     $("wleft").textContent = s ? `${{T.left}} ${{mmss(s.remaining)}}` : T.over;
@@ -726,18 +744,22 @@ else if (q.get("doc")) showDoc(false);
 
 
 def build(s):
+    # drawn empty and filled in from the catalogue, so nothing here is a
+    # number somebody has to remember to update
     icons = [
-        '<path d="M8 4.4V8l2.4 1.6"/><circle cx="8" cy="8" r="6"/>',
-        '<path d="M4.5 2h7M4.5 14h7M5.5 2v2.4L8 7l2.5-2.6V2M5.5 14v-2.4L8 9l2.5 2.6V14"/>',
-        '<rect x="2" y="3" width="12" height="4.2" rx="1"/>'
-        '<rect x="2" y="8.8" width="12" height="4.2" rx="1"/><path d="M4.4 5.1h.01M4.4 10.9h.01"/>',
-        '<path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>',
+        '<path d="M1.5 8h3l2-4.5L9 12.5l2-4.5h3.5"/>',                 # live
+        '<rect x="1.8" y="3.5" width="12.4" height="9" rx="1.4"/>'
+        '<path d="M6.5 6.4v3.2l3-1.6z"/>',                              # runs
+        '<rect x="4.5" y="4.5" width="7" height="7" rx="1"/>'
+        '<path d="M6.6 1.8v2.7M9.4 1.8v2.7M6.6 11.5v2.7M9.4 11.5v2.7'
+        'M1.8 6.6h2.7M1.8 9.4h2.7M11.5 6.6h2.7M11.5 9.4h2.7"/>',        # models
+        '<circle cx="8" cy="8" r="6"/><path d="M8 4.4V8l2.4 1.6"/>',    # played
     ]
-    rules = "".join(
+    skeleton = "".join(
         f'<div title="{w}"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"'
         f' stroke="currentColor" stroke-width="1.35" stroke-linecap="round"'
-        f' stroke-linejoin="round">{ic}</svg><b>{n}</b></div>'
-        for (n, w), ic in zip(s["rules"], icons))
+        f' stroke-linejoin="round">{ic}</svg><b data-s="{i}">-</b></div>'
+        for i, (w, ic) in enumerate(zip(s["stats"], icons)))
     # everything the script reads at runtime; missing a key here shows up as a
     # literal "undefined" in the page, so it is derived rather than hand listed
     skip = {"lang", "other", "other_href", "home", "url", "locale", "locale_alt",
@@ -745,7 +767,7 @@ def build(s):
             "grid", "list"}
     strings = {k: v for k, v in s.items() if k not in skip}
     # each language ships its own brief alongside its page
-    fields = dict(s, rules=rules, md="agents.md",
+    fields = dict(s, stats_skeleton=skeleton, md="agents.md",
                   strings=repr(strings).replace("'", '"'))
     return TEMPLATE.format(**fields)
 
