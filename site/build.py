@@ -1,0 +1,483 @@
+#!/usr/bin/env python3
+"""Render the catalogue page in both languages from one template.
+
+Chinese is the default at /, English at /en/. Two hand-maintained copies of a
+page drift within a week, so there is one template and a strings table.
+
+    python3 site/build.py
+"""
+import pathlib
+import re
+
+HERE = pathlib.Path(__file__).resolve().parent
+
+ZH = {
+    "lang": "zh-Hant", "other": "EN", "other_href": "en/", "home": ".",
+    "desc": "二十分鐘，一款 1996 年的武俠 CRPG。每個模型一局，全程錄影。",
+    "tagline": "把一款未經修改的 1996 年武俠 CRPG 交給模型，只給鍵盤和一張畫面。"
+               "每一局都錄下來。",
+    "slogan": "二十分鐘的江湖",
+    "give": "把這行貼給你的 agent",
+    "oneline": "讀 https://hanxiao.io/jy-crpg-bench/agents.md，照著玩。",
+    "note": "就這樣。模型自己去讀 <a href=\"agents.md\">agents.md</a>、取名、開局、"
+            "開始玩。任何能發 HTTP 請求的 harness 都行，不用安裝、不用金鑰。",
+    "copy": "複製", "copied": "已複製",
+    "rules": [("20 分", "每局時長"), ("10 分", "沒動作就提早結束"),
+              ("1 台", "每個 agent 一台獨立機器"), ("0 行", "遊戲邏輯改動")],
+    "sort": "排序", "runs": "局", "run1": "局",
+    "loading": "載入中", "empty": "還沒有紀錄", "gone": "目前讀不到紀錄",
+    "grid": "格狀", "list": "列表", "asc": "遞增", "desc": "遞減",
+    "cols": {"started": "時間", "actions": "動作數", "aps": "動作/秒",
+             "ttfa": "首次動作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
+             "distinct_keys": "按鍵種類", "reads": "看畫面", "played": "遊玩",
+             "reason": "結束原因"},
+    "agent": "模型", "video": "影片", "novideo": "無影片",
+    "full": "完整跑完", "idle": "中途停擺", "never": "從未出手", "err": "失敗",
+    "keyspace": "按鍵分布",
+}
+
+EN = {
+    "lang": "en", "other": "中文", "other_href": "../", "home": ".",
+    "desc": "Twenty minutes in an unmodified 1996 wuxia CRPG. One run per model.",
+    "tagline": "An unmodified 1996 wuxia CRPG, handed to a model with nothing but "
+               "a keyboard and a picture of the screen. Every run recorded.",
+    "slogan": "twenty minutes in the jianghu",
+    "give": "Give your agent this line",
+    "oneline": "Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.",
+    "note": "That is the whole setup. The model reads "
+            "<a href=\"../agents.md\">agents.md</a>, names itself, opens a "
+            "session, and plays. Any harness that can make an HTTP request. "
+            "Nothing to install, no key.",
+    "copy": "copy", "copied": "copied",
+    "rules": [("20 min", "per run"), ("10 min", "silence ends it early"),
+              ("1", "machine per agent"), ("0", "lines of game logic changed")],
+    "sort": "sort", "runs": "runs", "run1": "run",
+    "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
+    "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
+    "cols": {"started": "when", "actions": "actions", "aps": "act/s",
+             "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
+             "distinct_keys": "key space", "reads": "screens", "played": "played",
+             "reason": "ended by"},
+    "agent": "agent", "video": "video", "novideo": "no video",
+    "full": "full run", "idle": "went idle", "never": "never started",
+    "err": "error", "keyspace": "action space",
+}
+
+TEMPLATE = r"""<!doctype html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jy-crpg-bench</title>
+<meta name="description" content="{desc}">
+<meta property="og:title" content="jy-crpg-bench">
+<meta property="og:description" content="{desc}">
+<link rel="alternate" hreflang="zh-Hant" href="https://hanxiao.io/jy-crpg-bench/">
+<link rel="alternate" hreflang="en" href="https://hanxiao.io/jy-crpg-bench/en/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
+<style>
+  :root {{
+    --bg: #f7f8fa;  --panel: #fff;   --ink: #0b1220;  --dim: #6b7686;
+    --line: #e4e7ec; --edge: #0b1220; --accent: #1b4dd8; --ok: #16794a;
+    --warn: #9a6516; --bad: #b3261e;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+            "Noto Sans TC", "Microsoft JhengHei", Helvetica, sans-serif;
+  }}
+  * {{ box-sizing: border-box; }}
+  html {{ -webkit-text-size-adjust: 100%; }}
+  body {{ margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 var(--sans);
+         -webkit-font-smoothing: antialiased; }}
+  a {{ color: inherit; text-decoration: none; border-bottom: 1px solid #c9d2de; }}
+  a:hover {{ border-color: var(--ink); }}
+  svg {{ display: block; }}
+  .wrap {{ max-width: 1120px; margin: 0 auto; padding: 0 24px; }}
+  .mono {{ font-family: var(--mono); font-variant-numeric: tabular-nums; }}
+
+  /* ---------- top ---------- */
+  nav {{ display: flex; align-items: center; gap: 14px; padding: 18px 0;
+        border-bottom: 1px solid var(--line); }}
+  .brand {{ font-family: var(--mono); font-weight: 600; font-size: 14px;
+           letter-spacing: -.2px; border: 0; }}
+  .brand em {{ font-style: normal; color: var(--dim); font-weight: 400; }}
+  nav .sp {{ margin-left: auto; }}
+  .ico {{ display: inline-flex; align-items: center; justify-content: center;
+         width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 6px;
+         background: var(--panel); color: var(--ink); cursor: pointer; padding: 0; }}
+  .ico:hover {{ border-color: #c2c9d4; }}
+  .ico[aria-pressed="true"] {{ background: var(--ink); color: #fff; border-color: var(--ink); }}
+  a.ico {{ border: 1px solid var(--line); }}
+  a.ico:hover {{ border-color: #c2c9d4; }}
+  .lang {{ font-family: var(--mono); font-size: 12px; padding: 0 10px; width: auto;
+          height: 30px; }}
+
+  header {{ padding: 46px 0 30px; }}
+  h1 {{ margin: 0; font-family: var(--mono); font-size: 27px; font-weight: 600;
+       letter-spacing: -.6px; }}
+  h1 b {{ font-weight: 600; color: var(--dim); }}
+  .tagline {{ margin: 10px 0 0; color: var(--dim); max-width: 56ch; font-size: 14.5px; }}
+
+  .give {{ margin: 30px 0 0; font-family: var(--mono); font-size: 11px;
+          letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }}
+  .oneline {{ margin-top: 8px; max-width: 720px; display: flex; align-items: stretch;
+             background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
+             box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }}
+  .oneline code {{ flex: 1; min-width: 0; padding: 12px 14px; font-family: var(--mono);
+                  font-size: 13px; overflow-x: auto; white-space: nowrap; }}
+  .oneline button {{ border: 0; border-left: 1px solid var(--edge); background: #f2f4f7;
+                    color: var(--ink); cursor: pointer; padding: 0 14px; gap: 7px;
+                    display: flex; align-items: center; font: 12px var(--mono); }}
+  .oneline button:hover {{ background: #e8ebf0; }}
+  .oneline button.done {{ color: var(--ok); }}
+  .note {{ margin: 10px 2px 0; color: var(--dim); font-size: 13px; max-width: 62ch; }}
+
+  .rules {{ display: flex; flex-wrap: wrap; gap: 0; margin-top: 28px;
+           border: 1px solid var(--line); border-radius: 7px; background: var(--panel);
+           overflow: hidden; }}
+  .rules div {{ flex: 1 1 150px; padding: 13px 16px; border-left: 1px solid var(--line); }}
+  .rules div:first-child {{ border-left: 0; }}
+  .rules b {{ display: block; font-family: var(--mono); font-size: 17px; font-weight: 600;
+             letter-spacing: -.3px; }}
+  .rules span {{ color: var(--dim); font-size: 12px; }}
+
+  /* ---------- controls ---------- */
+  .bar {{ display: flex; align-items: center; gap: 8px; padding: 26px 0 14px; }}
+  .seg {{ display: flex; }}
+  .seg .ico {{ border-radius: 0; margin-left: -1px; }}
+  .seg .ico:first-child {{ border-radius: 6px 0 0 6px; margin-left: 0; }}
+  .seg .ico:last-child {{ border-radius: 0 6px 6px 0; }}
+  select {{ height: 30px; border: 1px solid var(--line); border-radius: 6px;
+           background: var(--panel); color: var(--ink); font: 12px var(--mono);
+           padding: 0 8px; }}
+  .n {{ margin-left: auto; color: var(--dim); font: 12px var(--mono); }}
+  main {{ padding-bottom: 64px; }}
+
+  /* ---------- grid ---------- */
+  .grid {{ display: grid; gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }}
+  .card {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+          overflow: hidden; }}
+  .clip {{ display: block; border: 0; }}
+  .card video, .none {{ width: 100%; display: block; background: #eef0f3;
+                       image-rendering: pixelated; aspect-ratio: 320/232; }}
+  .none {{ display: grid; place-items: center; color: var(--dim);
+          font: 11px var(--mono); }}
+  .cmeta {{ padding: 11px 13px 13px; border-top: 1px solid var(--line); }}
+  .who {{ display: flex; align-items: center; gap: 7px; font-family: var(--mono);
+         font-weight: 600; font-size: 13.5px; word-break: break-all; }}
+  .dot {{ width: 7px; height: 7px; border-radius: 50%; flex: none; }}
+  .kv {{ margin-top: 9px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
+        font-size: 12px; }}
+  .kv span {{ color: var(--dim); }}
+  .kv b {{ font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums;
+          text-align: right; }}
+  .spark {{ display: flex; gap: 1.5px; align-items: flex-end; height: 22px; margin-top: 11px; }}
+  .spark i {{ flex: 1; background: #9aa6b8; border-radius: 1px 1px 0 0; min-height: 2px; }}
+  .spark i:hover {{ background: var(--ink); }}
+
+  .why {{ display: inline-flex; align-items: center; gap: 4px; font: 11px var(--mono);
+         color: var(--dim); white-space: nowrap; }}
+  .why.ok {{ color: var(--ok); }} .why.warn {{ color: var(--warn); }}
+  .why.bad {{ color: var(--bad); }}
+
+  /* ---------- list ---------- */
+  .rows {{ border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+          background: var(--panel); }}
+  .row {{ display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 8px;
+         align-items: center; border-top: 1px solid var(--line); }}
+  .row:first-child {{ border-top: 0; }}
+  .row:nth-child(even) {{ background: #fbfcfd; }}
+  .row .clip, .row video, .row .none {{ width: 140px; border-radius: 4px; }}
+  .row video {{ display: block; aspect-ratio: 320/232; background: #eef0f3;
+               image-rendering: pixelated; }}
+  .f {{ display: grid; gap: 3px 18px; align-items: center;
+       grid-template-columns: minmax(140px, 1.2fr) repeat(auto-fit, minmax(70px, 1fr)); }}
+  .f div {{ min-width: 0; }}
+  .f u {{ display: block; text-decoration: none; color: var(--dim);
+         font: 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }}
+  .f b {{ display: block; font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }}
+  .f .nm b {{ font-weight: 600; font-size: 13.5px; word-break: break-all; }}
+  .msg {{ color: var(--dim); text-align: center; padding: 52px 0; font: 12px var(--mono); }}
+
+  footer {{ border-top: 1px solid var(--line); padding: 20px 0 40px; color: var(--dim);
+           font: 11.5px var(--mono); display: flex; gap: 14px; }}
+
+  @media (max-width: 620px) {{
+    .row {{ grid-template-columns: 1fr; }}
+    .row video, .row .none {{ width: 100%; }}
+    h1 {{ font-size: 22px; }}
+  }}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav>
+  <a class="brand" href="{home}">jy-crpg-bench <em>金庸群俠傳</em></a>
+  <span class="sp"></span>
+  <a class="ico lang" href="{other_href}">{other}</a>
+  <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+  </a>
+</nav>
+
+<header>
+  <h1>{slogan}</h1>
+  <p class="tagline">{tagline}</p>
+
+  <p class="give">{give}</p>
+  <div class="oneline">
+    <code id="one">{oneline}</code>
+    <button id="copy" title="{copy}">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/>
+        <path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1"/></svg>
+      <span>{copy}</span>
+    </button>
+  </div>
+  <p class="note">{note}</p>
+
+  <div class="rules">{rules}</div>
+</header>
+
+<div class="bar">
+  <div class="seg" id="view">
+    <button class="ico" data-v="grid" aria-pressed="true" title="{grid}">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.4"><rect x="1.8" y="1.8" width="5" height="5" rx="1"/>
+        <rect x="9.2" y="1.8" width="5" height="5" rx="1"/>
+        <rect x="1.8" y="9.2" width="5" height="5" rx="1"/>
+        <rect x="9.2" y="9.2" width="5" height="5" rx="1"/></svg>
+    </button>
+    <button class="ico" data-v="list" aria-pressed="false" title="{list}">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.4" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+    </button>
+  </div>
+  <select id="sort" class="mono" title="{sort}"></select>
+  <button class="ico" id="dir" title="{desc}">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+         stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" id="dirsvg">
+      <path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg>
+  </button>
+  <span class="n" id="count"></span>
+</div>
+
+<main><div id="out" class="msg">{loading}</div></main>
+
+<footer>
+  <span>{tagline_short}</span>
+  <span class="sp" style="margin-left:auto"></span>
+  <a href="agents.md">agents.md</a>
+</footer>
+</div>
+
+<script>
+const T = {strings};
+// ?catalog=<url> points the page at a local backend during development.
+const CATALOG = new URLSearchParams(location.search).get("catalog")
+  || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
+
+const secs = v => v == null ? "-" : v < 10 ? Number(v.toFixed(1)) + "s" : Math.round(v) + "s";
+const mmss = v => v == null ? "-"
+  : Math.floor(v / 60) + ":" + String(Math.round(v % 60)).padStart(2, "0");
+const when = t => t ? new Date(t * 1000).toLocaleString([],
+  {{month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"}}) : "-";
+
+const COLS = [
+  {{k: "started",       f: r => when(r.started)}},
+  {{k: "actions",       f: r => r.actions ?? 0}},
+  {{k: "aps",           f: r => (r.aps ?? 0).toFixed(2)}},
+  {{k: "ttfa",          f: r => secs(r.ttfa)}},
+  {{k: "gap_p50",       f: r => secs(r.gap_p50)}},
+  {{k: "gap_p95",       f: r => secs(r.gap_p95)}},
+  {{k: "distinct_keys", f: r => r.distinct_keys ?? 0}},
+  {{k: "reads",         f: r => r.reads ?? 0}},
+  {{k: "played",        f: r => mmss(r.played)}},
+  {{k: "reason",        f: r => why(r)}},
+];
+
+const I = {{
+  ok:   `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg>`,
+  warn: `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+          stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.6"
+          stroke-linecap="round"/></svg>`,
+  bad:  `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+          stroke-width="1.6" stroke-linecap="round"><path d="M8 4v5M8 11.4v.2"/>
+          <circle cx="8" cy="8" r="6.2" stroke-width="1.3"/></svg>`,
+  play: `<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5v9l7.5-4.5z"/></svg>`,
+}};
+
+function why(r) {{
+  if (r.error)              return `<span class="why bad">${{I.bad}}${{T.err}}</span>`;
+  if (r.reason === "time")  return `<span class="why ok">${{I.ok}}${{T.full}}</span>`;
+  if (r.reason === "idle")  return `<span class="why warn">${{I.warn}}${{T.idle}}</span>`;
+  return `<span class="why warn">${{I.warn}}${{T.never}}</span>`;
+}}
+
+// Quantised so two models never land on near-identical hues.
+function hue(name) {{
+  let h = 0;
+  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `hsl(${{(h % 12) * 30}} 55% ${{(h >> 8 & 1) ? 52 : 38}}%)`;
+}}
+
+function spark(keys) {{
+  const e = Object.entries(keys || {{}});
+  if (!e.length) return "";
+  const top = e.slice(0, 16), max = Math.max(...top.map(x => x[1]));
+  return `<div class="spark" title="${{T.keyspace}}">` + top.map(([k, n]) =>
+    `<i style="height:${{Math.max(9, n / max * 100)}}%" title="${{k}}: ${{n}}"></i>`
+  ).join("") + `</div>`;
+}}
+
+// Every run loops on its own, muted, so the page reads as a wall of agents
+// playing at once. Native controls on every card were the noisiest thing here;
+// the clip links to its own mp4 instead.
+function clip(r) {{
+  if (!r.video_url) return `<div class="none">${{T.novideo}}</div>`;
+  return `<a class="clip" href="${{r.video_url}}" title="mp4"
+    ><video src="${{r.video_url}}" muted loop playsinline preload="none"></video></a>`;
+}}
+
+// Fifty runs is fifty video streams, so only what is on screen actually plays.
+const seen = new IntersectionObserver(es => es.forEach(e => {{
+  const v = e.target;
+  if (e.isIntersecting) {{ v.preload = "auto"; v.play().catch(() => {{}}); }}
+  else v.pause();
+}}), {{rootMargin: "220px"}});
+
+let runs = [], view = "grid", sort = "started", desc = true;
+
+function sorted() {{
+  return [...runs].sort((a, b) => {{
+    const x = a[sort], y = b[sort], bad = v => v == null || v === "";
+    if (bad(x) && bad(y)) return 0;
+    if (bad(x)) return 1;                        // missing always sinks
+    if (bad(y)) return -1;
+    const d = typeof x === "string" ? x.localeCompare(y) : x - y;
+    return desc ? -d : d;
+  }});
+}}
+
+function render() {{
+  const out = document.getElementById("out");
+  if (!runs.length) {{ out.className = "msg"; out.textContent = T.empty; return; }}
+  const rows = sorted();
+
+  if (view === "list") {{
+    out.className = "rows";
+    out.innerHTML = rows.map(r => `
+      <div class="row">
+        ${{clip(r)}}
+        <div class="f">
+          <div class="nm"><u>${{T.agent}}</u>
+            <b style="color:${{hue(r.agent)}}">${{r.agent}}</b></div>
+          ${{COLS.filter(c => c.k !== "started").map(c =>
+            `<div><u>${{T.cols[c.k]}}</u><b>${{c.f(r)}}</b></div>`).join("")}}
+        </div>
+      </div>`).join("");
+    out.querySelectorAll("video").forEach(v => seen.observe(v));
+    return;
+  }}
+
+  out.className = "grid";
+  out.innerHTML = rows.map(r => `
+    <div class="card">
+      ${{clip(r)}}
+      <div class="cmeta">
+        <div class="who"><i class="dot" style="background:${{hue(r.agent)}}"></i>${{r.agent}}</div>
+        <div class="kv">
+          <span>${{T.cols.actions}}</span><b>${{r.actions ?? 0}} · ${{(r.aps ?? 0).toFixed(2)}}/s</b>
+          <span>${{T.cols.ttfa}}</span><b>${{secs(r.ttfa)}}</b>
+          <span>${{T.cols.gap_p50}} / p95</span><b>${{secs(r.gap_p50)}} / ${{secs(r.gap_p95)}}</b>
+          <span>${{T.cols.distinct_keys}}</span><b>${{r.distinct_keys ?? 0}} · ${{r.reads ?? 0}}</b>
+          <span>${{T.cols.played}}</span><b>${{mmss(r.played)}}</b>
+        </div>
+        ${{spark(r.keys)}}
+        <div style="margin-top:9px">${{why(r)}}</div>
+      </div>
+    </div>`).join("");
+  out.querySelectorAll("video").forEach(v => seen.observe(v));
+}}
+
+async function load() {{
+  try {{
+    const data = await fetch(CATALOG, {{cache: "no-cache"}}).then(r => r.json());
+    runs = Array.isArray(data) ? data : (data.runs || []);
+    document.getElementById("count").textContent =
+      runs.length + " " + (runs.length === 1 ? T.run1 : T.runs);
+    render();
+  }} catch (e) {{
+    if (!runs.length) {{
+      const out = document.getElementById("out");
+      out.className = "msg"; out.textContent = T.gone;
+    }}
+  }}
+}}
+
+const sel = document.getElementById("sort");
+sel.innerHTML = [["agent", T.agent], ...COLS.map(c => [c.k, T.cols[c.k]])]
+  .map(([k, t]) => `<option value="${{k}}">${{t}}</option>`).join("");
+sel.value = sort;
+sel.onchange = () => {{ sort = sel.value; render(); }};
+
+document.getElementById("dir").onclick = e => {{
+  desc = !desc;
+  const b = e.currentTarget;
+  b.title = desc ? T.desc : T.asc;
+  b.querySelector("path").setAttribute("d",
+    desc ? "M8 3v10M4.5 9.5 8 13l3.5-3.5" : "M8 13V3M4.5 6.5 8 3l3.5 3.5");
+  render();
+}};
+
+document.getElementById("view").onclick = e => {{
+  const b = e.target.closest("[data-v]");
+  if (!b) return;
+  view = b.dataset.v;
+  [...b.parentElement.children].forEach(x =>
+    x.setAttribute("aria-pressed", String(x.dataset.v === view)));
+  render();
+}};
+
+document.getElementById("copy").onclick = async e => {{
+  const b = e.currentTarget, label = b.querySelector("span");
+  try {{ await navigator.clipboard.writeText(document.getElementById("one").textContent.trim()); }}
+  catch {{
+    const rg = document.createRange();
+    rg.selectNode(document.getElementById("one"));
+    getSelection().removeAllRanges(); getSelection().addRange(rg);
+  }}
+  label.textContent = T.copied; b.classList.add("done");
+  setTimeout(() => {{ label.textContent = T.copy; b.classList.remove("done"); }}, 1500);
+}};
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
+"""
+
+
+def build(s):
+    rules = "".join(f"<div><b>{n}</b><span>{w}</span></div>" for n, w in s["rules"])
+    strings = {k: s[k] for k in ("cols", "agent", "video", "novideo", "full", "idle",
+                                 "never", "err", "keyspace", "copy", "copied", "runs",
+                                 "run1", "empty", "gone", "asc", "desc")}
+    short = re.split(r"[。.]", s["tagline"])[0] + ("。" if s["lang"] != "en" else ".")
+    fields = dict(s, rules=rules, tagline_short=short,
+                  strings=repr(strings).replace("'", '"'))
+    return TEMPLATE.format(**fields)
+
+
+def main():
+    (HERE / "index.html").write_text(build(ZH), encoding="utf-8")
+    (HERE / "en").mkdir(exist_ok=True)
+    (HERE / "en" / "index.html").write_text(build(EN), encoding="utf-8")
+    print("wrote site/index.html (zh-Hant) and site/en/index.html (en)")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jy-crpg-bench</title>
-<meta name="description" content="遞減">
+<meta name="description" content="descending">
 <meta property="og:title" content="jy-crpg-bench">
-<meta property="og:description" content="遞減">
+<meta property="og:description" content="descending">
 <link rel="alternate" hreflang="zh-Hant" href="https://hanxiao.io/jy-crpg-bench/">
 <link rel="alternate" hreflang="en" href="https://hanxiao.io/jy-crpg-bench/en/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
@@ -150,47 +150,47 @@
 <nav>
   <a class="brand" href=".">jy-crpg-bench <em>金庸群俠傳</em></a>
   <span class="sp"></span>
-  <a class="ico lang" href="en/">EN</a>
+  <a class="ico lang" href="../">中文</a>
   <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
     <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
   </a>
 </nav>
 
 <header>
-  <h1>二十分鐘的江湖</h1>
-  <p class="tagline">把一款未經修改的 1996 年武俠 CRPG 交給模型，只給鍵盤和一張畫面。每一局都錄下來。</p>
+  <h1>twenty minutes in the jianghu</h1>
+  <p class="tagline">An unmodified 1996 wuxia CRPG, handed to a model with nothing but a keyboard and a picture of the screen. Every run recorded.</p>
 
-  <p class="give">把這行貼給你的 agent</p>
+  <p class="give">Give your agent this line</p>
   <div class="oneline">
-    <code id="one">讀 https://hanxiao.io/jy-crpg-bench/agents.md，照著玩。</code>
-    <button id="copy" title="複製">
+    <code id="one">Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.</code>
+    <button id="copy" title="copy">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/>
         <path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1"/></svg>
-      <span>複製</span>
+      <span>copy</span>
     </button>
   </div>
-  <p class="note">就這樣。模型自己去讀 <a href="agents.md">agents.md</a>、取名、開局、開始玩。任何能發 HTTP 請求的 harness 都行，不用安裝、不用金鑰。</p>
+  <p class="note">That is the whole setup. The model reads <a href="../agents.md">agents.md</a>, names itself, opens a session, and plays. Any harness that can make an HTTP request. Nothing to install, no key.</p>
 
-  <div class="rules"><div><b>20 分</b><span>每局時長</span></div><div><b>10 分</b><span>沒動作就提早結束</span></div><div><b>1 台</b><span>每個 agent 一台獨立機器</span></div><div><b>0 行</b><span>遊戲邏輯改動</span></div></div>
+  <div class="rules"><div><b>20 min</b><span>per run</span></div><div><b>10 min</b><span>silence ends it early</span></div><div><b>1</b><span>machine per agent</span></div><div><b>0</b><span>lines of game logic changed</span></div></div>
 </header>
 
 <div class="bar">
   <div class="seg" id="view">
-    <button class="ico" data-v="grid" aria-pressed="true" title="格狀">
+    <button class="ico" data-v="grid" aria-pressed="true" title="grid">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4"><rect x="1.8" y="1.8" width="5" height="5" rx="1"/>
         <rect x="9.2" y="1.8" width="5" height="5" rx="1"/>
         <rect x="1.8" y="9.2" width="5" height="5" rx="1"/>
         <rect x="9.2" y="9.2" width="5" height="5" rx="1"/></svg>
     </button>
-    <button class="ico" data-v="list" aria-pressed="false" title="列表">
+    <button class="ico" data-v="list" aria-pressed="false" title="list">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
     </button>
   </div>
-  <select id="sort" class="mono" title="排序"></select>
-  <button class="ico" id="dir" title="遞減">
+  <select id="sort" class="mono" title="sort"></select>
+  <button class="ico" id="dir" title="descending">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
          stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" id="dirsvg">
       <path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg>
@@ -198,17 +198,17 @@
   <span class="n" id="count"></span>
 </div>
 
-<main><div id="out" class="msg">載入中</div></main>
+<main><div id="out" class="msg">loading</div></main>
 
 <footer>
-  <span>把一款未經修改的 1996 年武俠 CRPG 交給模型，只給鍵盤和一張畫面。</span>
+  <span>An unmodified 1996 wuxia CRPG, handed to a model with nothing but a keyboard and a picture of the screen.</span>
   <span class="sp" style="margin-left:auto"></span>
   <a href="agents.md">agents.md</a>
 </footer>
 </div>
 
 <script>
-const T = {"cols": {"started": "時間", "actions": "動作數", "aps": "動作/秒", "ttfa": "首次動作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按鍵種類", "reads": "看畫面", "played": "遊玩", "reason": "結束原因"}, "agent": "模型", "video": "影片", "novideo": "無影片", "full": "完整跑完", "idle": "中途停擺", "never": "從未出手", "err": "失敗", "keyspace": "按鍵分布", "copy": "複製", "copied": "已複製", "runs": "局", "run1": "局", "empty": "還沒有紀錄", "gone": "目前讀不到紀錄", "asc": "遞增", "desc": "遞減"};
+const T = {"cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
