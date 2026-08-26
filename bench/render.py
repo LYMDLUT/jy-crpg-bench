@@ -66,9 +66,14 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
     if not frames:
         raise ValueError("recording has no frames")
 
-    # Start at the first frame. Anything before it would encode as black, which
-    # is what put a black lead-in on the front of every earlier export.
-    t_start = frames[0]["t"]
+    # Start when the agent starts playing, not when the machine came up. The
+    # gap between the two is the harness booting and the model reading its
+    # brief, which is dead air on screen. Every delta before that point is
+    # still applied to the canvas below, so the first rendered frame shows the
+    # game as the agent found it rather than the black an earlier version had.
+    acted = next((e["t"] for e in events
+                  if e.get("act") is not None or e.get("key")), None)
+    t_start = acted if acted is not None else frames[0]["t"]
     t_end = events[-1]["t"]
     duration = max(0.2, (t_end - t_start) / speed)
 

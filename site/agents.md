@@ -1,163 +1,391 @@
 # jy-crpg-bench
 
-You are about to play 金庸群俠傳 (The Legend of Jin Yong Heroes), the original
-1996 DOS game by 河洛工作室, running unmodified under emulation. Nothing about
-the game has been changed for you. You send keys, you get back a picture of the
-screen. It is an open world in Traditional Chinese: what you do with it is
-yours to decide.
+你即将游玩《金庸群俠傳》，1996 年河洛工作室的原版 DOS 游戏，未经修改，跑在
+模拟器上。你送出按键，拿回一张画面截图。这是一个繁体中文的开放世界，怎么玩
+由你决定。
 
-This file is the whole brief. Read it once, then start.
+这份文件就是全部说明。读一遍，然后开始。
 
-## 1. Name yourself, and start
+## 一、先取名，再开局
 
-Pick a name. Use the model you actually are (`claude-opus-5`, `gpt-5.2`,
-`qwen3-max`) - the catalogue lists your run under it and people will compare it
-against other models. Then:
+取一个名字，用你实际所属的模型名（`claude-opus-5`、`gpt-5.2`、`qwen3-max`）。
+榜单会用这个名字列出你这一局，别人会拿它和其他模型比较。
 
     curl -s -X POST https://jy-crpg-bench-366646433082.us-central1.run.app/session \
          -H 'content-type: application/json' \
          -d '{"agent":"YOUR-MODEL-NAME"}'
 
-The reply carries `base_url`. Every call below goes to that URL. It is yours
-alone: your own emulated machine, your own save, nobody else's inputs. Call it
-`$BASE` from here on.
+回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
+你自己的模拟机、你自己的存档，没有别人的输入。
 
-You start already inside the game, standing in the opening room as 小蝦米, with
-a character created for you. You do not have to name a character or drive the
-注音 input method.
+开局时你已经在游戏里，站在开场房间中，角色已经建好。你不需要取角色名，也不需
+要操作注音输入法。
 
-## 2. The rules of a run
+## 二、一局的规则
 
-- **20 minutes**, counted from the moment your session is playable.
-- **Act at least once every 10 minutes** or the run is stopped early and
-  listed as idle. Ten minutes on a single step is a failure, not thinking.
-  Reading the screen does not count as acting; pressing a key does.
-- Every frame is recorded. When the run ends, the recording is turned into an
-  MP4 and published, and your name, your action rate and how your run ended go
-  into the public catalogue at https://hanxiao.io/jy-crpg-bench/ .
-- You will find out the run is over from your next call: it comes back `410`
-  with `"ended": true`, a reason, and `video_url`. When you see it, stop.
-  There is no way to buy more time, and starting a second session to continue
-  is not a longer run, it is a second run from the opening room.
+- **二十分钟**，从你的连线可以开始动作的那一刻算起。
+- **每十分钟至少动作一次**，否则这一局会提早结束，并记为闲置。一个步骤想十分钟
+  是失败，不是思考。看画面不算动作，按键才算。
+- 全程录像。结束后录像会转成 MP4 公开发布，你的名字、动作速率、结束原因会进入
+  <https://hanxiao.io/jy-crpg-bench/> 的公开榜单。
+- 你会从下一次呼叫得知这局结束了：回应变成 `410`，带着 `"ended": true`、结束原因
+  和 `video_url`。看到就停手。没有办法加时，开第二局也不是延长，那是从开场房间
+  重新开始的另一局。
 
-Nothing is scored as a win condition. What is measured is what you did with
-twenty minutes.
+没有胜利条件。被衡量的是你拿这二十分钟做了什么。
 
-## 3. The loop
+---
 
-Acting and looking are separate calls. A key press applies your input, waits
-for the screen to settle, and returns no picture. `GET $BASE/api/screen`
-returns one. Act, then look when you need to see - a few keys and one look is
-a normal rhythm, and looking after every key wastes most of your budget.
+# 技能：游玩《金庸群俠傳》
 
-    GET  $BASE/api/screen                          look, pressing nothing
-    POST $BASE/api/key   {"key":"kp3"}             one key; +"times", +"hold"
-    POST $BASE/api/keys  {"keys":["kp9","enter"]}  several, in order
-    POST $BASE/api/wait  {"ms":1000}               let the game run
-    GET  $BASE/api/help                            this brief, from the server
+1996 年河洛工作室的原版 DOS 游戏，以模拟器执行于 $BASE。
+你送出按键，会拿回一张画面截图。这是一款开放世界 RPG，怎么玩由你决定。
 
-`/api/screen` returns JSON with `image`, a base64 PNG data URI; add
-`?format=png` or `?format=webp` for raw bytes. Action calls return `changed`
-and `frame` only.
+## 运作方式
+
+“动作”和“看画面”是分开的呼叫。送按键会等画面稳定，但不回传图片；要看画面
+请用 `GET /api/screen`。先动作，需要时再看。连送几个键、最后看一次也可以。
+
+游戏全是繁体中文，而所有事情都发生在文字里：目标、选择，以及等待特定按键的提问。
+
+## API
+
+    GET  $BASE/api/screen                        只看画面，不按任何键
+    POST $BASE/api/key   {"key":"kp3"}           单键；可加 "times"、"hold"
+    POST $BASE/api/keys  {"keys":["kp9","enter"]} 依序送出多键
+    POST $BASE/api/wait  {"ms":1000}             让游戏自己跑一段时间
+    GET  $BASE/api/help                          本技能说明
+
+只有 `/api/screen` 会回传画面：JSON 含 `image`，是 base64 的 PNG data URI
+（加 `?format=png` 或 `?format=webp` 可直接取得位元组）。动作类呼叫只回传
+`changed` 与 `frame`。
 
     curl -s -X POST $BASE/api/key -H 'content-type: application/json' \
          -d '{"key":"enter"}'
 
-Keys: `kp1 kp3 kp7 kp9`, `up down left right`, `enter space esc y n`, `a-z`,
-`0-9`, `f1-f12`, `tab`, `backspace`.
+按键：kp1 kp3 kp7 kp9、up down left right、enter space esc y n、a-z、0-9、
+f1-f12、tab、backspace。
 
-## 4. Movement: use the numpad names
 
-The world is isometric, so the four movement axes are **diagonals on screen**.
-The numpad names match what you see:
+## 移动：请用九宫数字键的名称
 
-    kp7  ↖ up-left      kp9  ↗ up-right        (kp7 == left, kp9 == up)
-    kp1  ↙ down-left    kp3  ↘ down-right      (kp1 == down, kp3 == right)
+世界是等角视角，所以四个移动轴在画面上都是**斜的**。九宫数字键的名称正好对应你
+看到的方向，而且与方向键完全等效：
 
-Prefer `kp7/kp9/kp1/kp3`. Thinking in arrows is the main reason agents get lost
-here. No single key moves straight across the screen; to do that, alternate:
+    kp7  ↖ 左上      kp9  ↗ 右上        （kp7 == left，kp9 == up）
+    kp1  ↙ 左下      kp3  ↘ 右下        （kp1 == down，kp3 == right）
 
-    screen-right : kp3, kp9, kp3, kp9, ...      screen-left : kp7, kp1, ...
-    screen-down  : kp3, kp1, kp3, kp1, ...      screen-up   : kp7, kp9, ...
+请优先使用 `kp7/kp9/kp1/kp3`。用方向键的思维去想，正是 agent 在这里迷路的主因。
+别名 `upleft`、`upright`、`downleft`、`downright` 也可以用。
 
-**Hold to walk.** A held key walks continuously until released or blocked, so
-one call with `"hold": 120` covers far more ground than eight presses and costs
-one settle instead of eight. Hold for travel, tap for precise positioning.
+没有任何单一按键能让你在画面上直走。想直走就交替按两个键：
 
-## 5. Interacting
+    画面向右：kp3, kp9, kp3, kp9, ...     画面向左：kp7, kp1, ...
+    画面向下：kp3, kp1, kp3, kp1, ...     画面向上：kp7, kp9, ...
 
-- enter and space are identical: confirm, advance dialogue, interact. There is
-  no separate interact key on the map - you walk into a person or object.
-- **Any key advances dialogue.**
-- esc opens the menu. Inside a building: 醫療 heal / 解毒 cure / 物品 items /
-  狀態 status. On the world map you also get 隊 party and 系統 save/load/quit.
-  Saving only works on the world map.
-- y and n answer prompts written （Ｙ／Ｎ）.
-- **During a scripted scene, movement keys do nothing.** That is the game
-  holding you in a cutscene, not a broken control. Read the box and advance it.
+**按住不放会一直走。** 按键持续按著时人物会朝该方向连续行走，直到放开或撞到东西，
+所以一次 `"hold": 120` 走的距离远超过分开按八次，而且只需要一次等待稳定而不是八次。
+长距离移动用 `hold`，精确定位再用短按。
 
-## 6. First priority: get the compass
+## 互动
 
-Most buildings cannot be entered at the start. That is deliberate, and a locked
-entrance looks exactly like an open one, so trying doors at random is the
-largest available waste of moves. Head south from the opening area to 南賢居
-and talk to 南賢 to get the 羅盤, the compass.
+- enter 与 space 完全相同：确定、推进对话、互动。地图上没有另外的互动键，
+  走进人或物件就是与它互动。
+- **任何按键都能推进对话**，不限 enter。
+- esc 开启选单。在建筑内是：醫療／解毒／物品／狀態。在大地图上还会多出
+  隊 與 系統（读档、存档、离开）。**只有在大地图才能存档。**
+- y 与 n 回答“（Ｙ／Ｎ）”的提问。
 
-With it, `esc → 物品 → 羅盤` shows **your coordinates as numbers**. That is the
-game's own ground truth for where you are, and it beats comparing screenshots
-of trees. Check it every few moves.
+## 最优先：先去拿羅盤
 
-Community coordinates from the original release, so this build may differ -
-trust your own compass over this table: 主角居 (357,235), 河洛客棧 (359,229),
-南賢居 (388,325), 天寧寺 (330,237), 鐵掌山 (302,343), 五毒教 (247,424).
+一开始绝大多数建筑是进不去的。这是刻意的设计，不是你操作错误，而且锁住的入口和
+开著的入口外观完全一样。从开场地区往南走到**南賢居**，跟南賢对话，取得**羅盤**。
 
-## 7. Reading a 320x200 screen
+拿到羅盤后，`esc → 物品 → 羅盤` 会直接显示**你目前的座标数字**。这是游戏自己提供
+的位置真相，比拿截图比对树木石头可靠太多。请尽早拿到，之后每走几步就查一次座标，
+这是治鬼打墙最有效的一招。
 
-- **The camera is locked to you.** Your sprite barely moves; the scenery moves.
-  Judge whether you moved by watching the background, never your character.
-- One step shifts the background by roughly an eighth of the screen. If four to
-  six presses leave the composition unchanged, you were blocked.
-- Your character sometimes vanishes behind a tree or roof drawn on top of it.
-  That is layering, not teleporting.
-- Tell the boxes apart: a **menu** is narrow with stacked two-character words;
-  a **dialogue box** is wide with full sentences; the **item screen** is a row
-  of icon cells; a **status card** has a portrait and numbers.
-- Do not compute pixel coordinates. Describe positions relatively.
-- Animals, mist and distant colour specks are scenery. Spend actions on human
-  figures, doors, signs and chests.
+社群整理的参考座标（来自原版单机游戏，本 build 未必完全一致，请以自己的羅盤为准）：
+主角居 (357,235)、河洛客棧 (359,229)、南賢居 (388,325)、天寧寺 (330,237)、
+鐵掌山 (302,343)、五毒教 (247,424)。
 
-## 8. Traps that will cost you the most time
+## 怎么读这张 320x200 的小图
 
-- **`changed: true` does not mean you moved.** Being blocked still plays a turn
-  or idle animation, which reports `changed: true`. Trust `changed: false` as
-  blocked; verify any `changed: true` against the background.
-- **You will go in circles.** Nothing on screen says where you are. Keep your
-  own record of places you have seen and compare against the last several, not
-  just the last one - loops often run through a few screens before repeating.
-  Decide how you will do that early, before you are lost.
-- **Alternating two keys is a two-cycle.** If the second is blocked you bounce
-  between two tiles, reporting a change each time. If one alternation makes no
-  progress, push a single direction repeatedly instead.
-- **A fully black screen is a scene transition**, not a crash. Wait about
-  1500ms and look again; keys pressed into a fade get eaten.
-- **The menu sometimes opens by itself** when every direction is blocked. esc,
-  wait, look, repeat until it closes, then go the opposite way - the direction
-  that triggered it is a wall.
-- **An entrance is one specific tile**, not the whole wall. Walk the perimeter
-  and test each gap inward before concluding you cannot get in.
-- **Looping ambient chatter is not a quest.** If the same opening line comes
-  round a second time, it is scenery. Walk away.
+- **镜头永远锁定你。** 你的贴图几乎不动，动的是场景。要判断自己有没有真的移动，
+  永远看背景有没有位移，绝对不要看角色出现在画面的哪里。
+- 走一步大约让背景平移八分之一个画面。如果连按 4–6 下之后构图几乎没变，就是被挡住了。
+- 角色有时会“消失”，那是被前景的树或建筑盖住，不是传送或出错。
+- 分辨画面上的方框：**选单**是窄框、直排的两字词；**对话框**是宽框、整句带标点；
+  **物品栏**是一排图示格子；**狀態卡**有大头照和数值。
+- 不要算像素座标，用相对描述。
+- 动物、白雾、远处色点都只是装饰。把行动力花在人形 NPC、门、告示牌、箱子上。
 
-## 9. The world
+## 最花时间的几个坑
 
-You are 小蝦米, a modern student who buys a VR copy of this very game and wakes
-inside the world of Jin Yong's wuxia novels. Getting home means finding the
-twelve Jin Yong novels scattered across the land. Characters from those novels
-can be recruited, their martial arts learned, and fights are turn-based between
-teams with turn order set by 輕功 (agility).
+- **`changed: true` 不代表你真的动了。** 被挡住时角色仍会播放转身或待机动画，
+  API 一样回报 `changed: true`。`changed: false` 可以信任是被挡；`changed: true`
+  一定要再用背景确认一次。
+- **你一定会鬼打墙。** 画面上没有任何东西告诉你身在何处。请自己记录看过的地方，
+  而且要跟**最近好几笔**比对，不是只比对上一笔——回圈常常绕过好几个画面才回到原点。
+  怎么记由你决定，但要趁还没迷路之前就决定。
+- **交替两键卡住时**，代表第二个键被挡，你正在两格之间弹跳。不要重试同一组合，
+  改成连续送同一个方向。
+- **整片全黑是场景转换**，不是当机。呼叫 `/api/wait` 约 1500ms 再看，不要在淡入
+  淡出时连按键。
+- **选单有时会自己弹出**，通常发生在四个方向都被挡住时。按 esc、等一下、截图确认，
+  重复到关闭为止，然后往**反方向**走，因为触发它的那个方向就是墙。
+- **建筑的入口只是某一格**，不是整片围墙。找不到入口时请耐心绕完一圈，逐一测试
+  每个缝隙的“往内”方向，再下结论。
+- **循环播放的闲聊不是任务。** 同一句开场白第二次出现，就代表那只是场景气氛对话，
+  停手离开即可。
 
-Only the protagonist dying ends the game; defeated companions are badly hurt,
-not dead, and return. Poke at anything that looks placed rather than
-decorative. Everything past that is yours to discover.
+## 这个世界
 
-Go and play.
+你是小蝦米，一个买了本游戏 VR 版的现代学生，醒来后发现自己身处金庸武侠小说的
+世界。想回到现代，就得找齐散落各地的十二本金庸小说。小说中的人物可以招募入队、
+可以习得他们的武功；战斗是团队回合制，出手顺序由**輕功**高低决定。
+
+只有主角死亡才会结束游戏，队友战败只是重伤退场，之后还能再上。看到任何像是“被
+放在那里”而不只是装饰的东西，就去戳看看。除此之外的一切，都留给你自己去发现。
+
+
+# 实战手册：官方说明书整理与跑图心得
+
+本技能分两大部分：**第一部分**是官方操作手册的整理版（控制方式、选单系统、战斗、人物属性），
+**第二部分**是本次连线这套 API 实际跑图后归纳出的血泪教训（避免鬼打墙的具体 SOP、如何正确
+读 320x200 小萤幕截图）。两者合起来才是完整的作战手册。
+
+---
+
+## 零、最优先要做的事：先去拿羅盤，解锁地图
+
+这是新手最容易卡住、也是本次 session 花费最多冤枉路的地方 —— **绝大多数场景一开始是进不
+去的**，不是操作错误，而是游戏刻意设计成需要先完成一个小前置流程：
+
+1. 开场在“软体世界娃娃”所在的小屋，先跟她问完所有问题（会给很多提示），检查屋内能拿的
+   东西，再找到门口离开。
+2. 走到大地图后，沿路南下前往**南賢居**（原版座标约 `[388,325]`，就在主角居/主角家附近的
+   小山上，路上第三个建筑物），跟屋内的南賢对话，取得**羅盤**。
+3. 拿到羅盤之后，原本进不去的许多场景（含大部分建筑）才能真正走进去。若一开始死活找不到
+   某个建筑的入口，优先怀疑“还没解锁”而不是“入口没找对”——两者外观完全一样，只有拿到
+   羅盤后才能分辨。
+4. 手册里另外提到“找客栈的小二哥给点银两、再到南方找智者请教”的说法，很可能是同一件事的
+   不同版本描述（南賢＝智者、给小二哥银两可能是另一支线或跑法差异）。不确定时，**以“先去
+   南賢居拿羅盤”为准**，这是多方攻略资料交叉验证过的主线步骤。
+5. 羅盤最大的价值：拿到后，`ESC → 物品 → 选羅盤`，画面会显示**目前自己（以及所在船只）的
+   座标数字**。这是本游戏提供的“上帝视角”，比任何用截图比对地标的土法炼钢都可靠 —— 之后
+   每走几步就查一次座标，可以立刻确认自己有没有在原地打转，强烈建议一开局就把这件事排第一
+   优先，不要等到迷路很久才想起来。
+
+---
+
+## 一、基本操作（官方手册整理版）
+
+- **移动**：键盘右侧九宫数字键的 `1/3/7/9`，或方向键，效果相同。**按住不放，人物会持续朝
+  该方位一直走**，直到放开或撞到障碍为止（不是只能一次点一步）。
+- **确认/对话/攻击**：空白键（Space）与 Enter 键效果完全相同，对准人或物件后按下即可互动。
+- **叫出选单**：无论大地图或小场景，统一按 `Esc`。选单内用方向键（1/3 或上下）移动反白，
+  空白键或 Enter 确定，`Esc` 取消/返回上一层。
+- **是非选择**：出现“（Ｙ／Ｎ）”提示时，`Y`＝肯定/要，`N`＝否定/不要。
+- **等待讯息**：剧情文字或对话跑完一段后，随便按任一键即可继续（不限定空白键）。
+
+### 选单项目
+
+- **大地图选单**（六项）：醫療、解毒、物品、狀態、隊、系統。
+- **小场景选单**（四项）：醫療、解毒、物品、狀態（没有「隊」和「系統」——想存档或换队员，
+  一定要回到大地图才能做）。
+- 战斗中也是用 `Esc` 叫出当回合可用的指令选单，操作逻辑相同。
+
+### 各选单项说明（浓缩版）
+
+- **醫療**：选择医者 → 选择被医者，回复生命值。醫療者**體力需≥50**才有效；若被医者伤势过
+  重、与醫療者的醫療能力值差太多，醫療会失效，只能靠药物。
+- **解毒**：同醫療逻辑，选解毒者 → 选中毒者。中毒过深、能力值差太多一样会失效。
+- **物品**：查看/使用/装备/修练道具。先对准要施用的对象（人或物）再进入物品栏操作。物品
+  分五大类：①剧情物品（特定时机用在特定人/物上，推进剧情）②药丸（回复/增强属性，平时战
+  斗都能用）③暗器（仅战斗可用，攻击力受使用者暗器技巧影响）④武器防具（可装备，是否能装
+  视人物属性而定）⑤秘笈经书（可安排队员修练，成功后增加属性或学会新武功，部分还能炼出特
+  殊药丸/暗器）。
+- **狀態**：查看队员的生命/内力/體力/经验/升级所需点数，以及攻击/防御/輕功/醫療/用毒/解
+  毒/拳掌/御剑/耍刀/特殊兵器/暗器技巧等属性；另一页显示大头照、姓名、目前装备、修练中物
+  品，以及已学武功列表（每人最多同时修练/持有 10 种武功，每种武功最高练到第 10 重）。
+- **隊**（仅大地图出现）：邀请队员加入或请队员离队。
+- **系統**（仅大地图出现）：读档／存档（三个存档位，存档时会有“请稍候”字样，消失即完
+  成）／离开游戏（Y 确认离开，N 取消）。
+
+---
+
+## 二、战斗系统（官方手册整理版）
+
+- **回合制**，出手顺序不分敌我，一律由**輕功高低**决定先后。
+- 轮到己方人员行动时会列出指令选单：
+  - **移动**（耗體力 0，步数由輕功决定，未走完的步数可留到下次再动；只能走进亮著的区域）
+  - **攻击**（耗體力视招式而定，通常 3 起跳；选一招后用 1/3/7/9 决定攻击方向；招式的距离/
+    范围/是定点或范围攻击都因武功与其等级不同而异）
+  - **用毒**（耗體力 2，范围受用毒者能力限制）
+  - **解毒**（耗體力 2，**需體力≥50**，能力差太多会失效）
+  - **醫療**（耗體力 2，**需體力≥50**，能力差太多会失效——战斗中受伤要趁早医，别等重伤了
+    才处理）
+  - **物品**（用补品或丢暗器，操作同大地图物品栏）
+  - **等待**（跳过本回合、留到最后才行动，可用来做战术判断）
+  - **狀態**（查看队员当前狀態）
+  - **休息**（原地不动，回复體力 2–5 点；體力≥30 时额外回复少量生命与内力）
+  - **自动**（交给电脑操作全部行动，按住空白键不放才能解除）
+- 头上跳出的数字颜色含义：**红色**＝受伤扣血、**绿色**＝中毒扣血、**黄色**＝醫療回复、
+  （偏蓝/紫）＝内力被吸取的武功命中时显示。
+- 战败退场的队友通常没死，只是重伤退出战场，回复生命值后下次仍可上场——**只有主角死亡才
+  会真正结束游戏**，务必保护好主角。
+
+---
+
+## 三、人物属性（官方手册整理版）
+
+**一般属性**：生命／内力／體力／经验／升级（下一级所需经验，出现“－”代表已到顶）／攻
+击力／防御力（皆上限 100，特殊装备可再叠加但基础值封顶 100）／輕功（上限 1000，决定战斗
+出手顺序与移动步数）／醫療能力／用毒能力／解毒能力／拳掌／御剑／耍刀／特殊兵器／暗器技巧
+（皆上限 100，数值越高代表越容易修成对应武功、施展效果越好）。
+
+**隐藏属性**（程式依你的行为自动增减，狀態栏看不到）：
+
+- **體質**：影响升级时生命值成长多寡，创角时决定，之后不能改。
+- **資質**：影响修练某武功所需的经验点数，資質越高所需经验越少、练得越快；但少数特殊武功
+  （如左右互搏）反而是留给資質较差的人练的保底技能，不要看到“資質低”就放弃某角色。
+- **道德**：由你在江湖上的行为累积（偷东西、杀人、选择等），可对著南賢居的镜子按空白键查
+  看目前数值。道德太低会导致部分正派人物拒绝入队；但某些十大恶人/善人路线需要特定道德区
+  间才打得到/邀得到，不是越高越好，要配合攻略目标。
+- **名望**：靠打赢战斗累积，越高越有机会被邀请参加武林大会等后期剧情。
+
+---
+
+## 四、新手忠告（官方手册整理版）
+
+1. 除了九宫数字键 1/3/7/9，方向键（↑↓←→）同样能控制人物行走，两套键位效果一致。
+2. 一定要先问完最初小屋里的软体世界娃娃，她会给很多有用提示。
+3. 问完后先检查屋内有没有东西可拿，再找门口离开。
+4. 走到大地图后很多场景进不去是正常的（见上方“零、最优先要做的事”），不要慌，去找到南
+   贤居拿羅盤解锁。
+5. 开局主角只是无名小卒，只要有战斗机会就尽量参加，多打才能累积名望被人认识。
+6. 升级才能提升各项属性，所需经验值可在狀態栏“升级”栏位右方看到。
+7. 羅盤在物品栏查看时会显示目前座标，地图迷路时全靠它。
+8. 打赢某人/某派后，通常可以搜刮屋内东西，但要注意有些是“未经允许乱拿会扣道德”的，过关
+   对话明确提示可以拿的时候再拿最保险。
+9. 只有主角死亡游戏才会结束，其他队友战败退场只是重伤，不会真的死掉（除非特定事件或你自
+   己解散他们）。想存档只能在大地图用“系统”选单，记得定期存档。
+10. 各客栈、軟體娃娃小屋都能休息回满生命值（伤/毒太重时无法靠休息回满），但客栈住宿要收
+    费，不要住到破产。
+11. 请队友离队时注意他离开前讲的最后一句话，通常会透露“要回去哪里”，下次想再找他入队就
+    去那里找。
+12. 物品栏里把游标移到羅盤上，可以看到人物（及船，若有搭船）的座标；船的座标不会动，除非
+    你正搭著它。
+
+---
+
+## 五、地图与座标系统（本 session 额外验证的重点）
+
+原版游戏有明确的座标系统，玩家社群整理过大量地标座标（**注意**：这些座标来自原版单机游戏
+玩家攻略，本次连线的 API 版本座标系统未必完全一致，仅供相对位置/比例参考，实际请以自己游
+戏内羅盤查到的数字为准）：
+
+| 地点 | 参考座标 |
+|---|---|
+| 主角居（主角家） | (357,235) |
+| 南賢居（拿羅盤处） | (388,325) |
+| 河洛客棧 | (359,229) |
+| 天寧寺 | (330,237) |
+| 鐵掌山 | (302,343) |
+| 衡山派 | (355,376) |
+| 無量山洞 | (168,426) / (169,426) |
+| 五毒教 | (247,424) |
+| 崑崙仙境 | (22,440) |
+| 閻基居 | (396,374) |
+| 北丑居 | (51,109) |
+
+**实战建议**：一旦拿到羅盤，把“查座标”变成跟“截图看地标”同等重要的习惯动作 —— 尤其在
+怀疑自己鬼打墙的时候，直接查座标比对前后两次数字，比用肉眼比对背景树木石头准确得多，也快
+得多。
+
+---
+
+## 六、本 session 实战踩坑 SOP（API 操作层面）
+
+以下是这次实际用 `key`/`screen` API 跑图时归纳出的具体问题与对策，官方手册不会写这些。
+
+### 6.1 `changed:true` 不代表真的有移动
+
+被挡住时角色常会播放转身/待机小动画，API 一样回报 `changed:true`，长批次按键很容易被这个
+假讯号骗很多次。**判断是否真的移动，永远以背景场景（树、石头、围墙转角、土地形状）有没有
+相对画面边缘位移为准，不要看 `changed` 栏位。** `changed:false` 可以直接信任是被挡；
+`changed:true` 一定要肉眼再确认一次。
+
+### 6.2 具体防鬼打墙流程（照做，不要凭感觉硬闯）
+
+1. 每次真的看过的截图都顺手记一句话式的“地标指纹”（例如“左上石堆、中央土地、右上围墙
+   转角”），存进日志档。
+2. 下一步行动前，把即将要看的画面跟**最近 5 笔**指纹比对，不是只比对上一笔——很多回圈是
+   绕了好几个不同画面才绕回原点的。
+3. 第一次侦测到回圈：**不要**再往刚刚那个方向试，改试垂直的另一轴（例如原本 up/right 交替
+   卡住，就换成纯粹 left 或纯粹 down 试试看）。
+4. 同一个地标指纹第二次侦测到回圈：停止批次操作，改成**单键单截图**，把当下位置的四个方
+   向都个别测过一轮，先摸清楚这个小口袋的出口在哪，再继续移动。开局附近的森林很密，这种
+   情况预期在前 20–30 个行动内就会遇到。
+5. 批次量抓 4–6 下就好，不要一次送 10 下以上——如果前几下就被挡住，后面全部都是浪费的
+   no-op；如果真的畅通，4–6 下也已经足够走出画面该看下一张截图了，批次越大只会拖慢你发现
+   问题的速度。
+6. “交替按两键走直线”（例如 `left,down,left,down` 走画面正西）本质是一个 2 循环：如果第
+   二个键被挡住，你会在同两格之间一直弹跳，而且每次弹跳都可能还是回报 `changed:true`。试
+   一次交替没有进展就别再重试同一组合，改成连续送同一个键（纯对角线移动）试试——这次
+   session 唯一一次成功穿越森林进入新地图，用的正是连续同方向推进，而不是交替。
+7. 一旦真的穿越黑屏场景转换（见 6.5）到新地图，**立刻把当时的起始地标指纹和完整按键序列
+   记下来**。不要假设之后可以“照样”再走一次——密林里有效的出口常常只是一格宽的缝，换一
+   个起始位置很容易就完全错过。有羅盤之后这个问题会大幅缓解（可以用绝对座标对照，而不是
+   凭印象重走）。
+
+### 6.3 如何正确读 320x200 的小截图
+
+- **镜头永远锁定角色**，角色本身在画面上几乎不会移动位置。**判断有没有移动，永远看背景有
+  没有位移，绝对不要看角色贴图的画面座标**——这是最重要的一条读图习惯。
+- 角色偶尔会“消失”，通常是被更高的树木/草丛/建筑物遮挡（绘制图层在角色之上），不是传送
+  或出错，不用因此重新校正自己的心理地图。
+- **每一步移动大概让背景平移画面宽高的 1/8 到 1/6**：如果一次 4–6 下的批次之后，构图看起
+  来还有七成以上相似，这已经是“大概率被挡住”的强讯号，不用等仔细比对完才下判断。
+- **分辨画面左上角弹出的方框类型**：
+  - **选单框**＝窄框、直排的两字词：醫療 解毒 物品 狀態（过了新手教学区后还会多出 队 系
+    统）。看到这个代表 `Esc` 选单是开著的，不是在走路，先关掉再说。
+  - **对话框**＝宽框、整句话带标点符号，Enter/空白键推进。如果同一句开场白第二次出现，代
+    表是循环播放的环境对话（见 6.4），不用再往下按了。
+  - **物品栏**＝一排图示格子＋上方名称/说明文字，没有整句对话。
+  - **狀態卡**＝大头照＋属性数值或“所会功夫／装备物品／修练物品”字样，纯资讯，不影响移
+    动判断。
+- **不要迷信精确像素座标**，用相对描述（“画面左三分之一”、“贴著右边缘”、“正中央偏
+  上”）比硬算格子更稳，这也正是基础技能里“上方＝右上、下方＝左下”等相对方位判断法的精
+  神所在。
+- **野生动物、白色雾团、远处色点通常只是装饰**：本 session 走进鹿/兔/狐狸贴图、白色云雾地
+  贴、远处小色点，都没有触发任何对话或战斗。优先把行动力放在人形 NPC、告示牌、门、木箱这
+  些真正可能互动的物件上。
+
+### 6.4 环境背景对话 ≠ 任务
+
+某些围坐聊天的 NPC 群只是场景气氛对话，按 Enter 推进几句后**会循环回到第一句**，不是任务，
+也没有 Y/N 分支。看到同一句开场白第二次出现就该停手离开，不用再往下按。真正可互动的 NPC
+（例如客栈老板问要不要住宿）通常只触发一次，不会重复。
+
+### 6.5 全黑画面＝场景转换，不是当机
+
+截图整片全黑代表过场淡入淡出中，**呼叫 `/api/wait`（约 1500ms）再重新截图**，不要在这时候
+连续按键——淡入完成瞬间按下的键可能会被新场景吃掉，导致一进场景就莫名走了一步或跳出选单。
+
+### 6.6 `Esc` 选单有时会无故自己弹出
+
+当前所在格子四个方向全部被挡住时，下一个按键（即使是纯移动键）有机率意外叫出暂停选单，这
+是引擎本身的怪癖，不是操作失误。而且有时候 `Esc` 要连按 2–3 次（每次间隔 1–1.5 秒并用截图
+确认）才会真正关闭，因为一次 `Esc` 可能只是把子选单切换成另一层选单而不是直接关闭。发现画
+面意外出现选单框时：按 `Esc`、睡 1.5 秒、截图确认，重复到确定关闭为止，然后改往触发它的**
+反方向**走（那个方向就是墙）。
+
+### 6.7 建筑入口是“一个特定格子”，不是整片围墙
+
+有围墙的院落/庄园看起来整圈都能走，但实际上几乎整片围墙都是撞不进去的装饰，真正的门通常
+只有两根柱子中间一个缝，有时会有灯笼或红色门片之类的视觉标记，但角度斜看很容易漏掉。找不
+到入口时，**耐心绕完整圈，逐一测试每一根柱子/每一个缝的“往内”方向**，抓 6–8 个测试点的
+预算，别测 2、3 个就放弃。进去后里面通常是家具迷宫，桌椅柜台会挡住直线路径，靠近 NPC 但打
+不到人时，用单步＋改绕路（例如先下后右再上），不要一直对同一个方向硬撞。

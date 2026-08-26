@@ -165,8 +165,14 @@
   /* One flag on the body rather than per element hidden, so the five second
      live poll cannot un-hide the catalogue behind the screen. */
   body.watching header, body.watching .bar, body.watching main,
-  body.watching #live { display: none; }
-  body:not(.watching) #watch { display: none; }
+  body.watching #live, body.reading header, body.reading .bar,
+  body.reading main, body.reading #live { display: none; }
+  body:not(.watching) #watch, body:not(.reading) #doc { display: none; }
+
+  .doc { margin: 0; background: var(--panel); border: 1px solid var(--line);
+         border-radius: 8px; padding: 22px 24px; max-width: 900px;
+         font: 12.5px/1.8 var(--mono); white-space: pre-wrap; word-break: break-word;
+         overflow-x: auto; }
   .wtop { display: flex; align-items: center; gap: 12px; padding: 22px 0 14px; }
   .wtop b { font-size: 15px; }
   .wro { margin-left: auto; font-size: 11px; color: var(--dim);
@@ -213,6 +219,12 @@
 
   <div class="oneline">
     <code id="one">读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。</code>
+    <button id="view" title="查看">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/>
+        <circle cx="8" cy="8" r="1.9"/></svg>
+      <span>查看</span>
+    </button>
     <button id="copy" title="复制">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/>
@@ -252,6 +264,23 @@
 
 <main><div id="out" class="msg">载入中</div></main>
 
+<section id="doc">
+  <div class="wtop">
+    <button class="ico" id="docback" title="返回">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <b class="mono">agents.md</b>
+    <a class="ico" href="agents.md" title="原始档" style="margin-left:auto">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>
+    </a>
+  </div>
+  <pre id="doctext" class="doc"></pre>
+</section>
+
 <section id="watch">
   <div class="wtop">
     <button class="ico" id="back" title="返回">
@@ -274,7 +303,7 @@
 </div>
 
 <script>
-const T = {"copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
@@ -582,9 +611,38 @@ function close(push) {
 }
 
 $("back").onclick = () => close(true);
+
+// ------------------------------------------------------------------ brief
+
+let brief = null;
+async function showDoc(push) {
+  document.body.classList.add("reading");
+  scrollTo(0, 0);
+  if (brief === null) {
+    $("doctext").textContent = T.loading;
+    try { brief = await fetch("agents.md", {cache: "no-cache"}).then(r => r.text()); }
+    catch { brief = T.gone; }
+  }
+  $("doctext").textContent = brief;
+  if (push) history.pushState({doc: 1}, "", "?doc=1");
+}
+function hideDoc(push) {
+  document.body.classList.remove("reading");
+  if (push) history.pushState({}, "", location.pathname);
+}
+$("view").onclick = () => showDoc(true);
+$("docback").onclick = () => hideDoc(true);
 addEventListener("popstate", e => {
   const st = e.state || {};
+  if (st.doc) return showDoc(false);
+  hideDoc(false);
   st.sid ? open(st.sid, st.agent, false) : close(false);
+});
+
+addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (document.body.classList.contains("reading")) hideDoc(true);
+  else if (document.body.classList.contains("watching")) close(true);
 });
 
 load();
@@ -594,6 +652,7 @@ setInterval(pollLive, 5000);
 
 const q = new URLSearchParams(location.search);
 if (q.get("watch")) open(q.get("watch"), q.get("agent") || "?", false);
+else if (q.get("doc")) showDoc(false);
 </script>
 </body>
 </html>

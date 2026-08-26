@@ -18,6 +18,7 @@ ZH = {
     "blurb": "二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。",
     "slogan": "二十分钟的江湖",
     "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。",
+    "view": "查看", "raw": "原始档",
     "copy": "复制", "copied": "已复制",
     "rules": [("20:00", "每局时长"), ("10:00", "无动作即结束"),
               ("1", "每个 agent 一台机器"), ("0", "游戏逻辑改动")],
@@ -43,7 +44,8 @@ EN = {
     "blurb": "Twenty minutes in an unmodified 1996 wuxia CRPG. "
              "One run per model, recorded.",
     "slogan": "twenty minutes in the jianghu",
-    "oneline": "Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.",
+    "oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it.",
+    "view": "view", "raw": "raw",
     "copy": "copy", "copied": "copied",
     "rules": [("20:00", "per run"), ("10:00", "silence ends it"),
               ("1", "machine per agent"), ("0", "lines of game logic changed")],
@@ -229,8 +231,14 @@ TEMPLATE = r"""<!doctype html>
   /* One flag on the body rather than per element hidden, so the five second
      live poll cannot un-hide the catalogue behind the screen. */
   body.watching header, body.watching .bar, body.watching main,
-  body.watching #live {{ display: none; }}
-  body:not(.watching) #watch {{ display: none; }}
+  body.watching #live, body.reading header, body.reading .bar,
+  body.reading main, body.reading #live {{ display: none; }}
+  body:not(.watching) #watch, body:not(.reading) #doc {{ display: none; }}
+
+  .doc {{ margin: 0; background: var(--panel); border: 1px solid var(--line);
+         border-radius: 8px; padding: 22px 24px; max-width: 900px;
+         font: 12.5px/1.8 var(--mono); white-space: pre-wrap; word-break: break-word;
+         overflow-x: auto; }}
   .wtop {{ display: flex; align-items: center; gap: 12px; padding: 22px 0 14px; }}
   .wtop b {{ font-size: 15px; }}
   .wro {{ margin-left: auto; font-size: 11px; color: var(--dim);
@@ -277,6 +285,12 @@ TEMPLATE = r"""<!doctype html>
 
   <div class="oneline">
     <code id="one">{oneline}</code>
+    <button id="view" title="{view}">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/>
+        <circle cx="8" cy="8" r="1.9"/></svg>
+      <span>{view}</span>
+    </button>
     <button id="copy" title="{copy}">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/>
@@ -315,6 +329,23 @@ TEMPLATE = r"""<!doctype html>
 </section>
 
 <main><div id="out" class="msg">{loading}</div></main>
+
+<section id="doc">
+  <div class="wtop">
+    <button class="ico" id="docback" title="{back}">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <b class="mono">agents.md</b>
+    <a class="ico" href="{md}" title="{raw}" style="margin-left:auto">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>
+    </a>
+  </div>
+  <pre id="doctext" class="doc"></pre>
+</section>
 
 <section id="watch">
   <div class="wtop">
@@ -646,9 +677,38 @@ function close(push) {{
 }}
 
 $("back").onclick = () => close(true);
+
+// ------------------------------------------------------------------ brief
+
+let brief = null;
+async function showDoc(push) {{
+  document.body.classList.add("reading");
+  scrollTo(0, 0);
+  if (brief === null) {{
+    $("doctext").textContent = T.loading;
+    try {{ brief = await fetch("{md}", {{cache: "no-cache"}}).then(r => r.text()); }}
+    catch {{ brief = T.gone; }}
+  }}
+  $("doctext").textContent = brief;
+  if (push) history.pushState({{doc: 1}}, "", "?doc=1");
+}}
+function hideDoc(push) {{
+  document.body.classList.remove("reading");
+  if (push) history.pushState({{}}, "", location.pathname);
+}}
+$("view").onclick = () => showDoc(true);
+$("docback").onclick = () => hideDoc(true);
 addEventListener("popstate", e => {{
   const st = e.state || {{}};
+  if (st.doc) return showDoc(false);
+  hideDoc(false);
   st.sid ? open(st.sid, st.agent, false) : close(false);
+}});
+
+addEventListener("keydown", e => {{
+  if (e.key !== "Escape") return;
+  if (document.body.classList.contains("reading")) hideDoc(true);
+  else if (document.body.classList.contains("watching")) close(true);
 }});
 
 load();
@@ -658,6 +718,7 @@ setInterval(pollLive, 5000);
 
 const q = new URLSearchParams(location.search);
 if (q.get("watch")) open(q.get("watch"), q.get("agent") || "?", false);
+else if (q.get("doc")) showDoc(false);
 </script>
 </body>
 </html>
@@ -683,7 +744,8 @@ def build(s):
             "blurb", "slogan", "oneline", "rules", "sort", "loading",
             "grid", "list"}
     strings = {k: v for k, v in s.items() if k not in skip}
-    fields = dict(s, rules=rules, md="agents.md" if s["lang"] != "en" else "../agents.md",
+    # each language ships its own brief alongside its page
+    fields = dict(s, rules=rules, md="agents.md",
                   strings=repr(strings).replace("'", '"'))
     return TEMPLATE.format(**fields)
 
