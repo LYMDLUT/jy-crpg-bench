@@ -9,6 +9,7 @@ import asyncio
 import base64
 import collections
 import ctypes
+import hashlib
 import io
 import json
 import os
@@ -102,6 +103,7 @@ history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
 # Counted per game, so a reset starts a fresh session rather than continuing one.
 session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
+agents: collections.Counter = collections.Counter()
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -136,6 +138,7 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False):
     if verb in ("KEY", "KEYS", "TEXT", "WAIT"):
         session["actions"] += 1
         session["by_web" if src == "web" else "by_api"] += 1
+        agents[src] += 1
     history.append(entry)
     try:
         asyncio.get_running_loop()
@@ -251,7 +254,8 @@ async def pump():
 def session_summary():
     return {"uptime_s": round(time.time() - session["started"], 1),
             "actions": session["actions"],
-            "by_api": session["by_api"], "by_web": session["by_web"]}
+            "by_api": session["by_api"], "by_web": session["by_web"],
+            "agents": dict(agents.most_common(8))}
 
 
 async def reap():
@@ -427,10 +431,34 @@ def keycode(name):
     return KEYS.get(str(name).strip().lower())
 
 
+# Readable stand-in names, in the register of the game, so an agent that did
+# not introduce itself is still something you can point at in the log.
+_ADJ = ("swift", "jade", "iron", "azure", "silent", "crimson", "golden", "misty",
+        "lone", "wandering", "ancient", "white", "shadow", "drunken", "nine", "cloud")
+_NOUN = ("crane", "tiger", "dragon", "sparrow", "blade", "monk", "fox", "phoenix",
+         "serpent", "willow", "peak", "lotus", "sabre", "pilgrim", "heron", "bell")
+
+
+def anon_name(seed: str) -> str:
+    h = hashlib.blake2s(seed.encode(), digest_size=4).digest()
+    return f"{_ADJ[h[0] % len(_ADJ)]}-{_NOUN[h[1] % len(_NOUN)]}-{h[2]:02x}"
+
+
 def actor(request):
-    """Optional agent name, so several agents on one session are told apart."""
-    name = (request.headers.get("X-Agent") or request.query.get("agent") or "api")
-    return "".join(c for c in name if c.isalnum() or c in "-_.")[:16] or "api"
+    """Who is acting.
+
+    An agent should name itself with an X-Agent header. When it does not, fall
+    back to a short stable id derived from its address and client string, so
+    two anonymous agents are still told apart instead of both showing as "api".
+    """
+    given = request.headers.get("X-Agent") or request.query.get("agent")
+    if given:
+        clean = "".join(c for c in given if c.isalnum() or c in "-_.")[:16]
+        if clean:
+            return clean
+    peer = request.remote or "?"
+    ua = request.headers.get("User-Agent", "")
+    return anon_name(f"{peer}|{ua}")
 
 
 async def api_key(request):
@@ -526,6 +554,7 @@ async def api_reset(request):
         history.clear()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
+        agents.clear()
         await asyncio.sleep(1.5)          # give the machine a moment to start booting
 
     await fanout(json.dumps({"t": "clear"}), text=True)

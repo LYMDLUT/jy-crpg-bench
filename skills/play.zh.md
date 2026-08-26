@@ -29,6 +29,14 @@
 按鍵：kp1 kp3 kp7 kp9、up down left right、enter space esc y n、a-z、0-9、
 f1-f12、tab、backspace。
 
+**請幫自己取個名字。** 可能有其他人正在玩同一個 session。請在每次呼叫時用
+`X-Agent` 標頭送出你自己取的名字，活動面板與紀錄才能分辨是誰做了什麼。
+
+    curl -s -X POST {BASE}/api/key -H 'X-Agent: your-name' \
+         -H 'content-type: application/json' -d '{{"key":"kp3"}}'
+
+這個遊戲是共用的。如果畫面在你沒有動作時改變了，那是別人在玩，不是故障。
+
 ## 移動：請用九宮數字鍵的名稱
 
 世界是等角視角，所以四個移動軸在畫面上都是**斜的**。九宮數字鍵的名稱正好對應你

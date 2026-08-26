@@ -46,17 +46,25 @@
   .k.arrow { color: #8ecdf7; border-color: #2f4658; }
   .r .ts { color: #4a4a55; }
   .r .src {
-    flex: none; max-width: 62px; overflow: hidden; text-overflow: ellipsis;
-    color: #7aa2f7;
+    flex: none; max-width: 72px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .r .src.web { color: #7c7c8a; }
   .r .vbwrap { flex: none; width: 38px; }
   .r .vb { font-weight: 700; }
   #meter {
-    display: flex; gap: 10px; padding: 6px 12px 8px; font-size: 10.5px;
-    color: #6c6c78; border-bottom: 1px solid #1e1e24; letter-spacing: .03em;
+    display: flex; gap: 10px; padding: 6px 12px 6px; font-size: 10.5px;
+    color: #6c6c78; letter-spacing: .03em;
   }
   #meter b { color: #b9b9c2; font-weight: 600; }
+  #bars { padding: 0 12px 9px; border-bottom: 1px solid #1e1e24; }
+  .bar { display: flex; align-items: center; gap: 6px; font-size: 10.5px; padding: 1px 0; }
+  .bar .who {
+    width: 96px; flex: none; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bar .track { flex: 1; height: 9px; background: #17171c; border-radius: 2px; overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 2px; }
+  .bar .num { width: 26px; flex: none; text-align: right; color: #8a8a96; }
   .r .tg { color: #d8d8de; overflow: hidden; text-overflow: ellipsis; }
   .v-KEY, .v-KEYS, .v-TEXT { color: #6cb6ff; }
   .v-WAIT { color: #8a8a96; }
@@ -187,6 +195,7 @@
     <span>agent <b id="m-api">0</b></span>
     <span>web <b id="m-web">0</b></span>
   </div>
+  <div id="bars"></div>
   <div id="logrows"><div id="empty">nothing yet. keys you press here, and calls
     to /api/*, both show up.</div></div>
 </aside>
@@ -316,11 +325,40 @@ function fmt(s) {
   const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
   return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s % 60).padStart(2, "0");
 }
+// One stable colour per name, so the bar and every log line agree.
+function hueOf(name) {
+  let h = 2166136261;
+  for (const ch of name) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return Math.abs(h) % 360;
+}
+const colorOf = name => `hsl(${hueOf(name)} 62% 66%)`;
+
 function setMeter(s) {
   meter = s; meterAt = Date.now();
   document.getElementById("m-acts").textContent = s.actions;
   document.getElementById("m-api").textContent = s.by_api;
   document.getElementById("m-web").textContent = s.by_web;
+
+  const box = document.getElementById("bars");
+  const rows = Object.entries(s.agents || {});
+  if (!rows.length) { box.textContent = ""; return; }
+  const top = Math.max(...rows.map(r => r[1]));
+  box.textContent = "";
+  for (const [name, n] of rows) {
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.innerHTML = `<span class="who"></span>` +
+                    `<span class="track"><span class="fill"></span></span>` +
+                    `<span class="num"></span>`;
+    bar.children[0].textContent = name;
+    bar.children[0].style.color = colorOf(name);
+    bar.children[0].title = name;
+    const fill = bar.children[1].firstChild;
+    fill.style.width = Math.max(3, (n / top) * 100) + "%";
+    fill.style.background = colorOf(name);
+    bar.children[2].textContent = n;
+    box.appendChild(bar);
+  }
 }
 // tick locally so the clock moves between server messages
 setInterval(() => {
@@ -350,7 +388,7 @@ function addLog(e) {
     `<span class="vbwrap"><span class="vb"></span></span><span class="tg"></span>`;
   row.children[0].textContent = ts;
   row.children[1].textContent = e.src;
-  if (e.src === "web") row.children[1].classList.add("web");
+  row.children[1].style.color = e.src === "web" ? "#7c7c8a" : colorOf(e.src);
   row.children[1].title = e.src;
   const vb = row.children[2].firstChild;
   vb.textContent = e.verb;

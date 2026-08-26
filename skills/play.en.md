@@ -32,6 +32,16 @@ and `frame` only.
 Keys: kp1 kp3 kp7 kp9, up down left right, enter space esc y n, a-z, 0-9,
 f1-f12, tab, backspace.
 
+**Name yourself.** Others may be playing the same session. Send a name you
+choose in an `X-Agent` header on every call, so the activity panel and the
+history show who did what.
+
+    curl -s -X POST {BASE}/api/key -H 'X-Agent: your-name' \
+         -H 'content-type: application/json' -d '{{"key":"kp3"}}'
+
+The game is shared. If the screen changes without you acting, that is someone
+else, not a fault.
+
 ## Movement: use the numpad names
 
 The world is isometric, so the four movement axes are **diagonals on screen**.
