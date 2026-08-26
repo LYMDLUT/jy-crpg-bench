@@ -173,16 +173,16 @@ other.
 
 ## Agent API
 
+The game reads key presses and nothing else. It has no text entry and no mouse,
+so every interaction is a key.
+
 ```
-GET  /state                        screen + geometry + "screen" hash
-GET  /frame.png?scale=2            raw PNG
+GET  /screen[?format=png]          look at the screen
 GET  /history?limit=100            action log
 GET  /keys  /slots  /help
-POST /key    {"key":"kp3"}         "hold" frames, default 4
-POST /keys   {"keys":["kp9","ok"]} "gap" frames between, default 6
-POST /text   {"text":"j;6"}        type a string
+POST /key    {"key":"kp3"}         one key; "times" repeats, "hold" frames
+POST /keys   {"keys":["kp9","enter"]}   several in order, "gap" between
 POST /wait   {"ms":1000}
-POST /mouse  {"dx":10,"dy":0,"click":"left"}
 POST /save   {"slot":1} | {"name":"before-boss"}
 POST /load   {"slot":1}
 POST /reset
@@ -192,11 +192,9 @@ POST /reset
 `?image=0` skips the capture, and `?react`, `?stable` and `?maxsettle` tune the
 wait. `"changed": false` means the action had no visible effect. `frame` counts
 distinct video frames and stalls on a static screen, while `ticks` always rises
-while the emulator runs. Boot takes about 14 seconds; poll `/state` and watch
-the `screen` hash to know when it has finished.
+while the emulator runs. Boot takes about 14 seconds.
 
-The browser runner exposes the same actions under `/api/`, with `/api/screen`
-replacing `/state` and `/frame.png`.
+The browser runner exposes the same surface under `/api/`.
 
 ## Letting an LLM play
 

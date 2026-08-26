@@ -68,14 +68,10 @@ export default function (pi: ExtensionAPI) {
       "Look at the current game screen without pressing anything. Use it to re-read a " +
       "screen you did not finish reading, or to re-orient after losing track of where you are.",
     promptSnippet: "Look at the current game screen",
-    parameters: Type.Object({
-      scale: Type.Optional(Type.Number({
-        description: "1-6, enlarges the 320x200 frame. Raise it if Chinese glyphs are hard to read.",
-      })),
-    }),
+    parameters: Type.Object({}),
     async execute(_id, params, signal) {
       try {
-        return frame(await call("GET", `/state?scale=${params.scale ?? SCALE}`, undefined, signal), "look");
+        return frame(await call("GET", "/screen", undefined, signal), "look");
       } catch (err) {
         return offline(err);
       }
@@ -157,18 +153,6 @@ export default function (pi: ExtensionAPI) {
       const steps = Math.max(1, params.steps ?? 1);
       return act("/keys", { keys: Array(steps).fill(dir), gap: 6 }, `move ${dir} x${steps}`, signal);
     },
-  });
-
-  pi.registerTool({
-    name: "game_type",
-    label: "Type",
-    description:
-      "Type a literal string, one key per character. The character-name prompt runs the " +
-      "game's own 注音 IME, so send zhuyin keys rather than pinyin: 'j;6' produces the " +
-      "candidate list for ㄨㄤˊ, then press the digit for the character you want.",
-    promptSnippet: "Type a string into the game",
-    parameters: Type.Object({ text: Type.String() }),
-    execute: (_id, params, signal) => act("/text", { text: params.text }, `type ${params.text}`, signal),
   });
 
   pi.registerTool({

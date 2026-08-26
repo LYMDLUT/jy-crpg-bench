@@ -146,19 +146,13 @@ final class ControlAPI {
             log.add("GET", r.path)
             return respond(200, "text/plain; charset=utf-8", Data(Self.help.utf8))
 
-        case ("GET", "/state"):
-            let shot = r.wantsImage ? emu.snapshot(scale: scale) : nil
-            log.add("GET", "/state")
-            return reply(r, ok: true, extra: [:], shot: shot)
-
-        case ("GET", "/frame.png"), ("GET", "/screenshot"):
-            guard let shot = emu.snapshot(scale: scale) else {
-                log.add("GET", r.path, ok: false)
-                return respond(503, "application/json", Data(#"{"ok":false,"error":"no frame yet"}"#.utf8))
+        case ("GET", "/screen"):
+            guard let shot = emu.snapshot(scale: 1) else {
+                log.add("GET", "/screen", ok: false)
+                return respond(503, "application/json", json(["ok": false, "error": "no frame yet"]))
             }
-            log.add("GET", r.path, payload: "\(shot.width)x\(shot.height)",
-                    image: emu.snapshot(scale: 1)?.png)
-            if r.path == "/frame.png" || r.wantsRawPNG {
+            log.add("GET", "/screen", image: shot.png)
+            if r.query["format"] == "png" {
                 return respond(200, "image/png", shot.png)
             }
             return reply(r, ok: true, extra: [:], shot: shot)
@@ -217,40 +211,11 @@ final class ControlAPI {
             let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, timeout: 60)
             return reply(r, ok: res.ok, extra: ["keys": names], shot: res.shot, changed: res.changed)
 
-        case ("POST", "/text"):
-            guard let text = r.string("text"), !text.isEmpty else {
-                return respond(400, "application/json", json(["ok": false, "error": "text required"]))
-            }
-            var steps: [Emulator.Step] = []
-            for ch in text {
-                guard let k = RetroKey.parse(String(ch)) else { continue }
-                steps.append(.press([k], frames: 3))
-                steps.append(.wait(3))
-            }
-            log.add("TEXT", text)
-            let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, timeout: 120)
-            return reply(r, ok: res.ok, extra: ["text": text], shot: res.shot, changed: res.changed)
-
         case ("POST", "/wait"):
             let frames = r.int("frames") ?? Int(Double(r.int("ms") ?? 500) * core_fps() / 1000.0)
             log.add("WAIT", "\(frames)f")
             let res = emu.submitSync([.wait(max(0, min(frames, 4000)))], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, timeout: 120)
             return reply(r, ok: res.ok, extra: ["frames": frames], shot: res.shot, changed: res.changed)
-
-        case ("POST", "/mouse"):
-            var steps: [Emulator.Step] = []
-            let dx = r.int("dx") ?? 0, dy = r.int("dy") ?? 0
-            if dx != 0 || dy != 0 { steps.append(.mouseMove(dx, dy)) }
-            if let click = r.string("click") {
-                let b = ["left": 0, "right": 1, "middle": 2][click.lowercased()] ?? 0
-                steps.append(.mouseClick(b))
-            }
-            guard !steps.isEmpty else {
-                return respond(400, "application/json", json(["ok": false, "error": "dx/dy or click required"]))
-            }
-            let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage)
-            log.add("MOUSE", "dx:\(dx) dy:\(dy)", payload: r.string("click") ?? "", ok: res.ok)
-            return reply(r, ok: res.ok, extra: ["dx": dx, "dy": dy], shot: res.shot, changed: res.changed)
 
         case ("POST", "/save"):
             let url = slotURL(r)
@@ -358,40 +323,31 @@ final class ControlAPI {
     static let help = """
     QunXia - 金庸群俠傳 running as the original DOS binary under DOSBox Pure.
 
-    Every state-changing call runs the action, waits for the screen to stop
-    changing, and returns the resulting screenshot in the same response.
+    The game takes key presses and nothing else. There is no text entry and no
+    mouse, so every interaction below is a key.
 
-      "image"  base64 PNG data URI (add ?format=png for raw PNG bytes,
-               or ?image=0 to skip the screenshot)
-
-    GET  /state                       current screen + geometry + "screen" hash
-                                      (poll it to see when the picture settles)
-    GET  /frame.png[?scale=2]         raw PNG of the current screen
+    GET  /screen[?format=png]         look at the screen
     GET  /history[?limit=100]         action log
     GET  /keys                        every accepted key name
     GET  /slots                       savestates on disk
     GET  /help
 
-    POST /key    {"key":"down"}       one key; "hold" frames, default 4
-    POST /keys   {"keys":["down","ok"]}  sequence; "gap" frames between, default 6
-    POST /text   {"text":"abc"}       type a string
-    POST /wait   {"ms":1000}          let the game run ("frames" also accepted)
-    POST /mouse  {"dx":10,"dy":0,"click":"left"}
-    POST /save   {"slot":1}  or {"name":"before-boss"}
+    POST /key    {"key":"kp3"}        one key; "times" repeats, "hold" frames
+    POST /keys   {"keys":["kp9","enter"]}   several in order; "gap" between
+    POST /wait   {"ms":1000}          let the game run
+    POST /save   {"slot":1} | {"name":"before-boss"}
     POST /load   {"slot":1}
     POST /reset
 
-    A POST waits for the screen to react (up to "react" frames, default 30) and
-    then to hold still, so the screenshot is the result of the action and not
-    the frame before it. "changed":false means the action did nothing visible.
+    A POST waits for the screen to react and then to hold still, so what comes
+    back is the result of the action. "changed":false means nothing visible
+    happened. Add ?format=png for raw bytes, ?image=0 to skip the capture.
 
-    Common params on any POST: scale (1-6, default 2), react, stable, maxsettle,
-    settle (skip the logic and wait a fixed number of frames), image=0.
+    Movement is isometric, so the four axes are diagonals on screen:
+      kp7 up-left   kp9 up-right   kp1 down-left   kp3 down-right
+    The names left/up/down/right are aliases for those same four.
 
-    "frame" counts distinct video frames and stops rising while the picture is
-    unchanged; "ticks" always rises while the emulator is running.
-
-    Keys: arrows up/down/left/right, ok|enter, esc|cancel, space, y, n,
-    a-z, 0-9, f1-f12, tab, backspace, shift, ctrl, alt, and combos like "alt+x".
+    Keys: kp0-kp9, arrows, enter, space, esc, y, n, a-z, 0-9, f1-f12, tab,
+    backspace, and combos such as "alt+x".
     """
 }

@@ -507,20 +507,6 @@ async def api_keys(request):
     return await run_action(request, steps, " ".join(map(str, names)), verb="KEYS")
 
 
-async def api_text(request):
-    d = await body_of(request)
-    text = str(d.get("text", ""))
-    if not text:
-        return web.json_response({"ok": False, "error": "text required"}, status=400)
-    steps = []
-    for ch in text:
-        c = keycode(ch)
-        if c:
-            steps.append((c, 3))
-            steps.append(("wait", 0.05))
-    return await run_action(request, steps, text, verb="TEXT")
-
-
 async def api_wait(request):
     d = await body_of(request)
     ms = max(0, min(int(d.get("ms", 1000)), 60000))
@@ -634,7 +620,6 @@ def main():
         web.post("/api/reset", api_reset),
         web.post("/api/key", api_key),
         web.post("/api/keys", api_keys),
-        web.post("/api/text", api_text),
         web.post("/api/wait", api_wait),
     ])
     # on_startup handlers are awaited, so the pump has to be detached as a task

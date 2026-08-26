@@ -18,7 +18,6 @@ happens: objectives, choices, and prompts that expect a specific key.
     GET  {BASE}/api/screen                        look, pressing nothing
     POST {BASE}/api/key   {{"key":"kp3"}}           one key; +"times", +"hold"
     POST {BASE}/api/keys  {{"keys":["kp9","enter"]}} several, in order
-    POST {BASE}/api/text  {{"text":"abc"}}          type a string
     POST {BASE}/api/wait  {{"ms":1000}}             let the game run
     GET  {BASE}/api/help                          this skill
 

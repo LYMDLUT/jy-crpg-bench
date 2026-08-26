@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Tiny client for the QunXia control API.
 
-  ./Scripts/play.py state
+  ./Scripts/play.py screen
   ./Scripts/play.py key down
   ./Scripts/play.py keys up ok
-  ./Scripts/play.py text "j;6"
   ./Scripts/play.py wait 2000
   ./Scripts/play.py save inn      /  load inn
   ./Scripts/play.py shot out.png
@@ -38,8 +37,8 @@ def main(argv):
         print(__doc__.strip())
         return 1
     cmd, args = argv[0], argv[1:]
-    if cmd == "state":
-        res = call("GET", "/state")
+    if cmd in ("screen", "state"):
+        res = call("GET", "/screen")
     elif cmd == "help":
         with urllib.request.urlopen(API + "/help") as r:
             print(r.read().decode())
@@ -48,8 +47,6 @@ def main(argv):
         res = call("POST", "/key", {"key": args[0]})
     elif cmd == "keys":
         res = call("POST", "/keys", {"keys": args})
-    elif cmd == "text":
-        res = call("POST", "/text", {"text": args[0]})
     elif cmd == "wait":
         res = call("POST", "/wait", {"ms": int(args[0]) if args else 1000})
     elif cmd in ("save", "load"):
@@ -59,7 +56,7 @@ def main(argv):
     elif cmd == "reset":
         res = call("POST", "/reset")
     elif cmd == "shot":
-        res = call("GET", "/state")
+        res = call("GET", "/screen")
     else:
         print(__doc__.strip())
         return 1

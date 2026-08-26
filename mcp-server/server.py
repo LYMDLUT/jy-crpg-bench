@@ -86,14 +86,13 @@ def _act(path, payload, note="", **params):
 # ---------------------------------------------------------------- observation
 
 @mcp.tool()
-def look(scale: int = DEFAULT_SCALE) -> list:
+def look() -> list:
     """Look at the current game screen without pressing anything.
 
     Use this to re-read a screen, or to check where you are after reconnecting.
-    scale 1-6 enlarges the 320x200 image with nearest-neighbour (default 2);
-    raise it if you are struggling to read small Chinese glyphs.
+    The frame comes back at its native 320x200.
     """
-    return _result(_call("GET", f"/state?scale={scale}"))
+    return _result(_call("GET", "/screen"))
 
 
 @mcp.tool()
@@ -167,17 +166,6 @@ def open_menu() -> list:
     does not appear, you are not free to act yet.
     """
     return _act("/key", {"key": "esc"}, note="esc")
-
-
-@mcp.tool()
-def type_text(text: str) -> list:
-    """Type a literal string, one key per character.
-
-    For the character-name prompt the game runs a 注音 IME, so send the zhuyin
-    keys rather than pinyin: "j;6" produces the candidate list for ㄨㄤˊ, then
-    press the digit for the character you want. See guide() for the layout.
-    """
-    return _act("/text", {"text": text}, note=f"type {text!r}")
 
 
 @mcp.tool()

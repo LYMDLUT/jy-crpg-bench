@@ -31,7 +31,7 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   PNG, or `?format=png` for raw bytes. One endpoint, not two envelopes around
   the same thing, and no scaling knob: upscaling server-side only made a bigger
   PNG out of the same pixels.
-- `/api/key`, `/api/keys`, `/api/text`, `/api/wait` apply input and wait for
+- `/api/key`, `/api/keys`, `/api/wait` apply input and wait for
   the screen to react and then settle, but return no picture. Acting and
   looking are separate calls.
 - `POST /api/reset?token=...` hidden. Reboots the emulated machine back to the
@@ -43,7 +43,7 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the
   shared session side by side. Only the calls that explicitly ask to see the
-  screen, `/api/frame.png` and `/api/state`, carry a 150px WebP thumbnail
+  screen, `/api/screen`, carries a 150px WebP thumbnail
   (about 2 KB). Attaching one to every keypress buried the log. Only the
   newest 40 entries keep their image.
 

@@ -15,7 +15,6 @@
     GET  {BASE}/api/screen                        只看畫面，不按任何鍵
     POST {BASE}/api/key   {{"key":"kp3"}}           單鍵；可加 "times"、"hold"
     POST {BASE}/api/keys  {{"keys":["kp9","enter"]}} 依序送出多鍵
-    POST {BASE}/api/text  {{"text":"abc"}}          輸入一串字元
     POST {BASE}/api/wait  {{"ms":1000}}             讓遊戲自己跑一段時間
     GET  {BASE}/api/help                          本技能說明
 
