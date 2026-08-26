@@ -34,6 +34,9 @@ ZH = {
     "agent": "模型", "video": "影片", "novideo": "無影片",
     "full": "完整跑完", "idle": "中途停擺", "never": "從未出手", "err": "失敗",
     "keyspace": "按鍵分布",
+    "live": "正在進行", "watch": "觀看", "back": "返回", "watching": "唯讀觀看",
+    "left": "剩餘", "waiting": "等待第一張畫面", "dropped": "連線中斷，重試中",
+    "over": "這局已結束",
 }
 
 EN = {
@@ -61,6 +64,9 @@ EN = {
     "agent": "agent", "video": "video", "novideo": "no video",
     "full": "full run", "idle": "went idle", "never": "never started",
     "err": "error", "keyspace": "action space",
+    "live": "live now", "watch": "watch", "back": "back", "watching": "read-only",
+    "left": "left", "waiting": "waiting for the first frame",
+    "dropped": "disconnected, retrying", "over": "this run has ended",
 }
 
 TEMPLATE = r"""<!doctype html>
@@ -199,6 +205,42 @@ TEMPLATE = r"""<!doctype html>
   .f .nm b {{ font-weight: 600; font-size: 13.5px; word-break: break-all; }}
   .msg {{ color: var(--dim); text-align: center; padding: 52px 0; font: 12px var(--mono); }}
 
+  /* ---------- live ---------- */
+  .livelist {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
+  .lv {{ display: flex; align-items: center; gap: 9px; padding: 7px 12px 7px 10px;
+        background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
+        box-shadow: 2px 2px 0 rgba(11,18,32,.06); cursor: pointer;
+        font: 12px var(--mono); color: var(--ink); }}
+  .lv:hover {{ background: #f2f4f7; }}
+  .lv em {{ font-style: normal; color: var(--dim); }}
+  .pulse {{ width: 7px; height: 7px; border-radius: 50%; background: var(--bad);
+           display: inline-block; animation: p 1.6s ease-in-out infinite; flex: none; }}
+  @keyframes p {{ 50% {{ opacity: .25; }} }}
+
+  /* ---------- watch ---------- */
+  /* One flag on the body rather than per element hidden, so the five second
+     live poll cannot un-hide the catalogue behind the screen. */
+  body.watching header, body.watching .bar, body.watching main,
+  body.watching #live {{ display: none; }}
+  body:not(.watching) #watch {{ display: none; }}
+  .wtop {{ display: flex; align-items: center; gap: 12px; padding: 22px 0 14px; }}
+  .wtop b {{ font-size: 15px; }}
+  .wro {{ margin-left: auto; font-size: 11px; color: var(--dim);
+         border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; }}
+  .screen {{ position: relative; background: #0b1220; border: 1px solid var(--edge);
+            border-radius: 8px; padding: 14px; display: grid; place-items: center; }}
+  #cv {{ image-rendering: pixelated; display: block; width: 100%; max-width: 960px;
+        aspect-ratio: 320/200; background: #000; }}
+  #veil {{ position: absolute; inset: 0; display: grid; place-items: center;
+          color: #8a93a3; font: 12px var(--mono); background: #0b1220;
+          border-radius: 8px; }}
+  #veil.gone {{ display: none; }}
+  .wkeys {{ display: flex; gap: 6px; flex-wrap: wrap; min-height: 30px;
+           padding: 12px 2px 0; font-size: 12px; }}
+  .wkeys i {{ font-style: normal; border: 1px solid var(--line); border-radius: 5px;
+             padding: 3px 9px; background: var(--panel); color: var(--dim); }}
+  .wkeys i.on {{ background: var(--ink); color: #fff; border-color: var(--ink); }}
+
   footer {{ border-top: 1px solid var(--line); padding: 20px 0 40px; color: var(--dim);
            font: 11.5px var(--mono); display: flex; gap: 14px; }}
 
@@ -263,7 +305,28 @@ TEMPLATE = r"""<!doctype html>
   <span class="n" id="count"></span>
 </div>
 
+<section id="live" hidden>
+  <p class="give">{live} <span id="livedot" class="pulse"></span></p>
+  <div id="livelist" class="livelist"></div>
+</section>
+
 <main><div id="out" class="msg">{loading}</div></main>
+
+<section id="watch">
+  <div class="wtop">
+    <button class="ico" id="back" title="{back}">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <b id="wname" class="mono"></b>
+    <span class="why warn"><span class="pulse"></span><span id="wleft"></span></span>
+    <span class="wro mono">{watching}</span>
+  </div>
+  <div class="screen"><canvas id="cv" width="320" height="200"></canvas>
+    <div id="veil">{waiting}</div></div>
+  <div id="wkeys" class="wkeys mono"></div>
+</section>
 
 <footer>
   <span>{tagline_short}</span>
@@ -453,8 +516,146 @@ document.getElementById("copy").onclick = async e => {{
   setTimeout(() => {{ label.textContent = T.copy; b.classList.remove("done"); }}, 1500);
 }};
 
+// ------------------------------------------------------------------ live
+
+const BACKEND = "https://jy-crpg-bench-366646433082.us-central1.run.app";
+const $ = id => document.getElementById(id);
+let live = [], sock = null, held = new Set(), recent = [], watchId = null;
+
+function mmssLeft(s) {{ return mmss(s); }}
+
+function drawLive() {{
+  const box = $("live"), list = $("livelist");
+  box.hidden = !live.length;
+  if (!live.length) return;
+  list.innerHTML = live.map(s =>
+    `<button class="lv" data-sid="${{s.id}}" data-agent="${{s.agent}}">
+       <span class="pulse"></span>
+       <span style="color:${{hue(s.agent)}}">${{s.agent}}</span>
+       <em>${{T.left}} ${{mmss(s.remaining)}}</em>
+     </button>`).join("");
+}}
+
+$("livelist").onclick = e => {{
+  const b = e.target.closest("[data-sid]");
+  if (b) open(b.dataset.sid, b.dataset.agent, true);
+}};
+
+async function pollLive() {{
+  try {{
+    const d = await fetch(BACKEND + "/api/sessions", {{cache: "no-store"}}).then(r => r.json());
+    live = d.running || [];
+  }} catch {{ live = []; }}
+  drawLive();
+  if (watchId) {{
+    const s = live.find(x => x.id === watchId);
+    $("wleft").textContent = s ? `${{T.left}} ${{mmss(s.remaining)}}` : T.over;
+  }}
+}}
+
+// ------------------------------------------------------------------ watch
+
+async function inflate(buf) {{
+  const st = new Blob([buf]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}}
+
+// Paints one tile delta. Same wire format the interactive client uses; the
+// spectator just never sends anything back.
+const cache = {{}};
+function paint(d) {{
+  const cv = $("cv"), c2d = cv.getContext("2d", {{alpha: false}});
+  const dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
+  const w = dv.getUint16(1, true), h = dv.getUint16(3, true);
+  const tw = d[5], th = d[6];
+  const cols = dv.getUint16(7, true), count = dv.getUint16(11, true);
+  if (cv.width !== w || cv.height !== h) {{
+    cv.width = w; cv.height = h; cache.img = null;
+    c2d.fillStyle = "#000"; c2d.fillRect(0, 0, w, h);
+  }}
+  if (!cache.img || cache.img.width !== tw || cache.img.height !== th)
+    cache.img = c2d.createImageData(tw, th);
+  const idxOff = 13, dataOff = idxOff + count * 2, len = tw * th;
+  const px = cache.img.data;
+  for (let i = 0; i < count; i++) {{
+    const t = dv.getUint16(idxOff + i * 2, true);
+    let p = dataOff + i * len * 3;
+    for (let q = 0; q < len; q++) {{
+      px[q * 4] = d[p++]; px[q * 4 + 1] = d[p++]; px[q * 4 + 2] = d[p++];
+      px[q * 4 + 3] = 255;
+    }}
+    c2d.putImageData(cache.img, (t % cols) * tw, Math.floor(t / cols) * th);
+  }}
+  $("veil").classList.add("gone");
+}}
+
+const GLYPH = {{up: "↗", kp9: "↗", down: "↙", kp1: "↙", left: "↖", kp7: "↖",
+               right: "↘", kp3: "↘", enter: "⏎", space: "␣", escape: "esc",
+               esc: "esc", backspace: "⌫", tab: "⇥"}};
+
+function drawKeys() {{
+  $("wkeys").innerHTML = recent.slice(-14)
+    .map(k => `<i class="${{held.has(k) ? "on" : ""}}">${{GLYPH[k] || k}}</i>`).join("");
+}}
+
+function connect(sid) {{
+  const url = BACKEND.replace(/^http/, "ws") + `/s/${{sid}}/ws`;
+  sock = new WebSocket(url);
+  sock.binaryType = "arraybuffer";
+  sock.onmessage = e => {{
+    if (typeof e.data !== "string") return inflate(e.data).then(paint);
+    const m = JSON.parse(e.data);
+    if (m.t === "key") {{
+      if (m.down) {{ held.add(m.k); recent.push(m.k); recent = recent.slice(-24); }}
+      else held.delete(m.k);
+      drawKeys();
+    }}
+  }};
+  sock.onclose = () => {{
+    if (!sock) return;                       // closed by going back
+    const gone = live.length && !live.some(x => x.id === sid);
+    $("veil").textContent = gone ? T.over : T.dropped;
+    $("veil").classList.remove("gone");
+    if (!gone) setTimeout(() => sock && connect(sid), 2000);
+  }};
+}}
+
+function open(sid, agent, push) {{
+  const s = sock; sock = null; if (s) s.close();
+  cache.img = null;
+  $("wname").textContent = agent;
+  $("wname").style.color = hue(agent);
+  $("wleft").textContent = "";
+  $("veil").textContent = T.waiting;
+  $("veil").classList.remove("gone");
+  held.clear(); recent = []; drawKeys();
+  document.body.classList.add("watching");
+  watchId = sid;
+  if (push) history.pushState({{sid, agent}}, "",
+    `?watch=${{encodeURIComponent(sid)}}&agent=${{encodeURIComponent(agent)}}`);
+  connect(sid);
+  scrollTo(0, 0);
+}}
+
+function close(push) {{
+  const s = sock; sock = null; watchId = null; if (s) s.close();
+  document.body.classList.remove("watching");
+  if (push) history.pushState({{}}, "", location.pathname);
+}}
+
+$("back").onclick = () => close(true);
+addEventListener("popstate", e => {{
+  const st = e.state || {{}};
+  st.sid ? open(st.sid, st.agent, false) : close(false);
+}});
+
 load();
 setInterval(load, 30000);
+pollLive();
+setInterval(pollLive, 5000);
+
+const q = new URLSearchParams(location.search);
+if (q.get("watch")) open(q.get("watch"), q.get("agent") || "?", false);
 </script>
 </body>
 </html>
@@ -463,9 +664,12 @@ setInterval(load, 30000);
 
 def build(s):
     rules = "".join(f"<div><b>{n}</b><span>{w}</span></div>" for n, w in s["rules"])
-    strings = {k: s[k] for k in ("cols", "agent", "video", "novideo", "full", "idle",
-                                 "never", "err", "keyspace", "copy", "copied", "runs",
-                                 "run1", "empty", "gone", "asc", "desc")}
+    # everything the script reads at runtime; missing a key here shows up as a
+    # literal "undefined" in the page, so it is derived rather than hand listed
+    skip = {"lang", "other", "other_href", "home", "desc_meta", "tagline",
+            "slogan", "give", "oneline", "note", "rules", "sort", "loading",
+            "grid", "list"}
+    strings = {k: v for k, v in s.items() if k not in skip}
     short = re.split(r"[。.]", s["tagline"])[0] + ("。" if s["lang"] != "en" else ".")
     fields = dict(s, rules=rules, tagline_short=short,
                   strings=repr(strings).replace("'", '"'))

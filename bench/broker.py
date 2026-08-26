@@ -40,6 +40,10 @@ BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
 # link or has to go and find it in the catalogue.
 VIDEO_WAIT = float(os.environ.get("QUNXIA_VIDEO_WAIT", "300"))
 
+# The catalogue page is static and served from another origin, so the two
+# endpoints it reads have to say so.
+CORS = {"Access-Control-Allow-Origin": "*"}
+
 sessions: dict[str, dict] = {}
 
 
@@ -206,6 +210,10 @@ async def proxy(request):
 
     tail = request.match_info.get("tail", "")
     url = f"http://127.0.0.1:{sess['port']}/{tail}"
+
+    if request.headers.get("Upgrade", "").lower() == "websocket":
+        return await spectate(request, sess, url)
+
     data = await request.read()
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "content-length")}
@@ -231,13 +239,46 @@ async def proxy(request):
             content_type="application/json")
 
 
+async def spectate(request, sess, url):
+    """Watch a run in progress. Anything the viewer sends is dropped rather
+    than forwarded, so a spectator cannot touch the game even with a hand
+    written socket - read only is a property of this proxy, not of the page."""
+    ws = web.WebSocketResponse(max_msg_size=0, heartbeat=30)
+    await ws.prepare(request)
+    sess["watchers"] = sess.get("watchers", 0) + 1
+    try:
+        async with aiohttp.ClientSession() as http:
+            async with http.ws_connect(url, max_msg_size=0, heartbeat=30) as up:
+                async def downstream():
+                    async for m in up:
+                        if m.type == aiohttp.WSMsgType.BINARY:
+                            await ws.send_bytes(m.data)
+                        elif m.type == aiohttp.WSMsgType.TEXT:
+                            await ws.send_str(m.data)
+                pump = asyncio.create_task(downstream())
+                try:
+                    async for _ in ws:
+                        pass                      # deliberately ignored
+                finally:
+                    pump.cancel()
+    except Exception:
+        pass
+    finally:
+        sess["watchers"] = max(0, sess.get("watchers", 1) - 1)
+        await ws.close()
+    return ws
+
+
 async def api_sessions(_request):
     now = time.time()
-    return web.json_response({"running": [
-        {"id": s["id"], "agent": s["agent"],
-         "remaining": max(0, round(s["ends_at"] - now))}
-        for s in sessions.values()
-        if s["proc"].poll() is None and not result_of(s["id"])]})
+    return web.json_response(
+        {"running": [
+            {"id": s["id"], "agent": s["agent"],
+             "started": s["started"], "watchers": s.get("watchers", 0),
+             "remaining": max(0, round(s["ends_at"] - now))}
+            for s in sessions.values()
+            if s["proc"].poll() is None and not result_of(s["id"])]},
+        headers=CORS)
 
 
 async def video_file(request):
@@ -257,15 +298,15 @@ async def api_catalog(_request):
             f"https://storage.googleapis.com/{GCS_BUCKET}/catalog.json")
     f = pathlib.Path(os.environ.get("QUNXIA_CATALOG", "/tmp/qunxia-catalog.json"))
     runs = json.loads(f.read_text()) if f.exists() else []
-    return web.json_response({"runs": runs},
-                             headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response({"runs": runs}, headers=CORS)
 
 
 async def health(_request):
     return web.json_response({
         "ok": True, "running": sum(1 for s in sessions.values()
                                    if s["proc"].poll() is None),
-        "budget": RUN_SECONDS, "idle_limit": IDLE_LIMIT, "site": SITE})
+        "budget": RUN_SECONDS, "idle_limit": IDLE_LIMIT, "site": SITE},
+        headers=CORS)
 
 
 async def index(_request):
