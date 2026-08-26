@@ -1,0 +1,16 @@
+.git/
+.build/
+.venv/
+game/
+vendor/
+ref-hojy/
+ref-kys-pascal/
+legacy-rewrite/
+saves/
+docs/
+mcp-server/
+pi-agent/
+Scripts/
+*.png
+*.md
+!skills/*.md

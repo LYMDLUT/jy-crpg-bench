@@ -1,0 +1,121 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>jy-crpg-bench runs</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0b0b0d; color: #e8e8ea; padding: 26px 16px 60px;
+    font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  header { max-width: 1100px; margin: 0 auto 22px; }
+  h1 { font-size: 17px; margin: 0 0 6px; letter-spacing: .1em; }
+  header p { margin: 0; color: #6c6c78; font-size: 12px; }
+  #live {
+    max-width: 1100px; margin: 0 auto 20px; padding: 9px 12px;
+    border: 1px solid #26262c; border-radius: 5px; background: #101014;
+    font-size: 11.5px; color: #9a9aa6;
+  }
+  #live b { color: #7ec699; }
+  #grid {
+    max-width: 1100px; margin: 0 auto; display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .card {
+    border: 1px solid #26262c; border-radius: 6px; background: #101014;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .card video { width: 100%; display: block; background: #000; image-rendering: pixelated; }
+  .card .meta { padding: 10px 12px; }
+  .card .who { font-weight: 700; font-size: 13px; }
+  .card .facts { color: #6c6c78; font-size: 11px; margin-top: 3px; }
+  .card a.dl { color: #6cb6ff; font-size: 11px; text-decoration: none; }
+  .card a.dl:hover { text-decoration: underline; }
+  .card.bad .who { color: #ff8080; }
+  #empty { max-width: 1100px; margin: 40px auto; color: #55555f; text-align: center; }
+</style>
+
+<header>
+  <h1>jy-crpg-bench</h1>
+  <p>Twenty minutes in a 1996 wuxia CRPG, one run per model, recorded end to end.</p>
+</header>
+
+<div id="live">loading…</div>
+<div id="grid"></div>
+<div id="empty" hidden>No runs yet. Point an agent at <code>POST /session</code> to start one.</div>
+
+<script>
+const grid = document.getElementById("grid");
+const fmt = s => {
+  s = Math.max(0, Math.round(s));
+  const m = Math.floor(s / 60);
+  return m ? `${m}m${String(s % 60).padStart(2, "0")}s` : `${s}s`;
+};
+// stable colour per agent, matching the activity panel in the game view
+function colorOf(name) {
+  let h = 2166136261;
+  for (const ch of name) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  h = Math.abs(h);
+  return `hsl(${(h % 12) * 30 + 8} 65% ${(h >> 4) % 2 ? 72 : 56}%)`;
+}
+
+async function refresh() {
+  try {
+    const [cat, live] = await Promise.all([
+      fetch("/api/catalog").then(r => r.json()),
+      fetch("/api/sessions").then(r => r.json()),
+    ]);
+    const running = live.running || [];
+    document.getElementById("live").innerHTML = running.length
+      ? `<b>${running.length} running</b> of ${live.capacity} slots · ` +
+        running.map(r => `${r.agent} (${fmt(r.remaining)} left)`).join(" · ")
+      : `no run in progress · ${live.capacity} slots free`;
+
+    const runs = cat.runs || [];
+    document.getElementById("empty").hidden = runs.length > 0;
+    grid.textContent = "";
+    for (const r of runs) {
+      const card = document.createElement("div");
+      card.className = "card" + (r.video_url ? "" : " bad");
+      if (r.video_url) {
+        const v = document.createElement("video");
+        v.src = r.video_url;
+        v.controls = true;
+        v.preload = "metadata";
+        card.appendChild(v);
+      }
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = r.agent;
+      who.style.color = r.video_url ? colorOf(r.agent) : "";
+      const facts = document.createElement("div");
+      facts.className = "facts";
+      facts.textContent = [
+        new Date(r.started * 1000).toLocaleString(),
+        `${r.actions} actions`,
+        fmt(r.seconds) + " played",
+        r.video ? r.video.size : null,
+        r.error || null,
+      ].filter(Boolean).join(" · ");
+      meta.append(who, facts);
+      if (r.video_url) {
+        const a = document.createElement("a");
+        a.className = "dl";
+        a.href = r.video_url;
+        a.download = "";
+        a.textContent = "download mp4";
+        meta.appendChild(a);
+      }
+      card.appendChild(meta);
+      grid.appendChild(card);
+    }
+  } catch (e) {
+    document.getElementById("live").textContent = "catalogue unavailable";
+  }
+}
+refresh();
+setInterval(refresh, 10000);
+</script>

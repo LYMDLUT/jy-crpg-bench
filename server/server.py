@@ -101,7 +101,9 @@ SEND_TIMEOUT = float(os.environ.get("QUNXIA_SEND_TIMEOUT", "3"))
 IDLE_AFTER = 3.0          # no action for this long and the tail is idle
 IDLE_TAIL = 30.0          # of which only the last this much is kept
 KEYFRAME_EVERY = 30.0     # so pruning can always start from a whole picture
-REC_MAX_BYTES = 12 << 20
+REC_MAX_BYTES = int(os.environ.get("QUNXIA_REC_MAX_BYTES", 12 << 20))
+# A benchmark run wants the whole session, not a rolling tail.
+REC_KEEP_ALL = os.environ.get("QUNXIA_REC_KEEP_ALL", "") == "1"
 LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 # Reset restores this rather than rebooting. It puts the agent in the opening
 # room with a character already made, because creating one means driving the
@@ -300,7 +302,7 @@ def rec_prune(now):
     And the whole thing is capped, dropping from the front to the oldest
     keyframe that fits, because deltas cannot be replayed from the middle."""
     idle_for = now - rec["last_activity"]
-    if idle_for > IDLE_AFTER:
+    if not REC_KEEP_ALL and idle_for > IDLE_AFTER:
         cutoff = round(now - rec["started"] - IDLE_TAIL, 3)
         head, tail = [], []
         for ev in rec["events"]:
@@ -313,8 +315,11 @@ def rec_prune(now):
             rec["events"] = keep
 
     if rec["bytes"] > REC_MAX_BYTES:
-        for i, ev in enumerate(rec["events"]):
-            if ev.get("k") and i > 0:
+        # drop to the *oldest* keyframe past the halfway mark, so the cap costs
+        # roughly half the history rather than everything but the newest chunk
+        half = len(rec["events"]) // 2
+        for i in range(half, len(rec["events"])):
+            if rec["events"][i].get("k"):
                 dropped = rec["events"][:i]
                 rec["bytes"] -= sum(len(e.get("d", "")) * 3 // 4 for e in dropped)
                 rec["events"] = rec["events"][i:]
@@ -639,10 +644,14 @@ async def api_reset(request):
         await asyncio.sleep(0.1)          # let the in-flight frame finish
         try:
             LIB.core_release_all_keys()
-            if os.path.exists(START_STATE):
+            have_state = os.path.exists(START_STATE)
+            if have_state:
                 restored = bool(LIB.core_load_state(START_STATE.encode()))
-            if not restored:
-                LIB.core_reset()           # no start state, fall back to a reboot
+            # Only reboot when there is no state to restore. Rebooting on a
+            # failed load turns a caller that retries into a reboot loop, and
+            # the machine never finishes starting.
+            if not restored and not have_state:
+                LIB.core_reset()
             LIB.fb_reset()
         finally:
             paused.clear()
