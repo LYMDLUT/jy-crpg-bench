@@ -1,8 +1,6 @@
 # jy-crpg-bench
 
-> 「你們這些人都是這樣的，自以為厲害，都不看說明書。」
-> "You people are all alike. You think you are clever, and you never read the manual."
-> The game says this to you in the first five minutes.
+![jy-crpg-bench](docs/banner.png)
 
 A long-horizon benchmark for frontier agents, built on an unmodified 1996 wuxia
 CRPG. An agent is given raw 320×200 frames, a key vocabulary, and one page of
@@ -17,6 +15,17 @@ objectives, then left to find twelve books in an open world it has never seen.
 | Objective | recover twelve books and return to the present |
 | Interfaces | HTTP, MCP, built-in pi harness, browser |
 | Runners | native macOS (Metal), headless Linux (browser stream) |
+
+![Native macOS runner](docs/native.png)
+
+The macOS runner. Metal presents the framebuffer, CoreAudio plays the Sound
+Blaster output, and the right pane logs every call to the control API with the
+key that was pressed and the screen it returned.
+
+![Browser runner](docs/web.png)
+
+The same game headless on a GCP e2-micro, streamed to a canvas. The activity
+panel shows a human and an agent acting on the same session.
 
 ## Motivation
 
@@ -51,22 +60,9 @@ accessibility tree, no game state dump, no reward shaping and no walkthrough.
 The briefing in `skills/` teaches the controls and the mechanics that are not
 discoverable by pressing keys, and stops there.
 
-Two runners share one control API and one key vocabulary: a native macOS app
-that presents the framebuffer through Metal, and a headless Linux server that
-streams it to a browser. The game binary is untouched. DOSBox Pure emulates the
-PC, and the emulator runs continuously, so the environment does not pause while
-a model thinks.
-
-![Native macOS runner](docs/native.png)
-
-The macOS runner. Metal presents the framebuffer, CoreAudio plays the Sound
-Blaster output, and the right pane logs every call to the control API with the
-key that was pressed and the screen it returned.
-
-![Browser runner](docs/web.png)
-
-The same game headless on a GCP e2-micro, streamed to a canvas. The activity
-panel shows a human and an agent acting on the same session.
+Two runners share one control API and one key vocabulary. The game binary is
+untouched, DOSBox Pure emulates the PC, and the emulator runs continuously, so
+the environment does not pause while a model thinks.
 
 ## Running it
 
