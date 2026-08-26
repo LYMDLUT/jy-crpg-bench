@@ -30,13 +30,13 @@
   }
   #side h2 em { font-style: normal; color: #5b5b66; font-size: 10px; letter-spacing: 0; }
   #side h2 .right { display: flex; align-items: center; gap: 8px; }
-  #play {
+  #play, #save {
     padding: 3px 9px; font-size: 10.5px; letter-spacing: .04em;
     background: #17171b; border: 1px solid #2e2e36; border-radius: 4px;
     color: #cdcdd6; cursor: pointer;
   }
-  #play:hover { border-color: #4a4a58; color: #fff; }
-  #play[disabled] { opacity: .45; cursor: default; }
+  #play:hover, #save:hover { border-color: #4a4a58; color: #fff; }
+  #play[disabled], #save[disabled] { opacity: .45; cursor: default; }
   #vcr {
     position: fixed; inset: 0; z-index: 20; display: none;
     background: #000d; backdrop-filter: blur(2px);
@@ -227,7 +227,8 @@
 
 <aside id="side">
   <h2>ACTIVITY
-    <span class="right"><em id="logcount"></em><button id="play">▶ 4×</button></span>
+    <span class="right"><em id="logcount"></em>
+      <button id="play">▶ 4×</button><button id="save">⤓ mp4</button></span>
   </h2>
   <div id="meter">
     <span>played <b id="m-time">0:00</b></span>
@@ -320,6 +321,125 @@ function vcrClose() {
 document.getElementById("vcrclose").onclick = vcrClose;
 vcr.onclick = e => { if (e.target === vcr) vcrClose(); };
 addEventListener("keydown", e => { if (e.key === "Escape" && vcr.classList.contains("on")) vcrClose(); });
+
+// ---- export the recording as a video ---------------------------------------
+const saveBtn = document.getElementById("save");
+
+function pickMime() {
+  for (const t of ["video/mp4;codecs=avc1.42E01E", "video/mp4",
+                   "video/webm;codecs=vp9", "video/webm"]) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
+}
+
+saveBtn.onclick = async () => {
+  if (!window.MediaRecorder) return;
+  const mime = pickMime();
+  if (!mime) { saveBtn.textContent = "unsupported"; return; }
+
+  saveBtn.disabled = true;
+  playBtn.disabled = true;
+  saveBtn.title = "encodes in real time at 4x, so about a quarter of the session length";
+  saveBtn.textContent = "loading";
+  let events;
+  // MediaRecorder samples in real time, so the export takes the recording
+  // length divided by the playback speed. Say so rather than appear stuck.
+  try {
+    events = (await (await fetch("/api/recording")).json()).events || [];
+  } catch { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
+  if (!events.length) { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
+
+  // 640x400 keeps both game modes at a whole multiple, plus a strip for keys.
+  const W = 640, H = 400, BAR = 56;
+  const out = document.createElement("canvas");
+  out.width = W; out.height = H + BAR;
+  const octx = out.getContext("2d", { alpha: false });
+  octx.imageSmoothingEnabled = false;
+  const work = document.createElement("canvas");
+  const wctx = work.getContext("2d", { alpha: false });
+  const cache = {};
+  const down = new Set();
+  let clock = 0;
+
+  const chip = (label, x, y, arrow) => {
+    const w = octx.measureText(label).width + 20;
+    octx.fillStyle = "#1c1c22";
+    octx.strokeStyle = arrow ? "#3f6076" : "#33333d";
+    octx.beginPath();
+    octx.roundRect(x, y, w, 32, 5);
+    octx.fill(); octx.stroke();
+    octx.fillStyle = arrow ? "#8ecdf7" : "#cdcdd6";
+    octx.fillText(label, x + 10, y + 16);
+    return w;
+  };
+
+  const compose = () => {
+    octx.fillStyle = "#0b0b0d";
+    octx.fillRect(0, 0, W, H + BAR);
+    if (work.width) {
+      const sc = Math.min(W / work.width, H / work.height);
+      const dw = work.width * sc, dh = work.height * sc;
+      octx.drawImage(work, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    }
+    octx.fillStyle = "#101014";
+    octx.fillRect(0, H, W, BAR);
+    octx.font = "20px ui-monospace, Menlo, monospace";
+    octx.textBaseline = "middle";
+    let x = 14;
+    for (const k of down) x += chip(GLYPH[k] ?? k, x, H + 12, ARROW.has(k)) + 8;
+    octx.fillStyle = "#6c6c78";
+    octx.font = "16px ui-monospace, Menlo, monospace";
+    octx.textAlign = "right";
+    octx.fillText(fmt(clock) + "  4x", W - 14, H + 28);
+    octx.textAlign = "left";
+  };
+
+  compose();
+  const stream = out.captureStream(30);
+  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
+  const chunks = [];
+  mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const finished = new Promise(r => (mr.onstop = r));
+  mr.start();
+
+  const SPEED = 4;
+  const total = events[events.length - 1].t || 1;
+  const t0 = performance.now();
+  let i = 0;
+  let raf = requestAnimationFrame(function loop() { compose(); raf = requestAnimationFrame(loop); });
+
+  while (i < events.length) {
+    const ev = events[i];
+    const wait = t0 + (ev.t * 1000) / SPEED - performance.now();
+    if (wait > 2) { await new Promise(r => setTimeout(r, wait)); continue; }
+    i++;
+    clock = ev.t;
+    if (ev.d) {
+      paintDelta(await inflate(b64bytes(ev.d)), work, wctx, cache);
+    } else if (ev.key) {
+      ev.down ? down.add(ev.key) : down.delete(ev.key);
+    }
+    const left = Math.max(0, (total - ev.t) / SPEED);
+    saveBtn.textContent = Math.round((ev.t / total) * 100) + "% " + fmt(left);
+  }
+
+  await new Promise(r => setTimeout(r, 300));   // let the tail frames be sampled
+  cancelAnimationFrame(raf);
+  mr.stop();
+  await finished;
+
+  const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
+  const blob = new Blob(chunks, { type: mime });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `jy-crpg-bench-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.${ext}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+
+  saveBtn.textContent = "⤓ " + ext;
+  saveBtn.disabled = playBtn.disabled = false;
+};
 
 playBtn.onclick = async () => {
   playBtn.disabled = true;

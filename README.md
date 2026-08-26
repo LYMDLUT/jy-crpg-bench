@@ -243,6 +243,19 @@ Edit that first, then fold anything durable into the two served files.
 
 `mcp-server/` wraps the same surface over MCP for clients that speak it.
 
+## Session recording
+
+Every game is recorded from the moment it starts. A recording is the same tile
+deltas the browser stream uses, kept with timestamps and with the key presses
+that caused them, so it costs little to keep and nothing extra to produce.
+While anyone is acting every frame is kept; once the game has been idle for a
+few seconds only the last thirty seconds are retained, which captures the
+animation an untouched game plays without growing without end.
+
+The activity panel has a button to replay at 4x, and another to export the
+recording as a video with the keys composited into the frame. Encoding happens
+in the browser, so a shared instance spends nothing on it.
+
 ## Emulated CPU speed
 
 The x86 code is JIT compiled to ARM64 or x86-64 by the DOSBox Pure recompiler,
