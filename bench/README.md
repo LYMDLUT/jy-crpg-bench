@@ -5,50 +5,74 @@ One game per model, twenty minutes, recorded end to end and published.
 ```
 POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
      play at  <base_url>/api/...       (the game API, unchanged)
-     when the clock runs out every call answers 410 with
-     {"ended": true, "video_url": ..., "catalog_url": ...}
-GET  /catalog                          ->  every run, with its video
+     when the run is over every call answers 410 with
+     {"ended": true, "reason", "why", "video_url", "catalog_url"}
 ```
 
-Live: <https://jy-crpg-bench-366646433082.us-central1.run.app>
+Backend: <https://jy-crpg-bench-366646433082.us-central1.run.app>
+Catalogue: <https://hanxiao.io/jy-crpg-bench/> (static, see `site/`)
+
+## Shape
+
+Three pieces that only meet through a bucket:
+
+```
+site/            static HTML on GitHub Pages. No backend. Reads catalog.json
+                 from the bucket over CORS. Serves agents.md, the whole brief.
+bench/broker.py  the front door. Spawns one game process per agent, routes to
+                 it, holds no run state.
+server/warden.py inside each game process. Owns that run's clock, teardown,
+                 video and catalogue entry, then exits.
+```
+
+The point of the split is that nothing central supervises a run. The process
+that played the game is the one that decides it is over, renders it, publishes
+it, and takes itself down. A node that dies takes only its own runs with it,
+and there is no in-memory catalogue to lose. There is deliberately no cap on
+concurrent sessions and no queue - what limits them is CPU, not bookkeeping.
 
 ## What a run looks like
 
-1. An agent asks for a session and gets its own URL prefix. The game behind it
-   is a separate process with its own emulator, so runs cannot see each other.
+1. An agent reads `agents.md`, names itself, and asks for a session. It gets
+   its own URL prefix backed by a separate process with its own emulator, so
+   runs cannot see each other.
 2. The session starts in the opening room with a character already made.
    Creating one means driving the 注音 IME, which measures knowledge of input
    methods rather than play, and it is where runs used to end.
-3. The agent plays for twenty minutes. `<base_url>/api/help` is the whole
-   briefing, the same text the shared instance serves.
-4. The clock runs out. The session is finalised whether or not anyone is
-   watching: the recording is rendered to MP4, uploaded, and listed. The next
-   call the agent makes returns 410 and tells it to stop, with the video link.
+3. The agent plays. Its run ends on whichever comes first: the twenty minute
+   budget, or ten minutes without an action. Reading the screen is not acting.
+4. The session process renders its recording to MP4, uploads it, appends itself
+   to `catalog.json`, and exits. The agent's next call returns 410 with the
+   video link and why the run ended.
 
-Nothing has to be started or stopped by hand. Point an agent at `/session` and
-collect the video afterwards.
+## What is measured
+
+Everything is taken from the run's own traffic, so it holds for any harness.
+
+| field | |
+|---|---|
+| `actions`, `aps` | how much the agent did, and how fast |
+| `ttfa` | seconds to the first action - a slow start is usually time spent reading rather than playing |
+| `gap_p50`, `gap_p95`, `gap_max` | think time between actions |
+| `distinct_keys`, `keys` | how much of the action space it reached, and the histogram |
+| `reads` | screen looks, against actions taken |
+| `reason`, `why` | `time`, `idle`, or `never started` |
 
 ## Recording
 
 A recording is the tile deltas the browser stream already produces, kept with
-timestamps together with the keys that caused them and who sent them. Rendering
-replays them onto a canvas and pipes raw frames to ffmpeg, so it needs no
-browser. The video carries the model name and the keys held at each moment.
-
-Two things that were wrong earlier and are fixed here: video no longer opens on
-black, because rendering starts at the first frame rather than at time zero;
-and the game switching between 320x200 and 640x400 mid run no longer breaks it,
-because frames are scaled into a fixed area rather than sized from the first
-frame.
+timestamps together with the keys that caused them, who sent them, and the
+action id. Rendering replays them onto a canvas and pipes raw frames to ffmpeg,
+so it needs no browser. Video is native 320x200 with a strip underneath showing
+the agent, the current action id, the keys held, and the elapsed play clock.
 
 ## Layout
 
 ```
-broker.py      sessions, time limits, finalising, catalogue, proxy
+broker.py      spawns and routes; no state
 bootstrap.py   plays the opening once to create the state runs start from
 render.py      recording -> MP4
-catalog.html   the page
-Dockerfile     game, core, renderer and broker in one image
+Dockerfile     game, core, renderer and backend in one image
 ```
 
 ## Running it locally
@@ -56,9 +80,12 @@ Dockerfile     game, core, renderer and broker in one image
 ```sh
 ./server/build.sh                       # libqunxia for this platform
 python3 -m venv .venv && .venv/bin/pip install aiohttp pillow numpy
-QUNXIA_RUN_SECONDS=120 QUNXIA_PYTHON=$PWD/.venv/bin/python \
+QUNXIA_RUN_SECONDS=120 QUNXIA_IDLE_LIMIT=45 QUNXIA_PYTHON=$PWD/.venv/bin/python \
   QUNXIA_CORE=$PWD/Cores/dosbox_pure_libretro.dylib \
-  PYTHONPATH=$PWD/bench .venv/bin/python bench/broker.py
+  QUNXIA_PUBLIC_BASE=http://127.0.0.1:8090 PORT=8090 .venv/bin/python bench/broker.py
+
+python3 -m http.server 8099 --directory site      # then open
+# http://127.0.0.1:8099/?catalog=http://127.0.0.1:8090/api/catalog
 ```
 
 The start state is built on first boot if it is missing. A DOSBox Pure
@@ -68,27 +95,31 @@ image and is made wherever the service runs.
 ## Deploying
 
 ```sh
-gcloud builds submit --config cloudbuild.yaml --substitutions=_TAG=vN .
+gcloud builds submit --config cloudbuild.yaml .
 gcloud run deploy jy-crpg-bench --region us-central1 \
-  --image .../jy-crpg-bench:vN --allow-unauthenticated \
-  --cpu 4 --memory 4Gi --no-cpu-throttling \
+  --image .../jy-crpg-bench:v1 --allow-unauthenticated \
+  --cpu 8 --memory 8Gi --no-cpu-throttling \
   --min-instances 1 --max-instances 1 --concurrency 80 --timeout 3600 \
   --set-env-vars QUNXIA_GCS_BUCKET=jy-crpg-bench-runs,QUNXIA_RUN_SECONDS=1200
 ```
 
-`--max-instances 1` is deliberate. A session is an emulator process living in
-one instance memory, and Cloud Run cannot route a later request to the instance
-that holds it, so spreading sessions across instances would break them. One
-always-on instance with four vCPU carries four concurrent runs, since a session
-costs about 15 percent of a core. Going wider means routing by session id in
-front of several services rather than raising this number.
+The site deploys separately by copying `site/` into the GitHub Pages repo. The
+bucket needs CORS for the site's origin, and the catalogue object is written
+with a generation precondition so simultaneous finishers do not overwrite each
+other.
 
-Videos and the catalogue live in the bucket, because container storage does not
-survive a restart.
+`--max-instances 1` is still deliberate, and is the one thing left in the way
+of horizontal scale. A session is an emulator process in one instance's memory,
+and Cloud Run cannot route a later request to the instance that holds it, so
+spreading sessions across instances would break them. Teardown is already node
+local, so the remaining work is addressing: give each session its own service
+or its own host, rather than raising this number.
 
 | variable | default | |
 |---|---|---|
 | `QUNXIA_RUN_SECONDS` | 1200 | length of a run |
 | `QUNXIA_IDLE_LIMIT` | 600 | seconds without an action before a run is torn down |
-| `QUNXIA_GCS_BUCKET` | | publish videos here, else served from the service |
-| `QUNXIA_PUBLIC_BASE` | | absolute URLs in replies |
+| `QUNXIA_VIDEO_WAIT` | 300 | how long the final reply waits for the video |
+| `QUNXIA_GCS_BUCKET` | | publish videos and the catalogue here |
+| `QUNXIA_SITE` | hanxiao.io/jy-crpg-bench/ | where agents are pointed for results |
+| `QUNXIA_PUBLIC_BASE` | | this service's own origin, for local video serving |
