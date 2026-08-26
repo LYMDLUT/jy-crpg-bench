@@ -372,11 +372,23 @@ async def settle(baseline, react=30, stable=9, maxframes=120):
     return n, reacted
 
 
-async def tap(code, hold_frames):
+def key_event(name, down):
+    """Tell browsers a key is physically down, so a held key stays lit for as
+    long as it is held instead of blinking once when the action finishes."""
+    if name:
+        asyncio.create_task(fanout(json.dumps({"t": "key", "k": name, "down": down}),
+                                   text=True))
+
+
+async def tap(code, hold_frames, name=None):
     ft = 1.0 / max(1.0, LIB.core_fps())
+    key_event(name, True)
     LIB.core_key(code, True)
-    await asyncio.sleep(ft * max(1, hold_frames))
-    LIB.core_key(code, False)
+    try:
+        await asyncio.sleep(ft * max(1, hold_frames))
+    finally:
+        LIB.core_key(code, False)
+        key_event(name, False)
     await asyncio.sleep(ft * 2)
 
 
@@ -402,14 +414,17 @@ async def run_action(request, steps, note, verb="KEY"):
         stats["queued"] -= 1
 
     try:
+        # Logged before the keys are sent, not after: the panel should show an
+        # action starting, not report it once it is already over.
+        log_action(actor(request), verb, note)
         baseline = LIB.core_frame_hash()
-        for kind, val in steps:
+        for step in steps:
+            kind, val = step[0], step[1]
             if kind == "wait":
                 await asyncio.sleep(val)
             else:
-                await tap(kind, val)
+                await tap(kind, val, step[2] if len(step) > 2 else None)
         waited, changed = await settle(baseline)
-        log_action(actor(request), verb, note)
     finally:
         api_lock.release()
 
@@ -468,12 +483,13 @@ async def api_key(request):
         return web.json_response({"ok": False, "error": "unknown key"}, status=400)
     hold = int(d.get("hold", 4))
     times = max(1, min(int(d.get("times", 1)), 100))
+    name = str(d.get("key")).strip().lower()
     steps = []
     for i in range(times):
-        steps.append((code, hold))
+        steps.append((code, hold, name))
         if i != times - 1:
             steps.append(("wait", 0.08))
-    return await run_action(request, steps, str(d.get("key")) + (f" x{times}" if times > 1 else ""))
+    return await run_action(request, steps, name + (f" x{times}" if times > 1 else ""))
 
 
 async def api_keys(request):
@@ -485,7 +501,7 @@ async def api_keys(request):
     hold = int(d.get("hold", 4))
     steps = []
     for i, c in enumerate(codes):
-        steps.append((c, hold))
+        steps.append((c, hold, str(names[i]).strip().lower()))
         if i != len(codes) - 1:
             steps.append(("wait", 0.08))
     return await run_action(request, steps, " ".join(map(str, names)), verb="KEYS")

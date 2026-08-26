@@ -190,8 +190,10 @@ final class ControlAPI {
                 return respond(400, "application/json", json(["ok": false, "error": "unknown key", "hint": "GET /keys"]))
             }
             let hold = max(1, r.int("hold") ?? 4)
+            // Logged before the keys go in, so the pane shows an action
+            // starting rather than reporting one already over.
+            log.add("KEY", name)
             let res = emu.submitSync([.press(combo, frames: hold)], settle: settle(r), scale: scale, wantShot: r.wantsImage)
-            log.add("KEY", name, payload: res.shot.map { "\($0.waited)f" } ?? "", ok: res.ok)
             return reply(r, ok: res.ok, extra: ["key": name], shot: res.shot, changed: res.changed)
 
         case ("POST", "/keys"):
@@ -211,8 +213,8 @@ final class ControlAPI {
                 log.add("KEYS", names.joined(separator: ","), payload: "bad: \(bad.joined(separator: ","))", ok: false)
                 return respond(400, "application/json", json(["ok": false, "error": "unknown keys", "keys": bad]))
             }
+            log.add("KEYS", names.joined(separator: ","))
             let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, timeout: 60)
-            log.add("KEYS", names.joined(separator: ","), payload: res.shot.map { "\($0.waited)f" } ?? "", ok: res.ok)
             return reply(r, ok: res.ok, extra: ["keys": names], shot: res.shot, changed: res.changed)
 
         case ("POST", "/text"):
@@ -225,14 +227,14 @@ final class ControlAPI {
                 steps.append(.press([k], frames: 3))
                 steps.append(.wait(3))
             }
+            log.add("TEXT", text)
             let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, timeout: 120)
-            log.add("TEXT", text, ok: res.ok)
             return reply(r, ok: res.ok, extra: ["text": text], shot: res.shot, changed: res.changed)
 
         case ("POST", "/wait"):
             let frames = r.int("frames") ?? Int(Double(r.int("ms") ?? 500) * core_fps() / 1000.0)
+            log.add("WAIT", "\(frames)f")
             let res = emu.submitSync([.wait(max(0, min(frames, 4000)))], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, timeout: 120)
-            log.add("WAIT", "\(frames)f", ok: res.ok)
             return reply(r, ok: res.ok, extra: ["frames": frames], shot: res.shot, changed: res.changed)
 
         case ("POST", "/mouse"):

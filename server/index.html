@@ -265,6 +265,7 @@ function connect() {
     if (typeof e.data === "string") {
       const m = JSON.parse(e.data);
       if (m.t === "log") { m.e.forEach(addLog); if (m.s) setMeter(m.s); }
+      else if (m.t === "key") holdKey(m.k, m.down);
       else if (m.t === "clear") clearLog();
     } else {
       onFrame(e.data);
@@ -294,15 +295,27 @@ const SAMEKEY = { kp9: "up", ne: "up", upright: "up", kp1: "down", sw: "down",
                   kp3: "right", se: "right", downright: "right",
                   return: "enter", ok: "enter", escape: "esc", cancel: "esc" };
 
-function flashKey(name) {
-  const k = SAMEKEY[name] || name;
-  const b = document.querySelector(`button[data-k="${k}"]`);
+// down=true lights the button and leaves it lit; down=false clears it. The
+// safety timer only exists so a lost keyup cannot strand a button lit forever.
+function holdKey(name, down) {
+  const b = document.querySelector(`button[data-k="${SAMEKEY[name] || name}"]`);
   if (!b) return;
-  b.classList.remove("hit");
-  void b.offsetWidth;                       // restart the animation on a repeat
-  b.classList.add("hit");
   clearTimeout(b._t);
-  b._t = setTimeout(() => b.classList.remove("hit"), 200);
+  if (down) {
+    b.classList.add("hit");
+    b._t = setTimeout(() => b.classList.remove("hit"), 4000);
+  } else {
+    b.classList.remove("hit");
+  }
+}
+
+// A brief blink, for events we only learn about after the fact.
+function flashKey(name) {
+  const b = document.querySelector(`button[data-k="${SAMEKEY[name] || name}"]`);
+  if (!b) return;
+  clearTimeout(b._t);
+  b.classList.add("hit");
+  b._t = setTimeout(() => b.classList.remove("hit"), 180);
 }
 
 function keySpans(text) {
@@ -404,12 +417,7 @@ function addLog(e) {
   vb.textContent = e.verb;
   vb.classList.add("v-" + e.verb);
   const tgt = row.children[3];
-  if (e.verb === "KEY" || e.verb === "KEYS") {
-    tgt.append(keySpans(e.target));
-    // light the pad for whatever was pressed, whoever pressed it
-    const toks = e.target.split(" ").filter(t => !/^x\d+$/.test(t));
-    toks.forEach((t, i) => setTimeout(() => flashKey(t), i * 130));
-  }
+  if (e.verb === "KEY" || e.verb === "KEYS") tgt.append(keySpans(e.target));
   else if (e.verb === "TEXT") tgt.textContent = JSON.stringify(e.target);
   else tgt.textContent = e.target + (e.detail ? " " + e.detail : "");
   if (!e.ok) row.style.color = "#ff6b6b";
@@ -431,7 +439,8 @@ function addLog(e) {
 }
 
 const send = o => {
-  if (o.t === "key" && o.down) flashKey(o.k);
+  if (o.t === "key") holdKey(o.k, o.down);
+  else if (o.t === "tap") flashKey(o.k);
   return sock?.readyState === 1 && sock.send(JSON.stringify(o));
 };
 
