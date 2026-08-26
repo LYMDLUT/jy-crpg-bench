@@ -12,47 +12,35 @@ import re
 HERE = pathlib.Path(__file__).resolve().parent
 
 ZH = {
-    "lang": "zh-Hant", "other": "EN", "other_href": "en/", "home": ".",
-    "desc": "二十分鐘，一款 1996 年的武俠 CRPG。每個模型一局，全程錄影。",
-    "tagline": "把一款未經修改的 1996 年武俠 CRPG 交給模型，只給鍵盤和一張畫面。"
-               "每一局都錄下來。",
-    "slogan": "二十分鐘的江湖",
-    "give": "把這行貼給你的 agent",
-    "oneline": "讀 https://hanxiao.io/jy-crpg-bench/agents.md，照著玩。",
-    "note": "就這樣。模型自己去讀 <a href=\"agents.md\">agents.md</a>、取名、開局、"
-            "開始玩。任何能發 HTTP 請求的 harness 都行，不用安裝、不用金鑰。",
-    "copy": "複製", "copied": "已複製",
-    "rules": [("20 分", "每局時長"), ("10 分", "沒動作就提早結束"),
-              ("1 台", "每個 agent 一台獨立機器"), ("0 行", "遊戲邏輯改動")],
+    "lang": "zh-Hans", "other": "EN", "other_href": "en/", "home": ".",
+    "desc": "二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。",
+    "slogan": "二十分钟的江湖",
+    "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。",
+    "copy": "复制", "copied": "已复制",
+    "rules": [("20:00", "每局时长"), ("10:00", "无动作即结束"),
+              ("1", "每个 agent 一台机器"), ("0", "游戏逻辑改动")],
     "sort": "排序", "runs": "局", "run1": "局",
-    "loading": "載入中", "empty": "還沒有紀錄", "gone": "目前讀不到紀錄",
-    "grid": "格狀", "list": "列表", "asc": "遞增", "desc": "遞減",
-    "cols": {"started": "時間", "actions": "動作數", "aps": "動作/秒",
-             "ttfa": "首次動作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
-             "distinct_keys": "按鍵種類", "reads": "看畫面", "played": "遊玩",
-             "reason": "結束原因"},
-    "agent": "模型", "video": "影片", "novideo": "無影片",
-    "full": "完整跑完", "idle": "中途停擺", "never": "從未出手", "err": "失敗",
-    "keyspace": "按鍵分布",
-    "live": "正在進行", "watch": "觀看", "back": "返回", "watching": "唯讀觀看",
-    "left": "剩餘", "waiting": "等待第一張畫面", "dropped": "連線中斷，重試中",
-    "over": "這局已結束",
+    "loading": "载入中", "empty": "还没有记录", "gone": "读不到记录",
+    "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
+    "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒",
+             "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
+             "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
+             "reason": "结束原因"},
+    "agent": "模型", "video": "视频", "novideo": "无视频",
+    "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败",
+    "keyspace": "按键分布",
+    "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读",
+    "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中",
+    "over": "已结束",
 }
 
 EN = {
     "lang": "en", "other": "中文", "other_href": "../", "home": ".",
     "desc": "Twenty minutes in an unmodified 1996 wuxia CRPG. One run per model.",
-    "tagline": "An unmodified 1996 wuxia CRPG, handed to a model with nothing but "
-               "a keyboard and a picture of the screen. Every run recorded.",
     "slogan": "twenty minutes in the jianghu",
-    "give": "Give your agent this line",
     "oneline": "Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.",
-    "note": "That is the whole setup. The model reads "
-            "<a href=\"../agents.md\">agents.md</a>, names itself, opens a "
-            "session, and plays. Any harness that can make an HTTP request. "
-            "Nothing to install, no key.",
     "copy": "copy", "copied": "copied",
-    "rules": [("20 min", "per run"), ("10 min", "silence ends it early"),
+    "rules": [("20:00", "per run"), ("10:00", "silence ends it"),
               ("1", "machine per agent"), ("0", "lines of game logic changed")],
     "sort": "sort", "runs": "runs", "run1": "run",
     "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
@@ -117,15 +105,11 @@ TEMPLATE = r"""<!doctype html>
   .lang {{ font-family: var(--mono); font-size: 12px; padding: 0 10px; width: auto;
           height: 30px; }}
 
-  header {{ padding: 46px 0 30px; }}
+  header {{ padding: 44px 0 26px; }}
   h1 {{ margin: 0; font-family: var(--mono); font-size: 27px; font-weight: 600;
        letter-spacing: -.6px; }}
   h1 b {{ font-weight: 600; color: var(--dim); }}
-  .tagline {{ margin: 10px 0 0; color: var(--dim); max-width: 56ch; font-size: 14.5px; }}
-
-  .give {{ margin: 30px 0 0; font-family: var(--mono); font-size: 11px;
-          letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }}
-  .oneline {{ margin-top: 8px; max-width: 720px; display: flex; align-items: stretch;
+  .oneline {{ margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }}
   .oneline code {{ flex: 1; min-width: 0; padding: 12px 14px; font-family: var(--mono);
@@ -135,16 +119,15 @@ TEMPLATE = r"""<!doctype html>
                     display: flex; align-items: center; font: 12px var(--mono); }}
   .oneline button:hover {{ background: #e8ebf0; }}
   .oneline button.done {{ color: var(--ok); }}
-  .note {{ margin: 10px 2px 0; color: var(--dim); font-size: 13px; max-width: 62ch; }}
-
-  .rules {{ display: flex; flex-wrap: wrap; gap: 0; margin-top: 28px;
+  .rules {{ display: flex; flex-wrap: wrap; gap: 0; margin-top: 14px;
            border: 1px solid var(--line); border-radius: 7px; background: var(--panel);
            overflow: hidden; }}
-  .rules div {{ flex: 1 1 150px; padding: 13px 16px; border-left: 1px solid var(--line); }}
+  .rules div {{ flex: 1 1 120px; padding: 12px 16px; border-left: 1px solid var(--line);
+               display: flex; align-items: center; gap: 9px; cursor: default; }}
   .rules div:first-child {{ border-left: 0; }}
-  .rules b {{ display: block; font-family: var(--mono); font-size: 17px; font-weight: 600;
+  .rules svg {{ color: var(--dim); flex: none; }}
+  .rules b {{ font-family: var(--mono); font-size: 16px; font-weight: 600;
              letter-spacing: -.3px; }}
-  .rules span {{ color: var(--dim); font-size: 12px; }}
 
   /* ---------- controls ---------- */
   .bar {{ display: flex; align-items: center; gap: 8px; padding: 26px 0 14px; }}
@@ -206,7 +189,7 @@ TEMPLATE = r"""<!doctype html>
   .msg {{ color: var(--dim); text-align: center; padding: 52px 0; font: 12px var(--mono); }}
 
   /* ---------- live ---------- */
-  .livelist {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
+  .livelist {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }}
   .lv {{ display: flex; align-items: center; gap: 9px; padding: 7px 12px 7px 10px;
         background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
         box-shadow: 2px 2px 0 rgba(11,18,32,.06); cursor: pointer;
@@ -241,8 +224,9 @@ TEMPLATE = r"""<!doctype html>
              padding: 3px 9px; background: var(--panel); color: var(--dim); }}
   .wkeys i.on {{ background: var(--ink); color: #fff; border-color: var(--ink); }}
 
-  footer {{ border-top: 1px solid var(--line); padding: 20px 0 40px; color: var(--dim);
-           font: 11.5px var(--mono); display: flex; gap: 14px; }}
+  footer {{ border-top: 1px solid var(--line); padding: 18px 0 38px;
+           font: 11.5px var(--mono); }}
+  footer a {{ color: var(--dim); }}
 
   @media (max-width: 620px) {{
     .row {{ grid-template-columns: 1fr; }}
@@ -265,9 +249,7 @@ TEMPLATE = r"""<!doctype html>
 
 <header>
   <h1>{slogan}</h1>
-  <p class="tagline">{tagline}</p>
 
-  <p class="give">{give}</p>
   <div class="oneline">
     <code id="one">{oneline}</code>
     <button id="copy" title="{copy}">
@@ -277,8 +259,6 @@ TEMPLATE = r"""<!doctype html>
       <span>{copy}</span>
     </button>
   </div>
-  <p class="note">{note}</p>
-
   <div class="rules">{rules}</div>
 </header>
 
@@ -306,7 +286,6 @@ TEMPLATE = r"""<!doctype html>
 </div>
 
 <section id="live" hidden>
-  <p class="give">{live} <span id="livedot" class="pulse"></span></p>
   <div id="livelist" class="livelist"></div>
 </section>
 
@@ -329,9 +308,7 @@ TEMPLATE = r"""<!doctype html>
 </section>
 
 <footer>
-  <span>{tagline_short}</span>
-  <span class="sp" style="margin-left:auto"></span>
-  <a href="agents.md">agents.md</a>
+  <a href="{md}">agents.md</a>
 </footer>
 </div>
 
@@ -663,15 +640,25 @@ if (q.get("watch")) open(q.get("watch"), q.get("agent") || "?", false);
 
 
 def build(s):
-    rules = "".join(f"<div><b>{n}</b><span>{w}</span></div>" for n, w in s["rules"])
+    icons = [
+        '<path d="M8 4.4V8l2.4 1.6"/><circle cx="8" cy="8" r="6"/>',
+        '<path d="M4.5 2h7M4.5 14h7M5.5 2v2.4L8 7l2.5-2.6V2M5.5 14v-2.4L8 9l2.5 2.6V14"/>',
+        '<rect x="2" y="3" width="12" height="4.2" rx="1"/>'
+        '<rect x="2" y="8.8" width="12" height="4.2" rx="1"/><path d="M4.4 5.1h.01M4.4 10.9h.01"/>',
+        '<path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>',
+    ]
+    rules = "".join(
+        f'<div title="{w}"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"'
+        f' stroke="currentColor" stroke-width="1.35" stroke-linecap="round"'
+        f' stroke-linejoin="round">{ic}</svg><b>{n}</b></div>'
+        for (n, w), ic in zip(s["rules"], icons))
     # everything the script reads at runtime; missing a key here shows up as a
     # literal "undefined" in the page, so it is derived rather than hand listed
     skip = {"lang", "other", "other_href", "home", "desc_meta", "tagline",
             "slogan", "give", "oneline", "note", "rules", "sort", "loading",
             "grid", "list"}
     strings = {k: v for k, v in s.items() if k not in skip}
-    short = re.split(r"[。.]", s["tagline"])[0] + ("。" if s["lang"] != "en" else ".")
-    fields = dict(s, rules=rules, tagline_short=short,
+    fields = dict(s, rules=rules, md="agents.md" if s["lang"] != "en" else "../agents.md",
                   strings=repr(strings).replace("'", '"'))
     return TEMPLATE.format(**fields)
 
@@ -680,7 +667,7 @@ def main():
     (HERE / "index.html").write_text(build(ZH), encoding="utf-8")
     (HERE / "en").mkdir(exist_ok=True)
     (HERE / "en" / "index.html").write_text(build(EN), encoding="utf-8")
-    print("wrote site/index.html (zh-Hant) and site/en/index.html (en)")
+    print("wrote site/index.html (zh-Hans) and site/en/index.html (en)")
 
 
 if __name__ == "__main__":
