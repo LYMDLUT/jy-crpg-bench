@@ -231,15 +231,17 @@ context window.
 
 ### Bring your own harness, take the skill
 
-For an agent that already has a tool loop, `skills/play.en.md` and
-`skills/play.zh.md` are the whole briefing as one block of text. The browser
+For an agent that already has a tool loop, `/api/help` returns the whole
+briefing as one block of text: `skills/play.{en,zh}.md` for driving the game,
+followed by `skills/speedrun.{en,zh}.md`, the field manual covering menus,
+combat, attributes, the compass and the traps that cost the most time.
+`?part=core` returns only the first half. The browser
 runner serves them at `/api/help?lang=en|zh` with its own URL substituted in,
 and the page offers them in a copy box. Paste one into a system prompt and the
 model has the API, the controls, the isometric axes and the traps.
 
-`skills/jyxzz-speedrun-tips/SKILL.md` is the longer source they are distilled
-from: the official manual, plus what playing through the API actually taught us.
-Edit that first, then fold anything durable into the two served files.
+`skills/jyxzz-speedrun-tips/SKILL.md` is the original research the field manual
+came from. Edit that first, then fold anything durable into the served files.
 
 `mcp-server/` wraps the same surface over MCP for clients that speak it.
 
@@ -280,7 +282,8 @@ with `QUNXIA_SET="dosbox_pure_cycles=max"` or `--set dosbox_pure_cycles=200000`.
 Sources/CoreHost/    libretro host: dlopen, env callbacks, video, audio, input
 Sources/QunXia/      Emulator, MetalView, AudioOut, ControlAPI, HistoryView
 server/              headless runner: tile differ, aiohttp server, browser client
-skills/              play.en.md and play.zh.md, plus the research they came from
+skills/              play.*.md and speedrun.*.md, served together at /api/help,
+                     plus the research they came from
 pi-agent/            built-in harness: system prompt and game_* tools
 mcp-server/          MCP wrapper
 assets/              where your own game-data.tar.gz goes, untracked

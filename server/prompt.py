@@ -10,14 +10,21 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 _cache: dict[str, str] = {}
 
 
-def _load(name: str) -> str:
-    if name not in _cache or not _cache[name]:
-        path = SKILLS / f"play.{name}.md"
-        _cache[name] = path.read_text(encoding="utf-8")
-    return _cache[name]
+def _load(stem: str) -> str:
+    if stem not in _cache or not _cache[stem]:
+        _cache[stem] = (SKILLS / f"{stem}.md").read_text(encoding="utf-8")
+    return _cache[stem]
 
 
-def system_prompt(base: str, lang: str = "en") -> str:
+def system_prompt(base: str, lang: str = "en", core_only: bool = False) -> str:
+    """The whole briefing: how to drive the game, then the field manual.
+
+    Served complete by default. ?part=core trims to the first half for a
+    context budget that cannot take the manual.
+    """
     name = "zh" if str(lang).lower().startswith("zh") else "en"
+    text = _load(f"play.{name}")
+    if not core_only:
+        text = text.rstrip() + "\n\n" + _load(f"speedrun.{name}")
     # the markdown carries doubled braces so the JSON examples survive editing
-    return _load(name).replace("{BASE}", base).replace("{{", "{").replace("}}", "}")
+    return text.replace("{BASE}", base).replace("{{", "{").replace("}}", "}")

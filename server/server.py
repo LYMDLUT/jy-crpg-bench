@@ -664,7 +664,9 @@ async def api_history(_request):
 async def api_help(request):
     # Not logged: the page fetches this on every load to fill the copy box, so
     # logging it fills the panel with entries nobody performed.
-    return web.Response(text=system_prompt(base_url(request), lang),
+    lang = request.query.get("lang", "en")
+    core_only = request.query.get("part") == "core"
+    return web.Response(text=system_prompt(base_url(request), lang, core_only),
                         content_type="text/plain", charset="utf-8")
 
 

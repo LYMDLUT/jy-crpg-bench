@@ -21,8 +21,11 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 ## Endpoints
 
 - `/` browser client, WebSocket tile stream at `/ws`
-- `/api/help?lang=en|zh` the game as a skill, in English or Traditional
-  Chinese, with this host's URLs baked in. The page shows it in a copy box so
+- `/api/help?lang=en|zh` the whole briefing, in English or Traditional Chinese,
+  with this host's URLs baked in: how to drive the game, then the field manual
+  covering menus, combat, attributes, the compass and the traps that cost the
+  most time. `?part=core` returns only the first half for a tight context
+  budget. The page shows it in a copy box so
   a user can paste it into their own LLM and play with no harness of ours. It
   teaches the controls, the two rules that are not discoverable by pressing
   keys, and enough of the opening to get moving. It is deliberately not a
