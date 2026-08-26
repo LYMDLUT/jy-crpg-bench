@@ -25,3 +25,8 @@ saves/*.state
 pi-agent/*
 !pi-agent/SYSTEM.md
 !pi-agent/extensions/
+
+# Scratch left in the repo root by agents playing the game: screenshots they
+# captured and one-off scripts. Kept on disk, never committed.
+/*.png
+/*.py
