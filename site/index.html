@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jy-crpg-bench</title>
-<meta name="description" content="二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。">
+<meta name="description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="theme-color" content="#f7f8fa">
 <link rel="canonical" href="https://hanxiao.io/jy-crpg-bench/">
 <link rel="alternate" hreflang="zh-Hans" href="https://hanxiao.io/jy-crpg-bench/">
@@ -15,7 +15,7 @@
 <meta property="og:site_name" content="hanxiao.io">
 <meta property="og:url" content="https://hanxiao.io/jy-crpg-bench/">
 <meta property="og:title" content="jy-crpg-bench">
-<meta property="og:description" content="二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。">
+<meta property="og:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
@@ -26,9 +26,12 @@
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="jy-crpg-bench">
-<meta name="twitter:description" content="二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。">
+<meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
 <style>
   :root {
@@ -50,12 +53,6 @@
   .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
   /* ---------- top ---------- */
-  nav { display: flex; align-items: center; gap: 14px; padding: 18px 0;
-        border-bottom: 1px solid var(--line); }
-  .brand { font-family: var(--mono); font-weight: 600; font-size: 14px;
-           letter-spacing: -.2px; border: 0; }
-  .brand em { font-style: normal; color: var(--dim); font-weight: 400; }
-  nav .sp { margin-left: auto; }
   .ico { display: inline-flex; align-items: center; justify-content: center;
          width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 6px;
          background: var(--panel); color: var(--ink); cursor: pointer; padding: 0; }
@@ -66,10 +63,18 @@
   .lang { font-family: var(--mono); font-size: 12px; padding: 0 10px; width: auto;
           height: 30px; }
 
-  header { padding: 44px 0 26px; }
-  h1 { margin: 0; font-family: var(--mono); font-size: 27px; font-weight: 600;
-       letter-spacing: -.6px; }
-  h1 b { font-weight: 600; color: var(--dim); }
+  header { padding: 34px 0 26px; }
+  .top { display: flex; align-items: center; gap: 20px; }
+  .acts { margin-left: auto; display: flex; gap: 8px; flex: none; }
+  h1 { margin: 0; font-size: 20px; font-weight: 400; line-height: 1.3; }
+  /* Pixelify Sans has real lowercase; Silkscreen renders as caps, which fought
+     the lowercase project name used everywhere else. Latin only either way, so
+     the game's own name keeps the system face - the same split the banner uses,
+     which reads as deliberate rather than as a missing glyph. */
+  h1 .px { font-family: "Pixelify Sans", ui-monospace, monospace; font-weight: 700;
+           font-size: 25px; letter-spacing: -.2px; }
+  h1 em { font-style: normal; font-size: 18px; color: var(--dim); margin-left: 4px; }
+  .tagline { margin: 10px 0 0; color: var(--dim); max-width: 60ch; font-size: 14px; }
   .oneline { margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }
@@ -198,24 +203,25 @@
   @media (max-width: 620px) {
     .row { grid-template-columns: 1fr; }
     .row video, .row .none { width: 100%; }
-    h1 { font-size: 22px; }
+    h1 { font-size: 17px; }
+    .top { flex-wrap: wrap; }
   }
 </style>
 </head>
 <body>
 
 <div class="wrap">
-<nav>
-  <a class="brand" href=".">jy-crpg-bench <em>金庸群俠傳</em></a>
-  <span class="sp"></span>
-  <a class="ico lang" href="en/">EN</a>
-  <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-  </a>
-</nav>
-
 <header>
-  <h1>二十分钟的江湖</h1>
+  <div class="top">
+    <h1><span class="px">jy-crpg-bench</span> <em>金庸群俠傳</em></h1>
+    <div class="acts">
+      <a class="ico lang" href="en/">EN</a>
+      <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+    </div>
+  </div>
+  <p class="tagline">面向前沿智能体的长程 CRPG 基准</p>
 
   <div class="oneline">
     <code id="one">读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。</code>
@@ -303,7 +309,7 @@
 </div>
 
 <script>
-const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "stats": ["正在进行", "已完成", "模型", "累计游玩"], "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";

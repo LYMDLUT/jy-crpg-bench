@@ -15,8 +15,8 @@ ZH = {
     "lang": "zh-Hans", "other": "EN", "other_href": "en/", "home": ".",
     "url": "https://hanxiao.io/jy-crpg-bench/",
     "locale": "zh_CN", "locale_alt": "en_US",
-    "blurb": "二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。",
-    "slogan": "二十分钟的江湖",
+    "blurb": "面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。",
+    "tagline": "面向前沿智能体的长程 CRPG 基准",
     "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。",
     "view": "查看", "raw": "原始档",
     "copy": "复制", "copied": "已复制",
@@ -40,9 +40,9 @@ EN = {
     "lang": "en", "other": "中文", "other_href": "../", "home": ".",
     "url": "https://hanxiao.io/jy-crpg-bench/en/",
     "locale": "en_US", "locale_alt": "zh_CN",
-    "blurb": "Twenty minutes in an unmodified 1996 wuxia CRPG. "
-             "One run per model, recorded.",
-    "slogan": "twenty minutes in the jianghu",
+    "blurb": "A long-horizon CRPG benchmark for frontier agents. "
+             "One run per model, twenty minutes, recorded.",
+    "tagline": "A long-horizon CRPG benchmark for frontier agents",
     "oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it.",
     "view": "view", "raw": "raw",
     "copy": "copy", "copied": "copied",
@@ -93,6 +93,9 @@ TEMPLATE = r"""<!doctype html>
 <meta name="twitter:description" content="{blurb}">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
 <style>
   :root {{
@@ -114,12 +117,6 @@ TEMPLATE = r"""<!doctype html>
   .mono {{ font-family: var(--mono); font-variant-numeric: tabular-nums; }}
 
   /* ---------- top ---------- */
-  nav {{ display: flex; align-items: center; gap: 14px; padding: 18px 0;
-        border-bottom: 1px solid var(--line); }}
-  .brand {{ font-family: var(--mono); font-weight: 600; font-size: 14px;
-           letter-spacing: -.2px; border: 0; }}
-  .brand em {{ font-style: normal; color: var(--dim); font-weight: 400; }}
-  nav .sp {{ margin-left: auto; }}
   .ico {{ display: inline-flex; align-items: center; justify-content: center;
          width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 6px;
          background: var(--panel); color: var(--ink); cursor: pointer; padding: 0; }}
@@ -130,10 +127,18 @@ TEMPLATE = r"""<!doctype html>
   .lang {{ font-family: var(--mono); font-size: 12px; padding: 0 10px; width: auto;
           height: 30px; }}
 
-  header {{ padding: 44px 0 26px; }}
-  h1 {{ margin: 0; font-family: var(--mono); font-size: 27px; font-weight: 600;
-       letter-spacing: -.6px; }}
-  h1 b {{ font-weight: 600; color: var(--dim); }}
+  header {{ padding: 34px 0 26px; }}
+  .top {{ display: flex; align-items: center; gap: 20px; }}
+  .acts {{ margin-left: auto; display: flex; gap: 8px; flex: none; }}
+  h1 {{ margin: 0; font-size: 20px; font-weight: 400; line-height: 1.3; }}
+  /* Pixelify Sans has real lowercase; Silkscreen renders as caps, which fought
+     the lowercase project name used everywhere else. Latin only either way, so
+     the game's own name keeps the system face - the same split the banner uses,
+     which reads as deliberate rather than as a missing glyph. */
+  h1 .px {{ font-family: "Pixelify Sans", ui-monospace, monospace; font-weight: 700;
+           font-size: 25px; letter-spacing: -.2px; }}
+  h1 em {{ font-style: normal; font-size: 18px; color: var(--dim); margin-left: 4px; }}
+  .tagline {{ margin: 10px 0 0; color: var(--dim); max-width: 60ch; font-size: 14px; }}
   .oneline {{ margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }}
@@ -262,24 +267,25 @@ TEMPLATE = r"""<!doctype html>
   @media (max-width: 620px) {{
     .row {{ grid-template-columns: 1fr; }}
     .row video, .row .none {{ width: 100%; }}
-    h1 {{ font-size: 22px; }}
+    h1 {{ font-size: 17px; }}
+    .top {{ flex-wrap: wrap; }}
   }}
 </style>
 </head>
 <body>
 
 <div class="wrap">
-<nav>
-  <a class="brand" href="{home}">jy-crpg-bench <em>金庸群俠傳</em></a>
-  <span class="sp"></span>
-  <a class="ico lang" href="{other_href}">{other}</a>
-  <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-  </a>
-</nav>
-
 <header>
-  <h1>{slogan}</h1>
+  <div class="top">
+    <h1><span class="px">jy-crpg-bench</span> <em>金庸群俠傳</em></h1>
+    <div class="acts">
+      <a class="ico lang" href="{other_href}">{other}</a>
+      <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+    </div>
+  </div>
+  <p class="tagline">{tagline}</p>
 
   <div class="oneline">
     <code id="one">{oneline}</code>
@@ -763,7 +769,7 @@ def build(s):
     # everything the script reads at runtime; missing a key here shows up as a
     # literal "undefined" in the page, so it is derived rather than hand listed
     skip = {"lang", "other", "other_href", "home", "url", "locale", "locale_alt",
-            "blurb", "slogan", "oneline", "rules", "sort", "loading",
+            "blurb", "tagline", "oneline", "stats", "sort", "loading",
             "grid", "list"}
     strings = {k: v for k, v in s.items() if k not in skip}
     # each language ships its own brief alongside its page

@@ -35,6 +35,11 @@ RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "1200"))     # 20 minutes
 # An agent that has not acted in this long is wedged, not thinking.
 IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "600"))        # 10 minutes
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
+# Measured on 8 vCPU / 8Gi: 32 concurrent runs all held a full 70.09 fps with
+# flat 1.13s action latency, and the container then OOMed at 33, killing every
+# live run with it. CPU was never the limit; memory was, at roughly 123MB of
+# game copy per run. This refuses the extra run instead of losing the others.
+MAX_SESSIONS = int(os.environ.get("QUNXIA_MAX_SESSIONS", "24"))
 # Every session gets its own copy of the game directory and its own libretro
 # save directory. DOSBox Pure mounts the directory holding the content as a
 # writable C:, and the skill tells agents to use the in-game save menu, so a
@@ -110,7 +115,21 @@ def make_workdir(sid):
     return root / "game" / pathlib.Path(GAME).name, root / "saves"
 
 
+def running_count():
+    return sum(1 for s in sessions.values()
+               if s["proc"].poll() is None and not result_of(s["id"]))
+
+
 async def start_session(agent):
+    live = running_count()
+    if live >= MAX_SESSIONS:
+        raise web.HTTPServiceUnavailable(
+            text=json.dumps({
+                "ok": False, "error": "at capacity",
+                "running": live, "capacity": MAX_SESSIONS,
+                "hint": "every machine is busy. Wait and POST /session again; "
+                        "nothing is queued, so retry rather than hold."}),
+            content_type="application/json", headers=CORS)
     sid = uuid.uuid4().hex[:12]
     port = free_port()
     token = uuid.uuid4().hex
@@ -295,7 +314,7 @@ async def spectate(request, sess, url):
 async def api_sessions(_request):
     now = time.time()
     return web.json_response(
-        {"running": [
+        {"capacity": MAX_SESSIONS, "running": [
             {"id": s["id"], "agent": s["agent"],
              "started": s["started"], "watchers": s.get("watchers", 0),
              "remaining": max(0, round(s["ends_at"] - now))}
@@ -326,8 +345,7 @@ async def api_catalog(_request):
 
 async def health(_request):
     return web.json_response({
-        "ok": True, "running": sum(1 for s in sessions.values()
-                                   if s["proc"].poll() is None),
+        "ok": True, "running": running_count(), "capacity": MAX_SESSIONS,
         "budget": RUN_SECONDS, "idle_limit": IDLE_LIMIT, "site": SITE},
         headers=CORS)
 
