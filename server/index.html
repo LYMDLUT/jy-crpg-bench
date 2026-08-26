@@ -74,6 +74,7 @@
   }
   .r .vbwrap { flex: none; width: 38px; }
   .r .vb { font-weight: 700; }
+  .r .held { color: #8a8a96; margin-left: 2px; }
   #meter {
     display: flex; gap: 10px; padding: 6px 12px 6px; font-size: 10.5px;
     color: #6c6c78; letter-spacing: .03em;
@@ -499,7 +500,7 @@ function connect() {
     if (typeof e.data === "string") {
       const m = JSON.parse(e.data);
       if (m.t === "log") { m.e.forEach(addLog); if (m.s) setMeter(m.s); }
-      else if (m.t === "key") holdKey(m.k, m.down);
+      else if (m.t === "key") { holdKey(m.k, m.down); noteKeyTiming(m.k, m.down); }
       else if (m.t === "clear") clearLog();
     } else {
       onFrame(e.data);
@@ -537,9 +538,40 @@ function holdKey(name, down) {
   clearTimeout(b._t);
   if (down) {
     b.classList.add("hit");
-    b._t = setTimeout(() => b.classList.remove("hit"), 4000);
+    b._t = setTimeout(() => b.classList.remove("hit"), 12000);
   } else {
     b.classList.remove("hit");
+  }
+}
+
+// The log line says which key, never for how long, so a press held for over a
+// second reads the same as a tap. The key events carry real timing, so measure
+// it here and write it onto the row that caused it.
+const HELD_MIN_MS = 250;
+const downAt = new Map();
+let awaitingHold = [];
+
+function noteKeyTiming(name, down) {
+  const now = performance.now();
+  if (down) { downAt.set(name, now); return; }
+  const t0 = downAt.get(name);
+  downAt.delete(name);
+  if (t0 === undefined) return;
+  const ms = now - t0;
+  if (ms < HELD_MIN_MS) return;
+  for (let i = awaitingHold.length - 1; i >= 0; i--) {
+    const slot = awaitingHold[i];
+    if (!slot.keys.has(name) || !slot.el.isConnected) continue;
+    if (ms <= slot.ms) return;
+    slot.ms = ms;
+    let chip = slot.el.querySelector(".held");
+    if (!chip) {
+      chip = document.createElement("span");
+      chip.className = "held";
+      slot.el.querySelector(".tg").appendChild(chip);
+    }
+    chip.textContent = " " + (ms / 1000).toFixed(1) + "s";
+    return;
   }
 }
 
@@ -626,6 +658,8 @@ setInterval(() => {
 
 function clearLog() {
   rows.textContent = "";
+  awaitingHold = [];
+  downAt.clear();
   lastId = 0;                 // ids restart after a reset, so the dedupe must too
   logged = 0;
   logcount.textContent = "";
@@ -651,7 +685,14 @@ function addLog(e) {
   vb.textContent = e.verb;
   vb.classList.add("v-" + e.verb);
   const tgt = row.children[3];
-  if (e.verb === "KEY" || e.verb === "KEYS") tgt.append(keySpans(e.target));
+  if (e.verb === "KEY" || e.verb === "KEYS") {
+    tgt.append(keySpans(e.target));
+    const keys = new Set(e.target.split(" ").filter(t => !/^x\d+$/.test(t)));
+    if (keys.size) {
+      awaitingHold.push({ el: row, keys, ms: 0 });
+      if (awaitingHold.length > 12) awaitingHold.shift();
+    }
+  }
   else if (e.verb === "TEXT") tgt.textContent = JSON.stringify(e.target);
   else tgt.textContent = e.target + (e.detail ? " " + e.detail : "");
   if (!e.ok) row.style.color = "#ff6b6b";
