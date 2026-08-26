@@ -50,6 +50,28 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 PNGs are written by a ~10 line encoder over `zlib` rather than pulling in an
 image library.
 
+## Several agents on one session
+
+Actions are serialised so the game stays coherent, and the queue is FIFO, so
+agents take strictly fair turns. Measured against the deployed e2-micro, each
+agent pressing a key and reading the screen every third action, with a
+spectator attached throughout:
+
+| agents | actions/s | latency p50 | p90 | errors |
+|---:|---:|---:|---:|---:|
+| 1 | 2.07 | 289 ms | 656 ms | 0 |
+| 4 | 3.19 | 1207 ms | 1318 ms | 0 |
+| 8 | 2.70 | 2593 ms | 3769 ms | 0 |
+
+Throughput is bounded by how long an action holds the lock, which is dominated
+by waiting for the screen to settle. A request that cannot get the lock inside
+`QUNXIA_LOCK_TIMEOUT` returns 503 with `"error": "busy"` instead of hanging.
+Agents can name themselves with an `X-Agent` header or `?agent=` so a shared
+session stays legible in the activity log.
+
+Spectators cost close to nothing. One encode is fanned out to every client, so
+the number of watchers changes bandwidth and not CPU.
+
 ## Why 26800 cycles
 
 Measured on the target VM: at 77000 cycles the core runs 1.75x faster than the

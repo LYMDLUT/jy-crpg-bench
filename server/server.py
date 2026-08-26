@@ -13,8 +13,10 @@ import io
 import json
 import os
 import pathlib
+import sys
 import threading
 import time
+import traceback
 import zlib
 
 from aiohttp import WSMsgType, web
@@ -88,7 +90,11 @@ paused = threading.Event()    # held while the core is rebooted, so retro_reset
                               # is never called underneath a running retro_run
 
 clients: set[web.WebSocketResponse] = set()
-stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0}
+stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0, "dropped": 0,
+         "pump_errors": 0, "last_error": "", "pump_ticks": 0, "pump_stage": "init",
+         "queued": 0}
+SEND_TIMEOUT = float(os.environ.get("QUNXIA_SEND_TIMEOUT", "3"))
+LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 
 # Everything anyone does to this session, so the page can show who is doing
 # what. The game is shared, so this doubles as "why did the screen just move".
@@ -134,16 +140,43 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False):
     return entry
 
 
-async def broadcast_log(entry):
-    msg = json.dumps({"t": "log", "e": [entry]})
+async def _send_one(ws, data, text):
+    """One send, bounded. A peer that vanished without closing the TCP
+    connection blocks forever once its window fills, so every send needs a
+    deadline of its own."""
+    try:
+        async with asyncio.timeout(SEND_TIMEOUT):
+            if text:
+                await ws.send_str(data)
+            else:
+                await ws.send_bytes(data)
+        return ws, True
+    except Exception:
+        return ws, False
+
+
+async def fanout(data, text=False):
+    """Send to every client at once and drop the ones that fail.
+
+    Sending serially meant a single stuck client stalled the broadcast for
+    everyone, which is how streaming died while the emulator kept running.
+    """
+    targets = []
     for ws in list(clients):
         if ws.closed:
             clients.discard(ws)
-            continue
-        try:
-            await ws.send_str(msg)
-        except Exception:
+        else:
+            targets.append(ws)
+    if not targets:
+        return
+    for ws, ok in await asyncio.gather(*(_send_one(ws, data, text) for ws in targets)):
+        if not ok:
             clients.discard(ws)
+            stats["dropped"] += 1
+
+
+async def broadcast_log(entry):
+    await fanout(json.dumps({"t": "log", "e": [entry]}), text=True)
 
 
 def emulate():
@@ -166,34 +199,57 @@ def emulate():
 
 
 async def pump():
-    """Encode a delta and fan it out, only when something actually changed."""
+    """Encode a delta and fan it out, only when something actually changed.
+
+    The body is guarded because a task created with create_task dies silently
+    on an unhandled exception, and a dead pump looks exactly like a working
+    server with a frozen picture.
+    """
     period = 1.0 / SEND_HZ
     last_serial = -1
     while True:
-        await asyncio.sleep(period)
-        if not clients:
-            continue
-        serial = LIB.core_frame_serial()
-        if serial == last_serial:
-            continue          # picture is identical, send nothing at all
-        last_serial = serial
-        n = LIB.fb_encode_delta(BUF, len(BUF), 0)
-        if n <= 0:
-            continue
-        count = int.from_bytes(BUF.raw[11:13], "little")
-        if count == 0:
-            continue
-        payload = zlib.compress(BUF.raw[:n], 6)
-        stats["sent"] += 1
-        stats["bytes"] += len(payload)
-        stats["tiles"] += count
+        try:
+            await asyncio.sleep(period)
+            stats["pump_ticks"] += 1
+            if not clients:
+                continue
+            stats["pump_stage"] = "serial"
+            serial = LIB.core_frame_serial()
+            if serial == last_serial:
+                continue          # picture is identical, send nothing at all
+            last_serial = serial
+            stats["pump_stage"] = "encode"
+            n = LIB.fb_encode_delta(BUF, len(BUF), 0)
+            if n <= 0:
+                continue
+            count = int.from_bytes(BUF.raw[11:13], "little")
+            if count == 0:
+                continue
+            stats["pump_stage"] = "compress"
+            payload = zlib.compress(BUF.raw[:n], 6)
+            stats["sent"] += 1
+            stats["bytes"] += len(payload)
+            stats["tiles"] += count
+            stats["pump_stage"] = "fanout"
+            await fanout(payload)
+            stats["pump_stage"] = "idle"
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            stats["pump_errors"] += 1
+            stats["last_error"] = f"{type(exc).__name__}: {exc}"
+            print("pump error:", repr(exc), file=sys.stderr, flush=True)
+            traceback.print_exc()
+            await asyncio.sleep(0.5)
+
+
+async def reap():
+    """Drop clients that closed without a handshake. Without this they linger,
+    are counted, and are sent every frame."""
+    while True:
+        await asyncio.sleep(15)
         for ws in list(clients):
             if ws.closed:
-                clients.discard(ws)
-                continue
-            try:
-                await ws.send_bytes(payload)
-            except Exception:
                 clients.discard(ws)
 
 
@@ -262,17 +318,20 @@ def snapshot(fmt="png"):
     return out.getvalue(), w.value, h.value, mime
 
 
-async def settle(baseline, react=30, stable=9, maxframes=150):
+async def settle(baseline, react=30, stable=9, maxframes=120):
     """Wait for the game to react, then for the picture to hold still.
 
-    The emulator free-runs on its own thread, so waiting here is just wall
-    clock. Without the react phase we would snapshot the screen from before the
-    action, and dialogue is drawn with a typewriter effect that pauses between
-    glyphs, so `stable` has to be generous or lines come back half-written.
+    Three ways to be done. The picture stops changing; or it starts cycling,
+    which is what a blinking cursor or an idle sprite loop does and which never
+    goes still; or nothing happened at all within the react budget. Without the
+    cycle test every animated screen ran to maxframes, and that wait is held
+    under the action lock, so it set the floor on how fast several agents can
+    take turns.
     """
     ft = 1.0 / max(1.0, LIB.core_fps())
     reacted = react == 0
     last, runs, n = baseline, 0, 0
+    seen: dict[int, int] = {}
     while n < maxframes:
         await asyncio.sleep(ft)
         n += 1
@@ -280,13 +339,21 @@ async def settle(baseline, react=30, stable=9, maxframes=150):
         if not reacted:
             if h != baseline:
                 reacted, runs, last = True, 0, h
+                seen = {h: n}
             elif n >= react:
                 break
-        else:
-            runs = runs + 1 if h == last else 0
-            last = h
+            continue
+        if h == last:
+            runs += 1
             if n >= 6 and runs >= stable:
                 break
+        else:
+            runs = 0
+            last = h
+            first = seen.get(h)
+            if first is not None and n - first >= stable:
+                break                      # animation loop, it will never settle
+            seen.setdefault(h, n)
     return n, reacted
 
 
@@ -304,8 +371,22 @@ async def run_action(request, steps, note, verb="KEY"):
     Deliberately does not return a screenshot. Encoding a PNG for every
     keypress cost real CPU on a shared-core box and most of those images were
     never looked at. Ask for /api/screen when you actually want to see.
+
+    One action runs at a time so the game stays coherent when several agents
+    act on it, but a caller waiting behind others is told so instead of being
+    left to hang.
     """
-    async with api_lock:
+    stats["queued"] += 1
+    try:
+        await asyncio.wait_for(api_lock.acquire(), timeout=LOCK_TIMEOUT)
+    except asyncio.TimeoutError:
+        return web.json_response(
+            {"ok": False, "error": "busy", "queued": stats["queued"],
+             "hint": "another agent holds the game; retry"}, status=503)
+    finally:
+        stats["queued"] -= 1
+
+    try:
         baseline = LIB.core_frame_hash()
         for kind, val in steps:
             if kind == "wait":
@@ -313,7 +394,10 @@ async def run_action(request, steps, note, verb="KEY"):
             else:
                 await tap(kind, val)
         waited, changed = await settle(baseline)
-        log_action("api", verb, note)
+        log_action(actor(request), verb, note)
+    finally:
+        api_lock.release()
+
     return web.json_response({
         "ok": True, "action": note, "changed": changed,
         "width": LIB.core_width(), "height": LIB.core_height(),
@@ -330,6 +414,12 @@ async def body_of(request):
 
 def keycode(name):
     return KEYS.get(str(name).strip().lower())
+
+
+def actor(request):
+    """Optional agent name, so several agents on one session are told apart."""
+    name = (request.headers.get("X-Agent") or request.query.get("agent") or "api")
+    return "".join(c for c in name if c.isalnum() or c in "-_.")[:16] or "api"
 
 
 async def api_key(request):
@@ -385,7 +475,7 @@ async def api_wait(request):
 async def api_screen(request):
     """The only way to look at the screen. JSON, or ?format=png|webp for bytes."""
     fmt = request.query.get("format", "")
-    log_action("api", "GET", "screen", thumb=True)
+    log_action(actor(request), "GET", "screen", thumb=True)
     data, w, h, mime = snapshot("webp" if fmt == "webp" else "png")
     if not data:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
@@ -426,10 +516,11 @@ async def api_reset(request):
         _seq[0] = 0
         await asyncio.sleep(1.5)          # give the machine a moment to start booting
 
+    await fanout(json.dumps({"t": "clear"}), text=True)
     for ws in list(clients):
         try:
-            await ws.send_str(json.dumps({"t": "clear"}))
-            await send_keyframe(ws)
+            async with asyncio.timeout(SEND_TIMEOUT):
+                await send_keyframe(ws)
         except Exception:
             clients.discard(ws)
     log_action("api", "RESET", "rebooted to title screen")
@@ -442,7 +533,7 @@ async def api_history(_request):
 
 async def api_help(request):
     lang = request.query.get("lang", "en")
-    log_action("api", "GET", f"help ({lang})")
+    log_action(actor(request), "GET", f"help ({lang})")
     return web.Response(text=system_prompt(base_url(request), lang),
                         content_type="text/plain", charset="utf-8")
 
@@ -493,6 +584,7 @@ def main():
     # rather than returned, or startup blocks on a loop that never ends.
     async def _spawn_pump(a):
         a["pump"] = asyncio.create_task(pump())
+        a["reaper"] = asyncio.create_task(reap())
     app.on_startup.append(_spawn_pump)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
