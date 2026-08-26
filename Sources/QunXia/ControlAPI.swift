@@ -156,7 +156,8 @@ final class ControlAPI {
                 log.add("GET", r.path, ok: false)
                 return respond(503, "application/json", Data(#"{"ok":false,"error":"no frame yet"}"#.utf8))
             }
-            log.add("GET", r.path, payload: "\(shot.width)x\(shot.height)")
+            log.add("GET", r.path, payload: "\(shot.width)x\(shot.height)",
+                    image: emu.snapshot(scale: 1)?.png)
             if r.path == "/frame.png" || r.wantsRawPNG {
                 return respond(200, "image/png", shot.png)
             }

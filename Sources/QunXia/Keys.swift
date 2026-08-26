@@ -124,6 +124,8 @@ struct ActionRecord {
     let target: String
     let payload: String
     let ok: Bool
+    /// PNG of the screen this call returned, for calls that return one.
+    var image: Data?
 }
 
 final class ActionLog {
@@ -137,16 +139,48 @@ final class ActionLog {
         return storage
     }
 
-    func add(_ verb: String, _ target: String, payload: String = "", ok: Bool = true) {
+    /// Only the newest few entries keep their image, so the log stays small.
+    private let imageLimit = 40
+
+    func add(_ verb: String, _ target: String, payload: String = "", ok: Bool = true, image: Data? = nil) {
         lock.lock()
-        storage.append(ActionRecord(time: Date(), verb: verb, target: target, payload: payload, ok: ok))
+        storage.append(ActionRecord(time: Date(), verb: verb, target: target,
+                                    payload: payload, ok: ok, image: image))
         if storage.count > limit { storage.removeFirst(storage.count - limit) }
+        if image != nil {
+            var kept = 0
+            for i in stride(from: storage.count - 1, through: 0, by: -1) where storage[i].image != nil {
+                kept += 1
+                if kept > imageLimit { storage[i].image = nil }
+            }
+        }
         lock.unlock()
         DispatchQueue.main.async { self.onChange?() }
     }
 }
 
 extension RetroKey {
+    /// Screen-direction glyphs for the movement axes, matching the web client
+    /// so both runners read the same way.
+    static let glyphs: [String: String] = [
+        "up": "\u{2197}", "kp9": "\u{2197}", "upright": "\u{2197}", "ne": "\u{2197}",
+        "down": "\u{2199}", "kp1": "\u{2199}", "downleft": "\u{2199}", "sw": "\u{2199}",
+        "left": "\u{2196}", "kp7": "\u{2196}", "upleft": "\u{2196}", "nw": "\u{2196}",
+        "right": "\u{2198}", "kp3": "\u{2198}", "downright": "\u{2198}", "se": "\u{2198}",
+        "enter": "\u{23CE}", "return": "\u{23CE}", "ok": "\u{23CE}",
+        "space": "\u{2423}", "backspace": "\u{232B}", "tab": "\u{21E5}",
+        "esc": "esc", "escape": "esc", "cancel": "esc",
+    ]
+
+    static func glyph(_ name: String) -> String {
+        glyphs[name.lowercased()] ?? name
+    }
+
+    static let arrowNames: Set<String> = [
+        "up", "down", "left", "right", "kp1", "kp3", "kp7", "kp9",
+        "upleft", "upright", "downleft", "downright", "nw", "ne", "sw", "se",
+    ]
+
     static func label(for code: Int) -> String {
         if let (name, _) = table.first(where: { $0.value == code && $0.key.count > 1 }) { return name }
         if let s = Unicode.Scalar(UInt32(code)), code >= 32, code < 127 { return String(Character(s)) }

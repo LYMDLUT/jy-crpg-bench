@@ -78,9 +78,55 @@ final class HistoryView: NSView {
         for rec in log.items.suffix(200) {
             attr.append(line(rec))
             attr.append(NSAttributedString(string: "\n"))
+            if let data = rec.image, let shot = NSImage(data: data) {
+                attr.append(thumbnail(shot))
+                attr.append(NSAttributedString(string: "\n"))
+            }
         }
         text.textStorage?.setAttributedString(attr)
         text.scrollToEndOfDocument(nil)
+    }
+
+    /// Inline picture of the screen a call returned, indented under its line.
+    private func thumbnail(_ image: NSImage) -> NSAttributedString {
+        let width: CGFloat = 150
+        let height = (image.size.height / max(1, image.size.width)) * width
+        let cell = NSTextAttachmentCell(imageCell: image)
+        let attachment = NSTextAttachment()
+        attachment.attachmentCell = cell
+        cell.image?.size = NSSize(width: width, height: height)
+        let out = NSMutableAttributedString(string: "    ")
+        out.append(NSAttributedString(attachment: attachment))
+        return out
+    }
+
+    /// Renders key names as boxed glyphs, so a movement key reads as the screen
+    /// direction it produces.
+    private func keyChips(_ target: String) -> NSAttributedString {
+        let out = NSMutableAttributedString()
+        // KEYS logs a comma separated list, KEY a space separated one
+        let tokens = target.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
+        for token in tokens {
+            if token.hasPrefix("x"), Int(token.dropFirst()) != nil {
+                out.append(NSAttributedString(string: " " + token, attributes: [
+                    .font: NSFont.monospacedSystemFont(ofSize: 10.5, weight: .regular),
+                    .foregroundColor: NSColor(calibratedWhite: 0.45, alpha: 1),
+                ]))
+                continue
+            }
+            let isArrow = RetroKey.arrowNames.contains(token.lowercased())
+            out.append(NSAttributedString(string: " " + RetroKey.glyph(token) + " ", attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: isArrow
+                    ? NSColor(calibratedRed: 0.56, green: 0.80, blue: 0.97, alpha: 1)
+                    : NSColor(calibratedWhite: 0.86, alpha: 1),
+                .backgroundColor: NSColor(calibratedWhite: 0.16, alpha: 1),
+            ]))
+            out.append(NSAttributedString(string: " ", attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+            ]))
+        }
+        return out
     }
 
     private static let clock: DateFormatter = {
@@ -109,7 +155,12 @@ final class HistoryView: NSView {
         default: verbColor = NSColor(calibratedRed: 0.85, green: 0.75, blue: 1.0, alpha: 1)
         }
         add(rec.verb.padding(toLength: 5, withPad: " ", startingAt: 0), verbColor, bold: true)
-        add(" " + rec.target, NSColor(calibratedWhite: 0.9, alpha: 1))
+        add(" ", NSColor.white)
+        if rec.verb == "KEY" || rec.verb == "KEYS" {
+            out.append(keyChips(rec.target))
+        } else {
+            add(rec.target, NSColor(calibratedWhite: 0.9, alpha: 1))
+        }
         if !rec.payload.isEmpty {
             add(" " + rec.payload, NSColor(calibratedRed: 0.95, green: 0.85, blue: 0.45, alpha: 1))
         }

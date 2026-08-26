@@ -1,11 +1,23 @@
 # QunXia
 
-Native macOS runner for the original DOS 金庸群俠傳 (`Z.COM` / DOS4GW), plus an
-HTTP and MCP interface so an LLM agent can play it. The game binary is untouched:
-DOSBox Pure emulates the PC, Metal presents the VGA framebuffer, CoreAudio plays
-the Sound Blaster output.
+The original 1996 DOS game 金庸群俠傳 (河洛工作室), running unmodified, with an
+HTTP interface so a person or an LLM can play it. Two runners share one control
+API and one key vocabulary: a native macOS app that presents the VGA
+framebuffer through Metal, and a headless Linux server that streams it to a
+browser. The game binary is untouched. DOSBox Pure emulates the PC.
 
-## Setup
+![Native macOS runner](docs/native.png)
+
+The macOS runner. Metal presents the framebuffer, CoreAudio plays the Sound
+Blaster output, and the right pane logs every call to the control API with the
+key that was pressed and the screen it returned.
+
+![Browser runner](docs/web.png)
+
+The same game headless on a GCP e2-micro, streamed to a canvas. The activity
+panel shows a human and an agent acting on the same session.
+
+## Running it
 
 ```sh
 git clone https://github.com/hanxiao/jy-metal.git
@@ -14,37 +26,86 @@ cd jy-metal
 ```
 
 That is the whole setup. The game data ships in the repo as
-`assets/game-data.tar.gz` (24 MB compressed, 123 MB unpacked) and `run.sh`
-unpacks it into `game/` on first run. `Scripts/pack-game.sh` repacks it if you
-change the files.
+`assets/game-data.tar.gz`, 24 MB compressed and 123 MB unpacked, and `run.sh`
+unpacks it into `game/` on first run. `Scripts/pack-game.sh` repacks it after an
+edit. The DOSBox Pure core is prebuilt in `Cores/`; to rebuild it, clone
+`schellingb/dosbox-pure` into `vendor/` and run `make`.
 
-The prebuilt core is in `Cores/`. To rebuild it:
+Window keys: arrows and the numpad move, enter and space confirm, esc opens the
+menu, y and n answer prompts, and the 注音 name entry works. ⌘1 through ⌘5 set
+the scale, ⌘I hides the log pane, ⌘S and ⌘L quick save and load, ⌘M mutes, and
+⌃⌘F is fullscreen. The window snaps to whole multiples of 320×200, so the game
+is never letterboxed.
 
-```sh
-git clone https://github.com/schellingb/dosbox-pure.git vendor/dosbox-pure
-make -C vendor/dosbox-pure -j
-cp vendor/dosbox-pure/dosbox_pure_libretro.dylib Cores/
+For the browser runner, see `server/README.md`.
+
+## Control loop
+
+Acting and looking are separate calls. A key press applies input and waits for
+the screen to settle; a screen call returns the picture. An agent acts several
+times and looks when it needs to see, which costs one settle per action and one
+encode per look.
+
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant S as Control API
+    participant E as Emulation thread
+    A->>S: POST /api/key {"key":"kp3"}
+    S->>E: key down, hold, key up
+    E-->>S: frame hashes, 70 fps
+    Note over S,E: wait for the picture to change,<br/>then to hold still
+    S-->>A: {"changed": true}
+    A->>S: GET /api/screen
+    S-->>A: PNG of the settled screen
 ```
 
-Window keys: arrows, enter, space, esc, y/n and the 注音 name entry all work.
-⌘1-⌘5 scale, ⌘I hides the log pane, ⌘0 4:3, ⌘S/⌘L quick save-load, ⌘M mute,
-⌃⌘F fullscreen. The window snaps to whole multiples of 320×200, so the game is
-never letterboxed.
+Waiting for the screen to change before waiting for it to settle is what makes
+the returned picture the result of the action. Waiting only for stillness
+returns the frame from before the game reacted, and dialogue is drawn with a
+typewriter effect that pauses between glyphs, so the settle threshold has to be
+generous or lines come back half written.
+
+## Architecture
+
+Both runners load the same libretro core through the same C host. `CoreHost.c`
+compiles unchanged on macOS and Linux, so the split is only in presentation.
+
+```mermaid
+flowchart LR
+    subgraph native["Native macOS"]
+        direction TB
+        MA[AppKit window] --> MM[MetalView]
+        MM -->|texture.replace| MC
+        MAPI[ControlAPI<br/>Network.framework] --> MEMU[Emulator thread<br/>+ action queue]
+        MEMU --> MC[CoreHost.c<br/>libretro host]
+        MC --> MAU[AudioOut<br/>CoreAudio]
+        MC --> DP1[dosbox_pure.dylib]
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph web["Headless Linux"]
+        direction TB
+        BR[Browser canvas] <-->|WebSocket| WS[aiohttp server]
+        WS --> TD[tiles.c<br/>16x10 tile differ]
+        WS --> WE[emulation thread<br/>ctypes]
+        WE --> WC[CoreHost.c<br/>libretro host]
+        TD --> WC
+        WC --> DP2[dosbox_pure.so]
+    end
+```
+
+The browser never receives a video stream. `tiles.c` compares each frame against
+the last one sent and emits only the 16×10 tiles that changed, deflated, over
+the socket that also carries input. A dialogue update is about 60 tiles and 5 KB,
+and an idle screen sends nothing at all.
 
 ## Two runners, one key vocabulary
 
-- **Native macOS** (`Sources/`): AppKit + Metal + CoreAudio, HTTP API on 8765.
-- **Headless web** (`server/`): no display, streams to a browser, HTTP API on 80.
-
-They accept the same key names, including the numpad and the screen-direction
-aliases below, so a script or agent written against one works against the other.
-Change a key name in one and change it in the other.
-
-### Movement keys
-
 The world is isometric, so the four movement axes are diagonals on screen. The
-numpad names match what you see and are byte-identical to the arrows (verified
-against the running game):
+numpad names match what you see, and are byte-identical to the arrows.
 
 | key | aliases | screen direction |
 |---|---|---|
@@ -53,22 +114,20 @@ against the running game):
 | `kp1` | `down`, `downleft`, `sw` | down-left |
 | `kp3` | `right`, `downright`, `se` | down-right |
 
-Holding a key walks continuously, so one call with `"hold": 120` covers far more
-ground than eight taps and costs one settle instead of eight. Any key advances
-dialogue, not just enter.
+Holding a key walks continuously, so one call with `"hold": 120` covers more
+ground than eight taps, at one settle rather than eight. Any key advances
+dialogue, not only enter. A script written against one runner works against the
+other.
 
-## Agent API (http://127.0.0.1:8765)
-
-Every call that changes game state runs the action, waits for the screen to
-react and then to hold still, and returns the resulting screenshot. One request
-is one action and one observation.
+## Agent API
 
 ```
 GET  /state                        screen + geometry + "screen" hash
 GET  /frame.png?scale=2            raw PNG
-GET  /history  /keys  /slots  /help
-POST /key    {"key":"down"}        "hold" frames, default 4
-POST /keys   {"keys":["up","ok"]}  "gap" frames between, default 6
+GET  /history?limit=100            action log
+GET  /keys  /slots  /help
+POST /key    {"key":"kp3"}         "hold" frames, default 4
+POST /keys   {"keys":["kp9","ok"]} "gap" frames between, default 6
 POST /text   {"text":"j;6"}        type a string
 POST /wait   {"ms":1000}
 POST /mouse  {"dx":10,"dy":0,"click":"left"}
@@ -77,116 +136,93 @@ POST /load   {"slot":1}
 POST /reset
 ```
 
-`image` comes back as a base64 PNG data URI. `?format=png` for raw bytes,
-`?image=0` to skip it, `?scale=1..6` for size, `?react` `?stable` `?maxsettle`
-to tune the wait, `?settle=N` for a fixed wait. `"changed": false` means the
-action had no visible effect. `frame` counts distinct video frames and stalls on
-a static screen; `ticks` always rises while the emulator runs.
+`image` comes back as a base64 PNG data URI. `?format=png` gives raw bytes,
+`?image=0` skips the capture, and `?react`, `?stable` and `?maxsettle` tune the
+wait. `"changed": false` means the action had no visible effect. `frame` counts
+distinct video frames and stalls on a static screen, while `ticks` always rises
+while the emulator runs. Boot takes about 14 seconds; poll `/state` and watch
+the `screen` hash to know when it has finished.
 
-Boot takes about 14s. Poll `/state` and watch the `screen` hash to know when it
-has finished.
+The browser runner exposes the same actions under `/api/`, with `/api/screen`
+replacing `/state` and `/frame.png`.
 
-## Let an LLM play it
+## Letting an LLM play
 
-The repo ships its own agent harness, so nothing has to understand MCP or write
-a tool loop. You supply an OpenAI-compatible endpoint; everything else is here.
+An LLM cannot call an HTTP API on its own, so it needs a harness. There are two
+ways to give it one, and both use the same game knowledge.
+
+### Bring your own model, use the built-in harness
+
+`pi-agent/` is a complete harness built on [pi](https://pi.dev). Supply an
+OpenAI-compatible endpoint and nothing else.
 
 ```sh
-npm i -g @earendil-works/pi-coding-agent   # once
+npm i -g @earendil-works/pi-coding-agent
 
-export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1   # or any OpenAI-compatible URL
-export QUNXIA_LLM_API_KEY=sk-...                       # anything for local servers
+export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
+export QUNXIA_LLM_API_KEY=sk-...
 export QUNXIA_LLM_MODEL=qwen3-vl:32b
 ./Scripts/play-agent.sh
 ```
 
-That starts the game if it is not running, waits for the title screen, and drops
-you into [pi](https://pi.dev) with the game loaded. `-p "play the opening"` runs
-it non-interactively instead.
+It starts the game if it is not running, waits for the title screen, and drops
+into pi. Add `-p "play the opening"` to run non-interactively.
 
-Everything the agent needs is in `pi-agent/`, used as pi's config directory so
-your own `~/.pi` is untouched:
-
-- `SYSTEM.md` replaces the coding-agent prompt with the game: controls, the 注音
-  name-entry layout, the mission, and the cutscene trap that otherwise makes a
-  model conclude the controls are broken.
-- `extensions/qunxia/` registers nine `game_*` tools. Each one applies input,
-  waits for the screen to settle, and returns the frame as an image, so the
-  model sees the result of its own action.
-
-The model keeps pi's normal `bash`, `read`, `write` and `edit` tools too, and
-the prompt tells it to keep a notes file as it plays: pi compacts context
-automatically as a session grows, and those notes are what survive it.
+Everything the agent needs sits in `pi-agent/`, which pi uses as its
+configuration directory, so your own `~/.pi` is untouched. `SYSTEM.md` replaces
+the coding-agent prompt with the game. `extensions/qunxia/` registers nine
+`game_*` tools that apply input, wait for the screen to settle, and return the
+frame as an image. The model also keeps the pi `bash`, `read`, `write` and
+`edit` tools, and pi compacts context automatically on a long session.
 
 Use a vision model. `QUNXIA_LLM_INPUT='"text"'` drops images for a text-only
-model, `QUNXIA_SCALE` changes screenshot size (default 2, so 640x400),
-`QUNXIA_LLM_CONTEXT` sets the context window.
+model, `QUNXIA_SCALE` changes screenshot size, and `QUNXIA_LLM_CONTEXT` sets the
+context window.
 
-## MCP
+### Bring your own harness, take the skill
 
-`mcp-server/` exposes the same thing over MCP, with the controls, the 注音
-layout, the objectives and the cutscene gotcha written into the server
-instructions and tool descriptions, so a fresh agent knows how to play.
+For an agent that already has a tool loop, `skills/play.en.md` and
+`skills/play.zh.md` are the whole briefing as one block of text. The browser
+runner serves them at `/api/help?lang=en|zh` with its own URL substituted in,
+and the page offers them in a copy box. Paste one into a system prompt and the
+model has the API, the controls, the isometric axes and the traps.
 
-```json
-{
-  "mcpServers": {
-    "qunxia": {
-      "command": "uv",
-      "args": ["run", "--with", "mcp", "/ABSOLUTE/PATH/jy-metal/mcp-server/server.py"]
-    }
-  }
-}
-```
+`skills/jyxzz-speedrun-tips/SKILL.md` is the longer source they are distilled
+from: the official manual, plus what playing through the API actually taught us.
+Edit that first, then fold anything durable into the two served files.
 
-Tools: `look` `guide` `press` `press_sequence` `move` `interact` `open_menu`
-`type_text` `wait` `save_state` `load_state` `list_states` `reset_game`. Every
-action tool returns the resulting screen as an image. `QUNXIA_API` and
-`QUNXIA_SCALE` override the endpoint and screenshot size.
+`mcp-server/` wraps the same surface over MCP for clients that speak it.
 
-`Scripts/play.py` is the equivalent shell client.
+## Emulated CPU speed
 
-## Notes on playing it
+The x86 code is JIT compiled to ARM64 or x86-64 by the DOSBox Pure recompiler,
+so there is no interpreter in the hot path. What costs CPU is the cycle budget.
+Measured on an M3 Ultra, 10 seconds at the title screen with audio on:
 
-- While a scripted event is running the game ignores movement and menu keys, and
-  any key only advances the dialogue. `esc` opening the 醫療/解毒/物品/狀態 menu
-  is the reliable test for whether you are free to act.
-- Enter and space are equivalent in the world: confirm, advance dialogue,
-  interact with what you face. One arrow press turns and steps one tile.
-- Names are entered with the game's 注音 IME in the 大千 layout: type the zhuyin
-  keys, then the digit for the candidate. `j;6` then `1` gives 王.
-
-## Performance
-
-x86 is JIT-compiled to ARM64 (DOSBox Pure dynrec, `C_TARGETCPU ARMV8LE`). M3
-Ultra, 10s at the title screen, audio on:
-
-| `dosbox_pure_cycles` | CPU (1 core) | emulated fps | boot to title |
+| `dosbox_pure_cycles` | CPU (one core = 100%) | emulated fps | boot to title |
 |---|---:|---:|---:|
 | `max` | 99.5% | 70.22 | 15.8s |
 | `auto` | 81.3% | 70.19 | 19.5s |
-| **fixed 77000** | **31.3%** | **70.17** | **15.9s** |
+| fixed 77000 | 31.3% | 70.17 | 15.9s |
 | fixed 26800 | 15.6% | 70.04 | |
 
-The game targets a 486/Pentium, so anything above a Pentium-100 budget goes to
-its own idle spin loops. Fixed 77000 is the default. Override with
-`QUNXIA_SET="dosbox_pure_cycles=max"` or `--set dosbox_pure_cycles=200000`.
+The game targets a 486 or Pentium, so anything above a Pentium-100 budget is
+spent on its own idle loops. The macOS runner defaults to 77000, and the server
+to 26800, which is what lets a shared-core VM hold a full 70.09 fps. Override
+with `QUNXIA_SET="dosbox_pure_cycles=max"` or `--set dosbox_pure_cycles=200000`.
 
 ## Layout
 
 ```
-Sources/CoreHost/    libretro host: dlopen, env callbacks, video/audio/input
-Sources/QunXia/      Emulator (emulation thread + action queue), MetalView,
-                     AudioOut, ControlAPI, HistoryView
-skills/              play.en.md and play.zh.md, served by the web runner at
-                     /api/help; jyxzz-speedrun-tips/SKILL.md is the source
-                     research they are distilled from
-pi-agent/            built-in agent harness: system prompt plus game_* tools
-mcp-server/          MCP wrapper plus the game knowledge an agent needs
-Cores/               dosbox_pure_libretro.dylib
+Sources/CoreHost/    libretro host: dlopen, env callbacks, video, audio, input
+Sources/QunXia/      Emulator, MetalView, AudioOut, ControlAPI, HistoryView
+server/              headless runner: tile differ, aiohttp server, browser client
+skills/              play.en.md and play.zh.md, plus the research they came from
+pi-agent/            built-in harness: system prompt and game_* tools
+mcp-server/          MCP wrapper
 assets/              game-data.tar.gz, unpacked into game/ on first run
-game/                unpacked game files (not tracked)
+Cores/               dosbox_pure_libretro.dylib
 saves/               emulator snapshots
 ```
 
-DOSBox Pure is GPLv2, from `schellingb/dosbox-pure` @ `7f6e8fb`.
+DOSBox Pure is GPLv2, from `schellingb/dosbox-pure` at `7f6e8fb`.
