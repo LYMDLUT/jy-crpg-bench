@@ -35,6 +35,10 @@ RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "1200"))     # 20 minutes
 # An agent that has not acted in this long is wedged, not thinking.
 IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "600"))        # 10 minutes
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
+# How long to hold an agent's final call while its video renders and uploads.
+# The run is over either way; this only decides whether the agent is handed the
+# link or has to go and find it in the catalogue.
+VIDEO_WAIT = float(os.environ.get("QUNXIA_VIDEO_WAIT", "300"))
 
 sessions: dict[str, dict] = {}
 
@@ -54,6 +58,21 @@ def result_of(sid):
         return json.loads(f.read_text())
     except Exception:
         return None
+
+
+async def wait_published(sid, res):
+    """The run writes its summary the moment it ends, then rewrites it once the
+    video is up. Wait for the second write so the agent's last reply carries a
+    link rather than a null."""
+    if res.get("video_url") or res.get("error"):
+        return res
+    deadline = time.time() + VIDEO_WAIT
+    while time.time() < deadline:
+        await asyncio.sleep(2)
+        later = result_of(sid)
+        if later and (later.get("video_url") or later.get("error")):
+            return later
+    return res
 
 
 async def wait_healthy(port, timeout=90):
@@ -181,6 +200,8 @@ async def proxy(request):
 
     res = result_of(sid)
     if res or sess["proc"].poll() is not None:
+        if res:
+            res = await wait_published(sid, res)
         return web.json_response(ended_payload(sess, res), status=410)
 
     tail = request.match_info.get("tail", "")
@@ -203,7 +224,8 @@ async def proxy(request):
         # The process may have published and exited between the two checks.
         res = result_of(sid)
         if res:
-            return web.json_response(ended_payload(sess, res), status=410)
+            return web.json_response(
+                ended_payload(sess, await wait_published(sid, res)), status=410)
         raise web.HTTPBadGateway(
             text=json.dumps({"ok": False, "error": str(exc)}),
             content_type="application/json")

@@ -151,13 +151,19 @@ def append_catalog(entry):
         local.write_text(json.dumps([entry] + runs, indent=1))
         return
     from google.api_core.exceptions import PreconditionFailed
-    for _ in range(8):
-        blob = b.blob(CATALOG_OBJECT)
-        try:
-            runs = json.loads(blob.download_as_bytes())
+    for attempt in range(12):
+        # get_blob fetches the metadata, so generation is a real number.
+        # b.blob() alone leaves it None, which omits the precondition entirely
+        # and quietly turns concurrent appends into last-write-wins.
+        blob = b.get_blob(CATALOG_OBJECT)
+        if blob is None:
+            blob, runs, gen = b.blob(CATALOG_OBJECT), [], 0
+        else:
             gen = blob.generation
-        except Exception:
-            runs, gen = [], 0
+            try:
+                runs = json.loads(blob.download_as_bytes())
+            except Exception:
+                runs = []
         runs = [entry] + [r for r in runs if r.get("id") != entry["id"]]
         try:
             blob.upload_from_string(json.dumps(runs[:500]),
@@ -167,7 +173,7 @@ def append_catalog(entry):
             blob.patch()
             return
         except PreconditionFailed:
-            time.sleep(0.4)
+            time.sleep(0.3 * (attempt + 1))
     raise RuntimeError("catalogue is too contended to append to")
 
 
