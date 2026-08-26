@@ -45,10 +45,18 @@
   }
   .k.arrow { color: #8ecdf7; border-color: #2f4658; }
   .r .ts { color: #4a4a55; }
-  .r .src { width: 26px; flex: none; }
-  .r .src.api { color: #7aa2f7; }
+  .r .src {
+    flex: none; max-width: 62px; overflow: hidden; text-overflow: ellipsis;
+    color: #7aa2f7;
+  }
   .r .src.web { color: #7c7c8a; }
+  .r .vbwrap { flex: none; width: 38px; }
   .r .vb { font-weight: 700; }
+  #meter {
+    display: flex; gap: 10px; padding: 6px 12px 8px; font-size: 10.5px;
+    color: #6c6c78; border-bottom: 1px solid #1e1e24; letter-spacing: .03em;
+  }
+  #meter b { color: #b9b9c2; font-weight: 600; }
   .r .tg { color: #d8d8de; overflow: hidden; text-overflow: ellipsis; }
   .v-KEY, .v-KEYS, .v-TEXT { color: #6cb6ff; }
   .v-WAIT { color: #8a8a96; }
@@ -173,6 +181,12 @@
 
 <aside id="side">
   <h2>ACTIVITY <em id="logcount"></em></h2>
+  <div id="meter">
+    <span>played <b id="m-time">0:00</b></span>
+    <span>actions <b id="m-acts">0</b></span>
+    <span>agent <b id="m-api">0</b></span>
+    <span>web <b id="m-web">0</b></span>
+  </div>
   <div id="logrows"><div id="empty">nothing yet. keys you press here, and calls
     to /api/*, both show up.</div></div>
 </aside>
@@ -236,7 +250,7 @@ function connect() {
   sock.onmessage = e => {
     if (typeof e.data === "string") {
       const m = JSON.parse(e.data);
-      if (m.t === "log") m.e.forEach(addLog);
+      if (m.t === "log") { m.e.forEach(addLog); if (m.s) setMeter(m.s); }
       else if (m.t === "clear") clearLog();
     } else {
       onFrame(e.data);
@@ -296,6 +310,25 @@ function keySpans(text) {
   return out;
 }
 
+let meter = null, meterAt = 0;
+function fmt(s) {
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s % 60).padStart(2, "0");
+}
+function setMeter(s) {
+  meter = s; meterAt = Date.now();
+  document.getElementById("m-acts").textContent = s.actions;
+  document.getElementById("m-api").textContent = s.by_api;
+  document.getElementById("m-web").textContent = s.by_web;
+}
+// tick locally so the clock moves between server messages
+setInterval(() => {
+  if (!meter) return;
+  document.getElementById("m-time").textContent =
+    fmt(meter.uptime_s + (Date.now() - meterAt) / 1000);
+}, 1000);
+
 function clearLog() {
   rows.textContent = "";
   lastId = 0;                 // ids restart after a reset, so the dedupe must too
@@ -314,12 +347,14 @@ function addLog(e) {
   row.className = "r";
   row.innerHTML =
     `<span class="ts"></span><span class="src"></span>` +
-    `<span class="vb"></span><span class="tg"></span>`;
+    `<span class="vbwrap"><span class="vb"></span></span><span class="tg"></span>`;
   row.children[0].textContent = ts;
   row.children[1].textContent = e.src;
-  row.children[1].classList.add(e.src);
-  row.children[2].textContent = e.verb;
-  row.children[2].classList.add("v-" + e.verb);
+  if (e.src === "web") row.children[1].classList.add("web");
+  row.children[1].title = e.src;
+  const vb = row.children[2].firstChild;
+  vb.textContent = e.verb;
+  vb.classList.add("v-" + e.verb);
   const tgt = row.children[3];
   if (e.verb === "KEY" || e.verb === "KEYS") {
     tgt.append(keySpans(e.target));

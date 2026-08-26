@@ -100,6 +100,8 @@ LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 # what. The game is shared, so this doubles as "why did the screen just move".
 history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
+# Counted per game, so a reset starts a fresh session rather than continuing one.
+session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -131,6 +133,9 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False):
         withimg = [e for e in history if e.get("thumb")]
         for e in withimg[:max(0, len(withimg) - THUMB_KEEP + 1)]:
             e.pop("thumb", None)
+    if verb in ("KEY", "KEYS", "TEXT", "WAIT"):
+        session["actions"] += 1
+        session["by_web" if src == "web" else "by_api"] += 1
     history.append(entry)
     try:
         asyncio.get_running_loop()
@@ -176,7 +181,7 @@ async def fanout(data, text=False):
 
 
 async def broadcast_log(entry):
-    await fanout(json.dumps({"t": "log", "e": [entry]}), text=True)
+    await fanout(json.dumps({"t": "log", "e": [entry], "s": session_summary()}), text=True)
 
 
 def emulate():
@@ -243,6 +248,12 @@ async def pump():
             await asyncio.sleep(0.5)
 
 
+def session_summary():
+    return {"uptime_s": round(time.time() - session["started"], 1),
+            "actions": session["actions"],
+            "by_api": session["by_api"], "by_web": session["by_web"]}
+
+
 async def reap():
     """Drop clients that closed without a handshake. Without this they linger,
     are counted, and are sent every frame."""
@@ -264,8 +275,8 @@ async def ws_handler(request):
     await ws.prepare(request)
     clients.add(ws)
     await send_keyframe(ws)
-    if history:
-        await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:]}))
+    await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:],
+                                  "s": session_summary()}))
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
@@ -514,6 +525,7 @@ async def api_reset(request):
             paused.clear()
         history.clear()
         _seq[0] = 0
+        session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         await asyncio.sleep(1.5)          # give the machine a moment to start booting
 
     await fanout(json.dumps({"t": "clear"}), text=True)
@@ -546,7 +558,7 @@ async def status(_request):
     return web.json_response({
         "width": LIB.core_width(), "height": LIB.core_height(),
         "fps": round(LIB.core_fps(), 3), "frame": LIB.core_frame_serial(),
-        "clients": len(clients), **stats,
+        "clients": len(clients), "session": session_summary(), **stats,
     })
 
 
