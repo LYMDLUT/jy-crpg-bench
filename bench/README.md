@@ -89,6 +89,6 @@ survive a restart.
 | variable | default | |
 |---|---|---|
 | `QUNXIA_RUN_SECONDS` | 1200 | length of a run |
-| `QUNXIA_MAX_SESSIONS` | 4 | concurrent runs |
+| `QUNXIA_IDLE_LIMIT` | 600 | seconds without an action before a run is torn down |
 | `QUNXIA_GCS_BUCKET` | | publish videos here, else served from the service |
 | `QUNXIA_PUBLIC_BASE` | | absolute URLs in replies |
