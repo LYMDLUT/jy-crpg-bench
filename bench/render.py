@@ -15,12 +15,13 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-BAR = 40                 # strip under the game for the actor and keys
+BAR = 32                 # strip under the game for the actor, action and keys
 FPS = 20                 # output frame rate
-# The game switches between 320x200 and 640x400 mid session, so the video is
-# drawn into a fixed area and each mode is scaled up to fit it. Sizing the
-# output from the first frame broke the moment the mode changed.
-GAME_W, GAME_H = 640, 400
+# Native resolution. A benchmark run starts from a savestate already in the
+# game, so the picture is 320x200 throughout; the 640x400 publisher intro only
+# appears when booting from cold. Anything larger is scaled down to fit rather
+# than the whole video being inflated to suit it.
+GAME_W, GAME_H = 320, 200
 GLYPH = {"up": "↗", "kp9": "↗", "upright": "↗", "ne": "↗",
          "down": "↙", "kp1": "↙", "downleft": "↙", "sw": "↙",
          "left": "↖", "kp7": "↖", "upleft": "↖", "nw": "↖",
@@ -78,34 +79,44 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
             break
 
     out_w, out_h = GAME_W, GAME_H + BAR
-    name_font, key_font = _font(15), _font(17)
+    name_font, key_font = _font(10), _font(11)
     bar_cache, bar_key = None, None
 
-    def bar_image(actor, keys):
+    def bar_image(actor, act, clock, keys):
         img = Image.new("RGB", (out_w, BAR), (16, 16, 20))
         dr = ImageDraw.Draw(img)
-        x = 12
+        y = BAR // 2
+        x = 6
         if actor:
-            dr.text((x, BAR // 2), actor, font=name_font, fill=(150, 190, 230), anchor="lm")
-            x += int(dr.textlength(actor, font=name_font)) + 16
-        for k in keys:
+            dr.text((x, y), actor, font=name_font, fill=(150, 190, 230), anchor="lm")
+            x += int(dr.textlength(actor, font=name_font)) + 8
+        stamp = f"#{act}" if act is not None else ""
+        if stamp:
+            dr.text((x, y), stamp, font=name_font, fill=(200, 170, 110), anchor="lm")
+            x += int(dr.textlength(stamp, font=name_font)) + 8
+        for k in keys[:4]:
             label = GLYPH.get(k, k)
-            tw_ = int(dr.textlength(label, font=key_font)) + 16
-            dr.rounded_rectangle([x, 8, x + tw_, BAR - 8], 4,
-                                 fill=(28, 28, 34), outline=(70, 90, 110))
-            dr.text((x + tw_ // 2, BAR // 2), label, font=key_font,
+            kw = int(dr.textlength(label, font=key_font)) + 8
+            dr.rectangle([x, 6, x + kw, BAR - 6], fill=(30, 30, 38),
+                         outline=(70, 90, 110))
+            dr.text((x + kw // 2, y), label, font=key_font,
                     fill=(142, 205, 247), anchor="mm")
-            x += tw_ + 8
+            x += kw + 4
+        mm, ss = divmod(int(clock), 60)
+        dr.text((out_w - 6, y), f"{mm}:{ss:02d}", font=name_font,
+                fill=(120, 120, 132), anchor="rm")
         return np.asarray(img)
 
     def blit(dst, src):
-        """Scale a frame of either mode up into the fixed game area."""
+        """Fit a frame of any mode into the native-sized game area."""
         h_, w_ = src.shape[0], src.shape[1]
-        f = max(1, min(GAME_W // w_, GAME_H // h_))
-        up = np.repeat(np.repeat(src, f, 0), f, 1)
-        oy, ox = (GAME_H - up.shape[0]) // 2, (GAME_W - up.shape[1]) // 2
+        if w_ > GAME_W or h_ > GAME_H:                 # cold-boot 640x400
+            step = max(1, -(-w_ // GAME_W), -(-h_ // GAME_H))
+            src = src[::step, ::step]
+            h_, w_ = src.shape[0], src.shape[1]
+        oy, ox = (GAME_H - h_) // 2, (GAME_W - w_) // 2
         dst[:GAME_H] = 0
-        dst[oy:oy + up.shape[0], ox:ox + up.shape[1]] = up
+        dst[oy:oy + h_, ox:ox + w_] = src
 
     ff = subprocess.Popen(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
@@ -115,7 +126,7 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
          "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_path)],
         stdin=subprocess.PIPE)
 
-    down, actor, i = [], agent, 0
+    down, actor, i, act = [], agent, 0, None
     total_frames = max(1, int(duration * FPS))
     frame = np.zeros((out_h, out_w, 3), np.uint8)
     try:
@@ -126,6 +137,10 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
                 i += 1
                 if "d" in e:
                     canvas = apply_delta(canvas, base64.b64decode(e["d"]))
+                elif e.get("act") is not None:
+                    act = e["act"]
+                    if e.get("who"):
+                        actor = e["who"]
                 elif e.get("key"):
                     if e.get("who"):
                         actor = e["who"]
@@ -134,9 +149,10 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
                             down.append(e["key"])
                     elif e["key"] in down:
                         down.remove(e["key"])
-            key = (actor, tuple(down))
+            elapsed = int(now - t_start)
+            key = (actor, act, elapsed, tuple(down))
             if key != bar_key:
-                bar_cache, bar_key = bar_image(actor, down), key
+                bar_cache, bar_key = bar_image(actor, act, elapsed, down), key
             blit(frame, canvas)
             frame[GAME_H:] = bar_cache
             ff.stdin.write(frame.tobytes())

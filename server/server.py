@@ -287,6 +287,11 @@ def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
         if keyframe:
             ev["k"] = 1
         rec["bytes"] += len(payload)
+    elif kind == "a":
+        ev["act"] = key
+        ev["label"] = down
+        if rec["actor"]:
+            ev["who"] = rec["actor"]
     else:
         ev["key"] = key
         ev["down"] = bool(down)
@@ -511,6 +516,7 @@ async def run_action(request, steps, note, verb="KEY"):
         # action starting, not report it once it is already over.
         rec["actor"] = actor(request)
         log_action(rec["actor"], verb, note, detail=held_note(steps))
+        rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
