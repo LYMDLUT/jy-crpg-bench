@@ -29,6 +29,29 @@
     display: flex; justify-content: space-between; align-items: baseline;
   }
   #side h2 em { font-style: normal; color: #5b5b66; font-size: 10px; letter-spacing: 0; }
+  #side h2 .right { display: flex; align-items: center; gap: 8px; }
+  #play {
+    padding: 3px 9px; font-size: 10.5px; letter-spacing: .04em;
+    background: #17171b; border: 1px solid #2e2e36; border-radius: 4px;
+    color: #cdcdd6; cursor: pointer;
+  }
+  #play:hover { border-color: #4a4a58; color: #fff; }
+  #play[disabled] { opacity: .45; cursor: default; }
+  #vcr {
+    position: fixed; inset: 0; z-index: 20; display: none;
+    background: #000d; backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+  }
+  #vcr.on { display: flex; }
+  #vcr canvas {
+    image-rendering: pixelated; border: 1px solid #2e2e36; border-radius: 3px;
+    background: #000; width: min(88vw, 960px); height: auto;
+  }
+  #vcrkeys .k { font-size: 13px; min-width: 20px; padding: 2px 6px; }
+  #vcrbar { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #9a9aa6; }
+  #vcrkeys { display: flex; gap: 4px; min-height: 20px; align-items: center; }
+  #vcrtrack { width: 260px; height: 4px; background: #26262c; border-radius: 2px; overflow: hidden; }
+  #vcrfill { display: block; height: 4px; width: 0; background: #6cb6ff; }
   #logrows { overflow-y: auto; padding: 6px 0 10px; flex: 1; }
   .r { display: flex; gap: 7px; padding: 2px 12px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
   .r:hover { background: #17171c; }
@@ -190,10 +213,22 @@
 </details>
 
 <div id="hud"><span id="stat"></span></div>
+
+<div id="vcr">
+  <canvas id="vcv" width="320" height="200"></canvas>
+  <div id="vcrkeys"></div>
+  <div id="vcrbar">
+    <span id="vcrtime">0:00</span>
+    <span id="vcrtrack"><span id="vcrfill"></span></span>
+    <button id="vcrclose">close</button>
+  </div>
+</div>
 </div>
 
 <aside id="side">
-  <h2>ACTIVITY <em id="logcount"></em></h2>
+  <h2>ACTIVITY
+    <span class="right"><em id="logcount"></em><button id="play">▶ 4×</button></span>
+  </h2>
   <div id="meter">
     <span>played <b id="m-time">0:00</b></span>
     <span>actions <b id="m-acts">0</b></span>
@@ -226,37 +261,116 @@ async function inflate(buf) {
   return new Uint8Array(await new Response(s).arrayBuffer());
 }
 
-async function onFrame(raw) {
-  const d = await inflate(raw);
+// Paints one tile delta onto any canvas. Shared by the live stream and playback.
+function paintDelta(d, canvas, c2d, cache) {
   const dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
   const w = dv.getUint16(1, true), h = dv.getUint16(3, true);
   const tw = d[5], th = d[6];
   const cols = dv.getUint16(7, true);
   const count = dv.getUint16(11, true);
-
-  if (cv.width !== w || cv.height !== h) {
-    cv.width = w; cv.height = h; fit();
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+  let resized = false;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h; resized = true;
+    c2d.fillStyle = "#000"; c2d.fillRect(0, 0, w, h);
+    cache.img = null;
   }
-  if (!tileImg || tileImg.width !== tw || tileImg.height !== th) {
-    tileImg = ctx.createImageData(tw, th);
+  if (!cache.img || cache.img.width !== tw || cache.img.height !== th) {
+    cache.img = c2d.createImageData(tw, th);
   }
-
   const idxOff = 13, dataOff = idxOff + count * 2, tileLen = tw * th * 3;
-  const px = tileImg.data;
+  const px = cache.img.data;
   for (let i = 0; i < count; i++) {
     const t = dv.getUint16(idxOff + i * 2, true);
     let s = dataOff + i * tileLen;
     for (let p = 0; p < tw * th; p++) {
       px[p * 4] = d[s++]; px[p * 4 + 1] = d[s++]; px[p * 4 + 2] = d[s++]; px[p * 4 + 3] = 255;
     }
-    ctx.putImageData(tileImg, (t % cols) * tw, Math.floor(t / cols) * th);
+    c2d.putImageData(cache.img, (t % cols) * tw, Math.floor(t / cols) * th);
   }
+  return { w, h, count, resized };
+}
+
+const liveCache = {};
+async function onFrame(raw) {
+  const d = await inflate(raw);
+  const { w, h, count, resized } = paintDelta(d, cv, ctx, liveCache);
+  if (resized) fit();
   got++; bytes += raw.byteLength;
   stat.textContent = ` · ${w}×${h} · ${count} tiles, ${(raw.byteLength / 1024).toFixed(1)} KB`
                    + ` · ${(bytes / 1024).toFixed(0)} KB total`;
   veil.classList.add("gone");
 }
+
+// ---- playback -------------------------------------------------------------
+const vcr = document.getElementById("vcr");
+const vcv = document.getElementById("vcv");
+const vctx = vcv.getContext("2d", { alpha: false });
+const vcrKeys = document.getElementById("vcrkeys");
+const playBtn = document.getElementById("play");
+let vcrStop = null;
+
+const b64bytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
+function vcrClose() {
+  if (vcrStop) { vcrStop(); vcrStop = null; }
+  vcr.classList.remove("on");
+  playBtn.disabled = false;
+  playBtn.textContent = "▶ 4×";
+}
+document.getElementById("vcrclose").onclick = vcrClose;
+vcr.onclick = e => { if (e.target === vcr) vcrClose(); };
+addEventListener("keydown", e => { if (e.key === "Escape" && vcr.classList.contains("on")) vcrClose(); });
+
+playBtn.onclick = async () => {
+  playBtn.disabled = true;
+  playBtn.textContent = "loading";
+  let recording;
+  try {
+    recording = await (await fetch("/api/recording")).json();
+  } catch { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
+  const events = recording.events || [];
+  if (!events.length) { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
+
+  playBtn.textContent = "playing";
+  vcr.classList.add("on");
+  vctx.fillStyle = "#000";
+  vctx.fillRect(0, 0, vcv.width, vcv.height);
+  vcrKeys.textContent = "";
+
+  const SPEED = 4;
+  const total = events[events.length - 1].t;
+  const cache = {};
+  const down = new Set();
+  let cancelled = false, i = 0;
+  vcrStop = () => { cancelled = true; };
+
+  const t0 = performance.now();
+  const step = async () => {
+    while (i < events.length && !cancelled) {
+      const ev = events[i];
+      const due = t0 + (ev.t * 1000) / SPEED;
+      const wait = due - performance.now();
+      if (wait > 4) { setTimeout(step, wait); return; }
+      i++;
+      if (ev.d) {
+        paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, cache);
+      } else if (ev.key) {
+        ev.down ? down.add(ev.key) : down.delete(ev.key);
+        vcrKeys.textContent = "";
+        for (const k of down) {
+          const chip = document.createElement("span");
+          chip.className = "k" + (ARROW.has(k) ? " arrow" : "");
+          chip.textContent = GLYPH[k] ?? k;
+          vcrKeys.appendChild(chip);
+        }
+      }
+      document.getElementById("vcrfill").style.width = (ev.t / total) * 100 + "%";
+      document.getElementById("vcrtime").textContent = fmt(ev.t);
+    }
+    if (!cancelled) { playBtn.textContent = "▶ 4×"; }
+  };
+  step();
+};
 
 function connect() {
   sock = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");

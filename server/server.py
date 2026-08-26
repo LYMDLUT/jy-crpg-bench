@@ -95,6 +95,12 @@ stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0, "dropped": 0,
          "pump_errors": 0, "last_error": "", "pump_ticks": 0, "pump_stage": "init",
          "queued": 0}
 SEND_TIMEOUT = float(os.environ.get("QUNXIA_SEND_TIMEOUT", "3"))
+# Recording. Tile deltas are what the stream already produces, so a recording is
+# just those kept with timestamps, plus the keys that caused them.
+IDLE_AFTER = 3.0          # no action for this long and the tail is idle
+IDLE_TAIL = 30.0          # of which only the last this much is kept
+KEYFRAME_EVERY = 30.0     # so pruning can always start from a whole picture
+REC_MAX_BYTES = 12 << 20
 LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 
 # Everything anyone does to this session, so the page can show who is doing
@@ -104,6 +110,8 @@ _seq = [0]
 # Counted per game, so a reset starts a fresh session rather than continuing one.
 session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 agents: collections.Counter = collections.Counter()
+rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
+             "last_activity": time.time()}
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -136,6 +144,7 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False):
         for e in withimg[:max(0, len(withimg) - THUMB_KEEP + 1)]:
             e.pop("thumb", None)
     if verb in ("KEY", "KEYS", "TEXT", "WAIT"):
+        rec_note_activity()
         session["actions"] += 1
         session["by_web" if src == "web" else "by_api"] += 1
         agents[src] += 1
@@ -215,26 +224,34 @@ async def pump():
     """
     period = 1.0 / SEND_HZ
     last_serial = -1
+    last_key_at = 0.0
     while True:
         try:
             await asyncio.sleep(period)
             stats["pump_ticks"] += 1
-            if not clients:
-                continue
-            stats["pump_stage"] = "serial"
+            now = time.time()
+            # A whole picture at intervals, so a pruned recording always has
+            # somewhere to start replaying from.
+            force = now - last_key_at >= KEYFRAME_EVERY
             serial = LIB.core_frame_serial()
-            if serial == last_serial:
-                continue          # picture is identical, send nothing at all
+            if serial == last_serial and not force:
+                continue
             last_serial = serial
             stats["pump_stage"] = "encode"
-            n = LIB.fb_encode_delta(BUF, len(BUF), 0)
+            n = LIB.fb_encode_delta(BUF, len(BUF), 1 if force else 0)
             if n <= 0:
                 continue
             count = int.from_bytes(BUF.raw[11:13], "little")
-            if count == 0:
+            if count == 0 and not force:
                 continue
+            if force:
+                last_key_at = now
             stats["pump_stage"] = "compress"
             payload = zlib.compress(BUF.raw[:n], 6)
+            rec_add("f", payload, keyframe=force)
+            if not clients:
+                stats["pump_stage"] = "idle"
+                continue
             stats["sent"] += 1
             stats["bytes"] += len(payload)
             stats["tiles"] += count
@@ -249,6 +266,57 @@ async def pump():
             print("pump error:", repr(exc), file=sys.stderr, flush=True)
             traceback.print_exc()
             await asyncio.sleep(0.5)
+
+
+def rec_note_activity():
+    rec["last_activity"] = time.time()
+
+
+def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
+    now = time.time()
+    ev = {"t": round(now - rec["started"], 3)}
+    if kind == "f":
+        ev["d"] = base64.b64encode(payload).decode()
+        if keyframe:
+            ev["k"] = 1
+        rec["bytes"] += len(payload)
+    else:
+        ev["key"] = key
+        ev["down"] = bool(down)
+    rec["events"].append(ev)
+    rec_prune(now)
+
+
+def rec_prune(now):
+    """Two bounds. A long idle tail keeps only its last IDLE_TAIL seconds, so an
+    untouched game does not grow forever while still showing its own animation.
+    And the whole thing is capped, dropping from the front to the oldest
+    keyframe that fits, because deltas cannot be replayed from the middle."""
+    idle_for = now - rec["last_activity"]
+    if idle_for > IDLE_AFTER:
+        cutoff = round(now - rec["started"] - IDLE_TAIL, 3)
+        head, tail = [], []
+        for ev in rec["events"]:
+            (tail if ev["t"] >= cutoff else head).append(ev)
+        # only trailing idle frames are droppable; anything before the idle
+        # stretch began is real history
+        idle_began = round(now - rec["started"] - idle_for, 3)
+        keep = [e for e in head if e["t"] <= idle_began] + tail
+        if len(keep) < len(rec["events"]):
+            rec["events"] = keep
+
+    if rec["bytes"] > REC_MAX_BYTES:
+        for i, ev in enumerate(rec["events"]):
+            if ev.get("k") and i > 0:
+                dropped = rec["events"][:i]
+                rec["bytes"] -= sum(len(e.get("d", "")) * 3 // 4 for e in dropped)
+                rec["events"] = rec["events"][i:]
+                break
+
+
+def rec_reset():
+    rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
+               last_activity=time.time())
 
 
 def session_summary():
@@ -376,6 +444,7 @@ def key_event(name, down):
     """Tell browsers a key is physically down, so a held key stays lit for as
     long as it is held instead of blinking once when the action finishes."""
     if name:
+        rec_add("k", key=name, down=down)
         asyncio.create_task(fanout(json.dumps({"t": "key", "k": name, "down": down}),
                                    text=True))
 
@@ -557,6 +626,7 @@ async def api_reset(request):
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         agents.clear()
+        rec_reset()
         await asyncio.sleep(1.5)          # give the machine a moment to start booting
 
     await fanout(json.dumps({"t": "clear"}), text=True)
@@ -568,6 +638,16 @@ async def api_reset(request):
             clients.discard(ws)
     log_action("api", "RESET", "rebooted to title screen")
     return web.json_response({"ok": True, "reset": True})
+
+
+async def api_recording(_request):
+    """The session so far as tile deltas and key presses, for playback."""
+    return web.json_response({
+        "started": rec["started"],
+        "duration": round(time.time() - rec["started"], 2),
+        "events": rec["events"],
+        "bytes": rec["bytes"],
+    })
 
 
 async def api_history(_request):
@@ -617,6 +697,7 @@ def main():
         web.get("/api/screen", api_screen),
         web.get("/api/help", api_help),
         web.get("/api/history", api_history),
+        web.get("/api/recording", api_recording),
         web.post("/api/reset", api_reset),
         web.post("/api/key", api_key),
         web.post("/api/keys", api_keys),
