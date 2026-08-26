@@ -23,6 +23,8 @@ import zlib
 from aiohttp import WSMsgType, web
 from PIL import Image
 
+import warden
+
 from prompt import system_prompt
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -501,6 +503,10 @@ async def run_action(request, steps, note, verb="KEY"):
     act on it, but a caller waiting behind others is told so instead of being
     left to hang.
     """
+    if warden.ON:
+        done = warden.ended_payload()
+        if done:
+            return web.json_response(done, status=410)
     stats["queued"] += 1
     try:
         await asyncio.wait_for(api_lock.acquire(), timeout=LOCK_TIMEOUT)
@@ -517,6 +523,9 @@ async def run_action(request, steps, note, verb="KEY"):
         rec["actor"] = actor(request)
         log_action(rec["actor"], verb, note, detail=held_note(steps))
         rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
+        if warden.ON:
+            warden.note_action([s[2] or s[0] for s in steps if s[0] != "wait"]
+                               or ["(wait)"], note)
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
@@ -614,6 +623,8 @@ async def api_wait(request):
 
 
 async def api_screen(request):
+    if warden.ON:
+        warden.note_read()
     """The only way to look at the screen. JSON, or ?format=png|webp for bytes."""
     fmt = request.query.get("format", "")
     log_action(actor(request), "GET", "screen", thumb=True)
@@ -664,6 +675,8 @@ async def api_reset(request):
         history.clear()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
+        if warden.ON and warden.run["playable"] is None:
+            warden.playable_now()          # the clock starts when play can
         agents.clear()
         rec_reset()
         await asyncio.sleep(0.4 if restored else 1.5)
@@ -764,6 +777,8 @@ def main():
     async def _spawn_pump(a):
         a["pump"] = asyncio.create_task(pump())
         a["reaper"] = asyncio.create_task(reap())
+        if warden.ON:
+            a["warden"] = asyncio.create_task(warden.warden(rec))
     app.on_startup.append(_spawn_pump)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
