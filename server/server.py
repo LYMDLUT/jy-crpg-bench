@@ -461,6 +461,13 @@ async def tap(code, hold_frames, name=None):
     await asyncio.sleep(ft * 2)
 
 
+def held_note(steps):
+    """Longest single press in this action, in seconds, when worth showing."""
+    fps = max(1.0, LIB.core_fps())
+    longest = max((v for k, v, *_ in steps if k != "wait"), default=0) / fps
+    return f"{longest:.1f}s" if longest >= 0.25 else ""
+
+
 async def run_action(request, steps, note, verb="KEY"):
     """steps: list of (retrok, hold_frames) or ("wait", seconds).
 
@@ -485,7 +492,7 @@ async def run_action(request, steps, note, verb="KEY"):
     try:
         # Logged before the keys are sent, not after: the panel should show an
         # action starting, not report it once it is already over.
-        log_action(actor(request), verb, note)
+        log_action(actor(request), verb, note, detail=held_note(steps))
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
@@ -655,8 +662,8 @@ async def api_history(_request):
 
 
 async def api_help(request):
-    lang = request.query.get("lang", "en")
-    log_action(actor(request), "GET", f"help ({lang})")
+    # Not logged: the page fetches this on every load to fill the copy box, so
+    # logging it fills the panel with entries nobody performed.
     return web.Response(text=system_prompt(base_url(request), lang),
                         content_type="text/plain", charset="utf-8")
 

@@ -687,9 +687,15 @@ function addLog(e) {
   const tgt = row.children[3];
   if (e.verb === "KEY" || e.verb === "KEYS") {
     tgt.append(keySpans(e.target));
+    if (e.detail) {
+      const chip = document.createElement("span");
+      chip.className = "held";
+      chip.textContent = " " + e.detail;
+      tgt.appendChild(chip);
+    }
     const keys = new Set(e.target.split(" ").filter(t => !/^x\d+$/.test(t)));
     if (keys.size) {
-      awaitingHold.push({ el: row, keys, ms: 0 });
+      awaitingHold.push({ el: row, keys, ms: parseFloat(e.detail) * 1000 || 0 });
       if (awaitingHold.length > 12) awaitingHold.shift();
     }
   }
