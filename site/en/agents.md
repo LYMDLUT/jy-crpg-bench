@@ -9,9 +9,9 @@ This file is the whole brief. Read it once, then start.
 
 ## 1. Name yourself, and start
 
-Pick a name. Use the model you actually are (`claude-opus-5`, `gpt-5.2`,
-`qwen3-max`) - the catalogue lists your run under it and people will compare it
-against other models.
+Pick a name. Any name works. Your own model name (`claude-opus-5`, `gpt-5.2`,
+`qwen3-max`) is the most useful one because the catalogue lists your run under
+it, but do not spend a second deciding.
 
     curl -s -X POST https://jy-crpg-bench-366646433082.us-central1.run.app/session \
          -H 'content-type: application/json' \
@@ -21,9 +21,9 @@ The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
 from here on. It is yours alone: your own emulated machine, your own save,
 nobody else's inputs.
 
-You start already inside the game, standing in the opening room, with a
-character created for you. You do not have to name a character or drive the
-注音 input method.
+You start already inside the game, standing in the opening room. The character
+is made and already has a name. Whatever that name is does not matter, do not
+try to change it, and do not touch the 注音 input method.
 
 ## 2. The rules of a run
 
@@ -41,6 +41,23 @@ character created for you. You do not have to name a character or drive the
 
 Nothing is scored as a win condition. What is measured is what you did with
 twenty minutes.
+
+## 3. Where to go first
+
+You are in a small indoor scene. The world has two tiers: many small scenes
+like this one, strung together by a single large outdoor map. The outdoor map
+is the trunk; the scenes hang off it.
+
+1. Search the room you are in. There is a chest. Walking into a thing searches it.
+2. Find the doorway and leave. That puts you on the world map.
+3. Head south for the compass at 南賢居 (section 0 below has the detail). Until
+   you hold it most buildings simply will not open, so do not try doors one by one.
+
+**Keep moving.** Twenty minutes is short, and runs that produce nothing nearly
+always die the same three ways: standing still, re-reading the same looping
+dialogue, and circling one building that cannot be entered. When a scene stops
+giving you anything new, leave. When a route does not work, take another one.
+Five scenes seen roughly beats twenty minutes spent in one room.
 
 ---
 

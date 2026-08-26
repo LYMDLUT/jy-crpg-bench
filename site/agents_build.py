@@ -41,8 +41,8 @@ PRE_ZH = """# jy-crpg-bench
 
 ## 一、先取名，再开局
 
-取一个名字，用你实际所属的模型名（`claude-opus-5`、`gpt-5.2`、`qwen3-max`）。
-榜单会用这个名字列出你这一局，别人会拿它和其他模型比较。
+取个名字，随便什么都行。写你自己的模型名（`claude-opus-5`、`gpt-5.2`、
+`qwen3-max`）最有用，榜单会用它列出你这一局，但不要为这个多想一秒。
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
@@ -51,8 +51,8 @@ PRE_ZH = """# jy-crpg-bench
 回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
 你自己的模拟机、你自己的存档，没有别人的输入。
 
-开局时你已经在游戏里，站在开场房间中，角色已经建好。你不需要取角色名，也不需
-要操作注音输入法。
+开局时你已经在游戏里，站在开场房间中。角色已经建好，也已经有名字了：那个名字
+是什么无所谓，不要试图去改它，也不用碰注音输入法。
 
 ## 二、一局的规则
 
@@ -66,6 +66,20 @@ PRE_ZH = """# jy-crpg-bench
   重新开始的另一局。
 
 没有胜利条件。被衡量的是你拿这二十分钟做了什么。
+
+## 三、开局往哪走
+
+你现在在一个室内小场景里。这个世界分两层：很多这样的小场景，由一张大地图串起来。
+大地图才是主干，小场景挂在上面。
+
+1. 先把这个房间搜一遍。屋里有箱子，走上去撞它就是搜。
+2. 找到门口出去，你就到大地图了。
+3. 到大地图后往南走，去南賢居拿羅盤（下面第「零」节有细节）。在拿到羅盤之前，
+   大部分建筑根本进不去，所以不要一栋一栋去试门。
+
+**保持前进。** 二十分钟很短，而跑不出东西的局几乎都死在同三件事上：原地不动、
+反复读同一段循环对话、绕着同一栋进不去的建筑打转。一个场景榨不出新东西就走人，
+一条路走不通就换一条。宁可粗略地走过五个场景，也不要把二十分钟花在一个房间里。
 
 ---
 
@@ -82,9 +96,9 @@ This file is the whole brief. Read it once, then start.
 
 ## 1. Name yourself, and start
 
-Pick a name. Use the model you actually are (`claude-opus-5`, `gpt-5.2`,
-`qwen3-max`) - the catalogue lists your run under it and people will compare it
-against other models.
+Pick a name. Any name works. Your own model name (`claude-opus-5`, `gpt-5.2`,
+`qwen3-max`) is the most useful one because the catalogue lists your run under
+it, but do not spend a second deciding.
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
@@ -94,9 +108,9 @@ The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
 from here on. It is yours alone: your own emulated machine, your own save,
 nobody else's inputs.
 
-You start already inside the game, standing in the opening room, with a
-character created for you. You do not have to name a character or drive the
-注音 input method.
+You start already inside the game, standing in the opening room. The character
+is made and already has a name. Whatever that name is does not matter, do not
+try to change it, and do not touch the 注音 input method.
 
 ## 2. The rules of a run
 
@@ -114,6 +128,23 @@ character created for you. You do not have to name a character or drive the
 
 Nothing is scored as a win condition. What is measured is what you did with
 twenty minutes.
+
+## 3. Where to go first
+
+You are in a small indoor scene. The world has two tiers: many small scenes
+like this one, strung together by a single large outdoor map. The outdoor map
+is the trunk; the scenes hang off it.
+
+1. Search the room you are in. There is a chest. Walking into a thing searches it.
+2. Find the doorway and leave. That puts you on the world map.
+3. Head south for the compass at 南賢居 (section 0 below has the detail). Until
+   you hold it most buildings simply will not open, so do not try doors one by one.
+
+**Keep moving.** Twenty minutes is short, and runs that produce nothing nearly
+always die the same three ways: standing still, re-reading the same looping
+dialogue, and circling one building that cannot be entered. When a scene stops
+giving you anything new, leave. When a route does not work, take another one.
+Five scenes seen roughly beats twenty minutes spent in one room.
 
 ---
 
