@@ -131,6 +131,15 @@ def ended_payload(sess, res):
 
 # ------------------------------------------------------------------ http
 
+def public_origin(request):
+    """Cloud Run terminates TLS in front of us, so request.url.scheme is http.
+    Handing that back made agents POST to http, get 302'd to https, and have
+    the redirect turn their POST into a GET."""
+    proto = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
+    host = request.headers.get("X-Forwarded-Host", "").split(",")[0].strip()
+    return f"{proto or request.url.scheme}://{host or request.host}"
+
+
 async def api_new(request):
     body = {}
     try:
@@ -145,7 +154,7 @@ async def api_new(request):
              "hint": 'POST {"agent": "<the model you are>"} - the name is what '
                      'the catalogue lists this run under'}, status=400)
     sess = await start_session(agent)
-    base = str(request.url.origin()) + f"/s/{sess['id']}"
+    base = public_origin(request) + f"/s/{sess['id']}"
     return web.json_response({
         "ok": True, "session": sess["id"], "agent": agent,
         "base_url": base, "help_url": base + "/api/help",
