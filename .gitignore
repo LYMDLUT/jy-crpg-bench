@@ -4,10 +4,12 @@
 DerivedData/
 __pycache__/
 
-# The original game. Copyrighted by its publisher and not ours to
-# redistribute, so it is kept out of the repository. Supply your own copy;
-# Scripts/pack-game.sh builds the archive that run.sh unpacks.
-game/
+# Keep extracted or locally modified game files out of the repository. The
+# authorized distribution archive and its license note are the only game files
+# tracked here; Scripts/pack-game.sh can rebuild the archive when necessary.
+game/*
+!game/JINYONG.zip
+!game/README.md
 assets/game-data.tar.gz
 
 # Third-party sources, cloned separately (see README).
