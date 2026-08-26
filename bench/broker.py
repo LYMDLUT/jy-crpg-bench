@@ -35,6 +35,13 @@ RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "1200"))     # 20 minutes
 # An agent that has not acted in this long is wedged, not thinking.
 IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "600"))        # 10 minutes
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
+# Every session gets its own copy of the game directory and its own libretro
+# save directory. DOSBox Pure mounts the directory holding the content as a
+# writable C:, and the skill tells agents to use the in-game save menu, so a
+# shared directory would let one run's savegame land on another's. Measured at
+# 123MB and 0.14s per copy, which is worth not having to reason about it.
+GAME = os.environ.get("QUNXIA_GAME", str(REPO / "game" / "PLAY.BAT"))
+WORK = pathlib.Path(os.environ.get("QUNXIA_WORK_DIR", "/tmp/qunxia-work"))
 # How long to hold an agent's final call while its video renders and uploads.
 # The run is over either way; this only decides whether the agent is handed the
 # link or has to go and find it in the catalogue.
@@ -93,12 +100,26 @@ async def wait_healthy(port, timeout=90):
     return False
 
 
+def make_workdir(sid):
+    """A private, writable game directory for one run."""
+    root = WORK / sid
+    shutil.rmtree(root, ignore_errors=True)
+    (root / "saves").mkdir(parents=True, exist_ok=True)
+    src = pathlib.Path(GAME).parent
+    shutil.copytree(src, root / "game", dirs_exist_ok=True)
+    return root / "game" / pathlib.Path(GAME).name, root / "saves"
+
+
 async def start_session(agent):
     sid = uuid.uuid4().hex[:12]
     port = free_port()
     token = uuid.uuid4().hex
+    loop = asyncio.get_running_loop()
+    game, saves = await loop.run_in_executor(None, make_workdir, sid)
     env = dict(os.environ)
     env.update(PORT=str(port),
+               QUNXIA_GAME=str(game),
+               QUNXIA_SAVES=str(saves),
                QUNXIA_REC_KEEP_ALL="1",
                QUNXIA_SEND_HZ="10",              # nobody is watching a bench run
                QUNXIA_REC_MAX_BYTES=str(256 << 20),
@@ -112,11 +133,13 @@ async def start_session(agent):
                QUNXIA_BENCH_SITE=SITE)
     proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"))
     sess = {"id": sid, "agent": agent, "port": port, "proc": proc,
+            "work": WORK / sid,
             "started": time.time(), "ends_at": time.time() + RUN_SECONDS}
     sessions[sid] = sess
 
     if not await wait_healthy(port):
         proc.kill()
+        shutil.rmtree(WORK / sid, ignore_errors=True)
         raise web.HTTPBadGateway(
             text=json.dumps({"ok": False, "error": "session did not start"}),
             content_type="application/json")
@@ -314,6 +337,24 @@ async def index(_request):
     raise web.HTTPFound(SITE)
 
 
+async def sweep(app):
+    """A finished run's game copy is 123MB; give it back once the process that
+    owned it is gone. Cannot be done by the run itself, which is still holding
+    those files open as it exits."""
+    while True:
+        await asyncio.sleep(30)
+        for s in list(sessions.values()):
+            work = s.get("work")
+            if work and s["proc"].poll() is not None and work.exists():
+                await asyncio.get_running_loop().run_in_executor(
+                    None, lambda w=work: shutil.rmtree(w, ignore_errors=True))
+                print(f"reclaimed {work}", flush=True)
+
+
+async def spawn_sweep(app):
+    app["sweep"] = asyncio.create_task(sweep(app))
+
+
 async def ensure_start_state(app):
     """The savestate is tied to the core build, so it cannot be shipped in the
     image. Author it here, once, on whatever machine this is."""
@@ -361,6 +402,7 @@ def main():
         web.route("*", "/s/{sid}/{tail:.*}", proxy),
     ])
     app.on_startup.append(ensure_start_state)
+    app.on_startup.append(spawn_sweep)
     web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8080")),
                 access_log=None)
 
