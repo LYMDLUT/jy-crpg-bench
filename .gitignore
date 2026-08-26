@@ -30,3 +30,6 @@ pi-agent/*
 # captured and one-off scripts. Kept on disk, never committed.
 /*.png
 /*.py
+
+# built per platform by server/build.sh
+server/libqunxia.so
