@@ -62,8 +62,13 @@
     width: 96px; flex: none; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .bar .track { flex: 1; height: 9px; background: #17171c; border-radius: 2px; overflow: hidden; }
-  .bar .fill { height: 100%; border-radius: 2px; }
+  .bar .track {
+    flex: 1; height: 9px; background: #17171c; border-radius: 2px;
+    overflow: hidden;
+  }
+  /* display:block matters: width and height do not apply to an inline span,
+     so the fill rendered as a zero-size box inside a visible track. */
+  .bar .fill { display: block; height: 9px; border-radius: 2px; min-width: 2px; }
   .bar .num { width: 26px; flex: none; text-align: right; color: #8a8a96; }
   .r .tg { color: #d8d8de; overflow: hidden; text-overflow: ellipsis; }
   .v-KEY, .v-KEYS, .v-TEXT { color: #6cb6ff; }
@@ -326,12 +331,17 @@ function fmt(s) {
   return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s % 60).padStart(2, "0");
 }
 // One stable colour per name, so the bar and every log line agree.
-function hueOf(name) {
+// Hues are quantised to twelve steps and paired with two lightness levels: a
+// raw hash gave neighbouring agents hues a few degrees apart, which read as the
+// same colour.
+function colorOf(name) {
   let h = 2166136261;
   for (const ch of name) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
-  return Math.abs(h) % 360;
+  h = Math.abs(h);
+  const hue = (h % 12) * 30 + 8;
+  const light = (h >> 4) % 2 ? 72 : 56;
+  return `hsl(${hue} 65% ${light}%)`;
 }
-const colorOf = name => `hsl(${hueOf(name)} 62% 66%)`;
 
 function setMeter(s) {
   meter = s; meterAt = Date.now();

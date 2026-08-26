@@ -76,10 +76,15 @@ cd jy-crpg-bench
 ./Scripts/run.sh
 ```
 
-That is the whole setup. The game data ships in the repo as
-`assets/game-data.tar.gz`, 24 MB compressed and 123 MB unpacked, and `run.sh`
-unpacks it into `game/` on first run. `Scripts/pack-game.sh` repacks it after an
-edit. The DOSBox Pure core is prebuilt in `Cores/`; to rebuild it, clone
+You supply the game. The 1996 release is copyright its publisher, so it is not
+in this repository. Put the original files in `./game`, or build the archive
+`run.sh` unpacks with `./Scripts/pack-game.sh` from a copy you own.
+
+```sh
+mkdir -p game && cp -R /path/to/jinyong/* game/
+```
+
+The DOSBox Pure core is prebuilt in `Cores/`. To rebuild it, clone
 `schellingb/dosbox-pure` into `vendor/` and run `make`.
 
 Window keys: arrows and the numpad move, enter and space confirm, esc opens the
@@ -271,7 +276,7 @@ server/              headless runner: tile differ, aiohttp server, browser clien
 skills/              play.en.md and play.zh.md, plus the research they came from
 pi-agent/            built-in harness: system prompt and game_* tools
 mcp-server/          MCP wrapper
-assets/              game-data.tar.gz, unpacked into game/ on first run
+assets/              where your own game-data.tar.gz goes, untracked
 Cores/               dosbox_pure_libretro.dylib
 saves/               emulator snapshots
 ```
@@ -289,9 +294,8 @@ licence.
 libretro C API and is redistributed here unmodified. Source is available from
 upstream.
 
-**The game data** (`assets/game-data.tar.gz`) is the 1996 commercial release,
-copyright 智冠科技 and 河洛工作室. It is not licensed for redistribution and it
-is not ours to relicense. It is bundled here only so a private checkout
-reproduces the environment. Before this repository is made public the archive
-must be removed from the working tree and from history, and `Scripts/run.sh`
-pointed at a copy the user supplies.
+**The game data** is the 1996 commercial release, copyright 智冠科技 and
+河洛工作室. It is not licensed for redistribution and it is not ours to
+relicense, so it is not tracked here and you have to supply your own copy.
+Earlier commits did carry the archive, so it remains reachable in history;
+publishing this repository would require rewriting that history as well.

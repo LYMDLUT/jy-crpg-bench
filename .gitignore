@@ -4,9 +4,11 @@
 DerivedData/
 __pycache__/
 
-# Game data is committed compressed as assets/game-data.tar.gz and unpacked
-# here on first run.
+# The original game. Copyrighted by its publisher and not ours to
+# redistribute, so it is kept out of the repository. Supply your own copy;
+# Scripts/pack-game.sh builds the archive that run.sh unpacks.
 game/
+assets/game-data.tar.gz
 
 # Third-party sources, cloned separately (see README).
 vendor/
