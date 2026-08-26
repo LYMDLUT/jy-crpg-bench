@@ -31,6 +31,32 @@ Window keys: arrows, enter, space, esc, y/n and the 注音 name entry all work.
 ⌃⌘F fullscreen. The window snaps to whole multiples of 320×200, so the game is
 never letterboxed.
 
+## Two runners, one key vocabulary
+
+- **Native macOS** (`Sources/`): AppKit + Metal + CoreAudio, HTTP API on 8765.
+- **Headless web** (`server/`): no display, streams to a browser, HTTP API on 80.
+
+They accept the same key names, including the numpad and the screen-direction
+aliases below, so a script or agent written against one works against the other.
+Change a key name in one and change it in the other.
+
+### Movement keys
+
+The world is isometric, so the four movement axes are diagonals on screen. The
+numpad names match what you see and are byte-identical to the arrows (verified
+against the running game):
+
+| key | aliases | screen direction |
+|---|---|---|
+| `kp7` | `left`, `upleft`, `nw` | up-left |
+| `kp9` | `up`, `upright`, `ne` | up-right |
+| `kp1` | `down`, `downleft`, `sw` | down-left |
+| `kp3` | `right`, `downright`, `se` | down-right |
+
+Holding a key walks continuously, so one call with `"hold": 120` covers far more
+ground than eight taps and costs one settle instead of eight. Any key advances
+dialogue, not just enter.
+
 ## Agent API (http://127.0.0.1:8765)
 
 Every call that changes game state runs the action, waits for the screen to
@@ -152,6 +178,9 @@ its own idle spin loops. Fixed 77000 is the default. Override with
 Sources/CoreHost/    libretro host: dlopen, env callbacks, video/audio/input
 Sources/QunXia/      Emulator (emulation thread + action queue), MetalView,
                      AudioOut, ControlAPI, HistoryView
+skills/              play.en.md and play.zh.md, served by the web runner at
+                     /api/help; jyxzz-speedrun-tips/SKILL.md is the source
+                     research they are distilled from
 pi-agent/            built-in agent harness: system prompt plus game_* tools
 mcp-server/          MCP wrapper plus the game knowledge an agent needs
 Cores/               dosbox_pure_libretro.dylib

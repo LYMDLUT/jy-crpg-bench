@@ -70,6 +70,16 @@ for _f in range(1, 13):
 for _k, _v in {";": 59, "'": 39, ",": 44, ".": 46, "/": 47, "-": 45, "=": 61,
                "[": 91, "]": 93, "\\": 92, "`": 96}.items():
     KEYS[_k] = _v
+for _n in range(10):                      # numpad; the game accepts these for movement
+    KEYS[f"kp{_n}"] = 256 + _n
+KEYS["kpenter"] = 271
+# The four movement axes are screen diagonals. Verified byte-identical to the
+# arrows, so these are aliases that say what actually happens on screen.
+for _alias, _code in {"upright": 273, "ne": 273,      # == up    == kp9
+                      "downleft": 274, "sw": 274,     # == down  == kp1
+                      "downright": 275, "se": 275,    # == right == kp3
+                      "upleft": 276, "nw": 276}.items():  # == left == kp7
+    KEYS[_alias] = _code
 
 # Native resolution only, so the largest frame the core produces is 640x400.
 SNAP = ctypes.create_string_buffer(640 * 400 * 3 + 4096)

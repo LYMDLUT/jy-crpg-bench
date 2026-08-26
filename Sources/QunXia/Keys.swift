@@ -24,6 +24,13 @@ enum RetroKey {
         for d in 0...9 { t[String(d)] = 48 + d }
         for f in 1...12 { t["f\(f)"] = 281 + f }
         for k in 0...9 { t["kp\(k)"] = 256 + k }
+        // The four movement axes are screen diagonals in this isometric game,
+        // and the numpad names match what you see. Verified identical to the
+        // arrows on the real game, so these are aliases, not extra behaviour.
+        t["kp7"] = 276; t["upleft"] = 276; t["nw"] = 276      // == left
+        t["kp9"] = 273; t["upright"] = 273; t["ne"] = 273     // == up
+        t["kp1"] = 274; t["downleft"] = 274; t["sw"] = 274    // == down
+        t["kp3"] = 275; t["downright"] = 275; t["se"] = 275   // == right
         // Game-facing aliases used by the agent API.
         t["ok"] = 13
         t["confirm"] = 13
@@ -79,6 +86,17 @@ enum RetroKey {
         case 119: return 279  // end
         case 116: return 280  // pageup
         case 121: return 281  // pagedown
+        // numpad, so a physical keypad drives the game the way the manual says
+        case 82:  return 256  // kp0
+        case 83:  return 257  // kp1
+        case 84:  return 258
+        case 85:  return 259
+        case 86:  return 260
+        case 87:  return 261
+        case 88:  return 262
+        case 89:  return 263
+        case 91:  return 264
+        case 92:  return 265  // kp9
         case 122: return 282  // f1
         case 120: return 283
         case 99:  return 284

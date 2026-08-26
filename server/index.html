@@ -74,16 +74,24 @@
   }
   #veil.gone { display: none; }
   #pad { display: grid; grid-template-columns: repeat(3, 46px); gap: 6px; }
+  #pad { grid-template-columns: repeat(2, 52px); }
+  #pad [data-k=left]  { grid-area: 1 / 1; }
   #pad [data-k=up]    { grid-area: 1 / 2; }
-  #pad [data-k=left]  { grid-area: 2 / 1; }
-  #pad [data-k=down]  { grid-area: 2 / 2; }
-  #pad [data-k=right] { grid-area: 2 / 3; }
+  #pad [data-k=down]  { grid-area: 2 / 1; }
+  #pad [data-k=right] { grid-area: 2 / 2; }
   button {
     background: #17171b; color: #d8d8dd; border: 1px solid #2e2e36;
     border-radius: 5px; padding: 9px 0; font: inherit; cursor: pointer;
     user-select: none; -webkit-user-select: none; touch-action: manipulation;
   }
   button:active { background: #2a2a33; border-color: #4a4a58; }
+  button.hit {
+    background: #2c4a63; border-color: #6fa8d6; color: #fff;
+    transition: none;
+  }
+  button { transition: background .25s ease, border-color .25s ease, color .25s ease; }
+  #pad button { font-size: 15px; line-height: 1.1; }
+  #pad button small { display: block; font-size: 9px; color: #6c6c78; }
   #keys { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 380px; }
   #keys button { padding: 9px 13px; }
   .row { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
@@ -127,10 +135,10 @@
 
 <div class="row">
   <div id="pad">
-    <button data-k="up">↑</button>
-    <button data-k="left">←</button>
-    <button data-k="down">↓</button>
-    <button data-k="right">→</button>
+    <button data-k="up" title="up / kp9 — moves up-right on screen">↗<small>up</small></button>
+    <button data-k="left" title="left / kp7 — moves up-left on screen">↖<small>left</small></button>
+    <button data-k="down" title="down / kp1 — moves down-left on screen">↙<small>down</small></button>
+    <button data-k="right" title="right / kp3 — moves down-right on screen">↘<small>right</small></button>
   </div>
   <div id="keys">
     <button data-k="enter">Enter 確定</button>
@@ -247,9 +255,27 @@ const empty = document.getElementById("empty");
 const logcount = document.getElementById("logcount");
 let logged = 0, lastId = 0;
 
-const GLYPH = { up: "↑", down: "↓", left: "←", right: "→", enter: "⏎",
-                space: "␣", esc: "esc", backspace: "⌫", tab: "⇥" };
-const ARROW = new Set(["up", "down", "left", "right"]);
+const GLYPH = { up: "↗", down: "↙", left: "↖", right: "↘", enter: "⏎",
+                space: "␣", esc: "esc", backspace: "⌫", tab: "⇥",
+                kp9: "↗", kp1: "↙", kp7: "↖", kp3: "↘" };
+const ARROW = new Set(["up", "down", "left", "right", "kp9", "kp1", "kp7", "kp3",
+                       "upright", "downleft", "upleft", "downright"]);
+// every spelling of a movement key lights the same button
+const SAMEKEY = { kp9: "up", ne: "up", upright: "up", kp1: "down", sw: "down",
+                  downleft: "down", kp7: "left", nw: "left", upleft: "left",
+                  kp3: "right", se: "right", downright: "right",
+                  return: "enter", ok: "enter", escape: "esc", cancel: "esc" };
+
+function flashKey(name) {
+  const k = SAMEKEY[name] || name;
+  const b = document.querySelector(`button[data-k="${k}"]`);
+  if (!b) return;
+  b.classList.remove("hit");
+  void b.offsetWidth;                       // restart the animation on a repeat
+  b.classList.add("hit");
+  clearTimeout(b._t);
+  b._t = setTimeout(() => b.classList.remove("hit"), 200);
+}
 
 function keySpans(text) {
   const out = document.createDocumentFragment();
@@ -295,7 +321,12 @@ function addLog(e) {
   row.children[2].textContent = e.verb;
   row.children[2].classList.add("v-" + e.verb);
   const tgt = row.children[3];
-  if (e.verb === "KEY" || e.verb === "KEYS") tgt.append(keySpans(e.target));
+  if (e.verb === "KEY" || e.verb === "KEYS") {
+    tgt.append(keySpans(e.target));
+    // light the pad for whatever was pressed, whoever pressed it
+    const toks = e.target.split(" ").filter(t => !/^x\d+$/.test(t));
+    toks.forEach((t, i) => setTimeout(() => flashKey(t), i * 130));
+  }
   else if (e.verb === "TEXT") tgt.textContent = JSON.stringify(e.target);
   else tgt.textContent = e.target + (e.detail ? " " + e.detail : "");
   if (!e.ok) row.style.color = "#ff6b6b";
@@ -316,7 +347,10 @@ function addLog(e) {
   logcount.textContent = ++logged;
 }
 
-const send = o => sock?.readyState === 1 && sock.send(JSON.stringify(o));
+const send = o => {
+  if (o.t === "key" && o.down) flashKey(o.k);
+  return sock?.readyState === 1 && sock.send(JSON.stringify(o));
+};
 
 const MAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
