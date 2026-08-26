@@ -4,11 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jy-crpg-bench</title>
-<meta name="description" content="递减">
-<meta property="og:title" content="jy-crpg-bench">
-<meta property="og:description" content="递减">
-<link rel="alternate" hreflang="zh-Hant" href="https://hanxiao.io/jy-crpg-bench/">
+<meta name="description" content="二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。">
+<meta name="theme-color" content="#f7f8fa">
+<link rel="canonical" href="https://hanxiao.io/jy-crpg-bench/">
+<link rel="alternate" hreflang="zh-Hans" href="https://hanxiao.io/jy-crpg-bench/">
 <link rel="alternate" hreflang="en" href="https://hanxiao.io/jy-crpg-bench/en/">
+<link rel="alternate" hreflang="x-default" href="https://hanxiao.io/jy-crpg-bench/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="hanxiao.io">
+<meta property="og:url" content="https://hanxiao.io/jy-crpg-bench/">
+<meta property="og:title" content="jy-crpg-bench">
+<meta property="og:description" content="二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="jy-crpg-bench">
+<meta name="twitter:description" content="二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。">
+<meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
+<meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
 <style>
   :root {
@@ -254,7 +274,7 @@
 </div>
 
 <script>
-const T = {"desc": "递减", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";

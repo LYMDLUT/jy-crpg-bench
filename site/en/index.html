@@ -4,11 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jy-crpg-bench</title>
-<meta name="description" content="descending">
-<meta property="og:title" content="jy-crpg-bench">
-<meta property="og:description" content="descending">
-<link rel="alternate" hreflang="zh-Hant" href="https://hanxiao.io/jy-crpg-bench/">
+<meta name="description" content="Twenty minutes in an unmodified 1996 wuxia CRPG. One run per model, recorded.">
+<meta name="theme-color" content="#f7f8fa">
+<link rel="canonical" href="https://hanxiao.io/jy-crpg-bench/en/">
+<link rel="alternate" hreflang="zh-Hans" href="https://hanxiao.io/jy-crpg-bench/">
 <link rel="alternate" hreflang="en" href="https://hanxiao.io/jy-crpg-bench/en/">
+<link rel="alternate" hreflang="x-default" href="https://hanxiao.io/jy-crpg-bench/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="hanxiao.io">
+<meta property="og:url" content="https://hanxiao.io/jy-crpg-bench/en/">
+<meta property="og:title" content="jy-crpg-bench">
+<meta property="og:description" content="Twenty minutes in an unmodified 1996 wuxia CRPG. One run per model, recorded.">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="zh_CN">
+<meta property="og:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="jy-crpg-bench">
+<meta name="twitter:description" content="Twenty minutes in an unmodified 1996 wuxia CRPG. One run per model, recorded.">
+<meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
+<meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
 <style>
   :root {
@@ -254,7 +274,7 @@
 </div>
 
 <script>
-const T = {"desc": "descending", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";

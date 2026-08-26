@@ -13,7 +13,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 
 ZH = {
     "lang": "zh-Hans", "other": "EN", "other_href": "en/", "home": ".",
-    "desc": "二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。",
+    "url": "https://hanxiao.io/jy-crpg-bench/",
+    "locale": "zh_CN", "locale_alt": "en_US",
+    "blurb": "二十分钟，一款 1996 年的武侠 CRPG。每个模型一局，全程录像。",
     "slogan": "二十分钟的江湖",
     "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。",
     "copy": "复制", "copied": "已复制",
@@ -36,7 +38,10 @@ ZH = {
 
 EN = {
     "lang": "en", "other": "中文", "other_href": "../", "home": ".",
-    "desc": "Twenty minutes in an unmodified 1996 wuxia CRPG. One run per model.",
+    "url": "https://hanxiao.io/jy-crpg-bench/en/",
+    "locale": "en_US", "locale_alt": "zh_CN",
+    "blurb": "Twenty minutes in an unmodified 1996 wuxia CRPG. "
+             "One run per model, recorded.",
     "slogan": "twenty minutes in the jianghu",
     "oneline": "Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.",
     "copy": "copy", "copied": "copied",
@@ -63,11 +68,31 @@ TEMPLATE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jy-crpg-bench</title>
-<meta name="description" content="{desc}">
-<meta property="og:title" content="jy-crpg-bench">
-<meta property="og:description" content="{desc}">
-<link rel="alternate" hreflang="zh-Hant" href="https://hanxiao.io/jy-crpg-bench/">
+<meta name="description" content="{blurb}">
+<meta name="theme-color" content="#f7f8fa">
+<link rel="canonical" href="{url}">
+<link rel="alternate" hreflang="zh-Hans" href="https://hanxiao.io/jy-crpg-bench/">
 <link rel="alternate" hreflang="en" href="https://hanxiao.io/jy-crpg-bench/en/">
+<link rel="alternate" hreflang="x-default" href="https://hanxiao.io/jy-crpg-bench/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="hanxiao.io">
+<meta property="og:url" content="{url}">
+<meta property="og:title" content="jy-crpg-bench">
+<meta property="og:description" content="{blurb}">
+<meta property="og:locale" content="{locale}">
+<meta property="og:locale:alternate" content="{locale_alt}">
+<meta property="og:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="jy-crpg-bench">
+<meta name="twitter:description" content="{blurb}">
+<meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
+<meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
 <style>
   :root {{
@@ -654,8 +679,8 @@ def build(s):
         for (n, w), ic in zip(s["rules"], icons))
     # everything the script reads at runtime; missing a key here shows up as a
     # literal "undefined" in the page, so it is derived rather than hand listed
-    skip = {"lang", "other", "other_href", "home", "desc_meta", "tagline",
-            "slogan", "give", "oneline", "note", "rules", "sort", "loading",
+    skip = {"lang", "other", "other_href", "home", "url", "locale", "locale_alt",
+            "blurb", "slogan", "oneline", "rules", "sort", "loading",
             "grid", "list"}
     strings = {k: v for k, v in s.items() if k not in skip}
     fields = dict(s, rules=rules, md="agents.md" if s["lang"] != "en" else "../agents.md",
