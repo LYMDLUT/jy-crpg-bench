@@ -48,6 +48,7 @@ LIB.fb_reset.restype = None
 LIB.fb_snapshot.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
                             ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
 LIB.fb_snapshot.restype = ctypes.c_int
+LIB.core_release_all_keys.restype = None
 LIB.core_save_state.argtypes = [ctypes.c_char_p]
 LIB.core_save_state.restype = ctypes.c_bool
 LIB.core_load_state.argtypes = [ctypes.c_char_p]
@@ -102,6 +103,10 @@ IDLE_TAIL = 30.0          # of which only the last this much is kept
 KEYFRAME_EVERY = 30.0     # so pruning can always start from a whole picture
 REC_MAX_BYTES = 12 << 20
 LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
+# Reset restores this rather than rebooting. It puts the agent in the opening
+# room with a character already made, because creating one means driving the
+# 注音 IME, which is a puzzle about input methods and not about the game.
+START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT.parent / "saves" / "start.state"))
 
 # Everything anyone does to this session, so the page can show who is doing
 # what. The game is shared, so this doubles as "why did the screen just move".
@@ -111,7 +116,7 @@ _seq = [0]
 session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
-             "last_activity": time.time()}
+             "last_activity": time.time(), "actor": ""}
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -283,6 +288,8 @@ def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
     else:
         ev["key"] = key
         ev["down"] = bool(down)
+        if rec["actor"]:
+            ev["who"] = rec["actor"]
     rec["events"].append(ev)
     rec_prune(now)
 
@@ -360,17 +367,22 @@ async def ws_handler(request):
                 code = KEYS.get(name)
                 if code:
                     down = bool(d.get("down"))
+                    rec["actor"] = "web"
                     LIB.core_key(code, down)
+                    key_event(name, down)
                     if down:                      # keyup would just double every line
                         log_action("web", "KEY", name)
             elif t == "tap":
                 name = str(d.get("k", "")).lower()
                 code = KEYS.get(name)
                 if code:
+                    rec["actor"] = "web"
                     log_action("web", "KEY", name)
                     LIB.core_key(code, True)
+                    key_event(name, True)
                     await asyncio.sleep(0.06)
                     LIB.core_key(code, False)
+                    key_event(name, False)
             elif t == "keyframe":
                 await send_keyframe(ws)
     finally:
@@ -492,7 +504,8 @@ async def run_action(request, steps, note, verb="KEY"):
     try:
         # Logged before the keys are sent, not after: the panel should show an
         # action starting, not report it once it is already over.
-        log_action(actor(request), verb, note, detail=held_note(steps))
+        rec["actor"] = actor(request)
+        log_action(rec["actor"], verb, note, detail=held_note(steps))
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
@@ -620,12 +633,16 @@ async def api_reset(request):
     if not want or got != want:
         raise web.HTTPNotFound()
 
+    restored = False
     async with api_lock:
         paused.set()
         await asyncio.sleep(0.1)          # let the in-flight frame finish
         try:
             LIB.core_release_all_keys()
-            LIB.core_reset()
+            if os.path.exists(START_STATE):
+                restored = bool(LIB.core_load_state(START_STATE.encode()))
+            if not restored:
+                LIB.core_reset()           # no start state, fall back to a reboot
             LIB.fb_reset()
         finally:
             paused.clear()
@@ -634,7 +651,7 @@ async def api_reset(request):
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         agents.clear()
         rec_reset()
-        await asyncio.sleep(1.5)          # give the machine a moment to start booting
+        await asyncio.sleep(0.4 if restored else 1.5)
 
     await fanout(json.dumps({"t": "clear"}), text=True)
     for ws in list(clients):
@@ -643,8 +660,22 @@ async def api_reset(request):
                 await send_keyframe(ws)
         except Exception:
             clients.discard(ws)
-    log_action("api", "RESET", "rebooted to title screen")
-    return web.json_response({"ok": True, "reset": True})
+    log_action("api", "RESET", "restored start state" if restored else "rebooted to title")
+    return web.json_response({"ok": True, "reset": True, "restored": restored})
+
+
+async def api_snapshot(request):
+    """Hidden. Writes the current position as the state /api/reset restores."""
+    want = os.environ.get("QUNXIA_RESET_TOKEN")
+    got = request.query.get("token") or request.headers.get("X-Reset-Token")
+    if not want or got != want:
+        raise web.HTTPNotFound()
+    async with api_lock:
+        os.makedirs(os.path.dirname(START_STATE), exist_ok=True)
+        ok = bool(LIB.core_save_state(START_STATE.encode()))
+    size = os.path.getsize(START_STATE) if ok and os.path.exists(START_STATE) else 0
+    log_action("api", "RESET", "saved start state" if ok else "start state failed", ok=ok)
+    return web.json_response({"ok": ok, "path": START_STATE, "bytes": size})
 
 
 async def api_recording(_request):
@@ -708,6 +739,7 @@ def main():
         web.get("/api/history", api_history),
         web.get("/api/recording", api_recording),
         web.post("/api/reset", api_reset),
+        web.post("/api/snapshot", api_snapshot),
         web.post("/api/key", api_key),
         web.post("/api/keys", api_keys),
         web.post("/api/wait", api_wait),

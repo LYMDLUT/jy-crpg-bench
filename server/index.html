@@ -361,7 +361,7 @@ saveBtn.onclick = async () => {
   const wctx = work.getContext("2d", { alpha: false });
   const cache = {};
   const down = new Set();
-  let clock = 0;
+  let clock = 0, actor = "";
 
   const chip = (label, x, y, arrow) => {
     const w = octx.measureText(label).width + 20;
@@ -385,9 +385,15 @@ saveBtn.onclick = async () => {
     }
     octx.fillStyle = "#101014";
     octx.fillRect(0, H, W, BAR);
-    octx.font = "20px ui-monospace, Menlo, monospace";
     octx.textBaseline = "middle";
     let x = 14;
+    if (actor) {
+      octx.font = "17px ui-monospace, Menlo, monospace";
+      octx.fillStyle = colorOf(actor);
+      octx.fillText(actor, x, H + 28);
+      x += octx.measureText(actor).width + 16;
+    }
+    octx.font = "20px ui-monospace, Menlo, monospace";
     for (const k of down) x += chip(GLYPH[k] ?? k, x, H + 12, ARROW.has(k)) + 8;
     octx.fillStyle = "#6c6c78";
     octx.font = "16px ui-monospace, Menlo, monospace";
@@ -419,6 +425,7 @@ saveBtn.onclick = async () => {
     if (ev.d) {
       paintDelta(await inflate(b64bytes(ev.d)), work, wctx, cache);
     } else if (ev.key) {
+      if (ev.who) actor = ev.who;
       ev.down ? down.add(ev.key) : down.delete(ev.key);
     }
     const left = Math.max(0, (total - ev.t) / SPEED);
@@ -478,6 +485,13 @@ playBtn.onclick = async () => {
       } else if (ev.key) {
         ev.down ? down.add(ev.key) : down.delete(ev.key);
         vcrKeys.textContent = "";
+        if (ev.who) {
+          const who = document.createElement("span");
+          who.textContent = ev.who;
+          who.style.color = colorOf(ev.who);
+          who.style.marginRight = "6px";
+          vcrKeys.appendChild(who);
+        }
         for (const k of down) {
           const chip = document.createElement("span");
           chip.className = "k" + (ARROW.has(k) ? " arrow" : "");

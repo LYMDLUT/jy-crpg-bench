@@ -37,8 +37,12 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
 - `/api/key`, `/api/keys`, `/api/wait` apply input and wait for
   the screen to react and then settle, but return no picture. Acting and
   looking are separate calls.
-- `POST /api/reset?token=...` hidden. Reboots the emulated machine back to the
-  title screen and wipes the activity log. Unlisted in `/api/help`, and 404s
+- `POST /api/reset?token=...` hidden. Restores the start state, a character
+  already created and standing in the opening room, and wipes the activity log.
+  Creating a character means driving the 注音 IME, which tests input-method
+  knowledge rather than play, so a run should not begin there. Falls back to a
+  full reboot when no start state exists, and `POST /api/snapshot?token=...`
+  writes the current position as that state. Unlisted in `/api/help`, and 404s
   without the token from `QUNXIA_RESET_TOKEN` rather than 403, so the path
   cannot be confirmed by probing. Pauses the emulation thread first, since
   `retro_reset` underneath a running `retro_run` is a race.
