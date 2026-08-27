@@ -127,6 +127,11 @@ history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
 # Counted per game, so a reset starts a fresh session rather than continuing one.
 session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
+# Every distinct place the agent has stood. The camera is locked to the
+# character, so each tile of ground it reaches paints a different picture;
+# walking back over old ground repeats one. Counting distinct pictures counts
+# ground covered, and going in circles adds nothing, which is the point.
+places: set = set()
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
              "last_activity": time.time(), "actor": ""}
@@ -347,9 +352,30 @@ def rec_reset():
                last_activity=time.time())
 
 
+def fingerprint():
+    """A coarse signature of the screen: small enough that idle animation and a
+    flickering torch land on the same value, detailed enough that a step's worth
+    of scrolling does not."""
+    w = ctypes.c_int(0)
+    h = ctypes.c_int(0)
+    n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
+    if n <= 0:
+        return None
+    img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n])
+    small = img.convert("L").resize((12, 8), Image.BILINEAR)
+    return bytes(v >> 5 for v in small.getdata())      # 8 levels of grey
+
+
+def note_place():
+    fp = fingerprint()
+    if fp is not None:
+        places.add(fp)
+
+
 def session_summary():
     return {"uptime_s": round(time.time() - session["started"], 1),
             "actions": session["actions"],
+            "places": len(places),
             "by_api": session["by_api"], "by_web": session["by_web"],
             "agents": dict(agents.most_common(8))}
 
@@ -567,6 +593,9 @@ async def run_action(request, steps, note, verb="KEY"):
             else:
                 await tap(kind, val, step[2] if len(step) > 2 else None)
         waited, changed = await settle(baseline)
+        note_place()
+        if warden.ON:
+            warden.run["places"] = len(places)
     finally:
         api_lock.release()
 
@@ -715,6 +744,7 @@ async def api_reset(request):
         history.clear()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
+        places.clear()
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()

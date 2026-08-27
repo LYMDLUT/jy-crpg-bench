@@ -28,7 +28,8 @@ ZH = {
     "sort": "排序", "runs": "局", "run1": "局",
     "loading": "载入中", "empty": "还没有记录", "gone": "读不到记录",
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
-    "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒",
+    "cols": {"started": "时间", "places": "去过", "reach": "新地/动作",
+             "actions": "动作数", "aps": "动作/秒",
              "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
              "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
              "reason": "结束原因"},
@@ -37,6 +38,7 @@ ZH = {
     "keyspace": "按键分布",
     "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读",
     "running": "进行中", "log": "动作记录", "hist": "按键分布",
+    "explored": "去过的地方",
     "uptime": "已进行", "nolog": "还没有动作",
     "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中",
     "over": "已结束",
@@ -60,7 +62,8 @@ EN = {
     "sort": "sort", "runs": "runs", "run1": "run",
     "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
-    "cols": {"started": "when", "actions": "actions", "aps": "act/s",
+    "cols": {"started": "when", "places": "places", "reach": "new/act",
+             "actions": "actions", "aps": "act/s",
              "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
              "distinct_keys": "key space", "reads": "screens", "played": "played",
              "reason": "ended by"},
@@ -69,6 +72,7 @@ EN = {
     "err": "error", "keyspace": "action space",
     "live": "live now", "watch": "watch", "back": "back", "watching": "read-only",
     "running": "running", "log": "action log", "hist": "key distribution",
+    "explored": "places reached",
     "uptime": "elapsed", "nolog": "no actions yet",
     "left": "left", "waiting": "waiting for the first frame",
     "dropped": "disconnected, retrying", "over": "this run has ended",
@@ -442,7 +446,7 @@ TEMPLATE = r"""<!doctype html>
     <div><u>{cols_actions}</u><b data-w="0">-</b></div>
     <div><u>{cols_aps}</u><b data-w="1">-</b></div>
     <div><u>{uptime}</u><b data-w="2">-</b></div>
-    <div><u>{cols_keys}</u><b data-w="3">-</b></div>
+    <div><u>{explored}</u><b data-w="3">-</b></div>
   </div>
 
   <div class="panes">
@@ -480,6 +484,8 @@ const when = t => t ? new Date(t * 1000).toLocaleString([],
 
 const COLS = [
   {{k: "started",       f: r => when(r.started)}},
+  {{k: "places",        f: r => r.places ?? 0}},
+  {{k: "reach",         f: r => (r.reach ?? 0).toFixed(2)}},
   {{k: "actions",       f: r => r.actions ?? 0}},
   {{k: "aps",           f: r => (r.aps ?? 0).toFixed(2)}},
   {{k: "ttfa",          f: r => secs(r.ttfa)}},
@@ -575,7 +581,10 @@ function entries() {{
   return live.map(s => {{
     const st = stat.get(s.id) || {{}};
     const up = st.uptime_s || s.uptime || Math.max(0, now - s.started);
+    const acts = st.actions ?? s.actions ?? 0;
+    const pl = s.places ?? 0;
     return {{id: s.id, agent: s.agent, running: true, started: s.started,
+            places: pl, reach: acts ? +(pl / acts).toFixed(3) : 0,
             remaining: s.remaining, played: Math.round(up),
             actions: st.actions ?? s.actions ?? 0,
             aps: (() => {{ const n = st.actions ?? s.actions ?? 0;
@@ -598,6 +607,7 @@ function refreshLive() {{
     const r = by[sid];
     if (!r) return;
     if (f === "acts") el.textContent = `${{r.actions}} · ${{r.aps.toFixed(2)}}/s`;
+    else if (f === "places") el.textContent = `${{r.places}} · ${{r.reach.toFixed(2)}}`;
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
     else {{
@@ -653,6 +663,7 @@ function render() {{
       <div class="cmeta">
         <div class="who"><i class="dot" style="background:${{hue(r.agent)}}"></i>${{r.agent}}</div>
         <div class="kv">
+          <span>${{T.cols.places}}</span><b ${{lv(r, "places")}}>${{r.places ?? 0}} · ${{(r.reach ?? 0).toFixed(2)}}</b>
           <span>${{T.cols.actions}}</span><b ${{lv(r, "acts")}}>${{r.actions ?? 0}} · ${{(r.aps ?? 0).toFixed(2)}}/s</b>
           <span>${{T.cols.ttfa}}</span><b>${{secs(r.ttfa)}}</b>
           <span>${{T.cols.gap_p50}} / p95</span><b>${{secs(r.gap_p50)}} / ${{secs(r.gap_p95)}}</b>
@@ -894,7 +905,7 @@ function drawWatchPanes() {{
     for (const k of keysOf(e.target)) counts[k] = (counts[k] || 0) + (+mult || 1);
   }}
   const vals = [n, up > 1 && n ? (n / up).toFixed(2) : "0.00",
-                mmss(up), Object.keys(counts).length];
+                mmss(up), wsum.places ?? 0];
   document.querySelectorAll("#wstats b[data-w]").forEach(b => {{
     b.textContent = vals[+b.dataset.w];
   }});

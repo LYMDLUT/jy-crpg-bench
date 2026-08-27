@@ -36,7 +36,8 @@ CATALOG_OBJECT = "catalog.json"
 # Filled in by the server as the agent plays. Kept here rather than in the
 # proxy so the numbers survive however the run is fronted.
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
-       "reads": 0, "errors": 0, "actions": 0, "done": None, "result": None}
+       "reads": 0, "errors": 0, "actions": 0, "places": 0,
+       "done": None, "result": None}
 
 
 def playable_now():
@@ -115,6 +116,10 @@ def metrics():
         "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
         "gap_max": round(max(gaps), 2) if gaps else None,
         "reads": run["reads"], "errors": run["errors"],
+        # Distinct places stood in, and how much of the agent's effort turned
+        # into new ground rather than retracing.
+        "places": run["places"],
+        "reach": round(run["places"] / n, 3) if n else 0.0,
         "keys": dict(sorted(run["keys"].items(), key=lambda kv: -kv[1])),
         "distinct_keys": len(run["keys"]),
     }

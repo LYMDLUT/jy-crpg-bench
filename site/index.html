@@ -366,7 +366,7 @@
     <div><u>动作数</u><b data-w="0">-</b></div>
     <div><u>动作/秒</u><b data-w="1">-</b></div>
     <div><u>已进行</u><b data-w="2">-</b></div>
-    <div><u>按键种类</u><b data-w="3">-</b></div>
+    <div><u>去过的地方</u><b data-w="3">-</b></div>
   </div>
 
   <div class="panes">
@@ -387,7 +387,7 @@
 </div>
 
 <script>
-const T = {"oneline": "读 %U%，照着玩。", "base": "https://hanxiao.io/jy-crpg-bench/", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"oneline": "读 %U%，照着玩。", "base": "https://hanxiao.io/jy-crpg-bench/", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "places": "去过", "reach": "新地/动作", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "explored": "去过的地方", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -404,6 +404,8 @@ const when = t => t ? new Date(t * 1000).toLocaleString([],
 
 const COLS = [
   {k: "started",       f: r => when(r.started)},
+  {k: "places",        f: r => r.places ?? 0},
+  {k: "reach",         f: r => (r.reach ?? 0).toFixed(2)},
   {k: "actions",       f: r => r.actions ?? 0},
   {k: "aps",           f: r => (r.aps ?? 0).toFixed(2)},
   {k: "ttfa",          f: r => secs(r.ttfa)},
@@ -499,7 +501,10 @@ function entries() {
   return live.map(s => {
     const st = stat.get(s.id) || {};
     const up = st.uptime_s || s.uptime || Math.max(0, now - s.started);
+    const acts = st.actions ?? s.actions ?? 0;
+    const pl = s.places ?? 0;
     return {id: s.id, agent: s.agent, running: true, started: s.started,
+            places: pl, reach: acts ? +(pl / acts).toFixed(3) : 0,
             remaining: s.remaining, played: Math.round(up),
             actions: st.actions ?? s.actions ?? 0,
             aps: (() => { const n = st.actions ?? s.actions ?? 0;
@@ -522,6 +527,7 @@ function refreshLive() {
     const r = by[sid];
     if (!r) return;
     if (f === "acts") el.textContent = `${r.actions} · ${r.aps.toFixed(2)}/s`;
+    else if (f === "places") el.textContent = `${r.places} · ${r.reach.toFixed(2)}`;
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
     else {
@@ -577,6 +583,7 @@ function render() {
       <div class="cmeta">
         <div class="who"><i class="dot" style="background:${hue(r.agent)}"></i>${r.agent}</div>
         <div class="kv">
+          <span>${T.cols.places}</span><b ${lv(r, "places")}>${r.places ?? 0} · ${(r.reach ?? 0).toFixed(2)}</b>
           <span>${T.cols.actions}</span><b ${lv(r, "acts")}>${r.actions ?? 0} · ${(r.aps ?? 0).toFixed(2)}/s</b>
           <span>${T.cols.ttfa}</span><b>${secs(r.ttfa)}</b>
           <span>${T.cols.gap_p50} / p95</span><b>${secs(r.gap_p50)} / ${secs(r.gap_p95)}</b>
@@ -818,7 +825,7 @@ function drawWatchPanes() {
     for (const k of keysOf(e.target)) counts[k] = (counts[k] || 0) + (+mult || 1);
   }
   const vals = [n, up > 1 && n ? (n / up).toFixed(2) : "0.00",
-                mmss(up), Object.keys(counts).length];
+                mmss(up), wsum.places ?? 0];
   document.querySelectorAll("#wstats b[data-w]").forEach(b => {
     b.textContent = vals[+b.dataset.w];
   });

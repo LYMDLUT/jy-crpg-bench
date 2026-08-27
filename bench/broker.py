@@ -55,7 +55,7 @@ WORK = pathlib.Path(os.environ.get("QUNXIA_WORK_DIR", "/tmp/qunxia-work"))
 # Visitors read that file, never this service: a launch-day crowd polling here
 # would be competing for CPU with the emulators it came to watch.
 LIVE_EVERY = float(os.environ.get("QUNXIA_LIVE_EVERY", "4"))
-SHOT_EVERY = float(os.environ.get("QUNXIA_SHOT_EVERY", "6"))
+SHOT_EVERY = float(os.environ.get("QUNXIA_SHOT_EVERY", "4"))
 # A run is played by one agent but can be watched by many. Past this many
 # sockets the extra viewers fall back to the published thumbnail, so a popular
 # run is never slowed by its own audience.
@@ -189,8 +189,12 @@ async def start_session(agent, budget):
                QUNXIA_GAME=str(game),
                QUNXIA_SAVES=str(saves),
                QUNXIA_REC_KEEP_ALL="1",
-               QUNXIA_SEND_HZ="10",              # nobody is watching a bench run
-               QUNXIA_REC_MAX_BYTES=str(256 << 20),
+               # People do watch bench runs now, so the stream is not throttled
+               # to the old "nobody is looking" rate. Measured at 5.9 MB/min of
+               # recording at the effective 3 fps this yields; the cap below
+               # bounds a long run, and 24 of these have to fit in RAM at once.
+               QUNXIA_SEND_HZ="15",
+               QUNXIA_REC_MAX_BYTES=str(160 << 20),
                QUNXIA_RESET_TOKEN=token,
                QUNXIA_BENCH="1",
                QUNXIA_BENCH_AGENT=agent,
@@ -380,6 +384,7 @@ async def api_sessions(_request):
             {"id": s["id"], "agent": s["agent"],
              "started": s["started"], "watchers": s.get("watchers", 0),
              "actions": s.get("live_actions", 0), "budget": s.get("budget"),
+             "places": s.get("live_places", 0),
              "uptime": round(s.get("live_uptime", 0)),
              "remaining": max(0, round(s["ends_at"] - now))}
             for s in sessions.values()
@@ -427,6 +432,7 @@ def live_payload():
             "running": [
                 {"id": s["id"], "agent": s["agent"], "started": s["started"],
                  "actions": s.get("live_actions", 0),
+                 "places": s.get("live_places", 0),
                  "uptime": round(s.get("live_uptime", 0)),
                  "budget": s.get("budget"),
                  "watchers": s.get("watchers", 0),
@@ -463,6 +469,7 @@ async def sweep(app):
                         d = (await r.json()).get("session", {})
                         s["live_actions"] = d.get("actions", 0)
                         s["live_uptime"] = d.get("uptime_s", 0)
+                        s["live_places"] = d.get("places", 0)
                 except Exception:
                     pass
 
