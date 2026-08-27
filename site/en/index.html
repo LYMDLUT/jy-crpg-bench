@@ -228,6 +228,26 @@
           background: var(--ink); border-radius: 2px; left: 0; }
   .tc { font-size: 12px; color: var(--dim); min-width: 72px; text-align: right;
         font-variant-numeric: tabular-nums; }
+
+  /* One lane per key, marks where it was pressed, width for how long it was
+     held. Anonymous ticks could not say which key or for how long. */
+  .roll { display: grid; grid-template-columns: 34px 1fr; gap: 8px;
+          margin-top: 10px; background: var(--panel); border: 1px solid var(--line);
+          border-radius: var(--r); padding: 8px 10px 8px 8px; }
+  .lanes { display: grid; }
+  .lanes span { height: 15px; display: flex; align-items: center;
+                justify-content: flex-end; font: 11px var(--mono);
+                color: var(--dim); }
+  .gridwrap { position: relative; }
+  .grid { position: relative; cursor: pointer; }
+  .grid .lane { position: absolute; left: 0; right: 0; height: 15px; }
+  .grid .lane::before { content: ""; position: absolute; left: 0; right: 0;
+                        top: 7px; height: 1px; background: var(--line); }
+  .grid b { position: absolute; top: 3px; height: 9px; min-width: 2px;
+            background: #9a9a9a; border-radius: 2px; }
+  .grid b.long { background: var(--ink); }
+  .rhead { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px;
+           background: var(--accent); pointer-events: none; z-index: 2; }
   #rate { height: 30px; }
   .wkeys { display: flex; gap: 6px; flex-wrap: wrap; min-height: 30px;
            padding: 12px 2px 0; font-size: 12px; }
@@ -422,7 +442,6 @@
     </button>
     <div class="track" id="track">
       <div class="fill" id="fill"></div>
-      <div class="marks" id="tmarks"></div>
       <div class="head" id="head"></div>
     </div>
     <span class="tc mono" id="tc">0:00</span>
@@ -435,6 +454,14 @@
            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
         ><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>
     </a>
+  </div>
+
+  <div class="roll" id="roll">
+    <div class="lanes" id="lanes"></div>
+    <div class="gridwrap">
+      <div class="grid" id="rollgrid"></div>
+      <div class="rhead" id="rhead"></div>
+    </div>
   </div>
 
   <div id="wkeys" class="wkeys mono"></div>
@@ -1073,10 +1100,32 @@ function fmt(t) {
 
 function drawMarks() {
   if (!tl || !tl.seconds) return;
+  // lanes ordered by how much the agent leaned on each key
+  const use = {};
+  for (const m of marks) for (const [k] of (m.keys || [])) use[k] = (use[k] || 0) + 1;
+  const lanes = Object.entries(use).sort((a, b) => b[1] - a[1])
+                      .slice(0, 10).map(e => e[0]);
+  const row = new Map(lanes.map((k, i) => [k, i]));
   const longest = Math.max(0.001, ...marks.map(m => m.hold || 0));
-  $("tmarks").innerHTML = marks.map(m =>
-    `<i class="${(m.hold || 0) > longest * 0.4 ? "long" : ""}"
-        style="left:${(m.t / tl.seconds * 100).toFixed(3)}%"></i>`).join("");
+
+  $("lanes").innerHTML = lanes.map(k =>
+    `<span title="${k}">${GLYPH[k] || k}</span>`).join("");
+  $("rollgrid").style.height = (lanes.length * 15) + "px";
+
+  let html = lanes.map((k, i) =>
+    `<div class="lane" style="top:${i * 15}px"></div>`).join("");
+  for (const m of marks) {
+    for (const [k, hold] of (m.keys || [])) {
+      const i = row.get(k);
+      if (i === undefined) continue;
+      const x = m.t / tl.seconds * 100;
+      const w = Math.max(0.25, (hold / (tl.speed || 1)) / tl.seconds * 100);
+      html += `<b class="${hold > longest * 0.4 ? "long" : ""}" title="${k} ${
+        hold.toFixed(2)}s @ ${fmt(m.t)}" data-t="${m.t}"
+        style="left:${x.toFixed(3)}%;width:${w.toFixed(3)}%;top:${i * 15 + 3}px"></b>`;
+    }
+  }
+  $("rollgrid").innerHTML = html;
 }
 
 function atTime(t) {
@@ -1094,6 +1143,7 @@ function sync() {
   const t = v.currentTime, pct = tl.seconds ? t / tl.seconds * 100 : 0;
   $("fill").style.width = pct + "%";
   $("head").style.left = pct + "%";
+  $("rhead").style.left = pct + "%";
   $("tc").textContent = `${fmt(t)} / ${fmt(tl.seconds)}`;
   const k = atTime(t);
   if (k !== vidT) {
@@ -1114,11 +1164,14 @@ function seek(t) {
   sync();
 }
 
-$("track").onclick = e => {
-  if (!tl) return;
+function scrubFrom(e) {
+  if (!tl || !tl.seconds) return;
   const r = e.currentTarget.getBoundingClientRect();
   seek((e.clientX - r.left) / r.width * tl.seconds);
-};
+}
+$("track").onclick = scrubFrom;
+$("rollgrid").onclick = scrubFrom;
+$("rhead").style.left = "0%";
 $("pp").onclick = () => { const v = $("vid"); v.paused ? v.play() : v.pause(); };
 $("prev").onclick = () => { const k = atTime($("vid").currentTime - 0.05);
                            if (k > 0) seek(marks[k - 1].t); };
@@ -1134,7 +1187,14 @@ async function openReplay(run, push) {
   $("cv").hidden = true; $("vid").hidden = false; $("player").hidden = false;
   $("wleft").textContent = "";
   const v = $("vid");
-  v.src = run.video_url; v.playbackRate = +$("rate").value;
+  // handlers before src: metadata can arrive during the await below, and a
+  // handler attached afterwards would simply miss it
+  v.onloadedmetadata = () => { if (!tl || !tl.seconds) {
+    tl = tl || {marks: []}; tl.seconds = v.duration; } sync(); };
+  v.ontimeupdate = sync;
+  v.onplay = () => $("ppi").setAttribute("d", "M4.5 3h2.6v10H4.5zM8.9 3h2.6v10H8.9z");
+  v.onpause = () => $("ppi").setAttribute("d", "M5 3.2v9.6l7.5-4.8z");
+  v.playbackRate = +$("rate").value;
   $("dl").href = run.video_url;
   try {
     tl = await fetch(`${STORE}/runs/${run.id}.json`).then(r => r.json());
@@ -1144,11 +1204,11 @@ async function openReplay(run, push) {
     ...m, hold: Math.max(0, ...(m.keys || []).map(k => k[1] || 0))}));
   wsum = {places: run.places, uptime_s: run.played, actions: 0};
   wlog = []; drawMarks();
-  v.onloadedmetadata = () => { if (!tl.seconds) tl.seconds = v.duration; sync(); };
-  v.ontimeupdate = sync;
-  v.onplay = () => $("ppi").setAttribute("d", "M4.5 3h2.6v10H4.5zM8.9 3h2.6v10H8.9z");
-  v.onpause = () => $("ppi").setAttribute("d", "M5 3.2v9.6l7.5-4.8z");
+  v.src = run.video_url;
   $("veil").classList.add("gone");
+  // autoplay may be refused without a gesture; the panes must fill either way
+  vidT = -1;
+  sync();
   v.play().catch(() => {});
 }
 
