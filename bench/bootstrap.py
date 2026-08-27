@@ -7,11 +7,15 @@ used. This plays the opening once: new game, a name through the 注音 IME,
 accept the roll, then read the wake-up scene to its end, and saves the moment
 the player is free to move with the 軟體娃娃 still unspoken to.
 """
+import io
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
+
+from PIL import Image
 
 
 class Game:
@@ -55,7 +59,6 @@ def has_dialogue(png):
     that is otherwise browns and yellows, so near-white pixels down there are a
     reliable tell. Measured: about 7 percent with a box, under 1 without."""
     import io
-    from PIL import Image
     im = Image.open(io.BytesIO(png)).convert("RGB")
     w, h = im.size
     crop = im.crop((0, int(h * 0.55), w, h))
@@ -86,6 +89,20 @@ def free_to_act(g):
     return sha(g.png()) == before
 
 
+def in_game(g):
+    """Positive proof this is the world view and not a boot or title screen.
+
+    "Pressing a key changed the screen" is not proof: a BBS crack screen
+    animates on its own and passes that test. What separates them is that the
+    game fills the frame. Measured: the boot screen is 27% lit, the world view
+    97%.
+    """
+    im = Image.open(io.BytesIO(g.png()))
+    px = im.convert("RGB").getdata()
+    lit = sum(1 for r, gg, b in px if max(r, gg, b) > 40) / (im.width * im.height)
+    return lit > 0.75
+
+
 def build(base, token, log=print):
     g = Game(base, token)
     log("waiting for the title screen")
@@ -103,18 +120,28 @@ def build(base, token, log=print):
     g.key("y")                     # accept the rolled attributes
     g.wait(9000)
 
+    # Bounded by the clock, not by a round count. A round is only slow when
+    # there is still dialogue to clear, so on a slower machine the old budget
+    # of 30 rounds ran out while the opening scene was still playing, and
+    # every run on that host then began at the boot screen.
     log("reading the opening scene to its end")
-    for attempt in range(30):
+    deadline = time.time() + float(os.environ.get("QUNXIA_OPENING_SECONDS", "420"))
+    rounds = 0
+    while True:
+        rounds += 1
         for _ in range(4):
             g.key("enter")
         if free_to_act(g):
-            log(f"  free to move after {attempt + 1} rounds")
+            log(f"  free to move after {rounds} rounds")
             break
-    else:
-        raise RuntimeError("never became free to move")
+        if time.time() > deadline:
+            raise RuntimeError(f"never became free to move after {rounds} rounds")
 
     if has_dialogue(g.png()):                 # last check before committing
         raise RuntimeError("dialogue reappeared before the snapshot")
+    if not in_game(g):
+        raise RuntimeError("the screen is too dark to be the world view; this "
+                           "is a boot or title screen and must not be saved")
     out = g.call("POST", f"/api/snapshot?token={token}")
     if not out.get("ok"):
         raise RuntimeError(f"snapshot failed: {out}")

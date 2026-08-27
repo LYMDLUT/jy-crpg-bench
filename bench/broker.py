@@ -234,6 +234,27 @@ async def start_session(agent, budget):
             except Exception as exc:
                 sess["error"] = f"spawn: {exc}"
             await asyncio.sleep(2)
+
+    # A run that did not start in the game is not a benchmark run: it begins at
+    # the DOS boot screen and measures nothing. Refuse it loudly instead of
+    # handing the agent a broken game, which is what happened for an hour when
+    # the bootstrap failed and every session silently started at the title.
+    if not sess["spawned"]:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except Exception:
+            proc.kill()
+        shutil.rmtree(WORK / sid, ignore_errors=True)
+        sessions.pop(sid, None)
+        print(f"session {sid} refused: start state would not load", flush=True)
+        raise web.HTTPServiceUnavailable(
+            text=json.dumps({
+                "ok": False, "error": "the game is not ready",
+                "hint": "the starting savestate is being rebuilt; try again in "
+                        "a few minutes"}),
+            content_type="application/json", headers=CORS)
+
     sess["ends_at"] = time.time() + budget            # clock starts once playable
     return sess
 
@@ -536,6 +557,7 @@ async def ensure_start_state(app):
         print(f"start state present: {state}", flush=True)
         return
     print("no start state, playing the opening once to make one", flush=True)
+    app["booting"] = True
     port, token = free_port(), uuid.uuid4().hex
     env = dict(os.environ)
     env.update(PORT=str(port), QUNXIA_RESET_TOKEN=token,
@@ -550,7 +572,8 @@ async def ensure_start_state(app):
         await asyncio.get_running_loop().run_in_executor(
             None, lambda: build(f"http://127.0.0.1:{port}", token))
     except Exception as exc:
-        print(f"bootstrap failed, runs will start at the title screen: {exc}", flush=True)
+        print(f"bootstrap FAILED, sessions will be refused until it works: {exc}",
+              flush=True)
     finally:
         proc.terminate()
         try:
