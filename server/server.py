@@ -710,13 +710,35 @@ def actor(request):
     return anon_name(f"{peer}|{ua}")
 
 
+def num(d, key, default, lo=None, hi=None):
+    """An optional number from a request body.
+
+    dict.get(k, default) only falls back when the key is missing. Models very
+    often send the key with an explicit null - {"hold": null} - and int(None)
+    raised, which reached the agent as a 500 and read as the service being
+    down. Anything unusable means "use the default".
+    """
+    v = d.get(key)
+    if v is None:
+        v = default
+    try:
+        v = int(v)
+    except (TypeError, ValueError):
+        v = default
+    if lo is not None:
+        v = max(lo, v)
+    if hi is not None:
+        v = min(hi, v)
+    return v
+
+
 async def api_key(request):
     d = await body_of(request)
     code = keycode(d.get("key", ""))
     if not code:
         return web.json_response({"ok": False, "error": "unknown key"}, status=400)
-    hold = int(d.get("hold", DEFAULT_TAP_FRAMES))
-    times = max(1, min(int(d.get("times", 1)), 100))
+    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=100000)
+    times = num(d, "times", 1, lo=1, hi=100)
     name = str(d.get("key")).strip().lower()
     steps = []
     for i in range(times):
@@ -732,7 +754,7 @@ async def api_keys(request):
     codes = [keycode(k) for k in names]
     if not names or any(c is None for c in codes):
         return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
-    hold = int(d.get("hold", DEFAULT_TAP_FRAMES))
+    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=100000)
     steps = []
     for i, c in enumerate(codes):
         steps.append((c, hold, str(names[i]).strip().lower()))
@@ -743,7 +765,7 @@ async def api_keys(request):
 
 async def api_wait(request):
     d = await body_of(request)
-    ms = max(0, min(int(d.get("ms", 1000)), 60000))
+    ms = num(d, "ms", 1000, lo=0, hi=60000)
     return await run_action(request, [("wait", ms / 1000)], f"{ms}ms", verb="WAIT")
 
 
@@ -878,6 +900,28 @@ async def status(_request):
     })
 
 
+@web.middleware
+async def json_errors(request, handler):
+    """Whatever goes wrong, an agent gets JSON it can read.
+
+    An unhandled exception used to come back as an HTML 500, which a caller
+    cannot parse and which reads as the service being down rather than as one
+    bad request.
+    """
+    try:
+        return await handler(request)
+    except web.HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        stats["pump_errors"] += 1
+        stats["last_error"] = f"{type(exc).__name__}: {exc}"
+        return web.json_response(
+            {"ok": False, "error": f"{type(exc).__name__}: {exc}",
+             "hint": "this one call failed; the run is still going, try again"},
+            status=500)
+
+
 def main():
     os.makedirs(SAVES, exist_ok=True)
     # Measured on this class of VM: 77000 cycles leaves only 1.75x headroom over
@@ -894,7 +938,7 @@ def main():
         raise SystemExit("core_init failed: " + LIB.core_last_error().decode())
     threading.Thread(target=emulate, daemon=True).start()
 
-    app = web.Application()
+    app = web.Application(middlewares=[json_errors])
     app.add_routes([
         web.get("/", index),
         web.get("/ws", ws_handler),
