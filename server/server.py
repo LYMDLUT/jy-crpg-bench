@@ -636,6 +636,11 @@ async def run_action(request, steps, note, verb="KEY"):
             # added, so key off the shape instead.
             warden.note_action([s[2] for s in steps if len(s) > 2] or ["(wait)"],
                                note)
+        # counted here rather than only in the warden, so a run that is still
+        # going can show its own key distribution
+        for _s in steps:
+            if len(_s) > 2:
+                keyhist[_s[2]] = keyhist.get(_s[2], 0) + 1
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
