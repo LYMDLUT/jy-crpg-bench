@@ -145,6 +145,7 @@ beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": N
        # screens already say how far an agent got; this says how long it went
        # in circles before it got there, which the totals hide.
        "stall": 0, "since": 0}
+keyhist: dict = {}
 curve: list = []          # (action index, places) sampled as the run goes
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
@@ -423,6 +424,9 @@ def session_summary():
             "oscillation": beh["oscillation"],
             "dialogue": beh["dialogue"],
             "stall": beh["stall"],
+            # the key histogram, so a card can draw its bars while the run is
+            # still going rather than only once it has finished
+            "keys": dict(sorted(keyhist.items(), key=lambda kv: -kv[1])[:12]),
             "by_api": session["by_api"], "by_web": session["by_web"],
             "agents": dict(agents.most_common(8))}
 
@@ -799,6 +803,7 @@ async def api_reset(request):
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         places.clear()
+        keyhist.clear()
         curve.clear()
         beh.update(meaningful=0, oscillation=0, dialogue=0, last=None,
                    prev=None, stall=0, since=0)

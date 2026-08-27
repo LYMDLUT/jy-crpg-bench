@@ -639,7 +639,7 @@ function entries() {
             shot: s.shot || 0,
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             dialogue: s.dialogue || 0,
-            oscillation: null, stall: s.stall ?? null,
+            oscillation: null, stall: s.stall ?? null, keys: s.keys || {},
             distinct_keys: null, reads: null, ttfa: null,
             gap_p50: null, gap_p95: null, reason: "running"};
   }).concat(runs);
