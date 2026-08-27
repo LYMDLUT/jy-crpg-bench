@@ -270,6 +270,8 @@
   .log .v { color: var(--dim); font-size: 11px; }
   .log .d { color: var(--dim); text-align: right; }
   .log .bad { color: var(--bad); }
+  .log .seek { cursor: pointer; }
+  .log .seek:hover { background: #f5f5f5; }
   @media (max-width: 760px) { .panes { grid-template-columns: 1fr; } }
 
   footer { padding: 26px 0 38px; font: 11.5px var(--mono); }
@@ -903,6 +905,9 @@ function drawKeys(mark) {
 
 // ---- the detail view's live panes, all fed by the same socket ----
 let wlog = [], wsum = {}, wcurve = [];
+// replay state, declared here because drawWatchPanes below reads it and a
+// `let` used before its declaration throws rather than reading undefined
+let tl = null, marks = [], vidT = 0;
 
 function keysOf(target) {
   // "kp3 x4" is one action pressing kp3 four times; "kp9 enter" is two keys
@@ -925,12 +930,20 @@ function drawCurve(pts) {
 function drawWatchPanes() {
   const up = wsum.uptime_s || 0, n = wsum.actions || 0;
   const counts = {};
-  let repeats = 0;
-  for (const e of wlog) {
-    if (!["KEY", "KEYS", "WAIT"].includes(e.verb)) continue;
-    const parts = String(e.target || "").split(/\s+/).filter(Boolean);
-    const mult = (parts.find(w => /^x\d+$/.test(w)) || "x1").slice(1);
-    for (const k of keysOf(e.target)) counts[k] = (counts[k] || 0) + (+mult || 1);
+  // A replay has no socket to stream a log, but the timeline sidecar carries
+  // every action already, so the panes are built from whatever is to the left
+  // of the playhead. They then grow and shrink as you scrub.
+  const upto = tl ? marks.slice(0, Math.max(0, vidT + 1)) : null;
+  if (upto) {
+    for (const m of upto)
+      for (const [k] of (m.keys || [])) counts[k] = (counts[k] || 0) + 1;
+  } else {
+    for (const e of wlog) {
+      if (!["KEY", "KEYS", "WAIT"].includes(e.verb)) continue;
+      const parts = String(e.target || "").split(/\s+/).filter(Boolean);
+      const mult = (parts.find(w => /^x\d+$/.test(w)) || "x1").slice(1);
+      for (const k of keysOf(e.target)) counts[k] = (counts[k] || 0) + (+mult || 1);
+    }
   }
   const vals = [n, up > 1 && n ? (n / up).toFixed(2) : "0.00",
                 mmss(up), wsum.places ?? 0];
@@ -952,6 +965,19 @@ function drawWatchPanes() {
         + `<i style="width:${Math.max(3, c / max * 100)}%"></i><b>${c}</b></div>`).join("")
     : `<p class="msg" style="padding:8px 0">${T.nolog}</p>`;
 
+  if (upto) {
+    // newest first, and every row is a seek target
+    const rows = upto.slice(-160).reverse();
+    $("wlog").innerHTML = rows.length ? rows.map(m => {
+      const hold = Math.max(0, ...(m.keys || []).map(k => k[1] || 0));
+      const keys = (m.keys || []).map(([k]) => GLYPH[k] || k).join(" ")
+                   || (m.do || "");
+      return `<div class="r seek" data-t="${m.t}"><span class="t">${fmt(m.t)}</span>`
+        + `<span class="v">#${m.n}</span><span>${keys}</span>`
+        + `<span class="d">${hold >= 0.25 ? hold.toFixed(1) + "s" : ""}</span></div>`;
+    }).join("") : `<p class="msg">${T.nolog}</p>`;
+    return;
+  }
   const rows = wlog.slice(-120).reverse();
   $("wlog").innerHTML = rows.length ? rows.map(e => {
     const t = new Date(e.at * 1000).toLocaleTimeString([], {hour12: false});
@@ -961,6 +987,12 @@ function drawWatchPanes() {
       + `<span class="d">${e.detail || ""}</span></div>`;
   }).join("") : `<p class="msg">${T.nolog}</p>`;
 }
+
+// clicking a logged action jumps the replay to it
+$("wlog").onclick = e => {
+  const row = e.target.closest(".seek");
+  if (row && tl) seek(+row.dataset.t);
+};
 
 function connect(sid) {
   const url = BACKEND.replace(/^http/, "ws") + `/s/${sid}/ws`;
@@ -1034,8 +1066,6 @@ $("back").onclick = () => close(true);
 // A finished run is watched by driving the MP4 from its timeline sidecar. The
 // recording itself runs to 100MB+; the video is about 1MB and the browser can
 // seek it natively, so the sidecar is a few KB of "what happened when".
-let tl = null, marks = [], vidT = 0;
-
 function fmt(t) {
   const m = Math.floor(t / 60), sec = Math.floor(t % 60);
   return `${m}:${String(sec).padStart(2, "0")}`;
