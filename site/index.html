@@ -155,23 +155,23 @@
   .msg { color: var(--dim); text-align: center; padding: 52px 0; font: 12px var(--mono); }
 
   /* ---------- live ---------- */
-  .livelist { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .lv { display: flex; align-items: center; gap: 9px; padding: 7px 12px 7px 10px;
-        background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
-        box-shadow: 2px 2px 0 rgba(11,18,32,.06); cursor: pointer;
-        font: 12px var(--mono); color: var(--ink); }
-  .lv:hover { background: #f2f4f7; }
-  .lv em { font-style: normal; color: var(--dim); }
-  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--bad);
-           display: inline-block; animation: p 1.6s ease-in-out infinite; flex: none; }
-  @keyframes p { 50% { opacity: .25; } }
+  /* Green, not red: a run in progress is healthy, not an alarm. */
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+           display: inline-block; animation: p 1.6s ease-in-out infinite; flex: none;
+           box-shadow: 0 0 0 3px rgba(22,121,74,.14); }
+  @keyframes p { 50% { opacity: .3; } }
+  .card.on, .row.on { border-color: #a9c9b6; }
+  .live-cv { width: 100%; display: block; background: #0b1220;
+             image-rendering: pixelated; aspect-ratio: 320/200; }
+  .row .live-cv { width: 140px; border-radius: 4px; }
+  .runtag { display: inline-flex; align-items: center; gap: 5px; font: 11px var(--mono);
+            color: var(--ok); }
 
   /* ---------- watch ---------- */
   /* One flag on the body rather than per element hidden, so the five second
      live poll cannot un-hide the catalogue behind the screen. */
   body.watching header, body.watching .bar, body.watching main,
-  body.watching #live, body.reading header, body.reading .bar,
-  body.reading main, body.reading #live { display: none; }
+  body.reading header, body.reading .bar, body.reading main { display: none; }
   body:not(.watching) #watch, body:not(.reading) #doc { display: none; }
 
   .doc { margin: 0; background: var(--panel); border: 1px solid var(--line);
@@ -196,8 +196,36 @@
              padding: 3px 9px; background: var(--panel); color: var(--dim); }
   .wkeys i.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 
-  footer { border-top: 1px solid var(--line); padding: 18px 0 38px;
-           font: 11.5px var(--mono); }
+  #wstats { margin-top: 14px; }
+  #wstats div { display: block; padding: 11px 16px; }
+  #wstats u { display: block; text-decoration: none; color: var(--dim);
+              font: 10px var(--mono); letter-spacing: .05em;
+              text-transform: uppercase; margin-bottom: 2px; }
+  .panes { display: grid; gap: 16px; margin-top: 16px;
+           grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.5fr); }
+  .pane { min-width: 0; }
+  .lbl { margin: 0 0 7px; font: 11px var(--mono); letter-spacing: .09em;
+         text-transform: uppercase; color: var(--dim); }
+  .hist { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+          padding: 12px 14px; display: grid; gap: 5px; }
+  .hist div { display: grid; grid-template-columns: 46px 1fr 30px; gap: 8px;
+              align-items: center; font: 12px var(--mono); }
+  .hist u { text-decoration: none; color: var(--dim); }
+  .hist i { display: block; height: 9px; background: #9aa6b8; border-radius: 2px; }
+  .hist b { font-weight: 500; text-align: right; color: var(--dim); }
+  .log { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+         max-height: 340px; overflow-y: auto; }
+  .log .r { display: grid; grid-template-columns: 52px 58px 1fr auto; gap: 10px;
+            padding: 5px 12px; border-top: 1px solid var(--line);
+            font: 12px var(--mono); align-items: baseline; }
+  .log .r:first-child { border-top: 0; }
+  .log .t { color: var(--dim); }
+  .log .v { color: var(--dim); font-size: 11px; }
+  .log .d { color: var(--dim); text-align: right; }
+  .log .bad { color: var(--bad); }
+  @media (max-width: 760px) { .panes { grid-template-columns: 1fr; } }
+
+  footer { padding: 26px 0 38px; font: 11.5px var(--mono); }
   footer a { color: var(--dim); }
 
   @media (max-width: 620px) {
@@ -264,10 +292,6 @@
   <span class="n" id="count"></span>
 </div>
 
-<section id="live" hidden>
-  <div id="livelist" class="livelist"></div>
-</section>
-
 <main><div id="out" class="msg">载入中</div></main>
 
 <section id="doc">
@@ -301,6 +325,24 @@
   <div class="screen"><canvas id="cv" width="320" height="200"></canvas>
     <div id="veil">等待画面</div></div>
   <div id="wkeys" class="wkeys mono"></div>
+
+  <div class="rules" id="wstats">
+    <div><u>动作数</u><b data-w="0">-</b></div>
+    <div><u>动作/秒</u><b data-w="1">-</b></div>
+    <div><u>已进行</u><b data-w="2">-</b></div>
+    <div><u>按键种类</u><b data-w="3">-</b></div>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <p class="lbl">按键分布</p>
+      <div id="whist" class="hist"></div>
+    </div>
+    <div class="pane">
+      <p class="lbl">动作记录</p>
+      <div id="wlog" class="log"><p class="msg">还没有动作</p></div>
+    </div>
+  </div>
 </section>
 
 <footer>
@@ -309,7 +351,7 @@
 </div>
 
 <script>
-const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
@@ -327,8 +369,8 @@ const COLS = [
   {k: "ttfa",          f: r => secs(r.ttfa)},
   {k: "gap_p50",       f: r => secs(r.gap_p50)},
   {k: "gap_p95",       f: r => secs(r.gap_p95)},
-  {k: "distinct_keys", f: r => r.distinct_keys ?? 0},
-  {k: "reads",         f: r => r.reads ?? 0},
+  {k: "distinct_keys", f: r => r.distinct_keys ?? "-"},
+  {k: "reads",         f: r => r.reads ?? "-"},
   {k: "played",        f: r => mmss(r.played)},
   {k: "reason",        f: r => why(r)},
 ];
@@ -346,6 +388,8 @@ const I = {
 };
 
 function why(r) {
+  if (r.running) return `<span class="runtag"><span class="pulse"></span>`
+    + `${T.running} · ${T.left} ${mmss(r.remaining)}</span>`;
   if (r.error)              return `<span class="why bad">${I.bad}${T.err}</span>`;
   if (r.reason === "time")  return `<span class="why ok">${I.ok}${T.full}</span>`;
   if (r.reason === "idle")  return `<span class="why warn">${I.warn}${T.idle}</span>`;
@@ -372,6 +416,8 @@ function spark(keys) {
 // playing at once. Native controls on every card were the noisiest thing here;
 // the clip links to its own mp4 instead.
 function clip(r) {
+  if (r.running) return `<canvas class="live-cv" data-sid="${r.id}"
+    width="320" height="200"></canvas>`;
   if (!r.video_url) return `<div class="none">${T.novideo}</div>`;
   return `<a class="clip" href="${r.video_url}" title="mp4"
     ><video src="${r.video_url}" muted loop playsinline preload="none"></video></a>`;
@@ -389,11 +435,12 @@ let runs = [], view = "grid", sort = "started", desc = true;
 // The four numbers under the copy box. All derived, none hardcoded, redrawn on
 // both the catalogue poll and the five second live poll.
 function drawStats() {
-  const secs = runs.reduce((a, r) => a + (r.played || 0), 0);
+  const all = entries();
+  const secs = all.reduce((a, r) => a + (r.played || 0), 0);
   const dur = secs >= 3600 ? (secs / 3600).toFixed(1) + "h"
             : secs >= 60 ? Math.round(secs / 60) + "m" : secs + "s";
   const vals = [live.length, runs.length,
-                new Set(runs.map(r => r.agent)).size, dur];
+                new Set(all.map(r => r.agent)).size, dur];
   document.querySelectorAll("#stats b[data-s]").forEach(b => {
     b.textContent = vals[+b.dataset.s];
   });
@@ -404,8 +451,48 @@ function drawStats() {
   else if (!live.length && dot) dot.remove();
 }
 
+// A running session is shown alongside finished ones, carrying whatever the
+// stream has told us so far. It always sorts first: it is the newest thing
+// happening and the only one worth watching.
+function entries() {
+  const now = Date.now() / 1000;
+  return live.map(s => {
+    const st = stat.get(s.id) || {};
+    const up = st.uptime_s || Math.max(0, now - s.started);
+    return {id: s.id, agent: s.agent, running: true, started: s.started,
+            remaining: s.remaining, played: Math.round(up),
+            actions: st.actions || 0,
+            aps: up > 1 && st.actions ? +(st.actions / up).toFixed(3) : 0,
+            distinct_keys: null, reads: null, ttfa: null,
+            gap_p50: null, gap_p95: null, reason: "running"};
+  }).concat(runs);
+}
+
+// Cells that must track a run in flight. Re-rendering would tear down the
+// canvases the live feeds are painting into, so these are patched in place.
+const lv = (r, f) => r.running ? `data-live="${r.id}:${f}"` : "";
+
+function refreshLive() {
+  const by = {};
+  for (const e of entries()) if (e.running) by[e.id] = e;
+  document.querySelectorAll("[data-live]").forEach(el => {
+    const [sid, f] = el.dataset.live.split(":");
+    const r = by[sid];
+    if (!r) return;
+    if (f === "acts") el.textContent = `${r.actions} · ${r.aps.toFixed(2)}/s`;
+    else if (f === "played") el.textContent = mmss(r.played);
+    else if (f === "tag") el.innerHTML = why(r);
+    else {
+      const c = COLS.find(x => x.k === f);
+      if (c) el.innerHTML = c.f(r);
+    }
+  });
+}
+
 function sorted() {
-  return [...runs].sort((a, b) => {
+  const all = entries();
+  return all.sort((a, b) => {
+    if (a.running !== b.running) return a.running ? -1 : 1;
     const x = a[sort], y = b[sort], bad = v => v == null || v === "";
     if (bad(x) && bad(y)) return 0;
     if (bad(x)) return 1;                        // missing always sinks
@@ -417,43 +504,57 @@ function sorted() {
 
 function render() {
   const out = document.getElementById("out");
-  if (!runs.length) { out.className = "msg"; out.textContent = T.empty; return; }
+  // running sessions count as rows, so an empty catalogue is not an empty page
   const rows = sorted();
+  if (!rows.length) { out.className = "msg"; out.textContent = T.empty; return; }
 
   if (view === "list") {
     out.className = "rows";
     out.innerHTML = rows.map(r => `
-      <div class="row">
+      <div class="row${r.running ? " on" : ""}"
+           ${r.running ? `data-open="${r.id}" data-agent="${r.agent}" style="cursor:pointer"` : ""}>
         ${clip(r)}
         <div class="f">
           <div class="nm"><u>${T.agent}</u>
             <b style="color:${hue(r.agent)}">${r.agent}</b></div>
           ${COLS.filter(c => c.k !== "started").map(c =>
-            `<div><u>${T.cols[c.k]}</u><b>${c.f(r)}</b></div>`).join("")}
+            `<div><u>${T.cols[c.k]}</u><b ${lv(r, c.k)}>${c.f(r)}</b></div>`).join("")}
         </div>
       </div>`).join("");
     out.querySelectorAll("video").forEach(v => seen.observe(v));
+    out.querySelectorAll(".live-cv").forEach(c => feedSeen.observe(c));
+    wireOpen(out);
     return;
   }
 
   out.className = "grid";
   out.innerHTML = rows.map(r => `
-    <div class="card">
+    <div class="card${r.running ? " on" : ""}"
+         ${r.running ? `data-open="${r.id}" data-agent="${r.agent}" style="cursor:pointer"` : ""}>
       ${clip(r)}
       <div class="cmeta">
         <div class="who"><i class="dot" style="background:${hue(r.agent)}"></i>${r.agent}</div>
         <div class="kv">
-          <span>${T.cols.actions}</span><b>${r.actions ?? 0} · ${(r.aps ?? 0).toFixed(2)}/s</b>
+          <span>${T.cols.actions}</span><b ${lv(r, "acts")}>${r.actions ?? 0} · ${(r.aps ?? 0).toFixed(2)}/s</b>
           <span>${T.cols.ttfa}</span><b>${secs(r.ttfa)}</b>
           <span>${T.cols.gap_p50} / p95</span><b>${secs(r.gap_p50)} / ${secs(r.gap_p95)}</b>
-          <span>${T.cols.distinct_keys}</span><b>${r.distinct_keys ?? 0} · ${r.reads ?? 0}</b>
-          <span>${T.cols.played}</span><b>${mmss(r.played)}</b>
+          <span>${T.cols.distinct_keys}</span><b>${r.distinct_keys ?? "-"} · ${r.reads ?? "-"}</b>
+          <span>${T.cols.played}</span><b ${lv(r, "played")}>${mmss(r.played)}</b>
         </div>
         ${spark(r.keys)}
-        <div style="margin-top:9px">${why(r)}</div>
+        <div style="margin-top:9px" ${lv(r, "tag")}>${why(r)}</div>
       </div>
     </div>`).join("");
   out.querySelectorAll("video").forEach(v => seen.observe(v));
+  out.querySelectorAll(".live-cv").forEach(c => feedSeen.observe(c));
+  wireOpen(out);
+}
+
+function wireOpen(root) {
+  root.querySelectorAll("[data-open]").forEach(el => el.onclick = ev => {
+    if (ev.target.closest("a")) return;
+    open(el.dataset.open, el.dataset.agent, true);
+  });
 }
 
 async function load() {
@@ -516,30 +617,54 @@ let live = [], sock = null, held = new Set(), recent = [], watchId = null;
 
 function mmssLeft(s) { return mmss(s); }
 
-function drawLive() {
-  const box = $("live"), list = $("livelist");
-  box.hidden = !live.length;
-  if (!live.length) return;
-  list.innerHTML = live.map(s =>
-    `<button class="lv" data-sid="${s.id}" data-agent="${s.agent}">
-       <span class="pulse"></span>
-       <span style="color:${hue(s.agent)}">${s.agent}</span>
-       <em>${T.left} ${mmss(s.remaining)}</em>
-     </button>`).join("");
-}
+// One spectator socket per running card, opened only while the card is on
+// screen. Frames come off the same stream the detail view uses, so a live
+// thumbnail costs no extra screenshot endpoint and never counts as a read
+// against the agent being watched.
+const feeds = new Map();
 
-$("livelist").onclick = e => {
-  const b = e.target.closest("[data-sid]");
-  if (b) open(b.dataset.sid, b.dataset.agent, true);
-};
+function feedOpen(cv) {
+  const sid = cv.dataset.sid;
+  if (feeds.has(sid)) return;
+  const ws = new WebSocket(BACKEND.replace(/^http/, "ws") + `/s/${sid}/ws`);
+  ws.binaryType = "arraybuffer";
+  const cache = {};
+  ws.onmessage = e => {
+    if (typeof e.data === "string") {
+      const m = JSON.parse(e.data);
+      if (m.t === "log" && m.s) { stat.set(sid, m.s); drawStats(); refreshLive(); }
+      return;
+    }
+    inflate(e.data).then(d => paintDelta(d, cv, cache));
+  };
+  feeds.set(sid, ws);
+}
+function feedClose(cv) {
+  const ws = feeds.get(cv.dataset.sid);
+  if (ws) { feeds.delete(cv.dataset.sid); ws.close(); }
+}
+const feedSeen = new IntersectionObserver(es => es.forEach(e =>
+  e.isIntersecting ? feedOpen(e.target) : feedClose(e.target)), {rootMargin: "200px"});
+
+// live session_summary per sid, straight off the stream
+const stat = new Map();
+
+function drawLive() {
+  const gone = new Set(feeds.keys());
+  live.forEach(s => gone.delete(s.id));
+  gone.forEach(sid => { feeds.get(sid).close(); feeds.delete(sid); stat.delete(sid); });
+}
 
 async function pollLive() {
   try {
     const d = await fetch(BACKEND + "/api/sessions", {cache: "no-store"}).then(r => r.json());
     live = d.running || [];
   } catch { live = []; }
+  const before = live.map(s => s.id).join();
   drawLive();
   drawStats();
+  if (live.map(s => s.id).join() !== before) render();   // a run started or ended
+  else refreshLive();
   if (watchId) {
     const s = live.find(x => x.id === watchId);
     $("wleft").textContent = s ? `${T.left} ${mmss(s.remaining)}` : T.over;
@@ -554,10 +679,10 @@ async function inflate(buf) {
 }
 
 // Paints one tile delta. Same wire format the interactive client uses; the
-// spectator just never sends anything back.
-const cache = {};
-function paint(d) {
-  const cv = $("cv"), c2d = cv.getContext("2d", {alpha: false});
+// spectator just never sends anything back. Each canvas carries its own tile
+// cache so a wall of live cards and the big view can share this.
+function paintDelta(d, cv, cache) {
+  const c2d = cv.getContext("2d", {alpha: false});
   const dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
   const w = dv.getUint16(1, true), h = dv.getUint16(3, true);
   const tw = d[5], th = d[6];
@@ -579,8 +704,10 @@ function paint(d) {
     }
     c2d.putImageData(cache.img, (t % cols) * tw, Math.floor(t / cols) * th);
   }
-  $("veil").classList.add("gone");
 }
+
+const cache = {};
+function paint(d) { paintDelta(d, $("cv"), cache); $("veil").classList.add("gone"); }
 
 const GLYPH = {up: "↗", kp9: "↗", down: "↙", kp1: "↙", left: "↖", kp7: "↖",
                right: "↘", kp3: "↘", enter: "⏎", space: "␣", escape: "esc",
@@ -589,6 +716,50 @@ const GLYPH = {up: "↗", kp9: "↗", down: "↙", kp1: "↙", left: "↖", kp7:
 function drawKeys() {
   $("wkeys").innerHTML = recent.slice(-14)
     .map(k => `<i class="${held.has(k) ? "on" : ""}">${GLYPH[k] || k}</i>`).join("");
+}
+
+// ---- the detail view's live panes, all fed by the same socket ----
+let wlog = [], wsum = {};
+
+function keysOf(target) {
+  // "kp3 x4" is one action pressing kp3 four times; "kp9 enter" is two keys
+  return String(target || "").split(/\s+/).filter(Boolean).flatMap(w => {
+    const m = w.match(/^x(\d+)$/);
+    return m ? [] : [w];
+  });
+}
+
+function drawWatchPanes() {
+  const up = wsum.uptime_s || 0, n = wsum.actions || 0;
+  const counts = {};
+  let repeats = 0;
+  for (const e of wlog) {
+    if (!["KEY", "KEYS", "WAIT"].includes(e.verb)) continue;
+    const parts = String(e.target || "").split(/\s+/).filter(Boolean);
+    const mult = (parts.find(w => /^x\d+$/.test(w)) || "x1").slice(1);
+    for (const k of keysOf(e.target)) counts[k] = (counts[k] || 0) + (+mult || 1);
+  }
+  const vals = [n, up > 1 && n ? (n / up).toFixed(2) : "0.00",
+                mmss(up), Object.keys(counts).length];
+  document.querySelectorAll("#wstats b[data-w]").forEach(b => {
+    b.textContent = vals[+b.dataset.w];
+  });
+
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const max = top.length ? top[0][1] : 1;
+  $("whist").innerHTML = top.length
+    ? top.map(([k, c]) => `<div><u>${GLYPH[k] || k}</u>`
+        + `<i style="width:${Math.max(3, c / max * 100)}%"></i><b>${c}</b></div>`).join("")
+    : `<p class="msg" style="padding:8px 0">${T.nolog}</p>`;
+
+  const rows = wlog.slice(-120).reverse();
+  $("wlog").innerHTML = rows.length ? rows.map(e => {
+    const t = new Date(e.at * 1000).toLocaleTimeString([], {hour12: false});
+    return `<div class="r"><span class="t">${t}</span>`
+      + `<span class="v${e.ok ? "" : " bad"}">${e.verb}</span>`
+      + `<span>${keysOf(e.target).map(k => GLYPH[k] || k).join(" ") || e.target}</span>`
+      + `<span class="d">${e.detail || ""}</span></div>`;
+  }).join("") : `<p class="msg">${T.nolog}</p>`;
 }
 
 function connect(sid) {
@@ -602,6 +773,12 @@ function connect(sid) {
       if (m.down) { held.add(m.k); recent.push(m.k); recent = recent.slice(-24); }
       else held.delete(m.k);
       drawKeys();
+    } else if (m.t === "log") {
+      // the first message carries the backlog, later ones carry one entry
+      const seen = new Set(wlog.map(x => x.id));
+      for (const x of m.e || []) if (!seen.has(x.id)) wlog.push(x);
+      if (m.s) wsum = m.s;
+      drawWatchPanes();
     }
   };
   sock.onclose = () => {
@@ -622,6 +799,7 @@ function open(sid, agent, push) {
   $("veil").textContent = T.waiting;
   $("veil").classList.remove("gone");
   held.clear(); recent = []; drawKeys();
+  wlog = []; wsum = {}; drawWatchPanes();
   document.body.classList.add("watching");
   watchId = sid;
   if (push) history.pushState({sid, agent}, "",
