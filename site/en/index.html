@@ -458,11 +458,12 @@ function entries() {
   const now = Date.now() / 1000;
   return live.map(s => {
     const st = stat.get(s.id) || {};
-    const up = st.uptime_s || Math.max(0, now - s.started);
+    const up = st.uptime_s || s.uptime || Math.max(0, now - s.started);
     return {id: s.id, agent: s.agent, running: true, started: s.started,
             remaining: s.remaining, played: Math.round(up),
-            actions: st.actions || 0,
-            aps: up > 1 && st.actions ? +(st.actions / up).toFixed(3) : 0,
+            actions: st.actions ?? s.actions ?? 0,
+            aps: (() => { const n = st.actions ?? s.actions ?? 0;
+                          return up > 1 && n ? +(n / up).toFixed(3) : 0; })(),
             distinct_keys: null, reads: null, ttfa: null,
             gap_p50: null, gap_p95: null, reason: "running"};
   }).concat(runs);

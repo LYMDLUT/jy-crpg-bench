@@ -317,6 +317,8 @@ async def api_sessions(_request):
         {"capacity": MAX_SESSIONS, "running": [
             {"id": s["id"], "agent": s["agent"],
              "started": s["started"], "watchers": s.get("watchers", 0),
+             "actions": s.get("live_actions", 0),
+             "uptime": round(s.get("live_uptime", 0)),
              "remaining": max(0, round(s["ends_at"] - now))}
             for s in sessions.values()
             if s["proc"].poll() is None and not result_of(s["id"])]},
@@ -356,11 +358,31 @@ async def index(_request):
 
 
 async def sweep(app):
-    """A finished run's game copy is 123MB; give it back once the process that
-    owned it is gone. Cannot be done by the run itself, which is still holding
-    those files open as it exits."""
+    """Housekeeping, on the broker's own clock rather than a caller's.
+
+    Reclaims a finished run's 123MB game copy once the process that owned it is
+    gone - the run cannot do that itself, since it is still holding those files
+    open as it exits. Also refreshes the live action counts, cached here so a
+    page full of viewers costs the same as one.
+    """
+    tick = 0
     while True:
-        await asyncio.sleep(30)
+        await asyncio.sleep(3)
+        tick += 1
+        async with aiohttp.ClientSession() as http:
+            for s in list(sessions.values()):
+                if s["proc"].poll() is not None or result_of(s["id"]):
+                    continue
+                try:
+                    async with http.get(f"http://127.0.0.1:{s['port']}/status",
+                                        timeout=aiohttp.ClientTimeout(total=3)) as r:
+                        d = (await r.json()).get("session", {})
+                        s["live_actions"] = d.get("actions", 0)
+                        s["live_uptime"] = d.get("uptime_s", 0)
+                except Exception:
+                    pass
+        if tick % 10:
+            continue
         for s in list(sessions.values()):
             work = s.get("work")
             if work and s["proc"].poll() is not None and work.exists():

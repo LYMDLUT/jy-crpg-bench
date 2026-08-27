@@ -546,8 +546,11 @@ async def run_action(request, steps, note, verb="KEY"):
         log_action(rec["actor"], verb, note, detail=held_note(steps))
         rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         if warden.ON:
-            warden.note_action([s[2] or s[0] for s in steps if s[0] != "wait"]
-                               or ["(wait)"], note)
+            # Only key steps carry a name at index 2; "wait" and "frames" are
+            # pairs. Filtering by kind broke the moment a new pause kind was
+            # added, so key off the shape instead.
+            warden.note_action([s[2] for s in steps if len(s) > 2] or ["(wait)"],
+                               note)
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
