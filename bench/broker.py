@@ -458,6 +458,7 @@ def live_payload():
                  "places": s.get("live_places", 0),
                  "meaningful": s.get("live_meaningful", 0),
                  "dialogue": s.get("live_dialogue", 0),
+                 "stall": s.get("live_stall", 0),
                  "uptime": round(s.get("live_uptime", 0)),
                  "budget": s.get("budget"),
                  "watchers": s.get("watchers", 0),
@@ -497,6 +498,7 @@ async def sweep(app):
                         s["live_places"] = d.get("places", 0)
                         s["live_meaningful"] = d.get("meaningful", 0)
                         s["live_dialogue"] = d.get("dialogue", 0)
+                        s["live_stall"] = d.get("stall", 0)
                 except Exception:
                     pass
 

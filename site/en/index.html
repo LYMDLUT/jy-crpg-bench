@@ -135,15 +135,28 @@
   .cmeta { padding: 11px 13px 13px; border-top: 1px solid var(--line); }
   .who { display: flex; align-items: center; gap: 7px; font-family: var(--mono);
          font-weight: 600; font-size: 13.5px; word-break: break-all; }
+  .who span { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+              white-space: nowrap; }
+  .dl { margin-left: auto; flex: none; border: 0; color: var(--dim);
+        display: inline-flex; padding: 3px; border-radius: 5px; }
+  .dl:hover { color: var(--ink); background: #f0f0f0; }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
   .kv { margin-top: 9px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
         font-size: 12px; }
   .kv span { color: var(--dim); }
   .kv b { font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums;
           text-align: right; letter-spacing: -.1px; }
-  .spark { display: flex; gap: 1.5px; align-items: flex-end; height: 22px; margin-top: 11px; }
-  .spark i { flex: 1; background: #a3a3a3; border-radius: 1px 1px 0 0; min-height: 2px; }
-  .spark i:hover { background: var(--ink); }
+  /* labelled: an unlabelled bar chart of keys says nothing about which key */
+  .spark { display: flex; gap: 4px; align-items: flex-end; height: 42px;
+           margin-top: 12px; }
+  .spark > div { flex: 1; min-width: 0; height: 100%; display: flex;
+                 flex-direction: column; justify-content: flex-end;
+                 align-items: center; gap: 3px; }
+  .spark i { width: 100%; background: #cfcfcf; border-radius: 2px 2px 0 0;
+             min-height: 2px; }
+  .spark > div:hover i { background: var(--ink); }
+  .spark u { text-decoration: none; font: 10px var(--mono); color: var(--dim);
+             line-height: 1; }
 
   .why { display: inline-flex; align-items: center; gap: 4px; font: 11px var(--mono);
          color: var(--dim); white-space: nowrap; }
@@ -494,7 +507,7 @@
 </div>
 
 <script>
-const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "places": "places", "reach": "new/act", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "places reached", "progress": "progress vs actions", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "places": "places", "reach": "new/act", "meaningful": "meaningful", "oscillation": "oscillation", "stall": "longest stall", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "places reached", "progress": "progress vs actions", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -519,6 +532,7 @@ const COLS = [
   {k: "gap_p50",       f: r => secs(r.gap_p50)},
   {k: "meaningful",    f: r => r.meaningful == null ? "-" : r.meaningful.toFixed(2)},
   {k: "oscillation",   f: r => r.oscillation == null ? "-" : r.oscillation.toFixed(2)},
+  {k: "stall",         f: r => r.stall == null ? "-" : r.stall},
   {k: "distinct_keys", f: r => r.distinct_keys ?? "-"},
   {k: "played",        f: r => mmss(r.played)},
   {k: "reason",        f: r => why(r)},
@@ -555,9 +569,11 @@ function hue(name) {
 function spark(keys) {
   const e = Object.entries(keys || {});
   if (!e.length) return "";
-  const top = e.slice(0, 16), max = Math.max(...top.map(x => x[1]));
+  // labelled: an unlabelled bar chart of keys is unreadable
+  const top = e.slice(0, 8), max = Math.max(...top.map(x => x[1]));
   return `<div class="spark" title="${T.keyspace}">` + top.map(([k, n]) =>
-    `<i style="height:${Math.max(9, n / max * 100)}%" title="${k}: ${n}"></i>`
+    `<div title="${k}: ${n}"><i style="height:${Math.max(9, n / max * 100)}%"></i>`
+    + `<u>${GLYPH[k] || k}</u></div>`
   ).join("") + `</div>`;
 }
 
@@ -568,9 +584,13 @@ function clip(r) {
   if (r.running) return `<img class="live-cv" data-sid="${r.id}" alt="" loading="lazy"
     src="${STORE}/live/${r.id}.jpg?v=${r.shot || 0}">`;
   if (!r.video_url) return `<div class="none">${T.novideo}</div>`;
-  return `<a class="clip" href="${r.video_url}" title="mp4"
-    ><video src="${r.video_url}" muted loop playsinline preload="none"></video></a>`;
+  // not a link any more: thumbnail and card both open the run
+  return `<video src="${r.video_url}" muted loop playsinline preload="none"></video>`;
 }
+
+const DL = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+  stroke="currentColor" stroke-width="1.4" stroke-linecap="round"
+  stroke-linejoin="round"><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>`;
 
 // Fifty runs is fifty video streams, so only what is on screen actually plays.
 const seen = new IntersectionObserver(es => es.forEach(e => {
@@ -619,7 +639,7 @@ function entries() {
             shot: s.shot || 0,
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             dialogue: s.dialogue || 0,
-            oscillation: null,
+            oscillation: null, stall: s.stall ?? null,
             distinct_keys: null, reads: null, ttfa: null,
             gap_p50: null, gap_p95: null, reason: "running"};
   }).concat(runs);
@@ -639,6 +659,7 @@ function refreshLive() {
     if (f === "acts") el.textContent = `${r.actions} · ${r.aps.toFixed(2)}/s`;
     else if (f === "places") el.textContent = `${r.places} · ${r.reach.toFixed(2)}`;
     else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
+    else if (f === "stall") el.textContent = r.stall ?? "-";
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
     else {
@@ -694,12 +715,16 @@ function render() {
          style="cursor:pointer">
       ${clip(r)}
       <div class="cmeta">
-        <div class="who"><i class="dot" style="background:${hue(r.agent)}"></i>${r.agent}</div>
+        <div class="who"><i class="dot" style="background:${hue(r.agent)}"></i>
+          <span>${r.agent}</span>
+          ${r.video_url ? `<a class="dl" href="${r.video_url}" download
+             title="${T.download}" aria-label="${T.download}">${DL}</a>` : ""}</div>
         <div class="kv">
           <span>${T.cols.places}</span><b ${lv(r, "places")}>${r.places ?? 0} · ${(r.reach ?? 0).toFixed(2)}</b>
           <span>${T.cols.meaningful}</span><b ${lv(r, "meaningful")}>${
             r.meaningful == null ? "-" : r.meaningful.toFixed(2)}${
             r.oscillation == null ? "" : ` · ${r.oscillation.toFixed(2)}`}</b>
+          <span>${T.cols.stall}</span><b ${lv(r, "stall")}>${r.stall ?? "-"}</b>
           <span>${T.cols.actions}</span><b ${lv(r, "acts")}>${r.actions ?? 0} · ${(r.aps ?? 0).toFixed(2)}/s</b>
           <span>${T.cols.ttfa}</span><b>${secs(r.ttfa)}</b>
           <span>${T.cols.gap_p50} / p95</span><b>${secs(r.gap_p50)} / ${secs(r.gap_p95)}</b>

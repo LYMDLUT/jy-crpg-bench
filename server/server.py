@@ -140,7 +140,11 @@ places: set = set()
 #     over steps taken.
 #   progress vs steps      - TextQuests (2507.23701) and BALROG (2411.13543)
 #     both report progress as a curve against step count, not a single number.
-beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": None}
+beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": None,
+       # the longest run of actions that turned up nothing new. Distinct
+       # screens already say how far an agent got; this says how long it went
+       # in circles before it got there, which the totals hide.
+       "stall": 0, "since": 0}
 curve: list = []          # (action index, places) sampled as the run goes
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
@@ -400,6 +404,11 @@ def note_place():
     if looks_like_dialogue(fp) and not looks_like_dialogue(before):
         beh["dialogue"] += 1
     beh["prev"], beh["last"] = before, fp
+    if fp in places:
+        beh["since"] += 1
+        beh["stall"] = max(beh["stall"], beh["since"])
+    else:
+        beh["since"] = 0
     places.add(fp)
     if not curve or session["actions"] - curve[-1][0] >= 5:
         curve.append((session["actions"], len(places)))
@@ -413,6 +422,7 @@ def session_summary():
             "meaningful": beh["meaningful"],
             "oscillation": beh["oscillation"],
             "dialogue": beh["dialogue"],
+            "stall": beh["stall"],
             "by_api": session["by_api"], "by_web": session["by_web"],
             "agents": dict(agents.most_common(8))}
 
@@ -638,6 +648,7 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
             warden.run["dialogue"] = beh["dialogue"]
+            warden.run["stall"] = beh["stall"]
             warden.run["curve"] = list(curve)
     finally:
         api_lock.release()
@@ -789,7 +800,8 @@ async def api_reset(request):
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         places.clear()
         curve.clear()
-        beh.update(meaningful=0, oscillation=0, dialogue=0, last=None, prev=None)
+        beh.update(meaningful=0, oscillation=0, dialogue=0, last=None,
+                   prev=None, stall=0, since=0)
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()
