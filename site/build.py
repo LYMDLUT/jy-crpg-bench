@@ -137,9 +137,10 @@ TEMPLATE = r"""<!doctype html>
   .lang {{ font-family: var(--mono); font-size: 12px; padding: 0 10px; width: auto;
           height: 30px; }}
 
-  header {{ padding: 34px 0 26px; }}
-  .top {{ display: flex; align-items: center; gap: 20px; }}
+  header {{ padding: 18px 0 26px; }}
+  .top {{ display: flex; }}
   .acts {{ margin-left: auto; display: flex; gap: 8px; flex: none; }}
+  .hero {{ text-align: center; padding: 30px 0 0; }}
   h1 {{ margin: 0; font-size: 20px; font-weight: 400; line-height: 1.3; }}
   /* Pixelify Sans has real lowercase; Silkscreen renders as caps, which fought
      the lowercase project name used everywhere else. Latin only either way, so
@@ -147,17 +148,20 @@ TEMPLATE = r"""<!doctype html>
      which reads as deliberate rather than as a missing glyph. */
   h1 .px {{ font-family: "Pixelify Sans", ui-monospace, monospace; font-weight: 700;
            font-size: 25px; letter-spacing: -.2px; }}
-  h1 em {{ font-style: normal; font-size: 18px; color: var(--dim); margin-left: 4px; }}
-  .tagline {{ margin: 10px 0 0; color: var(--dim); max-width: 60ch; font-size: 14px; }}
-  .oneline {{ margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
+  .tagline {{ margin: 10px auto 0; color: var(--dim); max-width: 60ch; font-size: 14px; }}
+  .oneline {{ margin: 22px auto 0; max-width: 820px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }}
   .mins {{ border: 0; border-right: 1px solid var(--edge); border-radius: 0;
-          background: #f2f4f7; padding: 0 12px; height: auto; flex: none;
+          background: #f2f4f7; padding: 0 12px; height: auto; flex: none; align-self: stretch;
           font: 12px var(--mono); color: var(--ink); cursor: pointer; }}
   .mins:hover {{ background: #e8ebf0; }}
+  /* One line, never wrapped and never scrolled: the type shrinks to fit the
+     box instead, so the whole thing the reader is meant to copy is always
+     visible at a glance. Sized by fitOne() below. */
   .oneline code {{ flex: 1; min-width: 0; padding: 12px 14px; font-family: var(--mono);
-                  font-size: 13px; overflow-x: auto; white-space: nowrap; }}
+                  font-size: 13px; text-align: left; white-space: nowrap;
+                  overflow: hidden; line-height: 1.45; }}
   .oneline button {{ border: 0; border-left: 1px solid var(--edge); background: #f2f4f7;
                     color: var(--ink); cursor: pointer; padding: 0 14px; gap: 7px;
                     display: flex; align-items: center; font: 12px var(--mono); }}
@@ -306,6 +310,14 @@ TEMPLATE = r"""<!doctype html>
   footer {{ padding: 26px 0 38px; font: 11.5px var(--mono); }}
   footer a {{ color: var(--dim); }}
 
+  /* Give the line the whole box width before shrinking the type to nothing
+     beside the controls. Breakpoint sits just under .oneline's max-width. */
+  @media (max-width: 780px) {{
+    .oneline {{ flex-wrap: wrap; }}
+    .oneline code {{ flex: 1 0 100%; order: -1; border-bottom: 1px solid var(--edge); }}
+    .mins {{ border-right: 1px solid var(--edge); }}
+    .oneline button {{ flex: 1; justify-content: center; }}
+  }}
   @media (max-width: 620px) {{
     .row {{ grid-template-columns: 1fr; }}
     .row video, .row .none {{ width: 100%; }}
@@ -319,7 +331,6 @@ TEMPLATE = r"""<!doctype html>
 <div class="wrap">
 <header>
   <div class="top">
-    <h1><span class="px">jy-crpg-bench</span> <em>金庸群俠傳</em></h1>
     <div class="acts">
       <a class="ico lang" href="{other_href}">{other}</a>
       <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
@@ -327,7 +338,9 @@ TEMPLATE = r"""<!doctype html>
       </a>
     </div>
   </div>
-  <p class="tagline">{tagline}</p>
+  <div class="hero">
+    <h1><span class="px">jy-crpg-bench</span></h1>
+    <p class="tagline">{tagline}</p>
 
   <div class="oneline">
     <select id="mins" class="mins" title="{playtime}" aria-label="{playtime}">{opts_html}</select>
@@ -344,6 +357,7 @@ TEMPLATE = r"""<!doctype html>
         <path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1"/></svg>
       <span>{copy}</span>
     </button>
+  </div>
   </div>
   <div class="rules" id="stats">{stats_skeleton}</div>
 </header>
@@ -678,13 +692,28 @@ document.getElementById("viewseg").onclick = e => {{
 }};
 
 // $ is defined further down, so this section uses the long form
-const ONE = T.oneline;
+const ONE = T.oneline, ONE_PX = 13;
+
+// Monospace width is linear in font-size, so one ratio pass lands it; a second
+// pass covers rounding at the extremes.
+function fitOne() {{
+  const el = document.getElementById("one");
+  el.style.fontSize = ONE_PX + "px";
+  for (let i = 0; i < 2 && el.scrollWidth > el.clientWidth; i++) {{
+    const px = parseFloat(el.style.fontSize);
+    el.style.fontSize = Math.max(9, px * el.clientWidth / el.scrollWidth) + "px";
+  }}
+}}
+
 function drawOne() {{
   const sel = document.getElementById("mins");
   document.getElementById("one").textContent = ONE.replace("%M%", sel.value);
+  fitOne();
 }}
 document.getElementById("mins").onchange = drawOne;
+addEventListener("resize", fitOne);
 drawOne();
+document.fonts.ready.then(fitOne);   // remeasure once the pixel face lands
 
 document.getElementById("copy").onclick = async e => {{
   const b = e.currentTarget, label = b.querySelector("span");
