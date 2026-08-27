@@ -545,7 +545,7 @@ TEMPLATE = r"""<!doctype html>
       <div class="head" id="head"></div>
     </div>
     <span class="tc mono" id="tc">0:00</span>
-    <select id="rate" class="mono" title="{speed}">
+    <select id="rate" class="mono" title="{speed}" aria-label="{speed}">
       <option value="0.5">0.5x</option><option value="1" selected>1x</option>
       <option value="2">2x</option><option value="4">4x</option>
     </select>
@@ -1123,7 +1123,7 @@ function drawWatchPanes() {{
       const hold = Math.max(0, ...(m.keys || []).map(k => k[1] || 0));
       const keys = (m.keys || []).map(([k]) => GLYPH[k] || k).join(" ")
                    || (m.do || "");
-      return `<div class="r seek" data-t="${{m.t}}"><span class="t">${{fmt(m.t)}}</span>`
+      return `<div class="r seek" data-t="${{m.t}}"><span class="t">${{gt(m.t)}}</span>`
         + `<span class="v">#${{m.n}}</span><span>${{keys}}</span>`
         + `<span class="d">${{hold >= 0.25 ? hold.toFixed(1) + "s" : ""}}</span></div>`;
     }}).join("") : `<p class="msg">${{T.nolog}}</p>`;
@@ -1222,8 +1222,17 @@ $("back").onclick = () => close(true);
 // recording itself runs to 100MB+; the video is about 1MB and the browser can
 // seek it natively, so the sidecar is a few KB of "what happened when".
 function fmt(t) {{
-  const m = Math.floor(t / 60), sec = Math.floor(t % 60);
-  return `${{m}}:${{String(sec).padStart(2, "0")}}`;
+  t = Math.max(0, t);
+  const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = Math.floor(t % 60);
+  const mm = h ? String(m).padStart(2, "0") : String(m);
+  return (h ? h + ":" : "") + mm + ":" + String(sec).padStart(2, "0");
+}}
+
+// The video is speed-compressed - four times for a short run, more for a long
+// one - so its own clock means nothing to a reader. Every time shown is the
+// time inside the game.
+function gt(videoSeconds) {{
+  return fmt(videoSeconds * ((tl && tl.speed) || 1));
 }}
 
 function drawMarks() {{
@@ -1249,7 +1258,7 @@ function drawMarks() {{
       const x = m.t / tl.seconds * 100;
       const w = Math.max(0.25, (hold / (tl.speed || 1)) / tl.seconds * 100);
       html += `<b class="${{hold > longest * 0.4 ? "long" : ""}}" title="${{k}} ${{
-        hold.toFixed(2)}}s @ ${{fmt(m.t)}}" data-t="${{m.t}}"
+        hold.toFixed(2)}}s @ ${{gt(m.t)}}" data-t="${{m.t}}"
         style="left:${{x.toFixed(3)}}%;width:${{w.toFixed(3)}}%;top:${{i * 15 + 3}}px"></b>`;
     }}
   }}
@@ -1272,7 +1281,7 @@ function sync() {{
   $("fill").style.width = pct + "%";
   $("head").style.left = pct + "%";
   $("rhead").style.left = pct + "%";
-  $("tc").textContent = `${{fmt(t)}} / ${{fmt(tl.seconds)}}`;
+  $("tc").textContent = `${{gt(t)}} / ${{gt(tl.seconds)}}`;
   const k = atTime(t);
   if (k !== vidT) {{
     vidT = k;
