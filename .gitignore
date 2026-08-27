@@ -30,3 +30,4 @@ ref-kys-pascal/
 saves/*.state
 server/libqunxia.so
 vendor/
+_cat.json

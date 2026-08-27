@@ -157,6 +157,19 @@ def publish(path: pathlib.Path):
     return f"https://storage.googleapis.com/{BUCKET}/{path.name}"
 
 
+def publish_bytes(name, data, mime, max_age=31536000):
+    b = _bucket()
+    if b is None:
+        out = pathlib.Path(os.environ.get("QUNXIA_LOCAL_PUBLIC",
+                                          "/tmp/qunxia-public")) / name
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+        return
+    blob = b.blob(name)
+    blob.cache_control = f"public, max-age={max_age}"
+    blob.upload_from_string(data, content_type=mime)
+
+
 def append_catalog(entry):
     """Nodes finish independently, so the shared list is written with a
     generation precondition and retried rather than last-write-wins."""
@@ -229,8 +242,19 @@ async def warden(rec):
         # renderer its own list rather than one being written underneath it.
         snap = dict(rec, events=list(rec["events"]))
         info = await loop.run_in_executor(None, lambda: render(snap, out, AGENT))
+        timeline = info.pop("timeline", None)
         res["video"] = {k: v for k, v in info.items() if k != "path"}
         res["video_url"] = await loop.run_in_executor(None, publish, out)
+        # The scrubbable replay: a few KB describing what happened when, so the
+        # page can drive the MP4 rather than ship the whole recording.
+        if timeline is not None:
+            timeline.update(agent=AGENT, id=SID, curve=run["curve"][-400:],
+                            keys=dict(sorted(run["keys"].items(),
+                                             key=lambda kv: -kv[1])))
+            await loop.run_in_executor(
+                None, publish_bytes, f"runs/{SID}.json",
+                json.dumps(timeline).encode(), "application/json")
+            res["timeline_url"] = f"runs/{SID}.json"
     except Exception as exc:
         res["error"] = f"{type(exc).__name__}: {exc}"
     try:

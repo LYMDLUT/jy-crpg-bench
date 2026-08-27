@@ -86,6 +86,28 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
     speed = max(speed, span / MAX_VIDEO_SECONDS)
     duration = max(0.2, span / speed)
 
+    # A timeline of what happened and when, in video seconds. A few KB beside
+    # a 1MB MP4, which is what makes the replay scrubbable without shipping the
+    # 100MB+ recording to a browser.
+    marks, held = [], {}
+    for e in events:
+        vt = round((e["t"] - t_start) / speed, 3)
+        if vt < 0:
+            continue
+        if e.get("act") is not None:
+            marks.append({"n": e["act"], "t": vt, "do": e.get("label", ""),
+                          "keys": []})
+        elif e.get("key"):
+            if e.get("down"):
+                held[e["key"]] = e["t"]
+            else:
+                down = held.pop(e["key"], None)
+                if marks:
+                    marks[-1]["keys"].append(
+                        [e["key"], round((e["t"] - down) if down else 0, 3)])
+    timeline = {"speed": round(speed, 3), "seconds": round(duration, 2),
+                "size": [GAME_W, GAME_H + BAR], "bar": BAR, "marks": marks}
+
     canvas = None
     for e in events:
         if "d" in e:
@@ -174,7 +196,8 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
         ff.stdin.close()
         ff.wait()
     return {"path": str(out_path), "seconds": round(duration, 1),
-            "frames": total_frames, "size": f"{out_w}x{out_h}"}
+            "frames": total_frames, "size": f"{out_w}x{out_h}",
+            "speed": round(speed, 3), "timeline": timeline}
 
 
 if __name__ == "__main__":

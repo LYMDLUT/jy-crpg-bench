@@ -194,6 +194,8 @@
   .wtop b { font-size: 15px; }
   .wro { margin-left: auto; font-size: 11px; color: var(--dim);
          border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; }
+  body:not(.islive) .wro, body:not(.islive) #wleft,
+  body:not(.islive) .wtop .pulse { display: none; }
   .screen { position: relative; background: #0b1220; border: 1px solid var(--edge);
             border-radius: 8px; padding: 14px; display: grid; place-items: center; }
   #cv { image-rendering: pixelated; display: block; width: 100%; max-width: 960px;
@@ -202,11 +204,35 @@
           color: #8a93a3; font: 12px var(--mono); background: #0b1220;
           border-radius: 8px; }
   #veil.gone { display: none; }
+  #vid { image-rendering: pixelated; display: block; width: 100%;
+         max-width: 960px; background: #000; aspect-ratio: 320/232;
+         object-fit: contain; }
+
+  /* ---------- replay transport ---------- */
+  .player { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .track { position: relative; flex: 1; height: 26px; cursor: pointer;
+           display: flex; align-items: center; }
+  .track::before { content: ""; position: absolute; left: 0; right: 0; height: 4px;
+                   background: var(--line); border-radius: 2px; }
+  .fill { position: absolute; left: 0; height: 4px; background: var(--ink);
+          border-radius: 2px; width: 0; }
+  .marks { position: absolute; inset: 0; pointer-events: none; }
+  /* every action is a tick you can aim at; the taller ones are held keys */
+  .marks i { position: absolute; top: 50%; width: 2px; margin-top: -7px;
+             height: 14px; background: #c4c4c4; border-radius: 1px; }
+  .marks i.long { height: 20px; margin-top: -10px; background: #9a9a9a; }
+  .head { position: absolute; width: 3px; height: 16px; margin-left: -1px;
+          background: var(--ink); border-radius: 2px; left: 0; }
+  .tc { font-size: 12px; color: var(--dim); min-width: 72px; text-align: right;
+        font-variant-numeric: tabular-nums; }
+  #rate { height: 30px; }
   .wkeys { display: flex; gap: 6px; flex-wrap: wrap; min-height: 30px;
            padding: 12px 2px 0; font-size: 12px; }
   .wkeys i { font-style: normal; border: 1px solid var(--line); border-radius: 5px;
              padding: 3px 9px; background: var(--panel); color: var(--dim); }
   .wkeys i.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .wkeys i u { text-decoration: none; opacity: .65; margin-left: 5px;
+               font-size: 10.5px; }
 
   #wstats { margin-top: 14px; }
   #wstats div { display: block; padding: 11px 16px; }
@@ -368,8 +394,44 @@
     <span class="why warn"><span class="pulse"></span><span id="wleft"></span></span>
     <span class="wro mono">read-only</span>
   </div>
-  <div class="screen"><canvas id="cv" width="320" height="200"></canvas>
-    <div id="veil">waiting for the first frame</div></div>
+  <div class="screen">
+    <canvas id="cv" width="320" height="200"></canvas>
+    <video id="vid" playsinline preload="metadata" hidden></video>
+    <div id="veil">waiting for the first frame</div>
+  </div>
+
+  <div id="player" class="player" hidden>
+    <button class="ico" id="pp" title="play/pause">
+      <svg id="ppi" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"
+        ><path d="M5 3.2v9.6l7.5-4.8z"/></svg>
+    </button>
+    <button class="ico" id="prev" title="previous action">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M11 3 6 8l5 5M4.5 3v10"/></svg>
+    </button>
+    <button class="ico" id="next" title="next action">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M5 3l5 5-5 5M11.5 3v10"/></svg>
+    </button>
+    <div class="track" id="track">
+      <div class="fill" id="fill"></div>
+      <div class="marks" id="tmarks"></div>
+      <div class="head" id="head"></div>
+    </div>
+    <span class="tc mono" id="tc">0:00</span>
+    <select id="rate" class="mono" title="speed">
+      <option value="0.5">0.5x</option><option value="1" selected>1x</option>
+      <option value="2">2x</option><option value="4">4x</option>
+    </select>
+    <a class="ico" id="dl" title="download MP4" download>
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+        ><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>
+    </a>
+  </div>
+
   <div id="wkeys" class="wkeys mono"></div>
 
   <div class="rules" id="wstats">
@@ -400,7 +462,7 @@
 </div>
 
 <script>
-const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "places": "places", "reach": "new/act", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "places reached", "progress": "progress vs actions", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "places": "places", "reach": "new/act", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "places reached", "progress": "progress vs actions", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -576,8 +638,9 @@ function render() {
   if (view === "list") {
     out.className = "rows";
     out.innerHTML = rows.map(r => `
-      <div class="row${r.running ? " on" : ""}"
-           ${r.running ? `data-open="${r.id}" data-agent="${r.agent}" style="cursor:pointer"` : ""}>
+      <div class="row${r.running ? " on" : ""}" data-open="${r.id}"
+           data-agent="${r.agent}" data-mode="${r.running ? "live" : "replay"}"
+           style="cursor:pointer">
         ${clip(r)}
         <div class="f">
           <div class="nm"><u>${T.agent}</u>
@@ -594,8 +657,9 @@ function render() {
 
   out.className = "grid";
   out.innerHTML = rows.map(r => `
-    <div class="card${r.running ? " on" : ""}"
-         ${r.running ? `data-open="${r.id}" data-agent="${r.agent}" style="cursor:pointer"` : ""}>
+    <div class="card${r.running ? " on" : ""}" data-open="${r.id}"
+         data-agent="${r.agent}" data-mode="${r.running ? "live" : "replay"}"
+         style="cursor:pointer">
       ${clip(r)}
       <div class="cmeta">
         <div class="who"><i class="dot" style="background:${hue(r.agent)}"></i>${r.agent}</div>
@@ -622,7 +686,10 @@ function render() {
 function wireOpen(root) {
   root.querySelectorAll("[data-open]").forEach(el => el.onclick = ev => {
     if (ev.target.closest("a")) return;
-    open(el.dataset.open, el.dataset.agent, true);
+    const id = el.dataset.open;
+    if (el.dataset.mode === "live") return open(id, el.dataset.agent, true);
+    const run = runs.find(r => r.id === id);
+    if (run && run.video_url) openReplay(run, true);
   });
 }
 
@@ -818,7 +885,15 @@ const GLYPH = {up: "↗", kp9: "↗", down: "↙", kp1: "↙", left: "↖", kp7:
                right: "↘", kp3: "↘", enter: "⏎", space: "␣", escape: "esc",
                esc: "esc", backspace: "⌫", tab: "⇥"};
 
-function drawKeys() {
+function drawKeys(mark) {
+  if (mark) {
+    // a replayed action knows exactly how long each key was down
+    $("wkeys").innerHTML = (mark.keys || []).map(([k, hold]) =>
+      `<i class="on">${GLYPH[k] || k}${hold > 0.25
+        ? `<u>${hold.toFixed(1)}s</u>` : ""}</i>`).join("")
+      || `<i>${mark.do || ""}</i>`;
+    return;
+  }
   $("wkeys").innerHTML = recent.slice(-14)
     .map(k => `<i class="${held.has(k) ? "on" : ""}">${GLYPH[k] || k}</i>`).join("");
 }
@@ -914,31 +989,135 @@ function connect(sid) {
   };
 }
 
-function open(sid, agent, push) {
+function shell(agent, push, id, live) {
   const s = sock; sock = null; if (s) s.close();
+  const v = $("vid"); v.pause(); v.removeAttribute("src"); v.load();
   cache.img = null;
   $("wname").textContent = agent;
   $("wname").style.color = hue(agent);
-  $("wleft").textContent = "";
-  $("veil").textContent = T.waiting;
-  $("veil").classList.remove("gone");
   held.clear(); recent = []; drawKeys();
   wlog = []; wsum = {}; wcurve = []; drawWatchPanes();
   document.body.classList.add("watching");
-  watchId = sid;
-  if (push) history.pushState({sid, agent}, "",
-    `?watch=${encodeURIComponent(sid)}&agent=${encodeURIComponent(agent)}`);
-  connect(sid);
+  document.body.classList.toggle("islive", !!live);
+  watchId = live ? id : null;
+  if (push) {
+    const q = live ? "watch" : "run";
+    history.pushState({[q]: id, agent}, "",
+      `?${q}=${encodeURIComponent(id)}`);
+  }
   scrollTo(0, 0);
+}
+
+function open(sid, agent, push) {
+  shell(agent, push, sid, true);
+  $("cv").hidden = false; $("vid").hidden = true; $("player").hidden = true;
+  $("veil").textContent = T.waiting;
+  $("veil").classList.remove("gone");
+  connect(sid);
 }
 
 function close(push) {
   const s = sock; sock = null; watchId = null; if (s) s.close();
-  document.body.classList.remove("watching");
+  const v = $("vid"); v.pause(); v.removeAttribute("src"); v.load();
+  tl = null; marks = [];
+  document.body.classList.remove("watching", "islive");
   if (push) history.pushState({}, "", location.pathname);
 }
 
 $("back").onclick = () => close(true);
+
+// ------------------------------------------------------------------ replay
+
+// A finished run is watched by driving the MP4 from its timeline sidecar. The
+// recording itself runs to 100MB+; the video is about 1MB and the browser can
+// seek it natively, so the sidecar is a few KB of "what happened when".
+let tl = null, marks = [], vidT = 0;
+
+function fmt(t) {
+  const m = Math.floor(t / 60), sec = Math.floor(t % 60);
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+function drawMarks() {
+  if (!tl || !tl.seconds) return;
+  const longest = Math.max(0.001, ...marks.map(m => m.hold || 0));
+  $("tmarks").innerHTML = marks.map(m =>
+    `<i class="${(m.hold || 0) > longest * 0.4 ? "long" : ""}"
+        style="left:${(m.t / tl.seconds * 100).toFixed(3)}%"></i>`).join("");
+}
+
+function atTime(t) {
+  let lo = 0, hi = marks.length - 1, k = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (marks[mid].t <= t) { k = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  return k;
+}
+
+function sync() {
+  const v = $("vid");
+  if (!tl || $("vid").hidden) return;
+  const t = v.currentTime, pct = tl.seconds ? t / tl.seconds * 100 : 0;
+  $("fill").style.width = pct + "%";
+  $("head").style.left = pct + "%";
+  $("tc").textContent = `${fmt(t)} / ${fmt(tl.seconds)}`;
+  const k = atTime(t);
+  if (k !== vidT) {
+    vidT = k;
+    const m = marks[k];
+    recent = m ? (m.keys || []).map(x => x[0]) : [];
+    held.clear();
+    drawKeys(m);
+    wsum = {...wsum, actions: m ? m.n : 0};
+    wcurve = (tl.curve || []).filter(p => p[0] <= (m ? m.n : 0));
+    drawWatchPanes();
+  }
+}
+
+function seek(t) {
+  const v = $("vid");
+  v.currentTime = Math.max(0, Math.min(tl.seconds - 0.05, t));
+  sync();
+}
+
+$("track").onclick = e => {
+  if (!tl) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  seek((e.clientX - r.left) / r.width * tl.seconds);
+};
+$("pp").onclick = () => { const v = $("vid"); v.paused ? v.play() : v.pause(); };
+$("prev").onclick = () => { const k = atTime($("vid").currentTime - 0.05);
+                           if (k > 0) seek(marks[k - 1].t); };
+$("next").onclick = () => { const k = atTime($("vid").currentTime);
+                           if (k + 1 < marks.length) seek(marks[k + 1].t); };
+$("rate").onchange = e => { $("vid").playbackRate = +e.target.value; };
+
+async function openReplay(run, push) {
+  shell(run.agent, push, run.id, false);
+  tl = null; marks = []; vidT = -1;
+  $("veil").textContent = T.loading2;
+  $("veil").classList.remove("gone");
+  $("cv").hidden = true; $("vid").hidden = false; $("player").hidden = false;
+  $("wleft").textContent = "";
+  const v = $("vid");
+  v.src = run.video_url; v.playbackRate = +$("rate").value;
+  $("dl").href = run.video_url;
+  try {
+    tl = await fetch(`${STORE}/runs/${run.id}.json`).then(r => r.json());
+  } catch { tl = null; }
+  if (!tl) { tl = {seconds: 0, marks: [], curve: run.curve || []}; }
+  marks = (tl.marks || []).map(m => ({
+    ...m, hold: Math.max(0, ...(m.keys || []).map(k => k[1] || 0))}));
+  wsum = {places: run.places, uptime_s: run.played, actions: 0};
+  wlog = []; drawMarks();
+  v.onloadedmetadata = () => { if (!tl.seconds) tl.seconds = v.duration; sync(); };
+  v.ontimeupdate = sync;
+  v.onplay = () => $("ppi").setAttribute("d", "M4.5 3h2.6v10H4.5zM8.9 3h2.6v10H8.9z");
+  v.onpause = () => $("ppi").setAttribute("d", "M5 3.2v9.6l7.5-4.8z");
+  $("veil").classList.add("gone");
+  v.play().catch(() => {});
+}
 
 // ------------------------------------------------------------------ brief
 
@@ -964,7 +1143,8 @@ addEventListener("popstate", e => {
   const st = e.state || {};
   if (st.doc) return showDoc(false);
   hideDoc(false);
-  st.sid ? open(st.sid, st.agent, false) : close(false);
+  if (st.watch || st.run) return route(st, false);
+  close(false);
 });
 
 addEventListener("keydown", e => {
@@ -987,9 +1167,23 @@ tick(load, 30000);
 tick(pollLive, 5000);
 tick(bumpShots, 6000);
 
+// A run has its own address either way, so a link opens on the run it names.
+async function route(st, push) {
+  if (st.watch) return open(st.watch, st.agent || "?", push);
+  if (st.run) {
+    let run = runs.find(r => r.id === st.run);
+    if (!run) { await load(); run = runs.find(r => r.id === st.run); }
+    if (run) return openReplay(run, push);
+    // it may still be in flight
+    const s = live.find(x => x.id === st.run);
+    if (s) return open(s.id, s.agent, push);
+  }
+  if (st.doc) return showDoc(push);
+}
+
 const q = new URLSearchParams(location.search);
-if (q.get("watch")) open(q.get("watch"), q.get("agent") || "?", false);
-else if (q.get("doc")) showDoc(false);
+route({watch: q.get("watch"), run: q.get("run"), agent: q.get("agent"),
+        doc: q.get("doc")}, false);
 </script>
 </body>
 </html>
