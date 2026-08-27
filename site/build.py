@@ -342,13 +342,13 @@ TEMPLATE = r"""<!doctype html>
                 justify-content: flex-end; font: 11px var(--mono);
                 color: var(--dim); }}
   .gridwrap {{ position: relative; }}
-  .grid {{ position: relative; cursor: pointer; }}
-  .grid .lane {{ position: absolute; left: 0; right: 0; height: 15px; }}
-  .grid .lane::before {{ content: ""; position: absolute; left: 0; right: 0;
-                        top: 7px; height: 1px; background: var(--line); }}
-  .grid b {{ position: absolute; top: 3px; height: 9px; min-width: 2px;
-            background: #9a9a9a; border-radius: 2px; }}
-  .grid b.long {{ background: var(--ink); }}
+  .rgrid {{ position: relative; cursor: pointer; }}
+  .rgrid .lane {{ position: absolute; left: 0; right: 0; height: 15px; }}
+  .rgrid .lane::before {{ content: ""; position: absolute; left: 0; right: 0;
+                         top: 7px; height: 1px; background: var(--line); }}
+  .rgrid b {{ position: absolute; top: 3px; height: 9px; min-width: 2px;
+             background: #9a9a9a; border-radius: 2px; }}
+  .rgrid b.long {{ background: var(--ink); }}
   .rhead {{ position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px;
            background: var(--accent); pointer-events: none; z-index: 2; }}
   #rate {{ height: 30px; }}
@@ -562,7 +562,7 @@ TEMPLATE = r"""<!doctype html>
   <div class="roll" id="roll">
     <div class="lanes" id="lanes"></div>
     <div class="gridwrap">
-      <div class="grid" id="rollgrid"></div>
+      <div class="rgrid" id="rollgrid"></div>
       <div class="rhead" id="rhead"></div>
     </div>
   </div>
@@ -1446,6 +1446,16 @@ def check(html):
     """Two elements answering to one id is a silent, hard-to-see failure: the
     later getElementById wins and one handler simply stops existing. It cost the
     grid/list switcher once already."""
+    # .grid / .rows / .msg are set on the catalogue container from JS and then
+    # hold arbitrary card markup. A component that also styles descendants of
+    # one of them will silently restyle every card, which is how card values
+    # became invisible grey boxes once.
+    for owned in ("grid", "rows", "msg"):
+        stray = re.findall(rf"\.{owned}\s+[.\w#\[]", html)
+        if stray:
+            raise SystemExit(
+                f"CSS descends from .{owned}, which is the catalogue container: "
+                f"{sorted(set(stray))}")
     fns = re.findall(r"\n(?:async )?function (\w+)\s*\(", html)
     dupfn = {f for f in fns if fns.count(f) > 1}
     if dupfn:

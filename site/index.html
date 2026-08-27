@@ -252,13 +252,13 @@
                 justify-content: flex-end; font: 11px var(--mono);
                 color: var(--dim); }
   .gridwrap { position: relative; }
-  .grid { position: relative; cursor: pointer; }
-  .grid .lane { position: absolute; left: 0; right: 0; height: 15px; }
-  .grid .lane::before { content: ""; position: absolute; left: 0; right: 0;
-                        top: 7px; height: 1px; background: var(--line); }
-  .grid b { position: absolute; top: 3px; height: 9px; min-width: 2px;
-            background: #9a9a9a; border-radius: 2px; }
-  .grid b.long { background: var(--ink); }
+  .rgrid { position: relative; cursor: pointer; }
+  .rgrid .lane { position: absolute; left: 0; right: 0; height: 15px; }
+  .rgrid .lane::before { content: ""; position: absolute; left: 0; right: 0;
+                         top: 7px; height: 1px; background: var(--line); }
+  .rgrid b { position: absolute; top: 3px; height: 9px; min-width: 2px;
+             background: #9a9a9a; border-radius: 2px; }
+  .rgrid b.long { background: var(--ink); }
   .rhead { position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px;
            background: var(--accent); pointer-events: none; z-index: 2; }
   #rate { height: 30px; }
@@ -472,7 +472,7 @@
   <div class="roll" id="roll">
     <div class="lanes" id="lanes"></div>
     <div class="gridwrap">
-      <div class="grid" id="rollgrid"></div>
+      <div class="rgrid" id="rollgrid"></div>
       <div class="rhead" id="rhead"></div>
     </div>
   </div>
