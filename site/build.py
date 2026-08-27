@@ -162,7 +162,7 @@ TEMPLATE = r"""<!doctype html>
           height: 30px; }}
 
   header {{ padding: 18px 0 26px; }}
-  .top {{ display: flex; }}
+  .top {{ display: flex; align-items: center; gap: 16px; min-height: 30px; }}
   .acts {{ margin-left: auto; display: flex; gap: 8px; flex: none; }}
   .hero {{ text-align: center; padding: 30px 0 0; }}
   h1 {{ margin: 0; font-size: 20px; font-weight: 400; line-height: 1.3; }}
@@ -191,15 +191,13 @@ TEMPLATE = r"""<!doctype html>
                     display: flex; align-items: center; font: 12px var(--mono); }}
   .oneline button:hover {{ background: #e8ebf0; }}
   .oneline button.done {{ color: var(--ok); }}
-  .rules {{ display: flex; flex-wrap: wrap; gap: 0; margin-top: 16px;
-           border: 1px solid var(--line); border-radius: var(--r);
-           background: var(--panel); overflow: hidden; }}
-  .rules div {{ flex: 1 1 120px; padding: 12px 16px; border-left: 1px solid var(--line);
-               display: flex; align-items: center; gap: 9px; cursor: default; }}
-  .rules div:first-child {{ border-left: 0; }}
-  .rules svg {{ color: var(--dim); flex: none; }}
-  .rules b {{ font-family: var(--mono); font-size: 16px; font-weight: 600;
-             letter-spacing: -.3px; }}
+  .rules {{ display: flex; align-items: center; gap: 13px; }}
+  .rules div {{ display: flex; align-items: center; gap: 5px; cursor: default;
+               white-space: nowrap; }}
+  .rules svg {{ color: #a3a3a3; flex: none; width: 12px; height: 12px; }}
+  .rules b {{ font-family: var(--mono); font-size: 12px; font-weight: 500;
+             letter-spacing: -.2px; color: var(--dim); }}
+  #stats .pulse {{ width: 5px; height: 5px; box-shadow: 0 0 0 2px rgba(22,121,74,.14); }}
 
   /* ---------- controls ---------- */
   .bar {{ display: flex; align-items: center; gap: 8px; padding: 26px 0 14px; }}
@@ -416,12 +414,10 @@ TEMPLATE = r"""<!doctype html>
     .wrap {{ padding: 0 16px; }}
     header {{ padding: 14px 0 20px; }}
     .hero {{ padding: 20px 0 0; }}
-    /* four figures, one line: they are the shape of the row, not its content */
     .rules {{ flex-wrap: nowrap; }}
-    .rules div {{ flex: 1 1 0; min-width: 0; padding: 10px 8px; gap: 6px;
-                 justify-content: center; }}
-    .rules svg {{ width: 13px; height: 13px; }}
-    .rules b {{ font-size: 14px; }}
+    .rules svg {{ width: 11px; height: 11px; }}
+    .rules b {{ font-size: 11px; }}
+    .rules {{ gap: 9px; }}
     #wstats div {{ padding: 9px 8px; text-align: center; }}
     #wstats u {{ font-size: 9px; }}
     .grid {{ grid-template-columns: 1fr; }}
@@ -439,6 +435,7 @@ TEMPLATE = r"""<!doctype html>
 <div class="wrap">
 <header>
   <div class="top">
+    <div class="rules" id="stats">{stats_skeleton}</div>
     <div class="acts">
       <a class="ico lang" href="{other_href}">{other}</a>
       <a class="ico" href="https://github.com/hanxiao/jy-crpg-bench" title="GitHub">
@@ -467,7 +464,6 @@ TEMPLATE = r"""<!doctype html>
     </button>
   </div>
   </div>
-  <div class="rules" id="stats">{stats_skeleton}</div>
 </header>
 
 <div class="bar">
@@ -1417,11 +1413,18 @@ tick(bumpShots, 6000);
 // ten-minute-old copy and see a bug that was already fixed. Watch for a new
 // build and pick it up, skipping the cache to ask.
 const BUILD = document.querySelector('meta[name="build"]').content;
+let reloaded = false;
 tick(async () => {{
-  if (document.body.classList.contains("watching")) return;   // not mid-view
+  if (reloaded || document.body.classList.contains("watching")) return;
   try {{
-    const v = (await fetch("version.txt", {{cache: "no-store"}}).then(r => r.text())).trim();
-    if (v && v !== BUILD) location.reload();
+    const r = await fetch("version.txt", {{cache: "no-store"}});
+    if (!r.ok) return;
+    const v = (await r.text()).trim();
+    // must look like a stamp, or a 404 page would compare unequal forever and
+    // reload the page in a loop; and only ever act once per load
+    if (!/^[0-9a-f]{{8,}}$/.test(v) || v === BUILD) return;
+    reloaded = true;
+    location.reload();
   }} catch {{}}
 }}, 60000);
 
