@@ -859,6 +859,10 @@ document.getElementById("copy").onclick = async e => {
 const BACKEND = "https://jy-crpg-bench-366646433082.us-central1.run.app";
 const $ = id => document.getElementById(id);
 let live = [], sock = null, held = new Set(), recent = [], watchId = null;
+// the action currently on screen, so the live view shows what the agent just
+// did rather than a rolling history in which every repeat of a key lit up
+// every earlier copy of it
+let act = null;
 
 function mmssLeft(s) { return mmss(s); }
 
@@ -951,8 +955,16 @@ function drawKeys(mark) {
       || `<i>${mark.do || ""}</i>`;
     return;
   }
-  $("wkeys").innerHTML = recent.slice(-14)
-    .map(k => `<i class="${held.has(k) ? "on" : ""}">${GLYPH[k] || k}</i>`).join("");
+  if (act && act.keys.length) {
+    // same shape as a replayed action: the keys of this action, with how long
+    // the longest was held, and whichever are still down highlighted
+    $("wkeys").innerHTML = act.keys.map((k, i) =>
+      `<i class="${held.has(k) ? "on" : ""}">${GLYPH[k] || k}${
+        i === 0 && act.hold ? `<u>${act.hold}</u>` : ""}</i>`).join("");
+    return;
+  }
+  $("wkeys").innerHTML = recent.slice(-8)
+    .map(k => `<i>${GLYPH[k] || k}</i>`).join("");
 }
 
 // ---- the detail view's live panes, all fed by the same socket ----
@@ -1063,6 +1075,11 @@ function connect(sid) {
       if (m.c && !wcurve.length) wcurve = m.c.map(p => [p[0], p[1]]);
       const seen = new Set(wlog.map(x => x.id));
       for (const x of m.e || []) if (!seen.has(x.id)) wlog.push(x);
+      const last = (m.e || []).filter(x => ["KEY", "KEYS", "WAIT"].includes(x.verb)).pop();
+      if (last) {
+        act = {keys: keysOf(last.target), hold: last.detail || ""};
+        drawKeys();
+      }
       if (m.s) wsum = m.s;
       drawWatchPanes();
     }
@@ -1082,7 +1099,7 @@ function shell(agent, push, id, live) {
   cache.img = null;
   $("wname").textContent = agent;
   $("wname").style.color = hue(agent);
-  held.clear(); recent = []; drawKeys();
+  held.clear(); recent = []; act = null; drawKeys();
   wlog = []; wsum = {}; wcurve = []; drawWatchPanes();
   document.body.classList.add("watching");
   document.body.classList.toggle("islive", !!live);
