@@ -46,9 +46,10 @@ PRE_ZH = """# jy-crpg-bench
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
-         -d '{{"agent":"YOUR-MODEL-NAME"}}'
+         -d '{{"agent":"YOUR-MODEL-NAME","minutes":20}}'
 
-回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
+`minutes` 是这一局的总游玩时长。用别人给你的那个数字；没人给就整个省略，
+会用默认值。回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
 你自己的模拟机、你自己的存档，没有别人的输入。
 
 开局时你已经在游戏里，站在开场房间中。角色已经建好，也已经有名字了：那个名字
@@ -56,7 +57,8 @@ PRE_ZH = """# jy-crpg-bench
 
 ## 二、一局的规则
 
-- **二十分钟**，从你的连线可以开始动作的那一刻算起。
+- 你的**总游玩时长**在开局时就定好了。开局回应里的 `seconds` 就是你有多少秒，
+  从连线可以开始动作的那一刻算起。别自己假设是多久。
 - **每十分钟至少动作一次**，否则这一局会提早结束，并记为闲置。一个步骤想十分钟
   是失败，不是思考。看画面不算动作，按键才算。
 - 全程录像。结束后录像会转成 MP4 公开发布，你的名字、动作速率、结束原因会进入
@@ -65,7 +67,7 @@ PRE_ZH = """# jy-crpg-bench
   和 `video_url`。看到就停手。没有办法加时，开第二局也不是延长，那是从开场房间
   重新开始的另一局。
 
-没有胜利条件。被衡量的是你拿这二十分钟做了什么。
+没有胜利条件。被衡量的是你拿这段时间做了什么。
 
 ## 三、开局往哪走
 
@@ -77,9 +79,9 @@ PRE_ZH = """# jy-crpg-bench
 3. 到大地图后往南走，去南賢居拿羅盤（下面第「零」节有细节）。在拿到羅盤之前，
    大部分建筑根本进不去，所以不要一栋一栋去试门。
 
-**保持前进。** 二十分钟很短，而跑不出东西的局几乎都死在同三件事上：原地不动、
+**保持前进。** 时间比你想的短，而跑不出东西的局几乎都死在同三件事上：原地不动、
 反复读同一段循环对话、绕着同一栋进不去的建筑打转。一个场景榨不出新东西就走人，
-一条路走不通就换一条。宁可粗略地走过五个场景，也不要把二十分钟花在一个房间里。
+一条路走不通就换一条。宁可粗略地走过五个场景，也不要把整局时间花在一个房间里。
 
 ---
 
@@ -102,8 +104,10 @@ it, but do not spend a second deciding.
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
-         -d '{{"agent":"YOUR-MODEL-NAME"}}'
+         -d '{{"agent":"YOUR-MODEL-NAME","minutes":20}}'
 
+`minutes` is the total playtime for this run. Use the number you were given;
+omit the field entirely if you were not given one and the default applies.
 The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
 from here on. It is yours alone: your own emulated machine, your own save,
 nobody else's inputs.
@@ -114,7 +118,9 @@ try to change it, and do not touch the 注音 input method.
 
 ## 2. The rules of a run
 
-- **Twenty minutes**, from the moment your session is playable.
+- Your **total playtime** is fixed when the run is created. The `seconds` field
+  in the session reply is how long you have, counted from the moment the
+  session is playable. Do not assume a number.
 - **Act at least once every ten minutes** or the run is stopped early and
   listed as idle. Ten minutes on a single step is a failure, not thinking.
   Reading the screen does not count as acting; pressing a key does.
@@ -127,7 +133,7 @@ try to change it, and do not touch the 注音 input method.
   second run from the opening room.
 
 Nothing is scored as a win condition. What is measured is what you did with
-twenty minutes.
+the time you were given.
 
 ## 3. Where to go first
 
@@ -140,11 +146,11 @@ is the trunk; the scenes hang off it.
 3. Head south for the compass at 南賢居 (section 0 below has the detail). Until
    you hold it most buildings simply will not open, so do not try doors one by one.
 
-**Keep moving.** Twenty minutes is short, and runs that produce nothing nearly
+**Keep moving.** The clock is shorter than it looks, and runs that produce nothing nearly
 always die the same three ways: standing still, re-reading the same looping
 dialogue, and circling one building that cannot be entered. When a scene stops
 giving you anything new, leave. When a route does not work, take another one.
-Five scenes seen roughly beats twenty minutes spent in one room.
+Five scenes seen roughly beats a whole run spent in one room.
 
 ---
 

@@ -7,6 +7,7 @@ rather than in a browser means a run can be finalised with nobody watching.
 """
 import base64
 import json
+import os
 import struct
 import subprocess
 import zlib
@@ -60,6 +61,12 @@ def apply_delta(canvas, raw):
     return canvas
 
 
+# A run can now be as long as a day. At a fixed 4x that would be a six hour
+# video nobody watches and a render nobody waits for, so playback speeds up for
+# long runs to keep the result bounded. Short runs are untouched.
+MAX_VIDEO_SECONDS = float(os.environ.get("QUNXIA_MAX_VIDEO_SECONDS", "600"))
+
+
 def render(recording, out_path, agent="", speed=4.0, width=960):
     events = recording.get("events") or []
     frames = [e for e in events if "d" in e]
@@ -75,7 +82,9 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
                   if e.get("act") is not None or e.get("key")), None)
     t_start = acted if acted is not None else frames[0]["t"]
     t_end = events[-1]["t"]
-    duration = max(0.2, (t_end - t_start) / speed)
+    span = t_end - t_start
+    speed = max(speed, span / MAX_VIDEO_SECONDS)
+    duration = max(0.2, span / speed)
 
     canvas = None
     for e in events:

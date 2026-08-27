@@ -78,6 +78,10 @@
   .oneline { margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }
+  .mins { border: 0; border-right: 1px solid var(--edge); border-radius: 0;
+          background: #f2f4f7; padding: 0 12px; height: auto; flex: none;
+          font: 12px var(--mono); color: var(--ink); cursor: pointer; }
+  .mins:hover { background: #e8ebf0; }
   .oneline code { flex: 1; min-width: 0; padding: 12px 14px; font-family: var(--mono);
                   font-size: 13px; overflow-x: auto; white-space: nowrap; }
   .oneline button { border: 0; border-left: 1px solid var(--edge); background: #f2f4f7;
@@ -252,7 +256,8 @@
   <p class="tagline">面向前沿智能体的长程 CRPG 基准</p>
 
   <div class="oneline">
-    <code id="one">读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。</code>
+    <select id="mins" class="mins" title="总游玩时长" aria-label="总游玩时长"><option value="20" selected>20 分钟</option><option value="60">1 小时</option><option value="240">4 小时</option><option value="480">8 小时</option><option value="1440">24 小时</option></select>
+    <code id="one">读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩，minutes=%M%。</code>
     <button id="view" title="查看">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/>
@@ -270,7 +275,7 @@
 </header>
 
 <div class="bar">
-  <div class="seg" id="view">
+  <div class="seg" id="viewseg">
     <button class="ico" data-v="grid" aria-pressed="true" title="网格">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4"><rect x="1.8" y="1.8" width="5" height="5" rx="1"/>
@@ -351,7 +356,7 @@
 </div>
 
 <script>
-const T = {"view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩，minutes=%M%。", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
@@ -589,7 +594,7 @@ document.getElementById("dir").onclick = e => {
   render();
 };
 
-document.getElementById("view").onclick = e => {
+document.getElementById("viewseg").onclick = e => {
   const b = e.target.closest("[data-v]");
   if (!b) return;
   view = b.dataset.v;
@@ -597,6 +602,15 @@ document.getElementById("view").onclick = e => {
     x.setAttribute("aria-pressed", String(x.dataset.v === view)));
   render();
 };
+
+// $ is defined further down, so this section uses the long form
+const ONE = T.oneline;
+function drawOne() {
+  const sel = document.getElementById("mins");
+  document.getElementById("one").textContent = ONE.replace("%M%", sel.value);
+}
+document.getElementById("mins").onchange = drawOne;
+drawOne();
 
 document.getElementById("copy").onclick = async e => {
   const b = e.currentTarget, label = b.querySelector("span");
@@ -657,11 +671,13 @@ function drawLive() {
 }
 
 async function pollLive() {
+  // captured before the fetch replaces `live`, or the comparison below is
+  // always true of itself and the list never re-renders
+  const before = live.map(s => s.id).join();
   try {
     const d = await fetch(BACKEND + "/api/sessions", {cache: "no-store"}).then(r => r.json());
     live = d.running || [];
   } catch { live = []; }
-  const before = live.map(s => s.id).join();
   drawLive();
   drawStats();
   if (live.map(s => s.id).join() !== before) render();   // a run started or ended

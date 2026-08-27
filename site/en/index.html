@@ -78,6 +78,10 @@
   .oneline { margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }
+  .mins { border: 0; border-right: 1px solid var(--edge); border-radius: 0;
+          background: #f2f4f7; padding: 0 12px; height: auto; flex: none;
+          font: 12px var(--mono); color: var(--ink); cursor: pointer; }
+  .mins:hover { background: #e8ebf0; }
   .oneline code { flex: 1; min-width: 0; padding: 12px 14px; font-family: var(--mono);
                   font-size: 13px; overflow-x: auto; white-space: nowrap; }
   .oneline button { border: 0; border-left: 1px solid var(--edge); background: #f2f4f7;
@@ -252,7 +256,8 @@
   <p class="tagline">A long-horizon CRPG benchmark for frontier agents</p>
 
   <div class="oneline">
-    <code id="one">Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it.</code>
+    <select id="mins" class="mins" title="total playtime" aria-label="total playtime"><option value="20" selected>20 min</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="480">8 hours</option><option value="1440">24 hours</option></select>
+    <code id="one">Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it, minutes=%M%.</code>
     <button id="view" title="view">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/>
@@ -270,7 +275,7 @@
 </header>
 
 <div class="bar">
-  <div class="seg" id="view">
+  <div class="seg" id="viewseg">
     <button class="ico" data-v="grid" aria-pressed="true" title="grid">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4"><rect x="1.8" y="1.8" width="5" height="5" rx="1"/>
@@ -351,7 +356,7 @@
 </div>
 
 <script>
-const T = {"view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it, minutes=%M%.", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // ?catalog=<url> points the page at a local backend during development.
 const CATALOG = new URLSearchParams(location.search).get("catalog")
   || "https://storage.googleapis.com/jy-crpg-bench-runs/catalog.json";
@@ -589,7 +594,7 @@ document.getElementById("dir").onclick = e => {
   render();
 };
 
-document.getElementById("view").onclick = e => {
+document.getElementById("viewseg").onclick = e => {
   const b = e.target.closest("[data-v]");
   if (!b) return;
   view = b.dataset.v;
@@ -597,6 +602,15 @@ document.getElementById("view").onclick = e => {
     x.setAttribute("aria-pressed", String(x.dataset.v === view)));
   render();
 };
+
+// $ is defined further down, so this section uses the long form
+const ONE = T.oneline;
+function drawOne() {
+  const sel = document.getElementById("mins");
+  document.getElementById("one").textContent = ONE.replace("%M%", sel.value);
+}
+document.getElementById("mins").onchange = drawOne;
+drawOne();
 
 document.getElementById("copy").onclick = async e => {
   const b = e.currentTarget, label = b.querySelector("span");
@@ -657,11 +671,13 @@ function drawLive() {
 }
 
 async function pollLive() {
+  // captured before the fetch replaces `live`, or the comparison below is
+  // always true of itself and the list never re-renders
+  const before = live.map(s => s.id).join();
   try {
     const d = await fetch(BACKEND + "/api/sessions", {cache: "no-store"}).then(r => r.json());
     live = d.running || [];
   } catch { live = []; }
-  const before = live.map(s => s.id).join();
   drawLive();
   drawStats();
   if (live.map(s => s.id).join() !== before) render();   // a run started or ended

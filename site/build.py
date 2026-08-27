@@ -17,7 +17,10 @@ ZH = {
     "locale": "zh_CN", "locale_alt": "en_US",
     "blurb": "面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。",
     "tagline": "面向前沿智能体的长程 CRPG 基准",
-    "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩。",
+    "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩，minutes=%M%。",
+    "playtime": "总游玩时长",
+    "opts": [(20, "20 分钟"), (60, "1 小时"), (240, "4 小时"),
+             (480, "8 小时"), (1440, "24 小时")],
     "view": "查看", "raw": "原始档",
     "copy": "复制", "copied": "已复制",
     "stats": ["正在进行", "已完成", "模型", "累计游玩"],
@@ -45,7 +48,10 @@ EN = {
     "blurb": "A long-horizon CRPG benchmark for frontier agents. "
              "One run per model, twenty minutes, recorded.",
     "tagline": "A long-horizon CRPG benchmark for frontier agents",
-    "oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it.",
+    "oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it, minutes=%M%.",
+    "playtime": "total playtime",
+    "opts": [(20, "20 min"), (60, "1 hour"), (240, "4 hours"),
+             (480, "8 hours"), (1440, "24 hours")],
     "view": "view", "raw": "raw",
     "copy": "copy", "copied": "copied",
     "stats": ["live", "runs", "models", "played"],
@@ -146,6 +152,10 @@ TEMPLATE = r"""<!doctype html>
   .oneline {{ margin-top: 22px; max-width: 720px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
              box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }}
+  .mins {{ border: 0; border-right: 1px solid var(--edge); border-radius: 0;
+          background: #f2f4f7; padding: 0 12px; height: auto; flex: none;
+          font: 12px var(--mono); color: var(--ink); cursor: pointer; }}
+  .mins:hover {{ background: #e8ebf0; }}
   .oneline code {{ flex: 1; min-width: 0; padding: 12px 14px; font-family: var(--mono);
                   font-size: 13px; overflow-x: auto; white-space: nowrap; }}
   .oneline button {{ border: 0; border-left: 1px solid var(--edge); background: #f2f4f7;
@@ -320,6 +330,7 @@ TEMPLATE = r"""<!doctype html>
   <p class="tagline">{tagline}</p>
 
   <div class="oneline">
+    <select id="mins" class="mins" title="{playtime}" aria-label="{playtime}">{opts_html}</select>
     <code id="one">{oneline}</code>
     <button id="view" title="{view}">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -338,7 +349,7 @@ TEMPLATE = r"""<!doctype html>
 </header>
 
 <div class="bar">
-  <div class="seg" id="view">
+  <div class="seg" id="viewseg">
     <button class="ico" data-v="grid" aria-pressed="true" title="{grid}">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4"><rect x="1.8" y="1.8" width="5" height="5" rx="1"/>
@@ -657,7 +668,7 @@ document.getElementById("dir").onclick = e => {{
   render();
 }};
 
-document.getElementById("view").onclick = e => {{
+document.getElementById("viewseg").onclick = e => {{
   const b = e.target.closest("[data-v]");
   if (!b) return;
   view = b.dataset.v;
@@ -665,6 +676,15 @@ document.getElementById("view").onclick = e => {{
     x.setAttribute("aria-pressed", String(x.dataset.v === view)));
   render();
 }};
+
+// $ is defined further down, so this section uses the long form
+const ONE = T.oneline;
+function drawOne() {{
+  const sel = document.getElementById("mins");
+  document.getElementById("one").textContent = ONE.replace("%M%", sel.value);
+}}
+document.getElementById("mins").onchange = drawOne;
+drawOne();
 
 document.getElementById("copy").onclick = async e => {{
   const b = e.currentTarget, label = b.querySelector("span");
@@ -725,11 +745,13 @@ function drawLive() {{
 }}
 
 async function pollLive() {{
+  // captured before the fetch replaces `live`, or the comparison below is
+  // always true of itself and the list never re-renders
+  const before = live.map(s => s.id).join();
   try {{
     const d = await fetch(BACKEND + "/api/sessions", {{cache: "no-store"}}).then(r => r.json());
     live = d.running || [];
   }} catch {{ live = []; }}
-  const before = live.map(s => s.id).join();
   drawLive();
   drawStats();
   if (live.map(s => s.id).join() !== before) render();   // a run started or ended
@@ -952,22 +974,39 @@ def build(s):
     # everything the script reads at runtime; missing a key here shows up as a
     # literal "undefined" in the page, so it is derived rather than hand listed
     skip = {"lang", "other", "other_href", "home", "url", "locale", "locale_alt",
-            "blurb", "tagline", "oneline", "stats", "sort", "loading",
+            "blurb", "tagline", "stats", "sort", "loading", "opts", "playtime",
             "grid", "list"}
     strings = {k: v for k, v in s.items() if k not in skip}
     # each language ships its own brief alongside its page
     c = s["cols"]
-    fields = dict(s, stats_skeleton=skeleton, md="agents.md",
+    opts_html = "".join(f'<option value="{m}"{" selected" if m == 20 else ""}>{t}</option>'
+                        for m, t in s["opts"])
+    fields = dict(s, stats_skeleton=skeleton, md="agents.md", opts_html=opts_html,
                   cols_actions=c["actions"], cols_aps=c["aps"],
                   cols_keys=c["distinct_keys"],
                   strings=repr(strings).replace("'", '"'))
     return TEMPLATE.format(**fields)
 
 
+def check(html):
+    """Two elements answering to one id is a silent, hard-to-see failure: the
+    later getElementById wins and one handler simply stops existing. It cost the
+    grid/list switcher once already."""
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    dupes = {i for i in ids if ids.count(i) > 1}
+    if dupes:
+        raise SystemExit(f"duplicate element ids: {sorted(dupes)}")
+    for ref in set(re.findall(r'getElementById\("([^"]+)"\)', html)
+                   + re.findall(r'\$\("([^"]+)"\)', html)):
+        if ref not in ids:
+            raise SystemExit(f"script references missing id: {ref}")
+    return html
+
+
 def main():
-    (HERE / "index.html").write_text(build(ZH), encoding="utf-8")
+    (HERE / "index.html").write_text(check(build(ZH)), encoding="utf-8")
     (HERE / "en").mkdir(exist_ok=True)
-    (HERE / "en" / "index.html").write_text(build(EN), encoding="utf-8")
+    (HERE / "en" / "index.html").write_text(check(build(EN)), encoding="utf-8")
     print("wrote site/index.html (zh-Hans) and site/en/index.html (en)")
 
 

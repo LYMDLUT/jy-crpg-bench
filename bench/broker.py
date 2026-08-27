@@ -32,6 +32,9 @@ GCS_BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 PUBLIC_BASE = os.environ.get("QUNXIA_PUBLIC_BASE", "")
 SITE = os.environ.get("QUNXIA_SITE", "https://hanxiao.io/jy-crpg-bench/")
 RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "1200"))     # 20 minutes
+# A caller may ask for a longer game. Bounded at a day: past that the recording
+# hits its own size cap and the early history is dropped anyway.
+MAX_MINUTES = int(os.environ.get("QUNXIA_MAX_MINUTES", "1440"))
 # An agent that has not acted in this long is wedged, not thinking.
 IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "600"))        # 10 minutes
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
@@ -120,7 +123,7 @@ def running_count():
                if s["proc"].poll() is None and not result_of(s["id"]))
 
 
-async def start_session(agent):
+async def start_session(agent, budget):
     live = running_count()
     if live >= MAX_SESSIONS:
         raise web.HTTPServiceUnavailable(
@@ -146,14 +149,14 @@ async def start_session(agent):
                QUNXIA_BENCH="1",
                QUNXIA_BENCH_AGENT=agent,
                QUNXIA_BENCH_SID=sid,
-               QUNXIA_BENCH_BUDGET=str(RUN_SECONDS),
+               QUNXIA_BENCH_BUDGET=str(budget),
                QUNXIA_BENCH_IDLE=str(IDLE_LIMIT),
                QUNXIA_RESULT_DIR=str(RESULT_DIR),
                QUNXIA_BENCH_SITE=SITE)
     proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"))
     sess = {"id": sid, "agent": agent, "port": port, "proc": proc,
-            "work": WORK / sid,
-            "started": time.time(), "ends_at": time.time() + RUN_SECONDS}
+            "work": WORK / sid, "budget": budget,
+            "started": time.time(), "ends_at": time.time() + budget}
     sessions[sid] = sess
 
     if not await wait_healthy(port):
@@ -181,7 +184,7 @@ async def start_session(agent):
             except Exception as exc:
                 sess["error"] = f"spawn: {exc}"
             await asyncio.sleep(2)
-    sess["ends_at"] = time.time() + RUN_SECONDS       # clock starts once playable
+    sess["ends_at"] = time.time() + budget            # clock starts once playable
     return sess
 
 
@@ -218,17 +221,24 @@ async def api_new(request):
             {"ok": False, "error": "name yourself first",
              "hint": 'POST {"agent": "<the model you are>"} - the name is what '
                      'the catalogue lists this run under'}, status=400)
-    sess = await start_session(agent)
+    try:
+        minutes = int(body.get("minutes") or request.query.get("minutes")
+                      or RUN_SECONDS // 60)
+    except (TypeError, ValueError):
+        minutes = RUN_SECONDS // 60
+    minutes = max(1, min(minutes, MAX_MINUTES))
+    sess = await start_session(agent, minutes * 60)
     base = public_origin(request) + f"/s/{sess['id']}"
     return web.json_response({
         "ok": True, "session": sess["id"], "agent": agent,
         "base_url": base, "help_url": base + "/api/help",
-        "seconds": RUN_SECONDS, "ends_at": sess["ends_at"],
+        "seconds": sess["budget"], "minutes": minutes,
+        "max_minutes": MAX_MINUTES, "ends_at": sess["ends_at"],
         "idle_limit": IDLE_LIMIT,
         "spawned_in_game": sess.get("spawned", False),
         "catalog_url": SITE,
         "message": f"You are in the game as '{agent}'. You have "
-                   f"{RUN_SECONDS // 60} minutes. Read {base}/api/help, then "
+                   f"{minutes} minutes. Read {base}/api/help, then "
                    f"play with {base}/api/... . Keep acting: if no action "
                    f"arrives for {IDLE_LIMIT // 60} minutes the run is stopped "
                    f"early and listed as idle.",
@@ -317,7 +327,7 @@ async def api_sessions(_request):
         {"capacity": MAX_SESSIONS, "running": [
             {"id": s["id"], "agent": s["agent"],
              "started": s["started"], "watchers": s.get("watchers", 0),
-             "actions": s.get("live_actions", 0),
+             "actions": s.get("live_actions", 0), "budget": s.get("budget"),
              "uptime": round(s.get("live_uptime", 0)),
              "remaining": max(0, round(s["ends_at"] - now))}
             for s in sessions.values()
@@ -348,7 +358,8 @@ async def api_catalog(_request):
 async def health(_request):
     return web.json_response({
         "ok": True, "running": running_count(), "capacity": MAX_SESSIONS,
-        "budget": RUN_SECONDS, "idle_limit": IDLE_LIMIT, "site": SITE},
+        "budget": RUN_SECONDS, "max_minutes": MAX_MINUTES,
+        "idle_limit": IDLE_LIMIT, "site": SITE},
         headers=CORS)
 
 
