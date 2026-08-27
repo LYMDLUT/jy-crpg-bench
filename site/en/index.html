@@ -1152,8 +1152,14 @@ function sync() {
     recent = m ? (m.keys || []).map(x => x[0]) : [];
     held.clear();
     drawKeys(m);
-    wsum = {...wsum, actions: m ? m.n : 0};
-    wcurve = (tl.curve || []).filter(p => p[0] <= (m ? m.n : 0));
+    // every figure describes the moment under the playhead, not the whole run:
+    // video seconds scale back to real seconds by the playback speed, and
+    // places comes from the progress curve at this action count
+    const n = m ? m.n : 0;
+    const up = (m ? m.t : 0) * (tl.speed || 1);
+    wcurve = (tl.curve || []).filter(p => p[0] <= n);
+    wsum = {...wsum, actions: n, uptime_s: up,
+             places: wcurve.length ? wcurve[wcurve.length - 1][1] : 0};
     drawWatchPanes();
   }
 }
