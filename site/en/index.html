@@ -29,6 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+<meta name="build" content="7fd0235e8ff6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -1321,6 +1322,18 @@ function tick(fn, ms) {
 tick(load, 30000);
 tick(pollLive, 5000);
 tick(bumpShots, 6000);
+
+// GitHub Pages serves this HTML with max-age=600, so a reader can sit on a
+// ten-minute-old copy and see a bug that was already fixed. Watch for a new
+// build and pick it up, skipping the cache to ask.
+const BUILD = document.querySelector('meta[name="build"]').content;
+tick(async () => {
+  if (document.body.classList.contains("watching")) return;   // not mid-view
+  try {
+    const v = (await fetch("version.txt", {cache: "no-store"}).then(r => r.text())).trim();
+    if (v && v !== BUILD) location.reload();
+  } catch {}
+}, 60000);
 
 // One address per run. Which view it opens depends on the run, not the link:
 // still going means watch it live, finished means replay it.

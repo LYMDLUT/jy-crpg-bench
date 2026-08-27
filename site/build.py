@@ -119,6 +119,7 @@ TEMPLATE = r"""<!doctype html>
 <meta name="twitter:description" content="{blurb}">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
+<meta name="build" content="{build}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -1412,6 +1413,18 @@ tick(load, 30000);
 tick(pollLive, 5000);
 tick(bumpShots, 6000);
 
+// GitHub Pages serves this HTML with max-age=600, so a reader can sit on a
+// ten-minute-old copy and see a bug that was already fixed. Watch for a new
+// build and pick it up, skipping the cache to ask.
+const BUILD = document.querySelector('meta[name="build"]').content;
+tick(async () => {{
+  if (document.body.classList.contains("watching")) return;   // not mid-view
+  try {{
+    const v = (await fetch("version.txt", {{cache: "no-store"}}).then(r => r.text())).trim();
+    if (v && v !== BUILD) location.reload();
+  }} catch {{}}
+}}, 60000);
+
 // One address per run. Which view it opens depends on the run, not the link:
 // still going means watch it live, finished means replay it.
 async function route(st, push) {{
@@ -1440,7 +1453,7 @@ route({{run: q.get("run") || q.get("watch"), doc: q.get("doc")}}, false);
 """
 
 
-def build(s):
+def build(s, stamp="dev"):
     # drawn empty and filled in from the catalogue, so nothing here is a
     # number somebody has to remember to update
     icons = [
@@ -1468,6 +1481,7 @@ def build(s):
     opts_html = "".join(f'<option value="{m}"{" selected" if m == 20 else ""}>{t}</option>'
                         for m, t in s["opts"])
     fields = dict(s, stats_skeleton=skeleton, md="agents.md", opts_html=opts_html,
+                  build=stamp,
                   cols_actions=c["actions"], cols_aps=c["aps"],
                   cols_keys=c["distinct_keys"],
                   strings=repr(strings).replace("'", '"'))
@@ -1504,9 +1518,14 @@ def check(html):
 
 
 def main():
-    (HERE / "index.html").write_text(check(build(ZH)), encoding="utf-8")
+    import hashlib
+    # stamped so a page already open can notice a new build and reload itself
+    raw = build(ZH, "0") + build(EN, "0")
+    stamp = hashlib.sha256(raw.encode()).hexdigest()[:12]
+    (HERE / "version.txt").write_text(stamp + "\n", encoding="utf-8")
+    (HERE / "index.html").write_text(check(build(ZH, stamp)), encoding="utf-8")
     (HERE / "en").mkdir(exist_ok=True)
-    (HERE / "en" / "index.html").write_text(check(build(EN)), encoding="utf-8")
+    (HERE / "en" / "index.html").write_text(check(build(EN, stamp)), encoding="utf-8")
     print("wrote site/index.html (zh-Hans) and site/en/index.html (en)")
 
 
