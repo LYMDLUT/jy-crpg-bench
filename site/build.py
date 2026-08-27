@@ -132,6 +132,9 @@ TEMPLATE = r"""<!doctype html>
             "Noto Sans TC", "Microsoft JhengHei", Helvetica, sans-serif;
   }}
   * {{ box-sizing: border-box; }}
+  /* a display rule beats the hidden attribute, which left the canvas painting
+     a black band above the replay video */
+  [hidden] {{ display: none !important; }}
   html {{ -webkit-text-size-adjust: 100%; }}
   body {{ margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 var(--sans);
          -webkit-font-smoothing: antialiased; }}
