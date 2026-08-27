@@ -524,7 +524,7 @@ TEMPLATE = r"""<!doctype html>
   </div>
   <div class="screen">
     <canvas id="cv" width="320" height="200"></canvas>
-    <video id="vid" playsinline preload="metadata" hidden></video>
+    <video id="vid" muted playsinline preload="metadata" hidden></video>
     <div id="veil">{waiting}</div>
   </div>
 
@@ -1061,7 +1061,7 @@ function drawKeys(mark) {{
 let wlog = [], wsum = {{}}, wcurve = [];
 // replay state, declared here because drawWatchPanes below reads it and a
 // `let` used before its declaration throws rather than reading undefined
-let tl = null, marks = [], vidT = 0;
+let tl = null, marks = [], vidT = 0, openSeq = 0;
 
 function keysOf(target) {{
   // "kp3 x4" is one action pressing kp3 four times; "kp9 enter" is two keys
@@ -1347,6 +1347,21 @@ async function openReplay(run, push) {{
   vidT = -1;
   sync();
   v.play().catch(() => {{}});
+  // Do not trust play() to report failure: autoplay can be refused, and a
+  // browser without an H.264 decoder neither plays nor rejects. Judge on
+  // whether the playhead actually moved, and if it did not, show the finished
+  // run whole rather than leaving every panel frozen on its first action.
+  const started = ++openSeq;
+  setTimeout(() => {{
+    if (started !== openSeq || vidT > 0 || !marks.length) return;
+    vidT = marks.length - 1;
+    const m = marks[vidT];
+    wcurve = tl.curve || [];
+    wsum = {{actions: m.n, uptime_s: m.t * (tl.speed || 1),
+             places: wcurve.length ? wcurve[wcurve.length - 1][1] : (run.places || 0)}};
+    drawKeys(m);
+    drawWatchPanes();
+  }}, 2500);
 }}
 
 // ------------------------------------------------------------------ brief
