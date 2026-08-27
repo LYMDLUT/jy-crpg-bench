@@ -1062,11 +1062,10 @@ function shell(agent, push, id, live) {
   document.body.classList.add("watching");
   document.body.classList.toggle("islive", !!live);
   watchId = live ? id : null;
-  if (push) {
-    const q = live ? "watch" : "run";
-    history.pushState({[q]: id, agent}, "",
-      `?${q}=${encodeURIComponent(id)}`);
-  }
+  // One address per run, whatever state it is in. A link shared while a run is
+  // live keeps working once it finishes; it just opens the replay instead.
+  if (push) history.pushState({run: id, agent}, "",
+    `?run=${encodeURIComponent(id)}`);
   scrollTo(0, 0);
 }
 
@@ -1242,7 +1241,7 @@ addEventListener("popstate", e => {
   const st = e.state || {};
   if (st.doc) return showDoc(false);
   hideDoc(false);
-  if (st.watch || st.run) return route(st, false);
+  if (st.run) return route(st, false);
   close(false);
 });
 
@@ -1266,23 +1265,28 @@ tick(load, 30000);
 tick(pollLive, 5000);
 tick(bumpShots, 6000);
 
-// A run has its own address either way, so a link opens on the run it names.
+// One address per run. Which view it opens depends on the run, not the link:
+// still going means watch it live, finished means replay it.
 async function route(st, push) {
-  if (st.watch) return open(st.watch, st.agent || "?", push);
-  if (st.run) {
-    let run = runs.find(r => r.id === st.run);
-    if (!run) { await load(); run = runs.find(r => r.id === st.run); }
-    if (run) return openReplay(run, push);
-    // it may still be in flight
-    const s = live.find(x => x.id === st.run);
-    if (s) return open(s.id, s.agent, push);
-  }
   if (st.doc) return showDoc(push);
+  const id = st.run;
+  if (!id) return;
+  const going = () => live.find(x => x.id === id);
+  if (going()) return open(id, going().agent, push);
+  let run = runs.find(r => r.id === id);
+  if (!run) {
+    await Promise.all([load(), pollLive()]);
+    if (going()) return open(id, going().agent, push);
+    run = runs.find(r => r.id === id);
+  }
+  if (run && run.video_url) return openReplay(run, push);
+  // named a run nobody has heard of: show the catalogue rather than a blank
+  close(false);
 }
 
 const q = new URLSearchParams(location.search);
-route({watch: q.get("watch"), run: q.get("run"), agent: q.get("agent"),
-        doc: q.get("doc")}, false);
+// ?watch= was the old spelling for a live run; keep it resolving
+route({run: q.get("run") || q.get("watch"), doc: q.get("doc")}, false);
 </script>
 </body>
 </html>
