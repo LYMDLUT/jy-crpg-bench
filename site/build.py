@@ -29,7 +29,8 @@ ZH = {
     "loading": "载入中", "empty": "还没有记录", "gone": "读不到记录",
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
     "cols": {"started": "时间", "places": "去过", "reach": "新地/动作",
-             "actions": "动作数", "aps": "动作/秒",
+             "meaningful": "有效动作", "oscillation": "来回打转",
+             "dialogue": "对话", "actions": "动作数", "aps": "动作/秒",
              "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
              "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
              "reason": "结束原因"},
@@ -38,7 +39,7 @@ ZH = {
     "keyspace": "按键分布",
     "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读",
     "running": "进行中", "log": "动作记录", "hist": "按键分布",
-    "explored": "去过的地方",
+    "explored": "去过的地方", "progress": "探索进度",
     "uptime": "已进行", "nolog": "还没有动作",
     "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中",
     "over": "已结束",
@@ -63,7 +64,8 @@ EN = {
     "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
     "cols": {"started": "when", "places": "places", "reach": "new/act",
-             "actions": "actions", "aps": "act/s",
+             "meaningful": "meaningful", "oscillation": "oscillation",
+             "dialogue": "dialogue", "actions": "actions", "aps": "act/s",
              "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
              "distinct_keys": "key space", "reads": "screens", "played": "played",
              "reason": "ended by"},
@@ -72,7 +74,7 @@ EN = {
     "err": "error", "keyspace": "action space",
     "live": "live now", "watch": "watch", "back": "back", "watching": "read-only",
     "running": "running", "log": "action log", "hist": "key distribution",
-    "explored": "places reached",
+    "explored": "places reached", "progress": "progress vs actions",
     "uptime": "elapsed", "nolog": "no actions yet",
     "left": "left", "waiting": "waiting for the first frame",
     "dropped": "disconnected, retrying", "over": "this run has ended",
@@ -115,9 +117,10 @@ TEMPLATE = r"""<!doctype html>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚔️</text></svg>">
 <style>
   :root {{
-    --bg: #f7f8fa;  --panel: #fff;   --ink: #0b1220;  --dim: #6b7686;
-    --line: #e4e7ec; --edge: #0b1220; --accent: #1b4dd8; --ok: #16794a;
-    --warn: #9a6516; --bad: #b3261e;
+    --bg: #fafafa;  --panel: #fff;   --ink: #0a0a0a;  --dim: #737373;
+    --line: #e5e5e5; --edge: #0a0a0a; --accent: #1b4dd8; --ok: #15803d;
+    --warn: #a16207; --bad: #b91c1c;
+    --r: 8px;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
             "Noto Sans TC", "Microsoft JhengHei", Helvetica, sans-serif;
@@ -128,6 +131,9 @@ TEMPLATE = r"""<!doctype html>
          -webkit-font-smoothing: antialiased; }}
   a {{ color: inherit; text-decoration: none; border-bottom: 1px solid #c9d2de; }}
   a:hover {{ border-color: var(--ink); }}
+  :focus-visible {{ outline: 2px solid var(--ink); outline-offset: 2px;
+                   border-radius: 4px; }}
+  button, select {{ font-variant-numeric: tabular-nums; }}
   svg {{ display: block; }}
   .wrap {{ max-width: 1120px; margin: 0 auto; padding: 0 24px; }}
   .mono {{ font-family: var(--mono); font-variant-numeric: tabular-nums; }}
@@ -157,7 +163,7 @@ TEMPLATE = r"""<!doctype html>
   .tagline {{ margin: 10px auto 0; color: var(--dim); max-width: 60ch; font-size: 14px; }}
   .oneline {{ margin: 22px auto 0; max-width: 820px; display: flex; align-items: stretch;
              background: var(--panel); border: 1px solid var(--edge); border-radius: 7px;
-             box-shadow: 3px 3px 0 rgba(11,18,32,.07); overflow: hidden; }}
+             box-shadow: 0 1px 2px rgba(10,10,10,.05); overflow: hidden; }}
   .mins {{ border: 0; border-right: 1px solid var(--edge); border-radius: 0;
           background: #f2f4f7; padding: 0 12px; height: auto; flex: none; align-self: stretch;
           font: 12px var(--mono); color: var(--ink); cursor: pointer; }}
@@ -173,9 +179,9 @@ TEMPLATE = r"""<!doctype html>
                     display: flex; align-items: center; font: 12px var(--mono); }}
   .oneline button:hover {{ background: #e8ebf0; }}
   .oneline button.done {{ color: var(--ok); }}
-  .rules {{ display: flex; flex-wrap: wrap; gap: 0; margin-top: 14px;
-           border: 1px solid var(--line); border-radius: 7px; background: var(--panel);
-           overflow: hidden; }}
+  .rules {{ display: flex; flex-wrap: wrap; gap: 0; margin-top: 16px;
+           border: 1px solid var(--line); border-radius: var(--r);
+           background: var(--panel); overflow: hidden; }}
   .rules div {{ flex: 1 1 120px; padding: 12px 16px; border-left: 1px solid var(--line);
                display: flex; align-items: center; gap: 9px; cursor: default; }}
   .rules div:first-child {{ border-left: 0; }}
@@ -213,9 +219,9 @@ TEMPLATE = r"""<!doctype html>
         font-size: 12px; }}
   .kv span {{ color: var(--dim); }}
   .kv b {{ font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums;
-          text-align: right; }}
+          text-align: right; letter-spacing: -.1px; }}
   .spark {{ display: flex; gap: 1.5px; align-items: flex-end; height: 22px; margin-top: 11px; }}
-  .spark i {{ flex: 1; background: #9aa6b8; border-radius: 1px 1px 0 0; min-height: 2px; }}
+  .spark i {{ flex: 1; background: #a3a3a3; border-radius: 1px 1px 0 0; min-height: 2px; }}
   .spark i:hover {{ background: var(--ink); }}
 
   .why {{ display: inline-flex; align-items: center; gap: 4px; font: 11px var(--mono);
@@ -294,18 +300,24 @@ TEMPLATE = r"""<!doctype html>
   .pane {{ min-width: 0; }}
   .lbl {{ margin: 0 0 7px; font: 11px var(--mono); letter-spacing: .09em;
          text-transform: uppercase; color: var(--dim); }}
+  .curve {{ width: 100%; height: 60px; display: block; overflow: visible; }}
+  .curve path {{ fill: none; stroke: var(--ink); stroke-width: 1.6;
+                vector-effect: non-scaling-stroke; }}
+  .curve .base {{ stroke: #d4d4d4; stroke-dasharray: 3 3; }}
   .hist {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
           padding: 12px 14px; display: grid; gap: 5px; }}
-  .hist div {{ display: grid; grid-template-columns: 46px 1fr 30px; gap: 8px;
-              align-items: center; font: 12px var(--mono); }}
+  .hist div {{ display: grid; grid-template-columns: 46px 1fr 32px; gap: 10px;
+              align-items: center; font: 12px var(--mono);
+              font-variant-numeric: tabular-nums; }}
   .hist u {{ text-decoration: none; color: var(--dim); }}
-  .hist i {{ display: block; height: 9px; background: #9aa6b8; border-radius: 2px; }}
+  .hist i {{ display: block; height: 8px; background: #a3a3a3; border-radius: 2px; }}
   .hist b {{ font-weight: 500; text-align: right; color: var(--dim); }}
   .log {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
          max-height: 340px; overflow-y: auto; }}
-  .log .r {{ display: grid; grid-template-columns: 52px 58px 1fr auto; gap: 10px;
+  .log .r {{ display: grid; grid-template-columns: 62px 46px 1fr auto; gap: 12px;
             padding: 5px 12px; border-top: 1px solid var(--line);
-            font: 12px var(--mono); align-items: baseline; }}
+            font: 12px var(--mono); font-variant-numeric: tabular-nums;
+            align-items: baseline; }}
   .log .r:first-child {{ border-top: 0; }}
   .log .t {{ color: var(--dim); }}
   .log .v {{ color: var(--dim); font-size: 11px; }}
@@ -342,8 +354,8 @@ TEMPLATE = r"""<!doctype html>
     .grid {{ grid-template-columns: 1fr; }}
     .bar {{ padding: 18px 0 12px; }}
     .panes {{ grid-template-columns: 1fr; }}
-    .log .r {{ grid-template-columns: 46px 46px 1fr auto; gap: 6px;
-              padding: 5px 9px; font-size: 11px; }}
+    .log .r {{ grid-template-columns: 58px 40px 1fr auto; gap: 8px;
+              padding: 5px 10px; font-size: 11px; }}
     .wtop {{ gap: 8px; }}
     .wro {{ display: none; }}
   }}
@@ -451,7 +463,10 @@ TEMPLATE = r"""<!doctype html>
 
   <div class="panes">
     <div class="pane">
-      <p class="lbl">{hist}</p>
+      <p class="lbl">{progress}</p>
+      <div class="hist" style="padding:10px 12px"><svg id="wcurve" class="curve"
+        viewBox="0 0 240 60" preserveAspectRatio="none"></svg></div>
+      <p class="lbl" style="margin-top:14px">{hist}</p>
       <div id="whist" class="hist"></div>
     </div>
     <div class="pane">
@@ -490,9 +505,9 @@ const COLS = [
   {{k: "aps",           f: r => (r.aps ?? 0).toFixed(2)}},
   {{k: "ttfa",          f: r => secs(r.ttfa)}},
   {{k: "gap_p50",       f: r => secs(r.gap_p50)}},
-  {{k: "gap_p95",       f: r => secs(r.gap_p95)}},
+  {{k: "meaningful",    f: r => r.meaningful == null ? "-" : r.meaningful.toFixed(2)}},
+  {{k: "oscillation",   f: r => r.oscillation == null ? "-" : r.oscillation.toFixed(2)}},
   {{k: "distinct_keys", f: r => r.distinct_keys ?? "-"}},
-  {{k: "reads",         f: r => r.reads ?? "-"}},
   {{k: "played",        f: r => mmss(r.played)}},
   {{k: "reason",        f: r => why(r)}},
 ];
@@ -590,6 +605,9 @@ function entries() {{
             aps: (() => {{ const n = st.actions ?? s.actions ?? 0;
                           return up > 1 && n ? +(n / up).toFixed(3) : 0; }})(),
             shot: s.shot || 0,
+            meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
+            dialogue: s.dialogue || 0,
+            oscillation: null,
             distinct_keys: null, reads: null, ttfa: null,
             gap_p50: null, gap_p95: null, reason: "running"}};
   }}).concat(runs);
@@ -608,6 +626,7 @@ function refreshLive() {{
     if (!r) return;
     if (f === "acts") el.textContent = `${{r.actions}} · ${{r.aps.toFixed(2)}}/s`;
     else if (f === "places") el.textContent = `${{r.places}} · ${{r.reach.toFixed(2)}}`;
+    else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
     else {{
@@ -664,6 +683,9 @@ function render() {{
         <div class="who"><i class="dot" style="background:${{hue(r.agent)}}"></i>${{r.agent}}</div>
         <div class="kv">
           <span>${{T.cols.places}}</span><b ${{lv(r, "places")}}>${{r.places ?? 0}} · ${{(r.reach ?? 0).toFixed(2)}}</b>
+          <span>${{T.cols.meaningful}}</span><b ${{lv(r, "meaningful")}}>${{
+            r.meaningful == null ? "-" : r.meaningful.toFixed(2)}}${{
+            r.oscillation == null ? "" : ` · ${{r.oscillation.toFixed(2)}}`}}</b>
           <span>${{T.cols.actions}}</span><b ${{lv(r, "acts")}}>${{r.actions ?? 0}} · ${{(r.aps ?? 0).toFixed(2)}}/s</b>
           <span>${{T.cols.ttfa}}</span><b>${{secs(r.ttfa)}}</b>
           <span>${{T.cols.gap_p50}} / p95</span><b>${{secs(r.gap_p50)}} / ${{secs(r.gap_p95)}}</b>
@@ -884,7 +906,7 @@ function drawKeys() {{
 }}
 
 // ---- the detail view's live panes, all fed by the same socket ----
-let wlog = [], wsum = {{}};
+let wlog = [], wsum = {{}}, wcurve = [];
 
 function keysOf(target) {{
   // "kp3 x4" is one action pressing kp3 four times; "kp9 enter" is two keys
@@ -892,6 +914,16 @@ function keysOf(target) {{
     const m = w.match(/^x(\d+)$/);
     return m ? [] : [w];
   }});
+}}
+
+function drawCurve(pts) {{
+  const el = $("wcurve");
+  if (!pts || pts.length < 2) {{ el.innerHTML = ""; return; }}
+  const mx = pts[pts.length - 1][0] || 1, my = Math.max(1, ...pts.map(p => p[1]));
+  const at = ([x, y]) => `${{(x / mx * 240).toFixed(1)}},${{(60 - y / my * 58).toFixed(1)}}`;
+  // the dashed line is one new place per action: the ceiling nothing beats
+  el.innerHTML = `<path class="base" d="M0,60 L${{at([mx, Math.min(my, mx)])}}"/>`
+    + `<path d="M${{pts.map(at).join(" L")}}"/>`;
 }}
 
 function drawWatchPanes() {{
@@ -909,6 +941,13 @@ function drawWatchPanes() {{
   document.querySelectorAll("#wstats b[data-w]").forEach(b => {{
     b.textContent = vals[+b.dataset.w];
   }});
+
+  // places against actions, sampled as the run goes
+  if (n && (!wcurve.length || n > wcurve[wcurve.length - 1][0])) {{
+    wcurve.push([n, wsum.places || 0]);
+    if (wcurve.length > 400) wcurve.splice(0, wcurve.length - 400);
+  }}
+  drawCurve(wcurve);
 
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const max = top.length ? top[0][1] : 1;
@@ -939,7 +978,9 @@ function connect(sid) {{
       else held.delete(m.k);
       drawKeys();
     }} else if (m.t === "log") {{
-      // the first message carries the backlog, later ones carry one entry
+      // the first message carries the backlog and the whole progress curve;
+      // later ones carry a single entry
+      if (m.c && !wcurve.length) wcurve = m.c.map(p => [p[0], p[1]]);
       const seen = new Set(wlog.map(x => x.id));
       for (const x of m.e || []) if (!seen.has(x.id)) wlog.push(x);
       if (m.s) wsum = m.s;
@@ -964,7 +1005,7 @@ function open(sid, agent, push) {{
   $("veil").textContent = T.waiting;
   $("veil").classList.remove("gone");
   held.clear(); recent = []; drawKeys();
-  wlog = []; wsum = {{}}; drawWatchPanes();
+  wlog = []; wsum = {{}}; wcurve = []; drawWatchPanes();
   document.body.classList.add("watching");
   watchId = sid;
   if (push) history.pushState({{sid, agent}}, "",

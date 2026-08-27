@@ -132,6 +132,16 @@ session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 # walking back over old ground repeats one. Counting distinct pictures counts
 # ground covered, and going in circles adds nothing, which is the point.
 places: set = set()
+# Behavioural counters, following definitions from the game-agent benchmark
+# literature so the numbers mean the same thing elsewhere:
+#   meaningful step ratio  - GVGAI-LLM (arXiv 2508.08501), a step counts when
+#     it changes the state at all; weak agents score low by oscillating.
+#   repetition rate        - AgentQuest (arXiv 2404.06411), repeated actions
+#     over steps taken.
+#   progress vs steps      - TextQuests (2507.23701) and BALROG (2411.13543)
+#     both report progress as a curve against step count, not a single number.
+beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": None}
+curve: list = []          # (action index, places) sampled as the run goes
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
              "last_activity": time.time(), "actor": ""}
@@ -366,16 +376,43 @@ def fingerprint():
     return bytes(v >> 5 for v in small.getdata())      # 8 levels of grey
 
 
+def looks_like_dialogue(fp):
+    """A dialogue box is a bright band across the lower half. Measured on this
+    game at about 7 percent near-white pixels with a box and under 1 without;
+    on the 12x8 fingerprint that is the bottom rows running bright."""
+    if fp is None:
+        return False
+    bottom = fp[12 * 5:]
+    return sum(1 for v in bottom if v >= 6) >= len(bottom) * 0.45
+
+
 def note_place():
     fp = fingerprint()
-    if fp is not None:
-        places.add(fp)
+    if fp is None:
+        return
+    before = beh["last"]
+    if before is not None and fp != before:
+        beh["meaningful"] += 1
+    # A -> B -> A is the oscillation the literature calls out as the signature
+    # of an agent that is busy without getting anywhere.
+    if beh["prev"] is not None and fp == beh["prev"] and fp != before:
+        beh["oscillation"] += 1
+    if looks_like_dialogue(fp) and not looks_like_dialogue(before):
+        beh["dialogue"] += 1
+    beh["prev"], beh["last"] = before, fp
+    places.add(fp)
+    if not curve or session["actions"] - curve[-1][0] >= 5:
+        curve.append((session["actions"], len(places)))
+        del curve[:-400]
 
 
 def session_summary():
     return {"uptime_s": round(time.time() - session["started"], 1),
             "actions": session["actions"],
             "places": len(places),
+            "meaningful": beh["meaningful"],
+            "oscillation": beh["oscillation"],
+            "dialogue": beh["dialogue"],
             "by_api": session["by_api"], "by_web": session["by_web"],
             "agents": dict(agents.most_common(8))}
 
@@ -401,8 +438,10 @@ async def ws_handler(request):
     await ws.prepare(request)
     clients.add(ws)
     await send_keyframe(ws)
+    # the progress curve rides along on the first message only: a joining
+    # watcher gets the whole run, and per-action messages stay small
     await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:],
-                                  "s": session_summary()}))
+                                  "s": session_summary(), "c": list(curve)}))
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
@@ -596,6 +635,10 @@ async def run_action(request, steps, note, verb="KEY"):
         note_place()
         if warden.ON:
             warden.run["places"] = len(places)
+            warden.run["meaningful"] = beh["meaningful"]
+            warden.run["oscillation"] = beh["oscillation"]
+            warden.run["dialogue"] = beh["dialogue"]
+            warden.run["curve"] = list(curve)
     finally:
         api_lock.release()
 
@@ -745,6 +788,8 @@ async def api_reset(request):
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         places.clear()
+        curve.clear()
+        beh.update(meaningful=0, oscillation=0, dialogue=0, last=None, prev=None)
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()

@@ -37,6 +37,7 @@ CATALOG_OBJECT = "catalog.json"
 # proxy so the numbers survive however the run is fronted.
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "reads": 0, "errors": 0, "actions": 0, "places": 0,
+       "meaningful": 0, "oscillation": 0, "dialogue": 0, "curve": [],
        "done": None, "result": None}
 
 
@@ -120,6 +121,17 @@ def metrics():
         # into new ground rather than retracing.
         "places": run["places"],
         "reach": round(run["places"] / n, 3) if n else 0.0,
+        # Meaningful step ratio, GVGAI-LLM arXiv:2508.08501: the share of
+        # actions that changed the state at all.
+        "meaningful": round(run["meaningful"] / n, 3) if n else 0.0,
+        # Repetition rate, AgentQuest arXiv:2404.06411, adapted to a spatial
+        # game: actions that did not reach new ground, over actions taken.
+        "repetition": round(1 - run["places"] / n, 3) if n else 0.0,
+        # A -> B -> A oscillation, the failure mode GVGAI-LLM names explicitly.
+        "oscillation": round(run["oscillation"] / n, 3) if n else 0.0,
+        "dialogue": run["dialogue"],
+        # Progress against step count, the shape TextQuests and BALROG plot.
+        "curve": run["curve"][-200:],
         "keys": dict(sorted(run["keys"].items(), key=lambda kv: -kv[1])),
         "distinct_keys": len(run["keys"]),
     }
