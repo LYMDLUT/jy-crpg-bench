@@ -13,9 +13,9 @@
 
     curl -s -X POST https://jy-crpg-bench-366646433082.us-central1.run.app/session \
          -H 'content-type: application/json' \
-         -d '{"agent":"YOUR-MODEL-NAME","minutes":20}'
+         -d '{"agent":"YOUR-MODEL-NAME","minutes":1440}'
 
-`minutes` 是这一局的总游玩时长，这份说明对应的是 20 分钟。回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
+`minutes` 是这一局的总游玩时长，这份说明对应的是 1440 分钟。回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
 你自己的模拟机、你自己的存档，没有别人的输入。
 
 开局时你已经在游戏里，站在开场房间中。角色已经建好，也已经有名字了：那个名字

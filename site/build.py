@@ -17,7 +17,8 @@ ZH = {
     "locale": "zh_CN", "locale_alt": "en_US",
     "blurb": "面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。",
     "tagline": "面向前沿智能体的长程 CRPG 基准",
-    "oneline": "读 https://hanxiao.io/jy-crpg-bench/agents.md，照着玩，minutes=%M%。",
+    "oneline": "读 %U%，照着玩。",
+    "base": "https://hanxiao.io/jy-crpg-bench/",
     "playtime": "总游玩时长",
     "opts": [(20, "20 分钟"), (60, "1 小时"), (240, "4 小时"),
              (480, "8 小时"), (1440, "24 小时")],
@@ -48,7 +49,8 @@ EN = {
     "blurb": "A long-horizon CRPG benchmark for frontier agents. "
              "One run per model, twenty minutes, recorded.",
     "tagline": "A long-horizon CRPG benchmark for frontier agents",
-    "oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it, minutes=%M%.",
+    "oneline": "Read %U% and play it.",
+    "base": "https://hanxiao.io/jy-crpg-bench/en/",
     "playtime": "total playtime",
     "opts": [(20, "20 min"), (60, "1 hour"), (240, "4 hours"),
              (480, "8 hours"), (1440, "24 hours")],
@@ -412,7 +414,7 @@ TEMPLATE = r"""<!doctype html>
         ><path d="M10 3 5 8l5 5"/></svg>
     </button>
     <b class="mono">agents.md</b>
-    <a class="ico" href="{md}" title="{raw}" style="margin-left:auto">
+    <a class="ico" data-brief href="{md}" title="{raw}" style="margin-left:auto">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
         ><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>
@@ -456,7 +458,7 @@ TEMPLATE = r"""<!doctype html>
 </section>
 
 <footer>
-  <a href="{md}">agents.md</a>
+  <a data-brief href="{md}">agents.md</a>
 </footer>
 </div>
 
@@ -715,25 +717,38 @@ document.getElementById("viewseg").onclick = e => {{
 
 // $ is defined further down, so this section uses the long form
 const ONE = T.oneline, ONE_PX = 13;
+let brief = null;                    // cached text of the selected brief
+
+// The playtime rides in the address, not in the sentence: what a reader copies
+// stays a plain URL, and the brief it points at is the one for that length.
+// The copied line shows the absolute address an agent will be handed; the
+// page's own links and the viewer use the relative one, so this works the same
+// on the deployed site and on a local server.
+function briefPath(mins) {{ return (mins === "20" ? "" : mins + "m/") + "agents.md"; }}
+function briefUrl(mins) {{ return T.base + briefPath(mins); }}
 
 // Monospace width is linear in font-size, so one ratio pass lands it; a second
 // pass covers rounding at the extremes.
 function fitOne() {{
   const el = document.getElementById("one");
   el.style.fontSize = ONE_PX + "px";
-  // mixed Latin and CJK do not scale identically, so one ratio pass undershoots;
-  // iterate to convergence and leave a pixel of slack
-  for (let i = 0; i < 8 && el.scrollWidth > el.clientWidth - 1; i++) {{
+  // Strictly greater: once the text fits, scrollWidth clamps to clientWidth, so
+  // any slack in this test makes the condition permanently true and the loop
+  // shrinks for no reason. Mixed Latin and CJK do not scale quite linearly, so
+  // iterate rather than trusting a single ratio.
+  for (let i = 0; i < 8 && el.scrollWidth > el.clientWidth; i++) {{
     const px = parseFloat(el.style.fontSize);
-    const next = Math.max(9, px * (el.clientWidth - 1) / el.scrollWidth);
+    const next = Math.max(9, px * el.clientWidth / el.scrollWidth);
     if (next >= px) break;
     el.style.fontSize = next + "px";
   }}
 }}
 
 function drawOne() {{
-  const sel = document.getElementById("mins");
-  document.getElementById("one").textContent = ONE.replace("%M%", sel.value);
+  const mins = document.getElementById("mins").value;
+  document.getElementById("one").textContent = ONE.replace("%U%", briefUrl(mins));
+  document.querySelectorAll("[data-brief]").forEach(a => a.href = briefPath(mins));
+  brief = null;                      // the viewer must refetch the new one
   fitOne();
 }}
 document.getElementById("mins").onchange = drawOne;
@@ -742,14 +757,15 @@ document.fonts.ready.then(fitOne);   // remeasure once the pixel face lands
 
 // The box also changes width for reasons no resize event reports: the vertical
 // scrollbar appearing as cards load took ~9px and left the line clipped. Watch
-// the element itself. The guard stops the observer seeing its own writes.
-let fitting = false;
-new ResizeObserver(() => {{
-  if (fitting) return;
-  fitting = true;
+// the container, and act only when its width actually changed - watching the
+// text element instead made the observer react to its own font writes.
+let lastW = 0;
+new ResizeObserver(es => {{
+  const w = Math.round(es[0].contentRect.width);
+  if (w === lastW) return;
+  lastW = w;
   fitOne();
-  requestAnimationFrame(() => {{ fitting = false; }});
-}}).observe(document.getElementById("one"));
+}}).observe(document.querySelector(".oneline"));
 
 document.getElementById("copy").onclick = async e => {{
   const b = e.currentTarget, label = b.querySelector("span");
@@ -956,13 +972,13 @@ $("back").onclick = () => close(true);
 
 // ------------------------------------------------------------------ brief
 
-let brief = null;
 async function showDoc(push) {{
   document.body.classList.add("reading");
   scrollTo(0, 0);
   if (brief === null) {{
     $("doctext").textContent = T.loading;
-    try {{ brief = await fetch("{md}", {{cache: "no-cache"}}).then(r => r.text()); }}
+    const url = briefPath(document.getElementById("mins").value);
+    try {{ brief = await fetch(url).then(r => r.text()); }}
     catch {{ brief = T.gone; }}
   }}
   $("doctext").textContent = brief;

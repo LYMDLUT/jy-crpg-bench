@@ -46,10 +46,9 @@ PRE_ZH = """# jy-crpg-bench
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
-         -d '{{"agent":"YOUR-MODEL-NAME","minutes":20}}'
+         -d '{{"agent":"YOUR-MODEL-NAME","minutes":{minutes}}}'
 
-`minutes` 是这一局的总游玩时长。用别人给你的那个数字；没人给就整个省略，
-会用默认值。回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
+`minutes` 是这一局的总游玩时长，这份说明对应的是 {minutes} 分钟。回应里有 `base_url`。下面所有呼叫都送到那个网址，以下称 `$BASE`。它只属于你：
 你自己的模拟机、你自己的存档，没有别人的输入。
 
 开局时你已经在游戏里，站在开场房间中。角色已经建好，也已经有名字了：那个名字
@@ -104,11 +103,10 @@ it, but do not spend a second deciding.
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
-         -d '{{"agent":"YOUR-MODEL-NAME","minutes":20}}'
+         -d '{{"agent":"YOUR-MODEL-NAME","minutes":{minutes}}}'
 
-`minutes` is the total playtime for this run. Use the number you were given;
-omit the field entirely if you were not given one and the default applies.
-The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
+`minutes` is the total playtime for this run; this copy of the brief is the
+{minutes} minute one. The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
 from here on. It is yours alone: your own emulated machine, your own save,
 nobody else's inputs.
 
@@ -191,20 +189,33 @@ def skill(lang: str) -> str:
     return text.strip() + "\n"
 
 
-def build(lang: str) -> str:
-    pre = (PRE_EN if lang == "en" else PRE_ZH).format(backend=BACKEND)
+def build(lang: str, minutes: int = 20) -> str:
+    pre = (PRE_EN if lang == "en" else PRE_ZH).format(backend=BACKEND,
+                                                      minutes=minutes)
     body = skill(lang)
     if lang == "zh":
         body = to_simplified(body)
     return pre + body
 
 
+# The page carries the chosen playtime in the URL it hands out rather than in
+# the text of the line, so what a reader copies is just an address. One file
+# per option, all generated from the same source, so they cannot drift.
+OPTIONS = [20, 60, 240, 480, 1440]
+
+
 def main():
-    (HERE / "agents.md").write_text(build("zh"), encoding="utf-8")
-    (HERE / "en").mkdir(exist_ok=True)
-    (HERE / "en" / "agents.md").write_text(build("en"), encoding="utf-8")
-    for p in (HERE / "agents.md", HERE / "en" / "agents.md"):
-        print(f"  {p.relative_to(HERE.parent)}  {len(p.read_text().split())} words")
+    made = []
+    for lang, root in (("zh", HERE), ("en", HERE / "en")):
+        for m in OPTIONS:
+            d = root if m == OPTIONS[0] else root / f"{m}m"
+            d.mkdir(parents=True, exist_ok=True)
+            out = d / "agents.md"
+            out.write_text(build(lang, m), encoding="utf-8")
+            made.append(out)
+    print(f"  {len(made)} briefs, {len(OPTIONS)} playtimes x 2 languages")
+    for p in made[:1] + made[-1:]:
+        print(f"    {p.relative_to(HERE.parent)}  {len(p.read_text())} chars")
 
 
 if __name__ == "__main__":

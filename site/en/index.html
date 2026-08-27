@@ -287,7 +287,7 @@
 
   <div class="oneline">
     <select id="mins" class="mins" title="total playtime" aria-label="total playtime"><option value="20" selected>20 min</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="480">8 hours</option><option value="1440">24 hours</option></select>
-    <code id="one">Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it, minutes=%M%.</code>
+    <code id="one">Read %U% and play it.</code>
     <button id="view" title="view">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/>
@@ -338,7 +338,7 @@
         ><path d="M10 3 5 8l5 5"/></svg>
     </button>
     <b class="mono">agents.md</b>
-    <a class="ico" href="agents.md" title="raw" style="margin-left:auto">
+    <a class="ico" data-brief href="agents.md" title="raw" style="margin-left:auto">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
         ><path d="M8 2v8M5 7.5 8 10.5l3-3M2.5 12.5v1h11v-1"/></svg>
@@ -382,12 +382,12 @@
 </section>
 
 <footer>
-  <a href="agents.md">agents.md</a>
+  <a data-brief href="agents.md">agents.md</a>
 </footer>
 </div>
 
 <script>
-const T = {"oneline": "Read https://hanxiao.io/jy-crpg-bench/en/agents.md and play it, minutes=%M%.", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "full run", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -641,25 +641,38 @@ document.getElementById("viewseg").onclick = e => {
 
 // $ is defined further down, so this section uses the long form
 const ONE = T.oneline, ONE_PX = 13;
+let brief = null;                    // cached text of the selected brief
+
+// The playtime rides in the address, not in the sentence: what a reader copies
+// stays a plain URL, and the brief it points at is the one for that length.
+// The copied line shows the absolute address an agent will be handed; the
+// page's own links and the viewer use the relative one, so this works the same
+// on the deployed site and on a local server.
+function briefPath(mins) { return (mins === "20" ? "" : mins + "m/") + "agents.md"; }
+function briefUrl(mins) { return T.base + briefPath(mins); }
 
 // Monospace width is linear in font-size, so one ratio pass lands it; a second
 // pass covers rounding at the extremes.
 function fitOne() {
   const el = document.getElementById("one");
   el.style.fontSize = ONE_PX + "px";
-  // mixed Latin and CJK do not scale identically, so one ratio pass undershoots;
-  // iterate to convergence and leave a pixel of slack
-  for (let i = 0; i < 8 && el.scrollWidth > el.clientWidth - 1; i++) {
+  // Strictly greater: once the text fits, scrollWidth clamps to clientWidth, so
+  // any slack in this test makes the condition permanently true and the loop
+  // shrinks for no reason. Mixed Latin and CJK do not scale quite linearly, so
+  // iterate rather than trusting a single ratio.
+  for (let i = 0; i < 8 && el.scrollWidth > el.clientWidth; i++) {
     const px = parseFloat(el.style.fontSize);
-    const next = Math.max(9, px * (el.clientWidth - 1) / el.scrollWidth);
+    const next = Math.max(9, px * el.clientWidth / el.scrollWidth);
     if (next >= px) break;
     el.style.fontSize = next + "px";
   }
 }
 
 function drawOne() {
-  const sel = document.getElementById("mins");
-  document.getElementById("one").textContent = ONE.replace("%M%", sel.value);
+  const mins = document.getElementById("mins").value;
+  document.getElementById("one").textContent = ONE.replace("%U%", briefUrl(mins));
+  document.querySelectorAll("[data-brief]").forEach(a => a.href = briefPath(mins));
+  brief = null;                      // the viewer must refetch the new one
   fitOne();
 }
 document.getElementById("mins").onchange = drawOne;
@@ -668,14 +681,15 @@ document.fonts.ready.then(fitOne);   // remeasure once the pixel face lands
 
 // The box also changes width for reasons no resize event reports: the vertical
 // scrollbar appearing as cards load took ~9px and left the line clipped. Watch
-// the element itself. The guard stops the observer seeing its own writes.
-let fitting = false;
-new ResizeObserver(() => {
-  if (fitting) return;
-  fitting = true;
+// the container, and act only when its width actually changed - watching the
+// text element instead made the observer react to its own font writes.
+let lastW = 0;
+new ResizeObserver(es => {
+  const w = Math.round(es[0].contentRect.width);
+  if (w === lastW) return;
+  lastW = w;
   fitOne();
-  requestAnimationFrame(() => { fitting = false; });
-}).observe(document.getElementById("one"));
+}).observe(document.querySelector(".oneline"));
 
 document.getElementById("copy").onclick = async e => {
   const b = e.currentTarget, label = b.querySelector("span");
@@ -882,13 +896,13 @@ $("back").onclick = () => close(true);
 
 // ------------------------------------------------------------------ brief
 
-let brief = null;
 async function showDoc(push) {
   document.body.classList.add("reading");
   scrollTo(0, 0);
   if (brief === null) {
     $("doctext").textContent = T.loading;
-    try { brief = await fetch("agents.md", {cache: "no-cache"}).then(r => r.text()); }
+    const url = briefPath(document.getElementById("mins").value);
+    try { brief = await fetch(url).then(r => r.text()); }
     catch { brief = T.gone; }
   }
   $("doctext").textContent = brief;
