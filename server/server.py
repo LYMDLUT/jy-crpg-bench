@@ -428,6 +428,12 @@ def snapshot(fmt="png"):
     if fmt == "webp":
         img.save(out, "WEBP", lossless=True, method=4)
         mime = "image/webp"
+    elif fmt == "jpeg":
+        # only for catalogue thumbnails: shown about 320px wide and fetched by
+        # every visitor, so bytes on the wire matter far more than fidelity
+        img = img.resize((256, max(1, round(256 * h.value / w.value))), Image.BILINEAR)
+        img.save(out, "JPEG", quality=52, optimize=True)
+        mime = "image/jpeg"
     else:
         img.save(out, "PNG", optimize=True)
         mime = "image/png"
@@ -650,15 +656,22 @@ async def api_wait(request):
 
 
 async def api_screen(request):
-    if warden.ON:
-        warden.note_read()
-    """The only way to look at the screen. JSON, or ?format=png|webp for bytes."""
+    """The only way to look at the screen. JSON, or ?format=png|webp|jpeg.
+
+    ?spectate=1 is a look that is not the player's: it publishes a thumbnail
+    for the catalogue. It must not count as a read against the agent, nor
+    appear in its action log, or watching a run would change its numbers.
+    """
     fmt = request.query.get("format", "")
-    log_action(actor(request), "GET", "screen", thumb=True)
-    data, w, h, mime = snapshot("webp" if fmt == "webp" else "png")
+    watching = request.query.get("spectate") == "1"
+    if warden.ON and not watching:
+        warden.note_read()
+    if not watching:
+        log_action(actor(request), "GET", "screen", thumb=True)
+    data, w, h, mime = snapshot(fmt if fmt in ("webp", "jpeg") else "png")
     if not data:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
-    if fmt in ("png", "webp"):
+    if fmt in ("png", "webp", "jpeg"):
         return web.Response(body=data, content_type=mime)
     return web.json_response({
         "ok": True, "width": LIB.core_width(), "height": LIB.core_height(),

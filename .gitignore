@@ -1,35 +1,32 @@
-.DS_Store
-.build/
-*.xcodeproj
-DerivedData/
+
 __pycache__/
-
-# The original game. Copyrighted by its publisher and not ours to
-# redistribute, so it is kept out of the repository. Supply your own copy;
-# Scripts/pack-game.sh builds the archive that run.sh unpacks.
-game/
-assets/game-data.tar.gz
-
-# Third-party sources, cloned separately (see README).
-vendor/
-ref-hojy/
-ref-kys-pascal/
-legacy-rewrite/
-
-# Emulator snapshots.
-saves/*.state
-
-# Local pi harness state. auth.json holds API keys; models.json is generated
-# from the QUNXIA_LLM_* env vars at launch. Only SYSTEM.md and extensions/ are
-# part of the project.
-pi-agent/*
-!pi-agent/SYSTEM.md
+_fixture.json
+_live
 !pi-agent/extensions/
-
-# Scratch left in the repo root by agents playing the game: screenshots they
-# captured and one-off scripts. Kept on disk, never committed.
+!pi-agent/SYSTEM.md
+.build/
+.DS_Store
+*.xcodeproj
 /*.png
 /*.py
-
 # built per platform by server/build.sh
+# captured and one-off scripts. Kept on disk, never committed.
+# Emulator snapshots.
+# from the QUNXIA_LLM_* env vars at launch. Only SYSTEM.md and extensions/ are
+# Local pi harness state. auth.json holds API keys; models.json is generated
+# part of the project.
+# redistribute, so it is kept out of the repository. Supply your own copy;
+# Scratch left in the repo root by agents playing the game: screenshots they
+# Scripts/pack-game.sh builds the archive that run.sh unpacks.
+# The original game. Copyrighted by its publisher and not ours to
+# Third-party sources, cloned separately (see README).
+assets/game-data.tar.gz
+DerivedData/
+game/
+legacy-rewrite/
+pi-agent/*
+ref-hojy/
+ref-kys-pascal/
+saves/*.state
 server/libqunxia.so
+vendor/

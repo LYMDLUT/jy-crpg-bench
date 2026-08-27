@@ -27,6 +27,7 @@ REPO = ROOT.parent
 SERVER = REPO / "server" / "server.py"
 PYTHON = os.environ.get("QUNXIA_PYTHON", str(REPO / ".venv" / "bin" / "python"))
 RESULT_DIR = pathlib.Path(os.environ.get("QUNXIA_RESULT_DIR", "/tmp/qunxia-results"))
+LOCAL = pathlib.Path(os.environ.get("QUNXIA_LOCAL_PUBLIC", "/tmp/qunxia-public"))
 VIDEO_DIR = pathlib.Path(os.environ.get("QUNXIA_VIDEO_DIR", "/tmp/qunxia-videos"))
 GCS_BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 PUBLIC_BASE = os.environ.get("QUNXIA_PUBLIC_BASE", "")
@@ -50,6 +51,15 @@ MAX_SESSIONS = int(os.environ.get("QUNXIA_MAX_SESSIONS", "24"))
 # 123MB and 0.14s per copy, which is worth not having to reason about it.
 GAME = os.environ.get("QUNXIA_GAME", str(REPO / "game" / "PLAY.BAT"))
 WORK = pathlib.Path(os.environ.get("QUNXIA_WORK_DIR", "/tmp/qunxia-work"))
+# How often the public snapshot of what is running is written to the bucket.
+# Visitors read that file, never this service: a launch-day crowd polling here
+# would be competing for CPU with the emulators it came to watch.
+LIVE_EVERY = float(os.environ.get("QUNXIA_LIVE_EVERY", "4"))
+SHOT_EVERY = float(os.environ.get("QUNXIA_SHOT_EVERY", "6"))
+# A run is played by one agent but can be watched by many. Past this many
+# sockets the extra viewers fall back to the published thumbnail, so a popular
+# run is never slowed by its own audience.
+MAX_WATCHERS = int(os.environ.get("QUNXIA_MAX_WATCHERS", "12"))
 # How long to hold an agent's final call while its video renders and uploads.
 # The run is over either way; this only decides whether the agent is handed the
 # link or has to go and find it in the catalogue.
@@ -66,6 +76,42 @@ def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+_bucket_cache = []
+
+
+def bucket():
+    if not GCS_BUCKET:
+        return None
+    if not _bucket_cache:
+        from google.cloud import storage
+        _bucket_cache.append(storage.Client().bucket(GCS_BUCKET))
+    return _bucket_cache[0]
+
+
+def put(name, data, mime, max_age):
+    b = bucket()
+    if b is None:
+        # object names carry slashes; on a filesystem those are directories
+        out = LOCAL / name
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+        return
+    blob = b.blob(name)
+    blob.cache_control = f"public, max-age={max_age}"
+    blob.upload_from_string(data, content_type=mime)
+
+
+def drop(name):
+    b = bucket()
+    try:
+        if b is None:
+            (LOCAL / name).unlink(missing_ok=True)
+        else:
+            b.blob(name).delete()
+    except Exception:
+        pass
 
 
 def result_of(sid):
@@ -295,6 +341,12 @@ async def spectate(request, sess, url):
     """Watch a run in progress. Anything the viewer sends is dropped rather
     than forwarded, so a spectator cannot touch the game even with a hand
     written socket - read only is a property of this proxy, not of the page."""
+    if sess.get("watchers", 0) >= MAX_WATCHERS:
+        return web.json_response(
+            {"ok": False, "error": "too many watchers", "watchers": MAX_WATCHERS,
+             "hint": "this run is already being watched by as many sockets as "
+                     "it will carry; the published thumbnail still updates"},
+            status=503, headers=CORS)
     ws = web.WebSocketResponse(max_msg_size=0, heartbeat=30)
     await ws.prepare(request)
     sess["watchers"] = sess.get("watchers", 0) + 1
@@ -368,22 +420,43 @@ async def index(_request):
     raise web.HTTPFound(SITE)
 
 
-async def sweep(app):
-    """Housekeeping, on the broker's own clock rather than a caller's.
+def live_payload():
+    now = time.time()
+    return {"t": round(now, 1), "capacity": MAX_SESSIONS,
+            "max_minutes": MAX_MINUTES, "max_watchers": MAX_WATCHERS,
+            "running": [
+                {"id": s["id"], "agent": s["agent"], "started": s["started"],
+                 "actions": s.get("live_actions", 0),
+                 "uptime": round(s.get("live_uptime", 0)),
+                 "budget": s.get("budget"),
+                 "watchers": s.get("watchers", 0),
+                 "shot": s.get("shot_at", 0),
+                 "remaining": max(0, round(s["ends_at"] - now))}
+                for s in sessions.values()
+                if s["proc"].poll() is None and not result_of(s["id"])]}
 
-    Reclaims a finished run's 123MB game copy once the process that owned it is
-    gone - the run cannot do that itself, since it is still holding those files
-    open as it exits. Also refreshes the live action counts, cached here so a
-    page full of viewers costs the same as one.
+
+async def sweep(app):
+    """Housekeeping, on the broker's own clock rather than any caller's.
+
+    Three jobs. It reclaims a finished run's 123MB game copy once the process
+    that owned it is gone, which that process cannot do while it is still
+    holding those files open. It refreshes the live action counts. And it
+    publishes both the counts and a thumbnail per running run to the bucket,
+    so the public page reads a static file that scales on its own instead of
+    polling this service, which shares its CPU with every emulator.
     """
-    tick = 0
+    loop = asyncio.get_running_loop()
+    tick, last_live, last_shot, last_sig = 0, 0.0, 0.0, None
     while True:
-        await asyncio.sleep(3)
+        await asyncio.sleep(1)
         tick += 1
+        now = time.time()
+        running = [s for s in sessions.values()
+                   if s["proc"].poll() is None and not result_of(s["id"])]
+
         async with aiohttp.ClientSession() as http:
-            for s in list(sessions.values()):
-                if s["proc"].poll() is not None or result_of(s["id"]):
-                    continue
+            for s in running:
                 try:
                     async with http.get(f"http://127.0.0.1:{s['port']}/status",
                                         timeout=aiohttp.ClientTimeout(total=3)) as r:
@@ -392,17 +465,58 @@ async def sweep(app):
                         s["live_uptime"] = d.get("uptime_s", 0)
                 except Exception:
                     pass
-        if tick % 10:
+
+            if running and now - last_shot >= SHOT_EVERY:
+                last_shot = now
+                for s in running:
+                    try:
+                        async with http.get(
+                                f"http://127.0.0.1:{s['port']}/api/screen",
+                                params={"format": "jpeg", "spectate": "1"},
+                                timeout=aiohttp.ClientTimeout(total=8)) as r:
+                            if r.status == 200:
+                                img = await r.read()
+                                await loop.run_in_executor(
+                                    None, put, f"live/{s['id']}.jpg", img,
+                                    "image/jpeg", 4)
+                                s["shot_at"] = round(now)
+                    except Exception as exc:
+                        if not s.get("shot_warned"):
+                            s["shot_warned"] = True
+                            print(f"thumbnail failed for {s['id']}: {exc}", flush=True)
+
+        # written while anything runs, and once more after the last one stops
+        sig = tuple(sorted(s["id"] for s in running))
+        if running and now - last_live >= LIVE_EVERY or sig != last_sig:
+            last_live, last_sig = now, sig
+            try:
+                await loop.run_in_executor(
+                    None, put, "live.json",
+                    json.dumps(live_payload()).encode(), "application/json", 3)
+            except Exception as exc:
+                print(f"live publish failed: {exc}", flush=True)
+
+        if tick % 30:
             continue
         for s in list(sessions.values()):
             work = s.get("work")
             if work and s["proc"].poll() is not None and work.exists():
-                await asyncio.get_running_loop().run_in_executor(
+                await loop.run_in_executor(
                     None, lambda w=work: shutil.rmtree(w, ignore_errors=True))
+                # its thumbnail is nothing but storage cost once the run is over
+                await loop.run_in_executor(None, drop, f"live/{s['id']}.jpg")
                 print(f"reclaimed {work}", flush=True)
 
 
 async def spawn_sweep(app):
+    # a restart leaves a stale live.json describing runs that died with the
+    # container; clear it before anything reads it
+    try:
+        await asyncio.get_running_loop().run_in_executor(
+            None, put, "live.json", json.dumps(live_payload()).encode(),
+            "application/json", 3)
+    except Exception as exc:
+        print(f"live reset failed: {exc}", flush=True)
     app["sweep"] = asyncio.create_task(sweep(app))
 
 
