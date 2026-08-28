@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="a2b720caaa60">
+<meta name="build" content="e639a4fa3358">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -137,6 +137,12 @@
          font-weight: 600; font-size: 13.5px; word-break: break-all; }
   .who span { min-width: 0; overflow: hidden; text-overflow: ellipsis;
               white-space: nowrap; }
+  /* the lab mark sits on the name and takes its colour */
+  .vend { width: 13px; height: 13px; flex: none; margin-right: 5px;
+          vertical-align: -2px; }
+  .nm .vend { vertical-align: -2px; }
+  /* played time reads as data, not as part of the outcome word */
+  .ptime { font-weight: 600; font-variant-numeric: tabular-nums; }
   .dl { margin-left: auto; flex: none; border: 0; color: var(--dim);
         display: inline-flex; padding: 3px; border-radius: 5px; }
   .dl:hover { color: var(--ink); background: #f0f0f0; }
@@ -505,7 +511,7 @@
 </div>
 
 <script>
-const T = {"oneline": "读 %U%，照着玩。", "base": "https://hanxiao.io/jy-crpg-bench/", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "meaningful": "有效动作", "oscillation": "来回打转", "dialogue": "对话", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "完整跑完", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "explored": "有效动作", "progress": "有效动作 vs 动作数", "replay": "回放", "download": "下载 MP4", "speed": "倍速", "prevact": "上一个动作", "nextact": "下一个动作", "playpause": "播放/暂停", "held": "按住", "loading2": "载入回放", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"oneline": "读 %U%，照着玩。", "base": "https://hanxiao.io/jy-crpg-bench/", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "meaningful": "有效动作", "oscillation": "来回打转", "dialogue": "对话", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "已完成", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "explored": "有效动作", "progress": "有效动作 vs 动作数", "replay": "回放", "download": "下载 MP4", "speed": "倍速", "prevact": "上一个动作", "nextact": "下一个动作", "playpause": "播放/暂停", "held": "按住", "loading2": "载入回放", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -545,13 +551,81 @@ const I = {
   play: `<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5v9l7.5-4.5z"/></svg>`,
 };
 
+// The clock rides with the outcome. How long a run lasted is the first thing
+// worth knowing about it, and it used to sit at the bottom of the stat block
+// under everything else.
 function why(r) {
+  const t = `<b class="ptime">${mmss(r.played)}</b>`;
   if (r.running) return `<span class="runtag"><span class="pulse"></span>`
-    + `${T.running} · ${T.left} ${mmss(r.remaining)}</span>`;
-  if (r.error)              return `<span class="why bad">${I.bad}${T.err}</span>`;
-  if (r.reason === "time")  return `<span class="why ok">${I.ok}${T.full}</span>`;
-  if (r.reason === "idle")  return `<span class="why warn">${I.warn}${T.idle}</span>`;
-  return `<span class="why warn">${I.warn}${T.never}</span>`;
+    + `${T.running} · ${t} · ${T.left} ${mmss(r.remaining)}</span>`;
+  if (r.error)              return `<span class="why bad">${I.bad}${T.err} · ${t}</span>`;
+  if (r.reason === "time")  return `<span class="why ok">${I.ok}${T.full} · ${t}</span>`;
+  if (r.reason === "idle")  return `<span class="why warn">${I.warn}${T.idle} · ${t}</span>`;
+  return `<span class="why warn">${I.warn}${T.never} · ${t}</span>`;
+}
+
+// Which lab a run came from, read off the model name. Simplified marks drawn
+// here rather than lifted from brand kits: enough to tell one lab from another
+// at 14px. They inherit the name's colour instead of carrying brand colours,
+// which would fight the rest of the page. A name that matches nothing gets no
+// mark, which is better than the wrong one.
+const VENDOR = [
+  [/^(claude|anthropic)/i,          "anthropic"],
+  [/^(gpt|o[1-9]|openai|chatgpt)/i, "openai"],
+  [/^(gemini|gemma|palm|bard)/i,    "google"],
+  [/^(qwen|qwq|tongyi)/i,           "qwen"],
+  [/^deepseek/i,                    "deepseek"],
+  [/^(llama|meta)/i,                "meta"],
+  [/^(mistral|mixtral|magistral|codestral)/i, "mistral"],
+  [/^(grok|xai)/i,                  "xai"],
+  [/^(phi|microsoft)/i,             "microsoft"],
+  [/^(kimi|moonshot)/i,             "moonshot"],
+];
+
+const MARK = {
+  // a burst of spokes
+  anthropic: `<g stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+    <path d="M12 3.2v17.6M4.4 7.6l15.2 8.8M4.4 16.4l15.2-8.8"/></g>`,
+  // the blossom: three loops at sixty degrees, which is the six-fold turn the
+  // real knot has. A hexagon read as a cube instead.
+  openai: `<g fill="none" stroke="currentColor" stroke-width="1.7">
+    <ellipse cx="12" cy="12" rx="9.4" ry="4.1"/>
+    <ellipse cx="12" cy="12" rx="9.4" ry="4.1" transform="rotate(60 12 12)"/>
+    <ellipse cx="12" cy="12" rx="9.4" ry="4.1" transform="rotate(120 12 12)"/></g>`,
+  // the four-pointed spark
+  google: `<path fill="currentColor" d="M12 1.6c0 5.7 4.7 10.4 10.4 10.4C16.7 12
+    12 16.7 12 22.4 12 16.7 7.3 12 1.6 12 7.3 12 12 7.3 12 1.6z"/>`,
+  // a plain geometric mark: the circle-and-tail I had first read as a search
+  // box, and a mark that means something else is worse than one that means
+  // nothing
+  qwen: `<g stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"
+    fill="none"><path d="M12 2.4l9.6 9.6-9.6 9.6L2.4 12z"/>
+    <path d="M12 8.2l3.8 3.8-3.8 3.8-3.8-3.8z" fill="currentColor" stroke="none"/></g>`,
+  // a whale: body, blunt head, notched tail
+  deepseek: `<path fill="currentColor" d="M2.2 12.6c3.6 0 6-1.3 8-3.1
+    2-1.9 4.1-3.1 6.7-3.1 1.5 0 2.9.3 4.2.9-.9.9-2 1.5-3.2 1.8 1 .8 1.6 1.9
+    1.7 3.1-1.3 4-5 6.6-9.3 6.6-3.6 0-6.6-1.9-8.1-5.1l3.4-.4-3.4-.7z"/>`,
+  meta: `<g fill="none" stroke="currentColor" stroke-width="2.3"
+    stroke-linecap="round"><path d="M3 15.4c0-5 2.7-8.6 5.2-8.6 3.6 0 5.2 10.4
+    8.6 10.4 2.2 0 4.2-2.4 4.2-6.2S19.2 5 17 5c-3.6 0-6.4 10.4-9.6 10.4"/></g>`,
+  // stepped bars. Three equal ones read as a hamburger menu.
+  mistral: `<g fill="currentColor"><rect x="3" y="4.2" width="18" height="3.3"/>
+    <rect x="3" y="10.35" width="12.4" height="3.3"/>
+    <rect x="3" y="16.5" width="18" height="3.3"/></g>`,
+  xai: `<g stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+    <path d="M4.4 4.4l15.2 15.2M19.6 4.4L4.4 19.6"/></g>`,
+  microsoft: `<g fill="currentColor"><rect x="3.4" y="3.4" width="7.8" height="7.8"/>
+    <rect x="12.8" y="3.4" width="7.8" height="7.8"/>
+    <rect x="3.4" y="12.8" width="7.8" height="7.8"/>
+    <rect x="12.8" y="12.8" width="7.8" height="7.8"/></g>`,
+  moonshot: `<path fill="currentColor" d="M20 15.4A9 9 0 0 1 8.6 4 9.2 9.2 0 1 0 20 15.4z"/>`,
+};
+
+function mark(name) {
+  const hit = VENDOR.find(([re]) => re.test(String(name || "").trim()));
+  if (!hit || !MARK[hit[1]]) return "";
+  return `<svg class="vend" viewBox="0 0 24 24" role="img" aria-label="${hit[1]}"`
+    + ` title="${hit[1]}">${MARK[hit[1]]}</svg>`;
 }
 
 // Quantised so two models never land on near-identical hues.
@@ -694,7 +768,7 @@ function render() {
         ${clip(r)}
         <div class="f">
           <div class="nm"><u>${T.agent}</u>
-            <b style="color:${hue(r.agent)}">${r.agent}</b></div>
+            <b style="color:${hue(r.agent)}">${mark(r.agent)}${r.agent}</b></div>
           ${COLS.filter(c => c.k !== "started").map(c =>
             `<div><u>${T.cols[c.k]}</u><b ${lv(r, c.k)}>${c.f(r)}</b></div>`).join("")}
         </div>
@@ -714,7 +788,7 @@ function render() {
       <div class="cmeta">
         <div class="status" ${lv(r, "tag")}>${why(r)}</div>
         <div class="who">
-          <span style="color:${hue(r.agent)}">${r.agent}</span>
+          <span style="color:${hue(r.agent)}">${mark(r.agent)}${r.agent}</span>
           ${r.video_url ? `<a class="dl" href="${r.video_url}" download
              title="${T.download}" aria-label="${T.download}">${DL}</a>` : ""}</div>
         <div class="kv">
@@ -725,7 +799,6 @@ function render() {
           <span>${T.cols.ttfa}</span><b>${secs(r.ttfa)}</b>
           <span>${T.cols.gap_p50} / p95</span><b>${secs(r.gap_p50)} / ${secs(r.gap_p95)}</b>
           <span>${T.cols.distinct_keys}</span><b>${r.distinct_keys ?? "-"} · ${r.reads ?? "-"}</b>
-          <span>${T.cols.played}</span><b ${lv(r, "played")}>${mmss(r.played)}</b>
         </div>
         ${spark(r.keys)}
       </div>
@@ -1128,7 +1201,9 @@ function shell(agent, push, id, live) {
   const s = sock; sock = null; if (s) s.close();
   const v = $("vid"); v.pause(); v.removeAttribute("src"); v.load();
   cache.img = null;
-  $("wname").textContent = agent;
+  // the server admits only alphanumerics and -_. into a name, which is why
+  // the cards interpolate it raw too
+  $("wname").innerHTML = mark(agent) + agent;
   $("wname").style.color = hue(agent);
   held.clear(); recent = []; act = null; drawKeys();
   wlog = []; wsum = {}; wcurve = []; drawWatchPanes();
