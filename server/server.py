@@ -1027,7 +1027,7 @@ async def calibrate():
     async def shot():
         tmp = START_STATE + ".cal"
         if not LIB.core_save_state(tmp.encode()):
-            raise web.HTTPInternalServerError(text="serialize failed")
+            raise RuntimeError("serialize failed")
         with open(tmp, "rb") as fh:
             data = fh.read()
         os.unlink(tmp)
@@ -1135,16 +1135,44 @@ async def _calibrate_once(_app):
     Done here rather than baked into the image because the serialised layout is
     not stable across machines or even across runs on one machine. The walk is
     undone before it returns, so the agent still starts where the opening state
-    left it."""
-    try:
-        pos, why = await calibrate()
-    except Exception as exc:
-        pos, why = None, repr(exc)
-    if pos:
-        print(f"position offsets {hex(pos[0])},{hex(pos[1])} ({why})", flush=True)
+    left it.
+
+    It waits for the emulator first. On a cold container the core is still
+    coming up when startup handlers run, and serialising it then simply fails,
+    which is how the first attempt at this shipped a whole revision that
+    reported nothing."""
+    async def ready():
+        tmp = START_STATE + ".rdy"
+        try:
+            if not LIB.core_save_state(tmp.encode()):
+                return False
+            os.unlink(tmp)
+            return True
+        except Exception:
+            return False
+
+    for _ in range(120):
+        if await ready():
+            break
+        await asyncio.sleep(0.5)
     else:
-        print(f"no position offsets ({why}); exploration will not be reported",
+        print("no position offsets (emulator never became serialisable); "
+              "exploration will not be reported", flush=True)
+        return
+
+    for attempt in range(3):
+        try:
+            pos, why = await calibrate()
+        except Exception as exc:
+            pos, why = None, repr(exc)
+        if pos:
+            print(f"position offsets {hex(pos[0])},{hex(pos[1])} ({why})",
+                  flush=True)
+            return
+        print(f"calibration attempt {attempt + 1} found nothing ({why})",
               flush=True)
+        await asyncio.sleep(1.0)
+    print("no position offsets; exploration will not be reported", flush=True)
 
 
 def main():
