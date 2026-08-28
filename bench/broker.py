@@ -405,7 +405,6 @@ async def api_sessions(_request):
             {"id": s["id"], "agent": s["agent"],
              "started": s["started"], "watchers": s.get("watchers", 0),
              "actions": s.get("live_actions", 0), "budget": s.get("budget"),
-             "places": s.get("live_places", 0),
              "meaningful": s.get("live_meaningful", 0),
              "dialogue": s.get("live_dialogue", 0),
              "uptime": round(s.get("live_uptime", 0)),
@@ -455,10 +454,8 @@ def live_payload():
             "running": [
                 {"id": s["id"], "agent": s["agent"], "started": s["started"],
                  "actions": s.get("live_actions", 0),
-                 "places": s.get("live_places", 0),
                  "meaningful": s.get("live_meaningful", 0),
                  "dialogue": s.get("live_dialogue", 0),
-                 "stall": s.get("live_stall", 0),
                  "keys": s.get("live_keys", {}),
                  "uptime": round(s.get("live_uptime", 0)),
                  "budget": s.get("budget"),
@@ -496,10 +493,8 @@ async def sweep(app):
                         d = (await r.json()).get("session", {})
                         s["live_actions"] = d.get("actions", 0)
                         s["live_uptime"] = d.get("uptime_s", 0)
-                        s["live_places"] = d.get("places", 0)
                         s["live_meaningful"] = d.get("meaningful", 0)
                         s["live_dialogue"] = d.get("dialogue", 0)
-                        s["live_stall"] = d.get("stall", 0)
                         s["live_keys"] = d.get("keys", {})
                 except Exception:
                     pass
