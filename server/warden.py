@@ -93,6 +93,7 @@ def ended_payload():
             "played_seconds": round((run["last"] or run["playable"] or 0)
                                     - (run["playable"] or 0)),
             "video_url": res.get("video_url"),
+            "poster_url": res.get("poster_url"),
             "video_pending": res.get("video_url") is None,
             "catalog_url": SITE}
 
@@ -198,7 +199,9 @@ def publish(path: pathlib.Path):
     if b is None:
         return f"{PUBLIC_BASE}/videos/{path.name}" if PUBLIC_BASE else None
     blob = b.blob(path.name)
-    blob.upload_from_filename(str(path), content_type="video/mp4")
+    kind = {".mp4": "video/mp4", ".jpg": "image/jpeg",
+            ".json": "application/json"}.get(path.suffix, "application/octet-stream")
+    blob.upload_from_filename(str(path), content_type=kind)
     blob.cache_control = "public, max-age=31536000, immutable"
     blob.patch()
     return f"https://storage.googleapis.com/{BUCKET}/{path.name}"
@@ -290,8 +293,15 @@ async def warden(rec):
         snap = dict(rec, events=list(rec["events"]))
         info = await loop.run_in_executor(None, lambda: render(snap, out, AGENT))
         timeline = info.pop("timeline", None)
+        poster = info.pop("poster", None)
         res["video"] = {k: v for k, v in info.items() if k != "path"}
         res["video_url"] = await loop.run_in_executor(None, publish, out)
+        # The still the card shows before the video is fetched. Without it a
+        # thumbnail is a blank box until it scrolls into view, and on iOS
+        # often after that too.
+        if poster:
+            res["poster_url"] = await loop.run_in_executor(
+                None, publish, pathlib.Path(poster))
         # The scrubbable replay: a few KB describing what happened when, so the
         # page can drive the MP4 rather than ship the whole recording.
         if timeline is not None:

@@ -875,8 +875,14 @@ function clip(r) {{
   if (r.running) return `<img class="live-cv" data-sid="${{r.id}}" alt="" loading="lazy"
     src="${{STORE}}/live/${{r.id}}.jpg?v=${{r.shot || 0}}">`;
   if (!r.video_url) return `<div class="none">${{T.novideo}}</div>`;
-  // not a link any more: thumbnail and card both open the run
-  return `<video src="${{r.video_url}}" muted loop playsinline preload="none"></video>`;
+  // not a link any more: thumbnail and card both open the run.
+  // The poster matters more than it looks: preload="none" means nothing is
+  // fetched until the card scrolls into view, and on iOS often not then, so
+  // without it most cards are blank boxes. Measured in WebKit at iPhone size:
+  // two of eight ever painted a frame.
+  const p = r.poster_url ? ` poster="${{r.poster_url}}"` : "";
+  return `<video src="${{r.video_url}}"${{p}} muted loop playsinline
+    preload="none"></video>`;
 }}
 
 const DL = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none"
@@ -1335,9 +1341,12 @@ function wireOpen(root) {{
   }});
 }}
 
-async function load() {{
+async function load(attempt = 0) {{
   try {{
-    const data = await fetch(CATALOG, {{cache: "no-cache"}}).then(r => r.json());
+    const data = await fetch(CATALOG, {{cache: "no-cache"}}).then(r => {{
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }});
     runs = Array.isArray(data) ? data : (data.runs || []);
     document.getElementById("count").textContent =
       runs.length + " " + (runs.length === 1 ? T.run1 : T.runs);
@@ -1346,6 +1355,12 @@ async function load() {{
     drawBoard();
     provenance();
   }} catch (e) {{
+    // A phone dropping one request should not leave the page blank until the
+    // next poll thirty seconds later.
+    if (attempt < 2) {{
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+      return load(attempt + 1);
+    }}
     if (!runs.length) {{
       const out = document.getElementById("out");
       out.className = "msg"; out.textContent = T.gone;
@@ -1965,11 +1980,15 @@ tick(bumpShots, 6000);
 // ten-minute-old copy and see a bug that was already fixed. Watch for a new
 // build and pick it up, skipping the cache to ask.
 const BUILD = document.querySelector('meta[name="build"]').content;
+const VERSION_URL = new URL("version.txt", T.base).href;
 let reloaded = false;
 tick(async () => {{
   if (reloaded || document.body.classList.contains("watching")) return;
   try {{
-    const r = await fetch("version.txt", {{cache: "no-store"}});
+    // ../version.txt from /en/, version.txt from the root: the file lives at
+    // the site root and only the root page was ever finding it, so English
+    // readers never picked up a new build.
+    const r = await fetch(VERSION_URL, {{cache: "no-store"}});
     if (!r.ok) return;
     const v = (await r.text()).trim();
     // must look like a stamp, or a 404 page would compare unequal forever and

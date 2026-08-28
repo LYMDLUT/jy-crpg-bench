@@ -195,9 +195,26 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
     finally:
         ff.stdin.close()
         ff.wait()
+
+    # A still to show before the video loads. Without one, a card is a blank
+    # box: the thumbnails are preload="none" so nothing is fetched until they
+    # scroll into view, and on iOS often not even then. Measured in WebKit at
+    # an iPhone size, two of eight cards ever painted a frame.
+    poster = Path(str(out_path)).with_suffix(".jpg")
+    try:
+        subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+             "-ss", "1", "-i", str(out_path), "-frames:v", "1",
+             "-q:v", "4", str(poster)],
+            check=True, timeout=60)
+    except Exception as exc:
+        print(f"poster failed: {exc}", flush=True)
+        poster = None
+
     return {"path": str(out_path), "seconds": round(duration, 1),
             "frames": total_frames, "size": f"{out_w}x{out_h}",
-            "speed": round(speed, 3), "timeline": timeline}
+            "speed": round(speed, 3), "timeline": timeline,
+            "poster": str(poster) if poster and poster.exists() else None}
 
 
 if __name__ == "__main__":
