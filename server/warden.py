@@ -35,6 +35,11 @@ CATALOG_OBJECT = "catalog.json"
 
 # Filled in by the server as the agent plays. Kept here rather than in the
 # proxy so the numbers survive however the run is fronted.
+# The one table both counters use: the warden's own, and the server's live
+# histogram through warden.ALIAS. Importing the other way round would drag the
+# emulator in.
+ALIAS = {"esc": "escape", "cancel": "escape", "return": "enter", "ok": "enter"}
+
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "reads": 0, "errors": 0, "actions": 0,
        "meaningful": 0, "oscillation": 0, "dialogue": 0, "curve": [],
@@ -55,6 +60,8 @@ def note_action(keys, label=""):
     run["last"] = now
     run["actions"] += 1
     for k in keys or []:
+        # under the name the key is known by, not the spelling that arrived
+        k = ALIAS.get(k, k)
         run["keys"][k] = run["keys"].get(k, 0) + 1
 
 

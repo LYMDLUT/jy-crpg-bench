@@ -60,6 +60,14 @@ LIB.core_load_state.restype = ctypes.c_bool
 BUF = ctypes.create_string_buffer(4 << 20)
 
 # Key name -> RETROK. Same vocabulary as the native runner.
+# One key, several accepted spellings. Counted under whatever the agent
+# happened to type, a single key split across two entries in the histogram,
+# and since both spellings draw the same icon it read as a duplicated row.
+# The table lives in warden so the two counters cannot disagree.
+def canon(name):
+    return warden.ALIAS.get(name, name)
+
+
 KEYS = {
     "up": 273, "down": 274, "right": 275, "left": 276,
     "enter": 13, "return": 13, "ok": 13, "space": 32,
@@ -666,7 +674,8 @@ async def run_action(request, steps, note, verb="KEY"):
         # going can show its own key distribution
         for _s in steps:
             if len(_s) > 2:
-                keyhist[_s[2]] = keyhist.get(_s[2], 0) + 1
+                _k = canon(_s[2])
+                keyhist[_k] = keyhist.get(_k, 0) + 1
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]

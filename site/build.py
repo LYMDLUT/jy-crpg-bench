@@ -650,14 +650,14 @@ function hue(name) {{
 }}
 
 function spark(keys) {{
-  const e = Object.entries(keys || {{}});
+  const e = Object.entries(foldKeys(keys));
   if (!e.length) return "";
   // labelled: an unlabelled bar chart of keys is unreadable
   const top = e.sort((a, b) => byKey(a[0], b[0])).slice(0, 8);
   const max = Math.max(...top.map(x => x[1]));
   return `<div class="spark" title="${{T.keyspace}}">` + top.map(([k, n]) =>
     `<div title="${{k}}: ${{n}}"><i style="height:${{Math.max(14, n / max * 100)}}%"></i>`
-    + `<u>${{GLYPH[k] || k}}</u></div>`
+    + `<u>${{glyph(k)}}</u></div>`
   ).join("") + `</div>`;
 }}
 
@@ -1025,15 +1025,37 @@ function paintDelta(d, cv, cache) {{
 const cache = {{}};
 function paint(d) {{ paintDelta(d, $("cv"), cache); $("veil").classList.add("gone"); }}
 
-const GLYPH = {{up: "↗", kp9: "↗", down: "↙", kp1: "↙", left: "↖", kp7: "↖",
-               right: "↘", kp3: "↘", enter: "⏎", space: "␣", escape: "esc",
-               esc: "esc", backspace: "⌫", tab: "⇥"}};
+// The numpad diagonals get the direction they move you; the arrow keys get
+// the arrow printed on the key. They used to share a glyph, which put two
+// rows reading "↗" next to each other - the same complaint as two bars with
+// the same label, because that is what it was.
+const GLYPH = {{kp7: "↖", kp9: "↗", kp1: "↙", kp3: "↘",
+               left: "←", up: "↑", down: "↓", right: "→",
+               enter: "⏎", space: "␣", escape: "esc",
+               backspace: "⌫", tab: "⇥"}};
+
+// One key, several spellings the server accepts. Counted apart these split a
+// single key across two bars that then rendered identically. Canonicalised on
+// the way in, which also repairs runs already recorded under either spelling.
+const ALIAS = {{esc: "escape", cancel: "escape", "return": "enter", ok: "enter"}};
+const canon = k => ALIAS[k] || k;
+const glyph = k => GLYPH[canon(k)] || canon(k);
+
+// Fold a key -> count map onto canonical names, summing the aliases.
+function foldKeys(keys) {{
+  const out = {{}};
+  for (const [k, n] of Object.entries(keys || {{}})) {{
+    const c = canon(k);
+    out[c] = (out[c] || 0) + n;
+  }}
+  return out;
+}}
 
 // A fixed reading order, so the same key sits in the same place on every run
 // and two runs can be compared at a glance. Frequency order moved the rows
 // around from one replay to the next.
 const KEY_ORDER = ["kp7", "left", "kp9", "up", "kp1", "down", "kp3", "right",
-                   "enter", "space", "escape", "esc", "y", "n",
+                   "enter", "space", "escape", "y", "n",
                    "tab", "backspace", "(wait)"];
 const keyRank = k => {{
   const i = KEY_ORDER.indexOf(k);
@@ -1045,7 +1067,7 @@ function drawKeys(mark) {{
   if (mark) {{
     // a replayed action knows exactly how long each key was down
     $("wkeys").innerHTML = (mark.keys || []).map(([k, hold]) =>
-      `<i class="on">${{GLYPH[k] || k}}${{hold > 0.25
+      `<i class="on">${{glyph(k)}}${{hold > 0.25
         ? `<u>${{hold.toFixed(1)}}s</u>` : ""}}</i>`).join("")
       || `<i>${{mark.do || ""}}</i>`;
     return;
@@ -1054,12 +1076,12 @@ function drawKeys(mark) {{
     // same shape as a replayed action: the keys of this action, with how long
     // the longest was held, and whichever are still down highlighted
     $("wkeys").innerHTML = act.keys.map((k, i) =>
-      `<i>${{GLYPH[k] || k}}${{
+      `<i>${{glyph(k)}}${{
         i === 0 && act.hold ? `<u>${{act.hold}}</u>` : ""}}</i>`).join("");
     return;
   }}
   $("wkeys").innerHTML = recent.slice(-8)
-    .map(k => `<i>${{GLYPH[k] || k}}</i>`).join("");
+    .map(k => `<i>${{glyph(k)}}</i>`).join("");
 }}
 
 // ---- the detail view's live panes, all fed by the same socket ----
@@ -1117,12 +1139,12 @@ function drawWatchPanes() {{
   }}
   drawCurve(wcurve);
 
-  const top = Object.entries(counts).sort((a, b) => byKey(a[0], b[0])).slice(0, 12);
+  const top = Object.entries(foldKeys(counts)).sort((a, b) => byKey(a[0], b[0])).slice(0, 12);
   // the tallest bar, not the first one: reading the first entry as the maximum
   // was only ever true while this list was sorted by count
   const max = Math.max(1, ...top.map(x => x[1]));
   $("whist").innerHTML = top.length
-    ? top.map(([k, c]) => `<div><u>${{GLYPH[k] || k}}</u>`
+    ? top.map(([k, c]) => `<div><u>${{glyph(k)}}</u>`
         + `<i style="width:${{Math.max(3, c / max * 100)}}%"></i><b>${{c}}</b></div>`).join("")
     : `<p class="msg" style="padding:8px 0">${{T.nolog}}</p>`;
 
@@ -1131,7 +1153,7 @@ function drawWatchPanes() {{
     const rows = upto.slice(-160).reverse();
     $("wlog").innerHTML = rows.length ? rows.map(m => {{
       const hold = Math.max(0, ...(m.keys || []).map(k => k[1] || 0));
-      const keys = (m.keys || []).map(([k]) => GLYPH[k] || k).join(" ")
+      const keys = (m.keys || []).map(([k]) => glyph(k)).join(" ")
                    || (m.do || "");
       return `<div class="r seek" data-t="${{m.t}}"><span class="t">${{gt(m.t)}}</span>`
         + `<span class="v">#${{m.n}}</span><span>${{keys}}</span>`
@@ -1144,7 +1166,7 @@ function drawWatchPanes() {{
     const t = new Date(e.at * 1000).toLocaleTimeString([], {{hour12: false}});
     return `<div class="r"><span class="t">${{t}}</span>`
       + `<span class="v${{e.ok ? "" : " bad"}}">${{e.verb}}</span>`
-      + `<span>${{keysOf(e.target).map(k => GLYPH[k] || k).join(" ") || e.target}}</span>`
+      + `<span>${{keysOf(e.target).map(k => glyph(k)).join(" ") || e.target}}</span>`
       + `<span class="d">${{e.detail || ""}}</span></div>`;
   }}).join("") : `<p class="msg">${{T.nolog}}</p>`;
 }}
@@ -1249,21 +1271,23 @@ function drawMarks() {{
   if (!tl || !tl.seconds) return;
   // lanes ordered by how much the agent leaned on each key
   const use = {{}};
-  for (const m of marks) for (const [k] of (m.keys || [])) use[k] = (use[k] || 0) + 1;
+  for (const m of marks) for (const [k] of (m.keys || [])) {{
+    const c = canon(k); use[c] = (use[c] || 0) + 1;
+  }}
   const lanes = Object.keys(use).sort(byKey).slice(0, 10);
-  const row = new Map(lanes.map((k, i) => [k, i]));
+  const row = new Map(lanes.map((k, i) => [k, i]));   // keyed on canonical names
   const longest = Math.max(0.001, ...marks.map(m => m.hold || 0));
 
   $("lanes").innerHTML = lanes.map(k =>
-    `<span title="${{k}}">${{GLYPH[k] || k}}</span>`).join("");
+    `<span title="${{k}}">${{glyph(k)}}</span>`).join("");
   $("rollgrid").style.height = (lanes.length * 15) + "px";
 
   let html = lanes.map((k, i) =>
     `<div class="lane" style="top:${{i * 15}}px"></div>`).join("");
   for (const m of marks) {{
     for (const [k, hold] of (m.keys || [])) {{
-      const i = row.get(k);
-      if (i === undefined) continue;
+      const i = row.get(canon(k));   // lanes are canonical; a raw alias
+      if (i === undefined) continue;  // would find no lane and vanish
       const x = m.t / tl.seconds * 100;
       const w = Math.max(0.25, (hold / (tl.speed || 1)) / tl.seconds * 100);
       html += `<b class="${{hold > longest * 0.4 ? "long" : ""}}" title="${{k}} ${{
@@ -1521,6 +1545,18 @@ def check(html):
     # hold arbitrary card markup. A component that also styles descendants of
     # one of them will silently restyle every card, which is how card values
     # became invisible grey boxes once.
+    # Two keys drawn with one glyph read as a duplicated row in the histogram
+    # and the replay roll, because on screen that is exactly what they are.
+    m = re.search(r"const GLYPH = \{(.*?)\};", html, re.S)
+    if m:
+        seen = {}
+        for k, v in re.findall(r'(\w+):\s*"([^"]+)"', m.group(1)):
+            seen.setdefault(v, []).append(k)
+        clash = {v: ks for v, ks in seen.items() if len(ks) > 1}
+        if clash:
+            raise SystemExit(
+                f"two keys share a glyph, so they draw as one row twice: {clash}")
+
     for owned in ("grid", "rows", "msg"):
         stray = re.findall(rf"\.{owned}\s+[.\w#\[]", html)
         if stray:
