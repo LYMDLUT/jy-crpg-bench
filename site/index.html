@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="81755129af1d">
+<meta name="build" content="aa784456c412">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -146,7 +146,7 @@
   .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
   /* ---------- leaderboard ---------- */
-  #board { margin: 46px auto 0; max-width: 980px; padding: 0 16px 8px; }
+  #board { margin: 46px 0 0; padding-bottom: 8px; }
   .bh { font: 600 15px var(--mono); margin: 0 0 12px; }
   .prov { display: flex; flex-wrap: wrap; gap: 0 26px; padding: 11px 14px;
           border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
@@ -189,9 +189,24 @@
   .bcell { font: 500 12px var(--mono); font-variant-numeric: tabular-nums;
            text-align: right; }
   .bnote { color: var(--dim); font-size: 11.5px; line-height: 1.6; margin: 14px 2px 0; }
+  .plotwrap { overflow-x: auto; padding: 4px 0 0; }
+  .plot { width: 100%; min-width: 620px; height: auto; display: block; }
+  /* the frontier line runs behind the labels, so they carry a halo of the page
+     background rather than being struck through by it */
+  .plot text { font: 11px var(--mono); fill: var(--ink);
+               paint-order: stroke fill; stroke: var(--bg); stroke-width: 3.5px;
+               stroke-linejoin: round; }
+  .plot .ax { fill: var(--dim); font-size: 10px; }
+  .plot .on circle { fill: var(--ink); }
+  .plot .off circle { fill: #c9c9cf; }
+  .plot .off text { fill: var(--dim); }
   @media (max-width: 720px) {
-    .brow { grid-template-columns: 42px minmax(0,1fr) 118px; gap: 9px; }
-    .brow > :nth-child(n+4) { display: none; }
+    /* the second figure is the one that changes the reading, so it survives
+       the narrow layout and only the last column is dropped */
+    .brow { grid-template-columns: 38px minmax(0,1fr) 104px 62px; gap: 9px;
+            padding: 10px 2px; }
+    .brow > :nth-child(n+5) { display: none; }
+    .prov { gap: 0 18px; }
   }
   #wname { display: inline-flex; align-items: center; gap: 6px; }
   /* played time reads as data, not as part of the outcome word */
@@ -478,6 +493,7 @@
     <button data-b="overview" aria-pressed="true">总览</button>
     <button data-b="speed"    aria-pressed="false">速度</button>
     <button data-b="effort"   aria-pressed="false">投入</button>
+    <button data-b="frontier" aria-pressed="false">取舍</button>
     <button data-b="rely"     aria-pressed="false">稳定性</button>
   </div>
   <div id="btable"></div>
@@ -587,7 +603,7 @@
 </div>
 
 <script>
-const T = {"oneline": "读 %U%，照着玩。", "base": "https://hanxiao.io/jy-crpg-bench/", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "meaningful": "有效动作", "oscillation": "来回打转", "dialogue": "对话", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "已完成", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "explored": "有效动作", "progress": "有效动作 vs 动作数", "board": "排行榜", "b_rank": "排名", "b_model": "模型", "b_runs": "局数", "b_overview": "总览", "b_speed": "速度", "b_effort": "投入", "b_rely": "稳定性", "b_score": "有效动作率", "b_aps": "动作/秒", "b_acts": "动作数", "b_think": "思考 p50 / p95", "b_keys": "按键种类", "b_ttfa": "首次动作", "b_done": "完整跑完", "b_err": "错误", "b_played": "游玩", "b_edition": "版本", "b_runs_n": "总局数", "b_updated": "最近更新", "b_engine": "引擎", "b_how": "每个分数都来自真实运行未经修改的 1996 年原版游戏，没有模型评审。全部由我们自己跑出，没有厂商自报。", "b_ci": "区间为 95% Wilson 置信区间。排名区间内的模型彼此无法区分。", "b_thin": "目前每个模型只有一局，区间因此很宽：这是数据量的问题，不是平局。", "b_base": "基线", "b_nocost": "不统计成本：agent 不上报 token 用量。", "b_n_speed": "更快不等于更好：基线排在最前，是因为它不思考。", "b_n_effort": "动作更多不等于更好：基线排在最前，是因为它从不停下来看。", "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。", "replay": "回放", "download": "下载 MP4", "speed": "倍速", "prevact": "上一个动作", "nextact": "下一个动作", "playpause": "播放/暂停", "held": "按住", "loading2": "载入回放", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
+const T = {"oneline": "读 %U%，照着玩。", "base": "https://hanxiao.io/jy-crpg-bench/", "view": "查看", "raw": "原始档", "copy": "复制", "copied": "已复制", "runs": "局", "run1": "局", "empty": "还没有记录", "gone": "读不到记录", "asc": "递增", "desc": "递减", "cols": {"started": "时间", "meaningful": "有效动作", "oscillation": "来回打转", "dialogue": "对话", "actions": "动作数", "aps": "动作/秒", "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95", "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩", "reason": "结束原因"}, "agent": "模型", "video": "视频", "novideo": "无视频", "full": "已完成", "idle": "中途停摆", "never": "从未出手", "err": "失败", "keyspace": "按键分布", "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读", "running": "进行中", "log": "动作记录", "hist": "按键分布", "explored": "有效动作", "progress": "有效动作 vs 动作数", "board": "排行榜", "b_rank": "排名", "b_model": "模型", "b_runs": "局数", "b_overview": "总览", "b_speed": "速度", "b_effort": "投入", "b_rely": "稳定性", "b_score": "有效动作率", "b_aps": "动作/秒", "b_acts": "动作数", "b_think": "思考 p50 / p95", "b_keys": "按键种类", "b_ttfa": "首次动作", "b_done": "已完成", "b_err": "错误", "b_played": "游玩", "b_edition": "版本", "b_runs_n": "总局数", "b_updated": "最近更新", "b_engine": "引擎", "b_how": "每个分数都来自真实运行未经修改的 1996 年原版游戏，没有模型评审。全部由我们自己跑出，没有厂商自报。", "b_ci": "区间为 95% Wilson 置信区间。排名区间重叠的模型，这份数据分不出高下。", "b_thin": "目前每个模型只有一局，区间因此很宽：这是数据量的问题，不是平局。", "b_base": "基线", "b_nocost": "不统计成本：agent 不上报 token 用量。", "b_n_speed": "更快不等于更好：基线排在最前，是因为它不思考。", "b_n_effort": "动作更多不等于更好：基线排在最前，是因为它从不停下来看。", "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。", "b_front": "取舍", "b_mact": "有效动作数", "b_axis_q": "有效动作率（质量）", "b_axis_t": "有效动作数（产出）", "b_n_front": "有效动作率单看会奖励“少做少错”，有效动作数单看会奖励乱按。两者都更高才算真的更好；连线上的模型，没有任何模型能在两项上同时超过它。", "b_dom": "被超过", "replay": "回放", "download": "下载 MP4", "speed": "倍速", "prevact": "上一个动作", "nextact": "下一个动作", "playpause": "播放/暂停", "held": "按住", "loading2": "载入回放", "uptime": "已进行", "nolog": "还没有动作", "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中", "over": "已结束"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -671,13 +687,6 @@ function mark(name) {
   if (!hit || !MARK.has(hit[1])) return "";
   return `<svg class="vend" role="img" aria-label="${hit[1]}">`
     + `<use href="#lg-${hit[1]}"></use></svg>`;
-}
-
-// Quantised so two models never land on near-identical hues.
-function hue(name) {
-  let h = 0;
-  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return `hsl(${(h % 12) * 30} 55% ${(h >> 8 & 1) ? 52 : 38}%)`;
 }
 
 function spark(keys) {
@@ -776,6 +785,9 @@ function boardRows() {
     const played = rs.reduce((a, r) => a + (r.played || 0), 0);
     out.push({
       agent, runs: rs.length, actions: acts, meaningful: p, lo, hi,
+      // the ratio says how carefully it acted, this says how much it got done;
+      // ranking on either alone rewards the wrong thing
+      mact: good,
       aps: played > 0.5 ? acts / played : 0,
       played,
       think50: avg(rs.map(r => num(r.gap_p50)).filter(v => v !== null)),
@@ -799,7 +811,7 @@ const BOARDS = {
     key: m => m.meaningful,
     val: m => `<b>${(m.meaningful * 100).toFixed(1)}%</b>`
             + `<i>${(m.lo * 100).toFixed(1)}-${(m.hi * 100).toFixed(1)}</i>`,
-    cols: [[() => T.b_acts, m => m.actions], [() => T.b_runs, m => m.runs]],
+    cols: [[() => T.b_mact, m => m.mact], [() => T.b_acts, m => m.actions]],
   },
   speed: {
     label: () => T.b_aps,
@@ -817,6 +829,8 @@ const BOARDS = {
            [() => T.b_played, m => mmss(m.played)]],
     note: () => T.b_n_effort,
   },
+  frontier: { plot: true, label: () => T.b_front, note: () => T.b_n_front,
+    key: m => m.mact },
   rely: {
     label: () => T.b_done,
     // finished share first, then fewest errors, then quickest off the mark:
@@ -845,6 +859,68 @@ function provenance() {
   $("pvup").textContent = last ? new Date(last * 1000).toISOString().slice(0, 10) : "-";
 }
 
+// Quality against throughput. Neither axis is a score on its own: a model that
+// takes six careful actions in twenty minutes scores 1.00 on the ratio, and one
+// that mashes keys wins on the count. A model is only genuinely better when it
+// beats another on both, so what the plot draws is the set nobody beats twice.
+function drawFrontier(el, rows) {
+  const W = 940, H = 342, L = 58, R = 18, TP = 30, BT = 40;
+  const maxT = Math.max(1, ...rows.map(m => m.mact));
+  const x = v => L + (v / maxT) * (W - L - R);
+  const y = v => TP + (1 - v) * (H - TP - BT);
+
+  const front = rows.filter(m => !rows.some(o => o.meaningful > m.meaningful
+                                              && o.mact > m.mact))
+                    .sort((a, b) => a.mact - b.mact);
+
+  const grid = [0, .25, .5, .75, 1].map(v =>
+    `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}"
+       stroke="#ececec"></line>`
+    + `<text x="${L - 8}" y="${y(v) + 3.5}" text-anchor="end"
+        class="ax">${(v * 100).toFixed(0)}%</text>`).join("");
+
+  const ticks = [0, .5, 1].map(f =>
+    `<text x="${x(maxT * f)}" y="${H - BT + 16}" text-anchor="middle"
+       class="ax">${Math.round(maxT * f)}</text>`).join("");
+
+  const line = front.length > 1
+    ? `<polyline fill="none" stroke="var(--ink)" stroke-width="1.2"
+        stroke-dasharray="3 3" points="${
+        front.map(m => `${x(m.mact)},${y(m.meaningful)}`).join(" ")}"></polyline>`
+    : "";
+
+  // Place the labels before drawing them: two models a percentage point apart
+  // put their names on top of each other otherwise. The dot stays on its true
+  // position and only the text is nudged, so the plot keeps telling the truth.
+  const pts = rows.map(m => ({
+    m, px: x(m.mact), py: y(m.meaningful),
+    // near the right edge the label would run off the canvas, so it flips
+    flip: x(m.mact) > W - R - 130,
+  })).sort((a, b) => a.py - b.py);
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    if (b.py - a.py < 13 && Math.abs(b.px - a.px) < 170) b.py = a.py + 13;
+  }
+
+  const dots = pts.map(({m, px, py, flip}) => {
+    const on = front.includes(m);
+    const ty = y(m.meaningful);
+    return `<g class="${on ? "on" : "off"}">`
+      + `<circle cx="${px}" cy="${ty}" r="${on ? 5 : 4}"></circle>`
+      + `<text x="${px + (flip ? -9 : 9)}" y="${py + 3.5}"
+          text-anchor="${flip ? "end" : "start"}">${m.agent}${
+          on ? "" : ` <tspan class="ax">${T.b_dom}</tspan>`}</text></g>`;
+  }).join("");
+
+  el.innerHTML = `<div class="plotwrap"><svg viewBox="0 0 ${W} ${H}"
+      class="plot" preserveAspectRatio="xMidYMid meet" role="img"
+      aria-label="${T.b_axis_q} / ${T.b_axis_t}">
+    ${grid}${ticks}${line}${dots}
+    <text x="${L}" y="${H - 6}" class="ax">${T.b_axis_t} &#8594;</text>
+    <text x="${L}" y="${TP - 4}" class="ax">&#8593; ${T.b_axis_q}</text>
+  </svg></div>`;
+}
+
 function drawBoard() {
   const el = $("btable");
   if (!el) return;
@@ -852,6 +928,11 @@ function drawBoard() {
   const rows = boardRows().sort((a, b) => (B.key(b) - B.key(a))
                                        || String(a.agent).localeCompare(b.agent));
   if (!rows.length) { el.innerHTML = `<p class="msg">${T.nolog}</p>`; return; }
+  if (B.plot) {
+    drawFrontier(el, rows);
+    $("bnote").textContent = B.note() + " " + T.b_nocost;
+    return;
+  }
 
   const top = Math.max(...rows.map(m => B.key(m)), 1e-9);
   const head = `<div class="brow hd"><span>${T.b_rank}</span><span>${T.b_model}</span>`
@@ -881,7 +962,7 @@ function drawBoard() {
         ${m.runs === 1 ? 'style="cursor:pointer"' : ""}>
       <div class="bpos">${pos}</div>
       <div class="bmodel">${mark(m.agent)}<div class="t">
-        <b style="color:${hue(m.agent)}">${m.agent}</b>
+        <b>${m.agent}</b>
         <u>${vendorOf(m.agent)}</u></div>
         ${m.baseline ? `<span class="btag">${T.b_base}</span>` : ""}</div>
       <div class="bval">${B.val(m)}${bar}</div>
@@ -995,7 +1076,7 @@ function render() {
         ${clip(r)}
         <div class="f">
           <div class="nm"><u>${T.agent}</u>
-            <b style="color:${hue(r.agent)}">${mark(r.agent)}<span>${r.agent}</span></b></div>
+            <b>${mark(r.agent)}<span>${r.agent}</span></b></div>
           ${COLS.filter(c => c.k !== "started").map(c =>
             `<div><u>${T.cols[c.k]}</u><b ${lv(r, c.k)}>${c.f(r)}</b></div>`).join("")}
         </div>
@@ -1015,7 +1096,7 @@ function render() {
       <div class="cmeta">
         <div class="status" ${lv(r, "tag")}>${why(r)}</div>
         <div class="who">
-          ${mark(r.agent)}<span style="color:${hue(r.agent)}">${r.agent}</span>
+          ${mark(r.agent)}<span>${r.agent}</span>
           ${r.video_url ? `<a class="dl" href="${r.video_url}" download
              title="${T.download}" aria-label="${T.download}">${DL}</a>` : ""}</div>
         <div class="kv">
@@ -1433,7 +1514,6 @@ function shell(agent, push, id, live) {
   // the server admits only alphanumerics and -_. into a name, which is why
   // the cards interpolate it raw too
   $("wname").innerHTML = mark(agent) + agent;
-  $("wname").style.color = hue(agent);
   held.clear(); recent = []; act = null; drawKeys();
   wlog = []; wsum = {}; wcurve = []; drawWatchPanes();
   document.body.classList.add("watching");
