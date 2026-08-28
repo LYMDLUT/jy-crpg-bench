@@ -477,6 +477,20 @@ int core_state_peek(const size_t *offs, int n, int16_t *out) {
     return 0;
 }
 
+/* The whole machine as bytes, for the caller to search. Calibration used to
+   write a scratch file next to the start state, which fails wherever that
+   directory is not writable - which is what it is in the container. */
+size_t core_state_size(void) {
+    return g_ser_size ? g_ser_size() : 0;
+}
+
+int core_state_copy(unsigned char *dst, size_t cap) {
+    if (!g_ser || !g_ser_size) return -1;
+    size_t need = g_ser_size();
+    if (need == 0 || need > cap) return -1;
+    return g_ser(dst, need) ? (int)need : -1;
+}
+
 /* id is a RETRO_MEMORY_* constant: 0 system RAM, 1 save RAM, 2 RTC, 3 VRAM. */
 size_t core_mem_size(unsigned id) {
     return g_mem_size ? g_mem_size(id) : 0;

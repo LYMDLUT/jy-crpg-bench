@@ -50,6 +50,9 @@ LIB.fb_luma.restype = ctypes.c_int
 LIB.core_state_peek.argtypes = [ctypes.POINTER(ctypes.c_size_t), ctypes.c_int,
                                 ctypes.POINTER(ctypes.c_int16)]
 LIB.core_state_peek.restype = ctypes.c_int
+LIB.core_state_size.restype = ctypes.c_size_t
+LIB.core_state_copy.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
+LIB.core_state_copy.restype = ctypes.c_int
 LIB.core_reset.restype = None
 LIB.fb_reset.restype = None
 LIB.fb_snapshot.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
@@ -1041,18 +1044,24 @@ async def calibrate():
     whatever else the machine is doing. Within one session it holds, and the
     walk is done and undone before the agent's clock starts.
     """
+    cap = LIB.core_state_size()
+    if not cap:
+        return None, "core will not say how big its state is"
+    buf = ctypes.create_string_buffer(cap)
+
     async def shot():
-        tmp = START_STATE + ".cal"
-        if not LIB.core_save_state(tmp.encode()):
+        n = LIB.core_state_copy(buf, cap)
+        if n <= 0:
             raise RuntimeError("serialize failed")
-        with open(tmp, "rb") as fh:
-            data = fh.read()
-        os.unlink(tmp)
-        return data
+        return buf.raw[:n]
 
     # No lock here: the only caller already holds it, on the first action.
+    # The load is a guarantee, not a requirement: this runs before the agent
+    # has done anything, so the machine is already sitting at the opening. If
+    # it will not load, walk from here rather than refuse to calibrate.
     if not LIB.core_load_state(START_STATE.encode()):
-        return None, "no start state"
+        print("calibration: start state would not reload, walking from here",
+              flush=True)
     await wait_core_frames(140)
     states = [await shot()]
     for name in ("kp3", "kp3", "kp7", "kp7"):
