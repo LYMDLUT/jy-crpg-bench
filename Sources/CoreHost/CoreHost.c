@@ -15,6 +15,8 @@ typedef size_t (*fn_serialize_size)(void);
 typedef bool (*fn_serialize)(void *, size_t);
 typedef bool (*fn_unserialize)(const void *, size_t);
 typedef void (*fn_get_av)(struct retro_system_av_info *);
+typedef void *(*fn_mem_data)(unsigned);
+typedef size_t (*fn_mem_size)(unsigned);
 typedef void (*fn_set_env)(retro_environment_t);
 typedef void (*fn_set_video)(retro_video_refresh_t);
 typedef void (*fn_set_audio)(retro_audio_sample_t);
@@ -30,6 +32,11 @@ static fn_serialize_size g_ser_size;
 static fn_serialize g_ser;
 static fn_unserialize g_unser;
 static fn_get_av g_av;
+/* The emulated machine's own memory, if the core will hand it over. Reading a
+   couple of shorts out of it costs nothing, where serialising the whole
+   machine to find the same shorts costs megabytes per action. */
+static fn_mem_data g_mem_data;
+static fn_mem_size g_mem_size;
 static fn_set_controller g_set_controller;
 
 /* ---- video ---- */
@@ -365,6 +372,8 @@ bool core_init(const char *core_path, const char *game_path, const char *save_di
     g_ser = (fn_serialize)sym("retro_serialize", false);
     g_unser = (fn_unserialize)sym("retro_unserialize", false);
     g_av = (fn_get_av)sym("retro_get_system_av_info", false);
+    g_mem_data = (fn_mem_data)sym("retro_get_memory_data", false);
+    g_mem_size = (fn_mem_size)sym("retro_get_memory_size", false);
     g_set_controller = (fn_set_controller)sym("retro_set_controller_port_device", false);
     if (!set_env || !g_init || !g_load || !g_run) return false;
 
@@ -440,6 +449,46 @@ void core_mouse_move(int dx, int dy) {
 
 void core_mouse_button(int button, bool down) {
     if (button >= 0 && button < 3) g_mouse_btn[button] = down ? 1 : 0;
+}
+
+/* DOSBox Pure exposes no memory regions - every retro_get_memory_size is 0 -
+   so the only way to see the game's own variables is to serialise the machine
+   and read them out of that. The buffer is kept and reused so this costs one
+   serialise and a couple of loads per call, with no allocation and no file. */
+static unsigned char *g_peek;
+static size_t g_peek_cap;
+
+int core_state_peek(const size_t *offs, int n, int16_t *out) {
+    if (!g_ser || !g_ser_size) return -1;
+    size_t need = g_ser_size();
+    if (need == 0) return -1;
+    if (need > g_peek_cap) {
+        unsigned char *p = (unsigned char *)realloc(g_peek, need);
+        if (!p) return -1;
+        g_peek = p; g_peek_cap = need;
+    }
+    if (!g_ser(g_peek, need)) return -1;
+    for (int i = 0; i < n; i++) {
+        if (offs[i] + 2 > need) return -1;
+        int16_t v;
+        memcpy(&v, g_peek + offs[i], 2);
+        out[i] = v;
+    }
+    return 0;
+}
+
+/* id is a RETRO_MEMORY_* constant: 0 system RAM, 1 save RAM, 2 RTC, 3 VRAM. */
+size_t core_mem_size(unsigned id) {
+    return g_mem_size ? g_mem_size(id) : 0;
+}
+
+bool core_mem_read(unsigned id, size_t off, void *dst, size_t n) {
+    if (!g_mem_data || !g_mem_size) return false;
+    size_t sz = g_mem_size(id);
+    unsigned char *p = (unsigned char *)g_mem_data(id);
+    if (!p || off + n > sz) return false;
+    memcpy(dst, p + off, n);
+    return true;
 }
 
 bool core_save_state(const char *path) {
