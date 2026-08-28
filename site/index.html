@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="e639a4fa3358">
+<meta name="build" content="6243233c071b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -137,10 +137,13 @@
          font-weight: 600; font-size: 13.5px; word-break: break-all; }
   .who span { min-width: 0; overflow: hidden; text-overflow: ellipsis;
               white-space: nowrap; }
-  /* the lab mark sits on the name and takes its colour */
-  .vend { width: 13px; height: 13px; flex: none; margin-right: 5px;
-          vertical-align: -2px; }
-  .nm .vend { vertical-align: -2px; }
+  /* The lab mark takes the name's colour. It is laid out as a sibling of the
+     name rather than sitting inside it: these containers set
+     word-break: break-all for long model names, and Chrome will take a break
+     between a replaced element and text on the strength of that even under
+     white-space: nowrap, which put the mark on its own line. */
+  .vend { width: 13px; height: 13px; flex: none; }
+  #wname { display: inline-flex; align-items: center; gap: 6px; }
   /* played time reads as data, not as part of the outcome word */
   .ptime { font-weight: 600; font-variant-numeric: tabular-nums; }
   .dl { margin-left: auto; flex: none; border: 0; color: var(--dim);
@@ -185,7 +188,8 @@
   .f u { display: block; text-decoration: none; color: var(--dim);
          font: 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
   .f b { display: block; font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
-  .f .nm b { font-weight: 600; font-size: 13.5px; word-break: break-all; }
+  .f .nm b { font-weight: 600; font-size: 13.5px; word-break: break-all;
+             display: flex; align-items: center; gap: 5px; }
   .msg { color: var(--dim); text-align: center; padding: 52px 0; font: 12px var(--mono); }
 
   /* ---------- live ---------- */
@@ -621,11 +625,13 @@ const MARK = {
   moonshot: `<path fill="currentColor" d="M20 15.4A9 9 0 0 1 8.6 4 9.2 9.2 0 1 0 20 15.4z"/>`,
 };
 
+// hue() is declared below and hoisted; the mark carries the colour itself
+// now that it is no longer nested inside the coloured name.
 function mark(name) {
   const hit = VENDOR.find(([re]) => re.test(String(name || "").trim()));
   if (!hit || !MARK[hit[1]]) return "";
   return `<svg class="vend" viewBox="0 0 24 24" role="img" aria-label="${hit[1]}"`
-    + ` title="${hit[1]}">${MARK[hit[1]]}</svg>`;
+    + ` title="${hit[1]}" style="color:${hue(name)}">${MARK[hit[1]]}</svg>`;
 }
 
 // Quantised so two models never land on near-identical hues.
@@ -768,7 +774,7 @@ function render() {
         ${clip(r)}
         <div class="f">
           <div class="nm"><u>${T.agent}</u>
-            <b style="color:${hue(r.agent)}">${mark(r.agent)}${r.agent}</b></div>
+            <b style="color:${hue(r.agent)}">${mark(r.agent)}<span>${r.agent}</span></b></div>
           ${COLS.filter(c => c.k !== "started").map(c =>
             `<div><u>${T.cols[c.k]}</u><b ${lv(r, c.k)}>${c.f(r)}</b></div>`).join("")}
         </div>
@@ -788,7 +794,7 @@ function render() {
       <div class="cmeta">
         <div class="status" ${lv(r, "tag")}>${why(r)}</div>
         <div class="who">
-          <span style="color:${hue(r.agent)}">${mark(r.agent)}${r.agent}</span>
+          ${mark(r.agent)}<span style="color:${hue(r.agent)}">${r.agent}</span>
           ${r.video_url ? `<a class="dl" href="${r.video_url}" download
              title="${T.download}" aria-label="${T.download}">${DL}</a>` : ""}</div>
         <div class="kv">
