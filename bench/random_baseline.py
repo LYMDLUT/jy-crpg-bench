@@ -67,6 +67,8 @@ def main():
     p.add_argument("--minutes", type=int, default=20)
     p.add_argument("--name", default="random-baseline")
     p.add_argument("--seed", type=int, default=1996)
+    p.add_argument("--private", action="store_true",
+                   help="do not list this run in the public catalogue")
     # A model spends real time thinking between keys. Matching that cadence
     # keeps the comparison about what is pressed rather than how fast.
     p.add_argument("--pace", type=float, default=1.1,
@@ -75,7 +77,8 @@ def main():
 
     rng = random.Random(a.seed)
     status, s = call(f"{a.backend}/session",
-                     {"agent": a.name, "minutes": a.minutes})
+                     {"agent": a.name, "minutes": a.minutes,
+                      "publish": not a.private})
     if status != 200 or "base_url" not in s:
         raise SystemExit(f"could not start a run: {status} {s}")
     base = s["base_url"]

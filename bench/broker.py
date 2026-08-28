@@ -169,7 +169,7 @@ def running_count():
                if s["proc"].poll() is None and not result_of(s["id"]))
 
 
-async def start_session(agent, budget):
+async def start_session(agent, budget, publish=True):
     live = running_count()
     if live >= MAX_SESSIONS:
         raise web.HTTPServiceUnavailable(
@@ -197,6 +197,7 @@ async def start_session(agent, budget):
                QUNXIA_REC_MAX_BYTES=str(160 << 20),
                QUNXIA_RESET_TOKEN=token,
                QUNXIA_BENCH="1",
+               QUNXIA_PUBLISH="1" if publish else "0",
                QUNXIA_BENCH_AGENT=agent,
                QUNXIA_BENCH_SID=sid,
                QUNXIA_BENCH_BUDGET=str(budget),
@@ -303,7 +304,11 @@ async def api_new(request):
     except (TypeError, ValueError):
         minutes = RUN_SECONDS // 60
     minutes = max(1, min(minutes, MAX_MINUTES))
-    sess = await start_session(agent, minutes * 60)
+    # A caller can ask to stay out of the catalogue. Smoke tests were landing
+    # on the public board, one of them at the top of it.
+    publish = body.get("publish", request.query.get("publish")) not in (
+        False, "false", "0", 0)
+    sess = await start_session(agent, minutes * 60, publish)
     base = public_origin(request) + f"/s/{sess['id']}"
     return web.json_response({
         "ok": True, "session": sess["id"], "agent": agent,

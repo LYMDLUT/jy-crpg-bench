@@ -24,6 +24,10 @@ SID = os.environ.get("QUNXIA_BENCH_SID", "")
 BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "1200"))
 IDLE = int(os.environ.get("QUNXIA_BENCH_IDLE", "600"))
 BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
+# A run can ask not to be listed. Smoke tests were reaching the public
+# catalogue and ranking above real runs, including one that recorded a crashed
+# machine as a model that did nothing.
+PUBLISH = os.environ.get("QUNXIA_PUBLISH", "1") != "0"
 RESULTS = pathlib.Path(os.environ.get("QUNXIA_RESULT_DIR", "/tmp/qunxia-results"))
 VIDEOS = pathlib.Path(os.environ.get("QUNXIA_VIDEO_DIR", "/tmp/qunxia-videos"))
 # Where this backend serves its own files from, used only when there is no
@@ -176,7 +180,7 @@ def metrics():
 # ------------------------------------------------------------------ publish
 
 def _bucket():
-    if not BUCKET:
+    if not BUCKET or not PUBLISH:
         return None
     from google.cloud import storage
     return storage.Client().bucket(BUCKET)
