@@ -146,6 +146,7 @@ def build(base, token, log=print):
     if not out.get("ok"):
         raise RuntimeError(f"snapshot failed: {out}")
     log(f"start state written: {out['path']} ({out['bytes']} bytes)")
+
     return out
 
 

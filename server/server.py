@@ -164,17 +164,23 @@ keyhist: dict = {}
 # diagonal step and stop dead at walls, and outdoors kp7 moves one while kp9
 # moves the other, so they are genuinely two axes. The savestate layout is
 # fixed by the core build and the opening state, both of which ship here.
-POS_OFFSETS = (0x00eacda, 0x00eacdc)
-_POS_ARGS = (ctypes.c_size_t * 2)(*POS_OFFSETS)
+# A savestate's layout belongs to the core build that wrote it, so these
+# cannot be constants: offsets found on one machine read as garbage on
+# another, which is exactly what happened when offsets found on macOS were
+# shipped to a Linux container. They are calibrated by /api/calibrate on
+# whatever machine authors the opening state, and read back from beside it.
+_POS_ARGS = (ctypes.c_size_t * 2)(0, 0)
 _POS_OUT = (ctypes.c_int16 * 2)()
+
+
 
 # A scene change blacks the screen out. Measured: the opening room reads 92,
 # and a transition drops it near zero, so the threshold is nowhere near
 # anything the game draws normally.
 DARK = 12
 
-world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": True,
-         "dark": False}
+world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": False,
+         "dark": False, "miss": 0}
 
 
 def position():
@@ -192,7 +198,16 @@ def position():
         return None
     x, y = _POS_OUT[0], _POS_OUT[1]
     if not (0 <= x < 1200 and 0 <= y < 1200):
+        # One of these is a scene still loading. A run of them means the
+        # offsets are not what this build put there, and reporting a distance
+        # of nought from that would be a lie rather than a gap.
+        world["miss"] += 1
+        if world["miss"] >= 8:
+            world["ok"] = False
+            print("position reads keep coming back wrong; giving up on them",
+                  flush=True)
         return None
+    world["miss"] = 0
     return x, y
 
 
@@ -996,6 +1011,67 @@ async def api_snapshot(request):
     return web.json_response({"ok": ok, "path": START_STATE, "bytes": size})
 
 
+async def calibrate():
+    """Find where this savestate keeps the character's coordinates.
+
+    Walks two steps out and two back from the opening state and looks for
+    shorts that went 0,+1,+2,+1,0 with it. A clock or a frame counter only ever
+    climbs, so the walk back is what tells a coordinate from a counter.
+
+    This runs per session rather than once per image. The offsets are not a
+    property of the build: the same coordinates were measured two bytes apart
+    on two runs on the same machine, so the serialised layout shifts with
+    whatever else the machine is doing. Within one session it holds, and the
+    walk is done and undone before the agent's clock starts.
+    """
+    async def shot():
+        tmp = START_STATE + ".cal"
+        if not LIB.core_save_state(tmp.encode()):
+            raise web.HTTPInternalServerError(text="serialize failed")
+        with open(tmp, "rb") as fh:
+            data = fh.read()
+        os.unlink(tmp)
+        return data
+
+    async with api_lock:
+        if not LIB.core_load_state(START_STATE.encode()):
+            return None, "no start state"
+        await wait_core_frames(140)
+        states = [await shot()]
+        for name in ("kp3", "kp3", "kp7", "kp7"):
+            base = LIB.core_frame_hash()
+            await tap(KEYS[name], DEFAULT_TAP_FRAMES, name)
+            await settle(base)
+            states.append(await shot())
+        LIB.core_load_state(START_STATE.encode())
+        await wait_core_frames(140)
+
+    n = min(len(x) for x in states)
+    want_up = [0, 1, 2, 1, 0]
+    hits = set()
+    for off in range(0, n - 1, 2):
+        vals = [int.from_bytes(s[off:off + 2], "little", signed=True) for s in states]
+        d = [v - vals[0] for v in vals]
+        if d == want_up or d == [-x for x in want_up]:
+            hits.add(off)
+    # A diagonal step moves both coordinates, so the pair wanted here is two
+    # candidates close together whose values are small enough to be tiles.
+    # Requiring them to be strictly adjacent was too strict: the machine puts
+    # other things between them.
+    def val(o):
+        return int.from_bytes(states[0][o:o + 2], "little", signed=True)
+    tiles = sorted(o for o in hits if 0 <= val(o) < 1200)
+    pairs = [(a, b) for i, a in enumerate(tiles) for b in tiles[i + 1:]
+             if 0 < b - a <= 8]
+    chosen = pairs[0] if pairs else None
+    if not chosen:
+        return None, f"{len(hits)} candidates, no usable pair"
+    _POS_ARGS[0], _POS_ARGS[1] = chosen
+    world["ok"] = True
+    world["miss"] = 0
+    return chosen, f"{len(hits)} candidates, {len(pairs)} pairs"
+
+
 async def api_recording(_request):
     """The session so far as tile deltas and key presses, for playback."""
     return web.json_response({
@@ -1053,6 +1129,24 @@ async def json_errors(request, handler):
             status=500)
 
 
+async def _calibrate_once(_app):
+    """Locate the coordinates before the agent is let in.
+
+    Done here rather than baked into the image because the serialised layout is
+    not stable across machines or even across runs on one machine. The walk is
+    undone before it returns, so the agent still starts where the opening state
+    left it."""
+    try:
+        pos, why = await calibrate()
+    except Exception as exc:
+        pos, why = None, repr(exc)
+    if pos:
+        print(f"position offsets {hex(pos[0])},{hex(pos[1])} ({why})", flush=True)
+    else:
+        print(f"no position offsets ({why}); exploration will not be reported",
+              flush=True)
+
+
 def main():
     os.makedirs(SAVES, exist_ok=True)
     # Measured on this class of VM: 77000 cycles leaves only 1.75x headroom over
@@ -1092,6 +1186,7 @@ def main():
         if warden.ON:
             a["warden"] = asyncio.create_task(warden.warden(rec))
     app.on_startup.append(_spawn_pump)
+    app.on_startup.append(_calibrate_once)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
 
