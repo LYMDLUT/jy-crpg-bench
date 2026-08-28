@@ -59,7 +59,7 @@ ZH = {
     "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。",
     "b_front": "取舍", "b_mact": "有效动作数",
     "b_scenes": "场景", "b_reach": "走出的距离",
-    "b_progress": "养成", "b_level": "等级", "b_exp": "经验",
+    "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
     "b_skills": "武功", "b_items": "物品",
     "b_n_progress": "游戏自己的角色数值，直接从机器里读出来，不是从画面上猜的。"
                     "等级到现在为止每一局都是 1：没有任何一个模型走出过开场，"
@@ -134,7 +134,7 @@ EN = {
                 "currently says.",
     "b_front": "trade-off", "b_mact": "meaningful",
     "b_scenes": "scenes", "b_reach": "ground covered",
-    "b_progress": "character", "b_level": "level", "b_exp": "exp",
+    "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp",
     "b_skills": "skills", "b_items": "items",
     "b_n_progress": "The game's own numbers for the character, read out of the "
                     "machine rather than guessed from the picture. Level has "
@@ -1312,8 +1312,11 @@ function render() {{
           ${{r.video_url ? `<a class="dl" href="${{r.video_url}}" download
              title="${{T.download}}" aria-label="${{T.download}}">${{DL}}</a>` : ""}}</div>
         <div class="kv">
-          <span>${{T.b_reach}}</span><b ${{lv(r, "reach")}}>${{
-            r.frontier == null ? "-" : r.frontier}} · ${{
+          <span>${{T.b_char}}</span><b ${{lv(r, "hero")}}>${{
+            r.level == null ? "-" : r.level}} · ${{
+            r.skills == null ? "-" : r.skills}} · ${{
+            r.items == null ? "-" : r.items}}</b>
+          <span>${{T.b_scenes}}</span><b ${{lv(r, "scenes")}}>${{
             r.scenes == null ? "-" : r.scenes}}</b>
           <span>${{T.cols.meaningful}}</span><b ${{lv(r, "meaningful")}}>${{
             r.meaningful == null ? "-" : r.meaningful.toFixed(2)}}${{
