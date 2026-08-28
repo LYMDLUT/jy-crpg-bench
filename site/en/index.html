@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="0d25afd01622">
+<meta name="build" content="81755129af1d">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -144,6 +144,55 @@
      white-space: nowrap, which put the mark on its own line. */
   .vend { width: 13px; height: 13px; flex: none; }
   .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  /* ---------- leaderboard ---------- */
+  #board { margin: 46px auto 0; max-width: 980px; padding: 0 16px 8px; }
+  .bh { font: 600 15px var(--mono); margin: 0 0 12px; }
+  .prov { display: flex; flex-wrap: wrap; gap: 0 26px; padding: 11px 14px;
+          border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+  .prov u { display: block; text-decoration: none; color: var(--dim);
+            font: 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+  .prov b { font: 500 12px var(--mono); }
+  .bhow { color: var(--dim); font-size: 12px; line-height: 1.55; margin: 9px 2px 16px; }
+  .bviews { margin-bottom: 12px; }
+  .bviews button { font: 500 12px var(--mono); padding: 5px 11px; border: 0;
+                   background: none; color: var(--dim); border-radius: 6px;
+                   cursor: pointer; }
+  .bviews button[aria-pressed="true"] { background: var(--panel); color: var(--ink);
+                                        box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .brow { display: grid; grid-template-columns: 54px minmax(0,1fr) 168px repeat(2, 106px);
+          align-items: center; gap: 12px; padding: 10px 12px;
+          border-bottom: 1px solid var(--line); }
+  .brow.hd { border-bottom: 1px solid var(--line); padding-bottom: 7px; }
+  .brow.hd span { color: var(--dim); font: 10px var(--mono); letter-spacing: .05em;
+                  text-transform: uppercase; }
+  .brow:last-child { border-bottom: 0; }
+  .bpos b { font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+  .bpos u { display: block; text-decoration: none; color: var(--dim);
+            font: 10px var(--mono); font-variant-numeric: tabular-nums; }
+  .bmodel { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .bmodel .t { min-width: 0; }
+  .bmodel b { display: block; font: 600 13px var(--mono); overflow: hidden;
+              text-overflow: ellipsis; white-space: nowrap; }
+  .bmodel u { display: block; text-decoration: none; color: var(--dim);
+              font: 10.5px var(--mono); }
+  .btag { flex: none; font: 10px var(--mono); color: var(--dim);
+          border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .bval b { font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
+  .bval i { font-style: normal; color: var(--dim); font: 10.5px var(--mono);
+            margin-left: 5px; font-variant-numeric: tabular-nums; }
+  /* the bar carries the interval, not just the point estimate */
+  .bbar { position: relative; height: 5px; border-radius: 3px; background: #ececec;
+          margin-top: 5px; overflow: hidden; }
+  .bbar span { position: absolute; top: 0; bottom: 0; background: #bfbfc6; }
+  .bbar em { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); }
+  .bcell { font: 500 12px var(--mono); font-variant-numeric: tabular-nums;
+           text-align: right; }
+  .bnote { color: var(--dim); font-size: 11.5px; line-height: 1.6; margin: 14px 2px 0; }
+  @media (max-width: 720px) {
+    .brow { grid-template-columns: 42px minmax(0,1fr) 118px; gap: 9px; }
+    .brow > :nth-child(n+4) { display: none; }
+  }
   #wname { display: inline-flex; align-items: center; gap: 6px; }
   /* played time reads as data, not as part of the outcome word */
   .ptime { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -210,7 +259,9 @@
   /* One flag on the body rather than per element hidden, so the five second
      live poll cannot un-hide the catalogue behind the screen. */
   body.watching header, body.watching .bar, body.watching main,
-  body.reading header, body.reading .bar, body.reading main { display: none; }
+  body.watching #board,
+  body.reading header, body.reading .bar, body.reading main,
+  body.reading #board { display: none; }
   body:not(.watching) #watch, body:not(.reading) #doc { display: none; }
 
   .doc { margin: 0; background: var(--panel); border: 1px solid var(--line);
@@ -414,6 +465,25 @@
 
 <main><div id="out" class="msg">loading</div></main>
 
+<section id="board">
+  <h2 class="bh">leaderboard</h2>
+  <div class="prov mono">
+    <div><u>edition</u><b id="pved">-</b></div>
+    <div><u>runs</u><b id="pvruns">-</b></div>
+    <div><u>updated</u><b id="pvup">-</b></div>
+    <div><u>engine</u><b>DOSBox Pure</b></div>
+  </div>
+  <p class="bhow">Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.</p>
+  <div class="seg bviews" id="bviews">
+    <button data-b="overview" aria-pressed="true">overview</button>
+    <button data-b="speed"    aria-pressed="false">speed</button>
+    <button data-b="effort"   aria-pressed="false">effort</button>
+    <button data-b="rely"     aria-pressed="false">reliability</button>
+  </div>
+  <div id="btable"></div>
+  <p class="bnote" id="bnote"></p>
+</section>
+
 <section id="doc">
   <div class="wtop">
     <button class="ico" id="docback" title="back">
@@ -517,7 +587,7 @@
 </div>
 
 <script>
-const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -668,6 +738,188 @@ function drawStats() {
 // A running session is shown alongside finished ones, carrying whatever the
 // stream has told us so far. It always sorts first: it is the newest thing
 // happening and the only one worth watching.
+// ---------------------------------------------------------------- leaderboard
+
+// A Wilson score interval. The headline metric is a proportion - meaningful
+// actions over actions taken - so its uncertainty is binomial and can be
+// stated honestly rather than implied by a rank. Wilson rather than the normal
+// approximation because it behaves at small n and near 0 and 1, which is
+// exactly where these runs sit.
+function wilson(k, n, z) {
+  z = z || 1.96;
+  if (!n) return [0, 0, 0];
+  const p = k / n, d = 1 + z * z / n;
+  const c = (p + z * z / (2 * n)) / d;
+  const h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, c - h), p, Math.min(1, c + h)];
+}
+
+const num = v => (typeof v === "number" && isFinite(v)) ? v : null;
+const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+
+// One line per model, pooling its runs. Finished runs only: a run still going
+// has no final score, and one that never acted has nothing to pool.
+function boardRows() {
+  const by = new Map();
+  for (const r of runs) {
+    if (r.running) continue;
+    const k = r.agent || "?";
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(r);
+  }
+  const out = [];
+  for (const [agent, rs] of by) {
+    const acts = rs.reduce((a, r) => a + (r.actions || 0), 0);
+    // `meaningful` is stored as a ratio; the count is what pools across runs
+    const good = rs.reduce((a, r) => a + Math.round((r.meaningful || 0) * (r.actions || 0)), 0);
+    const [lo, p, hi] = wilson(good, acts);
+    const played = rs.reduce((a, r) => a + (r.played || 0), 0);
+    out.push({
+      agent, runs: rs.length, actions: acts, meaningful: p, lo, hi,
+      aps: played > 0.5 ? acts / played : 0,
+      played,
+      think50: avg(rs.map(r => num(r.gap_p50)).filter(v => v !== null)),
+      think95: avg(rs.map(r => num(r.gap_p95)).filter(v => v !== null)),
+      ttfa: avg(rs.map(r => num(r.ttfa)).filter(v => v !== null)),
+      keys: Math.max(0, ...rs.map(r => r.distinct_keys || 0)),
+      errors: rs.reduce((a, r) => a + (r.errors || 0), 0),
+      done: rs.filter(r => r.reason === "time" && !r.error).length,
+      baseline: /random|baseline/i.test(agent),
+    });
+  }
+  return out;
+}
+
+// What each view ranks by, and the two columns it puts beside the score. Only
+// the overview carries an interval, so only it earns a rank range; the others
+// are a plain ordering and say so by not pretending otherwise.
+const BOARDS = {
+  overview: {
+    label: () => T.b_score, ci: true,
+    key: m => m.meaningful,
+    val: m => `<b>${(m.meaningful * 100).toFixed(1)}%</b>`
+            + `<i>${(m.lo * 100).toFixed(1)}-${(m.hi * 100).toFixed(1)}</i>`,
+    cols: [[() => T.b_acts, m => m.actions], [() => T.b_runs, m => m.runs]],
+  },
+  speed: {
+    label: () => T.b_aps,
+    key: m => m.aps,
+    val: m => `<b>${m.aps.toFixed(2)}</b>`,
+    cols: [[() => T.b_think, m => `${secs(m.think50)} / ${secs(m.think95)}`],
+           [() => T.b_ttfa, m => secs(m.ttfa)]],
+    note: () => T.b_n_speed,
+  },
+  effort: {
+    label: () => T.b_acts,
+    key: m => m.actions,
+    val: m => `<b>${m.actions}</b>`,
+    cols: [[() => T.b_keys, m => m.keys || "-"],
+           [() => T.b_played, m => mmss(m.played)]],
+    note: () => T.b_n_effort,
+  },
+  rely: {
+    label: () => T.b_done,
+    // finished share first, then fewest errors, then quickest off the mark:
+    // without the tiebreaks every row ties today and the order is arbitrary
+    key: m => (m.runs ? m.done / m.runs : 0) * 1e6
+            - Math.min(999, m.errors) * 1e3
+            - Math.min(999, m.ttfa || 0),
+    val: m => `<b>${m.done}/${m.runs}</b>`,
+    cols: [[() => T.b_err, m => m.errors],
+           [() => T.b_ttfa, m => secs(m.ttfa)]],
+    note: () => T.b_n_rely,
+  },
+};
+
+// addressable, so a view can be linked to and so each one can be checked
+let bview = BOARDS[Q.get("board")] ? Q.get("board") : "overview";
+
+// What this table was computed from. Every field is read off the data the page
+// already has, so it cannot claim a provenance the page cannot back up.
+function provenance() {
+  const done = runs.filter(r => !r.running);
+  const last = Math.max(0, ...done.map(r => r.started || 0));
+  const ed = document.querySelector('meta[name="build"]');
+  $("pved").textContent = ed ? ed.content.slice(0, 8) : "-";
+  $("pvruns").textContent = done.length;
+  $("pvup").textContent = last ? new Date(last * 1000).toISOString().slice(0, 10) : "-";
+}
+
+function drawBoard() {
+  const el = $("btable");
+  if (!el) return;
+  const B = BOARDS[bview] || BOARDS.overview;
+  const rows = boardRows().sort((a, b) => (B.key(b) - B.key(a))
+                                       || String(a.agent).localeCompare(b.agent));
+  if (!rows.length) { el.innerHTML = `<p class="msg">${T.nolog}</p>`; return; }
+
+  const top = Math.max(...rows.map(m => B.key(m)), 1e-9);
+  const head = `<div class="brow hd"><span>${T.b_rank}</span><span>${T.b_model}</span>`
+    + `<span>${B.label()}</span>`
+    + B.cols.map(c => `<span style="text-align:right">${c[0]()}</span>`).join("")
+    + `</div>`;
+
+  el.innerHTML = head + rows.map((m, i) => {
+    // A rank range, not a rank: a model is only above another when their
+    // intervals are actually apart. Ranking 6 runs to the integer would be a
+    // precision this data does not have.
+    let pos = `<b>${i + 1}</b>`;
+    if (B.ci) {
+      const better = rows.filter(o => o.lo > m.hi).length;
+      const worse = rows.filter(o => o.hi < m.lo).length;
+      const a = better + 1, b = rows.length - worse;
+      if (b > a) pos += `<u>${a}-${b}</u>`;
+    }
+    const bar = B.ci
+      ? `<div class="bbar"><span style="left:${(m.lo * 100).toFixed(1)}%;`
+        + `width:${Math.max(1, (m.hi - m.lo) * 100).toFixed(1)}%"></span>`
+        + `<em style="left:${(m.meaningful * 100).toFixed(1)}%"></em></div>`
+      : `<div class="bbar"><span style="left:0;width:${
+          (B.key(m) / top * 100).toFixed(1)}%"></span></div>`;
+    return `<div class="brow" data-open="${m.runs === 1 ? (runs.find(
+        r => r.agent === m.agent && !r.running) || {}).id || "" : ""}"
+        ${m.runs === 1 ? 'style="cursor:pointer"' : ""}>
+      <div class="bpos">${pos}</div>
+      <div class="bmodel">${mark(m.agent)}<div class="t">
+        <b style="color:${hue(m.agent)}">${m.agent}</b>
+        <u>${vendorOf(m.agent)}</u></div>
+        ${m.baseline ? `<span class="btag">${T.b_base}</span>` : ""}</div>
+      <div class="bval">${B.val(m)}${bar}</div>
+      ${B.cols.map(c => `<div class="bcell">${c[1](m)}</div>`).join("")}
+    </div>`;
+  }).join("");
+
+  wireOpen(el);
+  $("bnote").textContent =
+      (B.ci ? T.b_ci + " " + T.b_thin + " " : (B.note ? B.note() + " " : ""))
+      + T.b_nocost;
+}
+
+// the label under the model name; the mark already carries the logo
+function wireBoard() {
+  const seg = $("bviews");
+  if (!seg) return;
+  seg.querySelectorAll("button").forEach(x =>
+    x.setAttribute("aria-pressed", String(x.dataset.b === bview)));
+  seg.addEventListener("click", e => {
+    const b = e.target.closest("button[data-b]");
+    if (!b) return;
+    bview = b.dataset.b;
+    seg.querySelectorAll("button").forEach(x =>
+      x.setAttribute("aria-pressed", String(x === b)));
+    drawBoard();
+  });
+}
+
+function vendorOf(name) {
+  const hit = VENDOR.find(([re]) => re.test(String(name || "").trim()));
+  return hit ? LAB[hit[1]] || hit[1] : "";
+}
+const LAB = {anthropic: "Anthropic", openai: "OpenAI", google: "Google",
+  qwen: "Alibaba Qwen", deepseek: "DeepSeek", meta: "Meta", mistral: "Mistral AI",
+  xai: "xAI", moonshot: "Moonshot AI", zhipu: "Z.ai", minimax: "MiniMax",
+  cohere: "Cohere"};
+
 function entries() {
   const now = Date.now() / 1000;
   return live.map(s => {
@@ -801,6 +1053,8 @@ async function load() {
       runs.length + " " + (runs.length === 1 ? T.run1 : T.runs);
     drawStats();
     render();
+    drawBoard();
+    provenance();
   } catch (e) {
     if (!runs.length) {
       const out = document.getElementById("out");
@@ -1413,6 +1667,7 @@ function tick(fn, ms) {
   start();
 }
 
+wireBoard();
 tick(load, 30000);
 tick(pollLive, 5000);
 tick(bumpShots, 6000);
