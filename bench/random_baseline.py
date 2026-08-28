@@ -32,19 +32,33 @@ ACTIONS = (["kp1", "kp3", "kp7", "kp9"] * 8 +
            ["y", "n"] + ["up", "down", "left", "right"])
 
 
-def call(url, body=None, timeout=60):
+def call(url, body=None, timeout=60, tries=4):
+    """One request, retried through the network being briefly unavailable.
+
+    A single timed-out connection used to end the whole run: the script died,
+    nothing sent another key, and the server tore the session down as idle
+    twelve minutes short. The baseline is meant to measure the game, not the
+    link to it.
+    """
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(
-        url, data=data, method="POST" if data else "GET",
-        headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, json.loads(r.read())
-    except urllib.error.HTTPError as e:
+    for attempt in range(tries):
+        req = urllib.request.Request(
+            url, data=data, method="POST" if data else "GET",
+            headers={"Content-Type": "application/json"})
         try:
-            return e.code, json.loads(e.read())
-        except Exception:
-            return e.code, {}
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return e.code, json.loads(e.read())
+            except Exception:
+                return e.code, {}
+        except Exception as exc:
+            if attempt == tries - 1:
+                print(f"  giving up on {url}: {exc}", flush=True)
+                return 0, {}
+            time.sleep(1.5 * (attempt + 1))
+    return 0, {}
 
 
 def main():
