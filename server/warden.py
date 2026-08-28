@@ -46,7 +46,7 @@ ALIAS = {"esc": "escape", "cancel": "escape", "return": "enter", "ok": "enter"}
 
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "reads": 0, "errors": 0, "actions": 0,
-       "meaningful": 0, "oscillation": 0, "dialogue": 0, "curve": [],
+       "meaningful": 0, "oscillation": 0, "curve": [],
        "scenes": 1, "frontier": 0,
        # the game's own numbers for the character, read out of the machine
        "level": None, "exp": None, "hp": None, "maxhp": None, "skills": None,
@@ -176,7 +176,6 @@ def metrics():
         "meaningful": round(run["meaningful"] / n, 3) if n else 0.0,
         # A -> B -> A oscillation, the failure mode GVGAI-LLM names explicitly.
         "oscillation": round(run["oscillation"] / n, 3) if n else 0.0,
-        "dialogue": run["dialogue"],
         # Progress against step count, the shape TextQuests and BALROG plot.
         # Plots meaningful actions rather than places for the reason above.
         "curve": run["curve"][-200:],

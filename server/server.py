@@ -155,7 +155,7 @@ session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 #     over steps taken.
 #   progress vs steps      - TextQuests (2507.23701) and BALROG (2411.13543)
 #     both report progress as a curve against step count, not a single number.
-beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": None,
+beh = {"meaningful": 0, "oscillation": 0, "last": None, "prev": None,
        }
 keyhist: dict = {}
 
@@ -599,14 +599,16 @@ def fingerprint():
     return bytes(v >> 5 for v in small.getdata())      # 8 levels of grey
 
 
-def looks_like_dialogue(fp):
-    """A dialogue box is a bright band across the lower half. Measured on this
-    game at about 7 percent near-white pixels with a box and under 1 without;
-    on the 12x8 fingerprint that is the bottom rows running bright."""
-    if fp is None:
-        return False
-    bottom = fp[12 * 5:]
-    return sum(1 for v in bottom if v >= 6) >= len(bottom) * 0.45
+# There was a dialogue detector here. It looked for a bright band across the
+# lower rows and never once fired, on any run. Measured against 582 frames of
+# real play: the brightest cell that region ever reaches is 5 of 7, and the
+# test wanted 6. It was not mistuned by a little, it was outside the game's
+# range in that part of the screen, so every run reported nought dialogue
+# advances and that nought looked like a finding.
+#
+# Removed rather than retuned: picking a new threshold needs a frame known to
+# hold a dialogue box to check against, and guessing one would just be the
+# same mistake with a different number.
 
 
 def note_screen():
@@ -635,8 +637,6 @@ def note_screen():
     # of an agent that is busy without getting anywhere.
     if beh["prev"] is not None and fp == beh["prev"] and fp != before:
         beh["oscillation"] += 1
-    if looks_like_dialogue(fp) and not looks_like_dialogue(before):
-        beh["dialogue"] += 1
     beh["prev"], beh["last"] = before, fp
     if not curve or session["actions"] - curve[-1][0] >= 5:
         curve.append((session["actions"], beh["meaningful"]))
@@ -648,7 +648,6 @@ def session_summary():
             "actions": session["actions"],
             "meaningful": beh["meaningful"],
             "oscillation": beh["oscillation"],
-            "dialogue": beh["dialogue"],
             "scenes": world["scenes"],
             "level": hero["level"], "exp": hero["exp"],
             "hp": hero["hp"], "maxhp": hero["maxhp"],
@@ -917,7 +916,6 @@ async def run_action(request, steps, note, verb="KEY"):
         if warden.ON:
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
-            warden.run["dialogue"] = beh["dialogue"]
             warden.run["scenes"] = world["scenes"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential"):
@@ -1097,8 +1095,7 @@ async def api_reset(request):
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         keyhist.clear()
         curve.clear()
-        beh.update(meaningful=0, oscillation=0, dialogue=0, last=None,
-                   prev=None)
+        beh.update(meaningful=0, oscillation=0, last=None, prev=None)
         world.update(scenes=1, banked=0, origin=None, far=0, ok=False,
                      dark=False, miss=0, tried=False)
         hero.update(base=None, found=False, level=None, exp=None, hp=None,

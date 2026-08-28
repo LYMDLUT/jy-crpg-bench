@@ -31,7 +31,7 @@ ZH = {
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
     "cols": {"started": "时间",
              "meaningful": "有效动作", "oscillation": "来回打转",
-             "dialogue": "对话", "actions": "动作数", "aps": "动作/秒",
+             "actions": "动作数", "aps": "动作/秒",
              "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
              "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
              "reason": "结束原因"},
@@ -61,10 +61,11 @@ ZH = {
     "b_scenes": "场景", "b_reach": "走出的距离",
     "b_ladder": "进度", "b_more": "其余数据", "b_reads": "看屏/动作",
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
-    "m_talk": "推进对话", "m_exp": "拿到经验", "m_scene": "离开开场场景",
+    "m_exp": "拿到经验", "m_scene": "离开开场场景",
     "m_level": "升到 2 级",
-    "b_n_ladder": "七级台阶，全部来自游戏自己的状态。到现在为止没有任何模型"
-                  "越过第二级：画面有反应了，但没有从开场场景里走出去。"
+    "b_n_ladder": "全部来自游戏自己的状态。"
+                  "六级台阶到现在为止没人越过第二级：画面有反应了，"
+                  "但没有从开场场景里走出去。"
                   "空心的一格表示那一局跑的时候还没开始统计这项，不是没做到。",
     "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
     "b_skills": "武功", "b_items": "物品",
@@ -108,7 +109,7 @@ EN = {
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
     "cols": {"started": "when",
              "meaningful": "meaningful", "oscillation": "oscillation",
-             "dialogue": "dialogue", "actions": "actions", "aps": "act/s",
+             "actions": "actions", "aps": "act/s",
              "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
              "distinct_keys": "key space", "reads": "screens", "played": "played",
              "reason": "ended by"},
@@ -143,12 +144,13 @@ EN = {
     "b_scenes": "scenes", "b_reach": "ground covered",
     "b_ladder": "progress", "b_more": "more", "b_reads": "looks / act",
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
-    "m_talk": "advanced dialogue", "m_exp": "gained experience",
+    "m_exp": "gained experience",
     "m_scene": "left the opening scene", "m_level": "reached level 2",
-    "b_n_ladder": "Seven rungs, all from the game's own state. Nothing has yet "
-                  "cleared the second: the screen responds, but nobody has got "
-                  "out of the opening scene. A hollow rung means that run "
-                  "predates the measurement, not that it failed.",
+    "b_n_ladder": "Six rungs, all from the game's own state, each harder than "
+                  "the last. Nothing has yet cleared the second: the screen "
+                  "responds, but nobody has got out of the opening scene. A "
+                  "hollow rung means that run predates the measurement, not "
+                  "that it failed.",
     "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp",
     "b_skills": "skills", "b_items": "items",
     "b_n_progress": "The game's own numbers for the character, read out of the "
@@ -935,7 +937,6 @@ const RUNGS = [
   {{k: "m_act",   at: r => (r.actions ?? 0) > 0}},
   {{k: "m_move",  at: r => r.meaningful == null ? null : r.meaningful > 0}},
   {{k: "m_item",  at: r => r.items == null ? null : r.items > 3}},
-  {{k: "m_talk",  at: r => r.dialogue == null ? null : r.dialogue > 0}},
   {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
   {{k: "m_scene", at: r => r.scenes == null ? null : r.scenes > 1}},
   {{k: "m_level", at: r => r.level == null ? null : r.level > 1}},
@@ -1050,8 +1051,6 @@ function boardRows() {{
       // recorded before this existed carry no such field, and they get null
       // rather than nought: nought would say the agent explored nothing, when
       // what happened is that nobody was measuring.
-      dialogue: rs.some(r => r.dialogue != null)
-        ? Math.max(...rs.map(r => r.dialogue ?? 0)) : null,
       reads: rs.some(r => r.reads != null)
         ? rs.reduce((a, r) => a + (r.reads || 0), 0) : null,
       // the furthest it ever got, not the mean of its attempts
@@ -1303,7 +1302,6 @@ function entries() {{
                           return up > 1 && n ? +(n / up).toFixed(3) : 0; }})(),
             shot: s.shot || 0,
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
-            dialogue: s.dialogue || 0,
             oscillation: null, keys: s.keys || {{}},
             scenes: s.scenes ?? null, frontier: s.frontier ?? null,
             // these are known from the first keypress, so a running card
@@ -2004,8 +2002,7 @@ async function openReplay(run, push) {{
     wl.innerHTML = ladder(run, true)
       + `<div class="wchar">`
       + [[T.b_level, run.level], [T.b_exp, run.exp], [T.b_skills, run.skills],
-         [T.b_items, run.items], [T.b_scenes, run.scenes],
-         [T.cols.dialogue, run.dialogue]]
+         [T.b_items, run.items], [T.b_scenes, run.scenes]]
           .map(([k, v]) => `<span><u>${{k}}</u><b>${{v == null ? "-" : v}}</b></span>`)
           .join("")
       + `</div>`;

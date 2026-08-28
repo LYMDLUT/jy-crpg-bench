@@ -416,7 +416,6 @@ async def api_sessions(_request):
              "started": s["started"], "watchers": s.get("watchers", 0),
              "actions": s.get("live_actions", 0), "budget": s.get("budget"),
              "meaningful": s.get("live_meaningful", 0),
-             "dialogue": s.get("live_dialogue", 0),
              "scenes": s.get("live_scenes", 1),
              "frontier": s.get("live_frontier"),
              **(s.get("live_hero") or {}),
@@ -471,8 +470,7 @@ def live_payload():
                 {"id": s["id"], "agent": s["agent"], "started": s["started"],
                  "actions": s.get("live_actions", 0),
                  "meaningful": s.get("live_meaningful", 0),
-                 "dialogue": s.get("live_dialogue", 0),
-                 "scenes": s.get("live_scenes", 1),
+                     "scenes": s.get("live_scenes", 1),
                  "frontier": s.get("live_frontier"),
                  **(s.get("live_hero") or {}),
                  "keys": s.get("live_keys", {}),
@@ -514,7 +512,6 @@ async def sweep(app):
                         s["live_actions"] = d.get("actions", 0)
                         s["live_uptime"] = d.get("uptime_s", 0)
                         s["live_meaningful"] = d.get("meaningful", 0)
-                        s["live_dialogue"] = d.get("dialogue", 0)
                         s["live_scenes"] = d.get("scenes", 1)
                         s["live_hero"] = {k: d.get(k) for k in
                                           ("level", "exp", "hp", "maxhp",
