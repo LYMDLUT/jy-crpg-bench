@@ -131,7 +131,6 @@ session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 # character, so each tile of ground it reaches paints a different picture;
 # walking back over old ground repeats one. Counting distinct pictures counts
 # ground covered, and going in circles adds nothing, which is the point.
-places: set = set()
 # Behavioural counters, following definitions from the game-agent benchmark
 # literature so the numbers mean the same thing elsewhere:
 #   meaningful step ratio  - GVGAI-LLM (arXiv 2508.08501), a step counts when
@@ -141,12 +140,9 @@ places: set = set()
 #   progress vs steps      - TextQuests (2507.23701) and BALROG (2411.13543)
 #     both report progress as a curve against step count, not a single number.
 beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": None,
-       # the longest run of actions that turned up nothing new. Distinct
-       # screens already say how far an agent got; this says how long it went
-       # in circles before it got there, which the totals hide.
-       "stall": 0, "since": 0}
+       }
 keyhist: dict = {}
-curve: list = []          # (action index, places) sampled as the run goes
+curve: list = []          # (action index, meaningful) sampled as the run goes
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
              "last_activity": time.time(), "actor": ""}
@@ -377,28 +373,28 @@ def rec_reset():
 # because the framebuffer is not promised at that size.
 SPRITE = (120 / 320, 46 / 200, 170 / 320, 122 / 200)
 
-# The menu is a narrow panel down the left, measured at x 20-61, y 18-109, and
-# it covers 15 of the 96 cells. Whether it tips the hash depends on how bright
-# the scene behind it is, so a run that opened the menu in a bright place
-# banked that place twice. Blanked for the same reason as the sprite: a menu is
-# not somewhere you have been. Masking both still told all 7 tiles of the
-# opening room apart, so the discrimination is paid for out of slack.
-PANEL = (16 / 320, 14 / 200, 66 / 320, 114 / 200)
+# There is deliberately no mask for the menu. It is a panel down the left, and
+# whether it tips the hash depends on how bright the scene behind it is, so it
+# does inflate a screen-identity count. But it is x 20-61 in the opening room
+# and x 20-160 on the world map: its width follows its contents, which follow
+# where you are. A mask big enough for both would blank half the frame and
+# take the background with it. That is what killed counting distinct places,
+# not this one overlay - see the note on note_screen below.
 
 
 def fingerprint():
-    """A coarse signature of where the screen is looking, ignoring the
-    character standing in front of it and any menu open over it. The bottom
-    rows are left alone so a dialogue box is still detectable below."""
+    """A coarse signature of what is on screen, ignoring the character
+    standing in front of it. Equal fingerprints mean the screen did not
+    react; unequal ones do not mean you moved."""
     w = ctypes.c_int(0)
     h = ctypes.c_int(0)
     n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
     if n <= 0:
         return None
     img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n]).convert("L")
-    for x0, y0, x1, y1 in (SPRITE, PANEL):
-        img.paste(0, (int(x0 * img.width), int(y0 * img.height),
-                      int(x1 * img.width), int(y1 * img.height)))
+    x0, y0, x1, y1 = SPRITE
+    img.paste(0, (int(x0 * img.width), int(y0 * img.height),
+                  int(x1 * img.width), int(y1 * img.height)))
     small = img.resize((12, 8), Image.BILINEAR)
     return bytes(v >> 5 for v in small.getdata())      # 8 levels of grey
 
@@ -413,7 +409,22 @@ def looks_like_dialogue(fp):
     return sum(1 for v in bottom if v >= 6) >= len(bottom) * 0.45
 
 
-def note_place():
+def note_screen():
+    """What the screen did in response to the last action.
+
+    This deliberately does not try to say *where* the character is. It used to:
+    it counted distinct fingerprints and called them places visited. Two
+    things that are not places kept landing in that count. The character
+    faces the way it walked, so retracing six steps scored three new places -
+    fixable, and fixed, by blanking the sprite. The menu is the one that
+    cannot be fixed: it is a panel whose width follows its contents, x 20-61
+    indoors and x 20-160 outdoors, so no fixed mask covers it and a mask that
+    did would blank the background the count depends on. Identifying a
+    position from the framebuffer needs the game's own coordinates, not
+    better heuristics on pixels, so the count is gone rather than
+    approximated. What is left below only asks whether the screen reacted,
+    which a hash can answer honestly.
+    """
     fp = fingerprint()
     if fp is None:
         return
@@ -427,25 +438,17 @@ def note_place():
     if looks_like_dialogue(fp) and not looks_like_dialogue(before):
         beh["dialogue"] += 1
     beh["prev"], beh["last"] = before, fp
-    if fp in places:
-        beh["since"] += 1
-        beh["stall"] = max(beh["stall"], beh["since"])
-    else:
-        beh["since"] = 0
-    places.add(fp)
     if not curve or session["actions"] - curve[-1][0] >= 5:
-        curve.append((session["actions"], len(places)))
+        curve.append((session["actions"], beh["meaningful"]))
         del curve[:-400]
 
 
 def session_summary():
     return {"uptime_s": round(time.time() - session["started"], 1),
             "actions": session["actions"],
-            "places": len(places),
             "meaningful": beh["meaningful"],
             "oscillation": beh["oscillation"],
             "dialogue": beh["dialogue"],
-            "stall": beh["stall"],
             # the key histogram, so a card can draw its bars while the run is
             # still going rather than only once it has finished
             "keys": dict(sorted(keyhist.items(), key=lambda kv: -kv[1])[:12]),
@@ -673,13 +676,11 @@ async def run_action(request, steps, note, verb="KEY"):
             else:
                 await tap(kind, val, step[2] if len(step) > 2 else None)
         waited, changed = await settle(baseline)
-        note_place()
+        note_screen()
         if warden.ON:
-            warden.run["places"] = len(places)
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
             warden.run["dialogue"] = beh["dialogue"]
-            warden.run["stall"] = beh["stall"]
             warden.run["curve"] = list(curve)
     finally:
         api_lock.release()
@@ -851,11 +852,10 @@ async def api_reset(request):
         history.clear()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
-        places.clear()
         keyhist.clear()
         curve.clear()
         beh.update(meaningful=0, oscillation=0, dialogue=0, last=None,
-                   prev=None, stall=0, since=0)
+                   prev=None)
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()

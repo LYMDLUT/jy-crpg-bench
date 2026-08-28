@@ -28,9 +28,8 @@ ZH = {
     "sort": "排序", "runs": "局", "run1": "局",
     "loading": "载入中", "empty": "还没有记录", "gone": "读不到记录",
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
-    "cols": {"started": "时间", "places": "去过", "reach": "新地/动作",
+    "cols": {"started": "时间",
              "meaningful": "有效动作", "oscillation": "来回打转",
-             "stall": "最长空转",
              "dialogue": "对话", "actions": "动作数", "aps": "动作/秒",
              "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
              "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
@@ -40,7 +39,7 @@ ZH = {
     "keyspace": "按键分布",
     "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读",
     "running": "进行中", "log": "动作记录", "hist": "按键分布",
-    "explored": "去过的地方", "progress": "探索进度",
+    "explored": "有效动作", "progress": "有效动作 vs 动作数",
     "replay": "回放", "download": "下载 MP4", "speed": "倍速",
     "prevact": "上一个动作", "nextact": "下一个动作", "playpause": "播放/暂停",
     "held": "按住", "loading2": "载入回放",
@@ -67,9 +66,8 @@ EN = {
     "sort": "sort", "runs": "runs", "run1": "run",
     "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
-    "cols": {"started": "when", "places": "places", "reach": "new/act",
+    "cols": {"started": "when",
              "meaningful": "meaningful", "oscillation": "oscillation",
-             "stall": "longest stall",
              "dialogue": "dialogue", "actions": "actions", "aps": "act/s",
              "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
              "distinct_keys": "key space", "reads": "screens", "played": "played",
@@ -79,7 +77,7 @@ EN = {
     "err": "error", "keyspace": "action space",
     "live": "live now", "watch": "watch", "back": "back", "watching": "read-only",
     "running": "running", "log": "action log", "hist": "key distribution",
-    "explored": "places reached", "progress": "progress vs actions",
+    "explored": "meaningful", "progress": "meaningful vs actions",
     "replay": "replay", "download": "download MP4", "speed": "speed",
     "prevact": "previous action", "nextact": "next action", "playpause": "play/pause",
     "held": "held", "loading2": "loading replay",
@@ -612,15 +610,12 @@ const when = t => t ? new Date(t * 1000).toLocaleString([],
 
 const COLS = [
   {{k: "started",       f: r => when(r.started)}},
-  {{k: "places",        f: r => r.places ?? 0}},
-  {{k: "reach",         f: r => (r.reach ?? 0).toFixed(2)}},
   {{k: "actions",       f: r => r.actions ?? 0}},
   {{k: "aps",           f: r => (r.aps ?? 0).toFixed(2)}},
   {{k: "ttfa",          f: r => secs(r.ttfa)}},
   {{k: "gap_p50",       f: r => secs(r.gap_p50)}},
   {{k: "meaningful",    f: r => r.meaningful == null ? "-" : r.meaningful.toFixed(2)}},
   {{k: "oscillation",   f: r => r.oscillation == null ? "-" : r.oscillation.toFixed(2)}},
-  {{k: "stall",         f: r => r.stall == null ? "-" : r.stall}},
   {{k: "distinct_keys", f: r => r.distinct_keys ?? "-"}},
   {{k: "played",        f: r => mmss(r.played)}},
   {{k: "reason",        f: r => why(r)}},
@@ -718,9 +713,7 @@ function entries() {{
     const st = stat.get(s.id) || {{}};
     const up = st.uptime_s || s.uptime || Math.max(0, now - s.started);
     const acts = st.actions ?? s.actions ?? 0;
-    const pl = s.places ?? 0;
     return {{id: s.id, agent: s.agent, running: true, started: s.started,
-            places: pl, reach: acts ? +(pl / acts).toFixed(3) : 0,
             remaining: s.remaining, played: Math.round(up),
             actions: st.actions ?? s.actions ?? 0,
             aps: (() => {{ const n = st.actions ?? s.actions ?? 0;
@@ -728,7 +721,7 @@ function entries() {{
             shot: s.shot || 0,
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             dialogue: s.dialogue || 0,
-            oscillation: null, stall: s.stall ?? null, keys: s.keys || {{}},
+            oscillation: null, keys: s.keys || {{}},
             distinct_keys: null, reads: null, ttfa: null,
             gap_p50: null, gap_p95: null, reason: "running"}};
   }}).concat(runs);
@@ -746,9 +739,7 @@ function refreshLive() {{
     const r = by[sid];
     if (!r) return;
     if (f === "acts") el.textContent = `${{r.actions}} · ${{r.aps.toFixed(2)}}/s`;
-    else if (f === "places") el.textContent = `${{r.places}} · ${{r.reach.toFixed(2)}}`;
     else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
-    else if (f === "stall") el.textContent = r.stall ?? "-";
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
     else {{
@@ -810,11 +801,9 @@ function render() {{
           ${{r.video_url ? `<a class="dl" href="${{r.video_url}}" download
              title="${{T.download}}" aria-label="${{T.download}}">${{DL}}</a>` : ""}}</div>
         <div class="kv">
-          <span>${{T.cols.places}}</span><b ${{lv(r, "places")}}>${{r.places ?? 0}} · ${{(r.reach ?? 0).toFixed(2)}}</b>
           <span>${{T.cols.meaningful}}</span><b ${{lv(r, "meaningful")}}>${{
             r.meaningful == null ? "-" : r.meaningful.toFixed(2)}}${{
             r.oscillation == null ? "" : ` · ${{r.oscillation.toFixed(2)}}`}}</b>
-          <span>${{T.cols.stall}}</span><b ${{lv(r, "stall")}}>${{r.stall ?? "-"}}</b>
           <span>${{T.cols.actions}}</span><b ${{lv(r, "acts")}}>${{r.actions ?? 0}} · ${{(r.aps ?? 0).toFixed(2)}}/s</b>
           <span>${{T.cols.ttfa}}</span><b>${{secs(r.ttfa)}}</b>
           <span>${{T.cols.gap_p50}} / p95</span><b>${{secs(r.gap_p50)}} / ${{secs(r.gap_p95)}}</b>
@@ -1111,14 +1100,14 @@ function drawWatchPanes() {{
     }}
   }}
   const vals = [n, up > 1 && n ? (n / up).toFixed(2) : "0.00",
-                mmss(up), wsum.places ?? 0];
+                mmss(up), wsum.meaningful ?? 0];
   document.querySelectorAll("#wstats b[data-w]").forEach(b => {{
     b.textContent = vals[+b.dataset.w];
   }});
 
-  // places against actions, sampled as the run goes
+  // meaningful actions against actions taken, sampled as the run goes
   if (n && (!wcurve.length || n > wcurve[wcurve.length - 1][0])) {{
-    wcurve.push([n, wsum.places || 0]);
+    wcurve.push([n, wsum.meaningful || 0]);
     if (wcurve.length > 400) wcurve.splice(0, wcurve.length - 400);
   }}
   drawCurve(wcurve);
@@ -1306,12 +1295,12 @@ function sync() {{
     drawKeys(m);
     // every figure describes the moment under the playhead, not the whole run:
     // video seconds scale back to real seconds by the playback speed, and
-    // places comes from the progress curve at this action count
+    // the meaningful count comes from the curve at this action count
     const n = m ? m.n : 0;
     const up = (m ? m.t : 0) * (tl.speed || 1);
     wcurve = (tl.curve || []).filter(p => p[0] <= n);
     wsum = {{...wsum, actions: n, uptime_s: up,
-             places: wcurve.length ? wcurve[wcurve.length - 1][1] : 0}};
+             meaningful: wcurve.length ? wcurve[wcurve.length - 1][1] : 0}};
     drawWatchPanes();
   }}
 }}
@@ -1358,9 +1347,13 @@ async function openReplay(run, push) {{
     tl = await fetch(`${{STORE}}/runs/${{run.id}}.json`).then(r => r.json());
   }} catch {{ tl = null; }}
   if (!tl) {{ tl = {{seconds: 0, marks: [], curve: run.curve || []}}; }}
+  // Runs recorded before the metric change plot distinct screens against
+  // actions, which is not what the axis says any more, so their curve is
+  // dropped rather than relabelled. A `places` field is what dates them.
+  if ("places" in run) tl.curve = [];
   marks = (tl.marks || []).map(m => ({{
     ...m, hold: Math.max(0, ...(m.keys || []).map(k => k[1] || 0))}}));
-  wsum = {{places: run.places, uptime_s: run.played, actions: 0}};
+  wsum = {{meaningful: 0, uptime_s: run.played, actions: 0}};
   wlog = []; drawMarks();
   v.src = run.video_url;
   $("veil").classList.add("gone");
@@ -1379,7 +1372,7 @@ async function openReplay(run, push) {{
     const m = marks[vidT];
     wcurve = tl.curve || [];
     wsum = {{actions: m.n, uptime_s: m.t * (tl.speed || 1),
-             places: wcurve.length ? wcurve[wcurve.length - 1][1] : (run.places || 0)}};
+             meaningful: wcurve.length ? wcurve[wcurve.length - 1][1] : 0}};
     drawKeys(m);
     drawWatchPanes();
   }}, 2500);

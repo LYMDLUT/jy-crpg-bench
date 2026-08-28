@@ -36,8 +36,8 @@ CATALOG_OBJECT = "catalog.json"
 # Filled in by the server as the agent plays. Kept here rather than in the
 # proxy so the numbers survive however the run is fronted.
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
-       "reads": 0, "errors": 0, "actions": 0, "places": 0,
-       "meaningful": 0, "oscillation": 0, "dialogue": 0, "stall": 0, "curve": [],
+       "reads": 0, "errors": 0, "actions": 0,
+       "meaningful": 0, "oscillation": 0, "dialogue": 0, "curve": [],
        "done": None, "result": None}
 
 
@@ -117,22 +117,21 @@ def metrics():
         "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
         "gap_max": round(max(gaps), 2) if gaps else None,
         "reads": run["reads"], "errors": run["errors"],
-        # Distinct places stood in, and how much of the agent's effort turned
-        # into new ground rather than retracing.
-        "places": run["places"],
-        "reach": round(run["places"] / n, 3) if n else 0.0,
+        # There is no count of distinct places here on purpose. It was
+        # measured off the framebuffer and the framebuffer cannot answer it:
+        # the menu is an overlay whose size follows where you are, so no fixed
+        # mask covers it, and a screen it tips reads as somewhere new. A five
+        # tile corridor was reporting ten. Repetition and longest-stall went
+        # with it, since both were that same count divided by actions. The
+        # metrics below only need to know whether the screen reacted.
         # Meaningful step ratio, GVGAI-LLM arXiv:2508.08501: the share of
         # actions that changed the state at all.
         "meaningful": round(run["meaningful"] / n, 3) if n else 0.0,
-        # Repetition rate, AgentQuest arXiv:2404.06411, adapted to a spatial
-        # game: actions that did not reach new ground, over actions taken.
-        "repetition": round(1 - run["places"] / n, 3) if n else 0.0,
         # A -> B -> A oscillation, the failure mode GVGAI-LLM names explicitly.
         "oscillation": round(run["oscillation"] / n, 3) if n else 0.0,
         "dialogue": run["dialogue"],
-        # longest run of actions that found nothing new
-        "stall": run["stall"],
         # Progress against step count, the shape TextQuests and BALROG plot.
+        # Plots meaningful actions rather than places for the reason above.
         "curve": run["curve"][-200:],
         "keys": dict(sorted(run["keys"].items(), key=lambda kv: -kv[1])),
         "distinct_keys": len(run["keys"]),
