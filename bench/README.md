@@ -58,6 +58,30 @@ Everything is taken from the run's own traffic, so it holds for any harness.
 | `reads` | screen looks, against actions taken |
 | `reason`, `why` | `time`, `idle`, or `never started` |
 
+What the screen itself is read for, none of it a model judging another model:
+
+- **meaningful step ratio** - actions that changed the screen at all, over
+  actions taken. On its own it rewards doing very little, so the board shows
+  the count beside it and plots one against the other.
+- **oscillation** - A to B and back to A, the failure the literature names.
+- **scenes** - fades to black, which is how this game changes scene. The
+  opening room reads luma 92 and a real transition reads 0, so the threshold
+  of 12 is nowhere near anything the game draws. Seventy-four actions of
+  walking and menus produced no false positive.
+- **ground covered** - how far from each scene's entrance the character got,
+  summed over scenes, kept as a maximum so retracing cannot inflate it.
+  **Off by default.** It needs the character's coordinates, and the only way
+  found to locate them is to reload a savestate into the running machine,
+  which crashes DOS on the container's core build: the session comes back
+  showing DOSBox Pure's "DOS Crashed" menu and never responds again. Turning
+  `QUNXIA_CALIBRATE=1` back on without a different way to find the offsets
+  will break every session it touches.
+
+There is deliberately no count of distinct places. It was measured off the
+framebuffer, and the framebuffer cannot answer it: the menu is an overlay whose
+width follows its contents, so no fixed mask covers it, and a five tile
+corridor reported ten places.
+
 ## Recording
 
 A recording is the tile deltas the browser stream already produces, kept with
@@ -123,3 +147,6 @@ or its own host, rather than raising this number.
 | `QUNXIA_GCS_BUCKET` | | publish videos and the catalogue here |
 | `QUNXIA_SITE` | hanxiao.io/jy-crpg-bench/ | where agents are pointed for results |
 | `QUNXIA_PUBLIC_BASE` | | this service's own origin, for local video serving |
+| `QUNXIA_PUBLISH` | 1 | set to 0 and the run is not listed or uploaded |
+| `QUNXIA_CALIBRATE` | 0 | read the character's position; see the warning below |
+| `QUNXIA_OPENING_SECONDS` | 420 | budget for playing the opening once |
