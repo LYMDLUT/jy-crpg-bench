@@ -105,8 +105,9 @@ def main():
             _, st = call(f"{base}/status")
             sess = st.get("session", {})
             mins = (time.time() - started) / 60
-            print(f"  {n:5} actions  {mins:5.1f}m  places {sess.get('places')}"
-                  f"  left {sess.get('remaining', '?')}", flush=True)
+            print(f"  {n:5} actions  {mins:5.1f}m  "
+                  f"meaningful {sess.get('meaningful')}  scenes {sess.get('scenes')}"
+                  f"  left {sess.get('remaining', '?')}s", flush=True)
         time.sleep(rng.expovariate(1 / a.pace))
 
 
