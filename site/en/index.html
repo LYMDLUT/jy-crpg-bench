@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="08744978e550">
+<meta name="build" content="f987dcc11d4c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -200,6 +200,9 @@
   .plot .on circle { fill: var(--ink); }
   .plot .off circle { fill: #c9c9cf; }
   .plot .off text { fill: var(--dim); }
+  .plot .tap { cursor: pointer; }
+  .plot .tap:hover circle { r: 7; }
+  .plot .tap:hover text { font-weight: 600; }
   @media (max-width: 720px) {
     /* the second figure is the one that changes the reading, so it survives
        the narrow layout and only the last column is dropped */
@@ -216,6 +219,39 @@
   .dl:hover { color: var(--ink); background: #f0f0f0; }
   .kv { margin-top: 9px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
         font-size: 12px; }
+
+  /* How far it got, before any of the numbers. Each rung is harder than the
+     one before, so the row reads left to right as progress. */
+  .ladder { display: flex; align-items: center; gap: 4px; margin-top: 10px; }
+  .ladder i { width: 9px; height: 9px; border-radius: 50%; flex: none;
+              background: #e4e4e7; }
+  .ladder i.on { background: var(--ink); }
+  /* hollow, not empty: this run predates the measurement */
+  .ladder i.unk { background: none; box-shadow: inset 0 0 0 1.5px #e0e0e4; }
+  .ladder b { margin-left: 5px; font: 600 12px var(--mono);
+              font-variant-numeric: tabular-nums; }
+  .ladder u { text-decoration: none; color: var(--dim); font: 11px var(--mono);
+              margin-left: 6px; overflow: hidden; text-overflow: ellipsis;
+              white-space: nowrap; }
+  .ladder.big i { width: 12px; height: 12px; }
+  .ladder.big b { font-size: 14px; }
+
+  .more { margin-top: 8px; }
+  .more summary { cursor: pointer; color: var(--dim); font: 11px var(--mono);
+                  list-style: none; padding: 2px 0; }
+  .more summary::-webkit-details-marker { display: none; }
+  .more summary::before { content: "+ "; }
+  .more[open] summary::before { content: "- "; }
+  .more summary:hover { color: var(--ink); }
+  .more .kv { margin-top: 4px; }
+
+  .wladder { margin: 14px 0 2px; display: flex; flex-wrap: wrap;
+             align-items: center; gap: 10px 26px; }
+  .wchar { display: flex; flex-wrap: wrap; gap: 4px 22px; }
+  .wchar span { display: flex; flex-direction: column; }
+  .wchar u { text-decoration: none; color: var(--dim); font: 10px var(--mono);
+             letter-spacing: .05em; text-transform: uppercase; }
+  .wchar b { font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
   .kv span { color: var(--dim); }
   .kv b { font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums;
           text-align: right; letter-spacing: -.1px; }
@@ -490,13 +526,11 @@
   </div>
   <p class="bhow">Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.</p>
   <div class="seg bviews" id="bviews">
-    <button data-b="overview" aria-pressed="true">overview</button>
-    <button data-b="explore"  aria-pressed="false">exploration</button>
+    <button data-b="ladder"   aria-pressed="true">progress</button>
+    <button data-b="overview" aria-pressed="false">overview</button>
     <button data-b="progress" aria-pressed="false">character</button>
-    <button data-b="speed"    aria-pressed="false">speed</button>
-    <button data-b="effort"   aria-pressed="false">effort</button>
+    <button data-b="behaviour" aria-pressed="false">speed</button>
     <button data-b="frontier" aria-pressed="false">trade-off</button>
-    <button data-b="rely"     aria-pressed="false">reliability</button>
   </div>
   <div id="btable"></div>
   <p class="bnote" id="bnote"></p>
@@ -577,6 +611,9 @@
 
   <div id="wkeys" class="wkeys mono"></div>
 
+  <!-- how far this run got, before any of the counters -->
+  <div id="wladder" class="wladder"></div>
+
   <div class="rules" id="wstats">
     <div><u>actions</u><b data-w="0">-</b></div>
     <div><u>act/s</u><b data-w="1">-</b></div>
@@ -605,7 +642,7 @@
 </div>
 
 <script>
-const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "total runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "b_front": "trade-off", "b_mact": "meaningful", "b_scenes": "scenes", "b_reach": "ground covered", "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp", "b_skills": "skills", "b_items": "items", "b_n_progress": "The game's own numbers for the character, read out of the machine rather than guessed from the picture. Level has been 1 on every run so far: nothing has got past the opening, and now that is a number rather than an impression.", "b_explore": "exploration", "b_axis_s": "scenes entered", "b_pre": "Ground covered is not being recorded: reading the character's position meant reloading a savestate into the running machine, which crashed it. Unmeasured shows as a dash, never as a zero.", "b_n_explore": "Scenes counts the fades to black the game uses to change scene. Ground covered is how far from each scene's entrance the character actually got, summed over scenes. It is kept as a maximum, so pacing back and forth cannot add to it.", "b_axis_q": "meaningful step ratio (quality)", "b_axis_t": "meaningful actions (throughput)", "b_n_front": "The ratio alone rewards doing very little; the count alone rewards mashing keys. Only both together is better. Models on the line are beaten by nobody on both at once.", "b_dom": "beaten", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "total runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "b_front": "trade-off", "b_mact": "useful acts", "b_scenes": "scenes", "b_reach": "ground covered", "b_ladder": "progress", "b_more": "more", "b_reads": "looks / act", "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up", "m_talk": "advanced dialogue", "m_exp": "gained experience", "m_scene": "left the opening scene", "m_level": "reached level 2", "b_n_ladder": "Seven rungs, all from the game's own state. Nothing has yet cleared the second: the screen responds, but nobody has got out of the opening scene. A hollow rung means that run predates the measurement, not that it failed.", "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp", "b_skills": "skills", "b_items": "items", "b_n_progress": "The game's own numbers for the character, read out of the machine rather than guessed from the picture. Level has been 1 on every run so far: nothing has got past the opening, and now that is a number rather than an impression.", "b_explore": "exploration", "b_axis_s": "scenes entered", "b_pre": "Ground covered is not being recorded: reading the character's position meant reloading a savestate into the running machine, which crashed it. Unmeasured shows as a dash, never as a zero.", "b_n_explore": "Scenes counts the fades to black the game uses to change scene. Ground covered is how far from each scene's entrance the character actually got, summed over scenes. It is kept as a maximum, so pacing back and forth cannot add to it.", "b_axis_q": "meaningful step ratio (quality)", "b_axis_t": "meaningful actions (throughput)", "b_n_front": "The ratio alone rewards doing very little; the count alone rewards mashing keys. Only both together is better. Models on the line are beaten by nobody on both at once.", "b_dom": "beaten", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -706,6 +743,39 @@ function spark(keys) {
 // Every run loops on its own, muted, so the page reads as a wall of agents
 // playing at once. Native controls on every card were the noisiest thing here;
 // the clip links to its own mp4 instead.
+// How far a run actually got, as rungs rather than as a table of numbers.
+// Every one is read from the game's own state, and each is strictly harder
+// than the one before it, so the count is a real ordering and not a score
+// somebody weighted into existence.
+//
+// A rung is reached, not reached, or unknown. Unknown matters: most runs here
+// predate the character and scene reads, and drawing those as failures would
+// be the same lie as showing an unmeasured distance as nought.
+const RUNGS = [
+  {k: "m_act",   at: r => (r.actions ?? 0) > 0},
+  {k: "m_move",  at: r => r.meaningful == null ? null : r.meaningful > 0},
+  {k: "m_item",  at: r => r.items == null ? null : r.items > 3},
+  {k: "m_talk",  at: r => r.dialogue == null ? null : r.dialogue > 0},
+  {k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0},
+  {k: "m_scene", at: r => r.scenes == null ? null : r.scenes > 1},
+  {k: "m_level", at: r => r.level == null ? null : r.level > 1},
+]; 
+
+function rungs(r) { return RUNGS.map(m => m.at(r)); }
+function reached(r) { return rungs(r).filter(v => v === true).length; }
+
+function ladder(r, big) {
+  const got = rungs(r);
+  const dots = got.map((v, i) =>
+    `<i class="${v === true ? "on" : v === null ? "unk" : "off"}"
+       title="${T[RUNGS[i].k]}"></i>`).join("");
+  const last = got.lastIndexOf(true);
+  return `<div class="ladder${big ? " big" : ""}">${dots}`
+    + `<b>${reached(r)}/${RUNGS.length}</b>`
+    + (big && last >= 0 ? `<u>${T[RUNGS[last].k]}</u>` : "")
+    + `</div>`;
+}
+
 function clip(r) {
   if (r.running) return `<img class="live-cv" data-sid="${r.id}" alt="" loading="lazy"
     src="${STORE}/live/${r.id}.jpg?v=${r.shot || 0}">`;
@@ -800,6 +870,10 @@ function boardRows() {
       // recorded before this existed carry no such field, and they get null
       // rather than nought: nought would say the agent explored nothing, when
       // what happened is that nobody was measuring.
+      dialogue: rs.some(r => r.dialogue != null)
+        ? Math.max(...rs.map(r => r.dialogue ?? 0)) : null,
+      reads: rs.some(r => r.reads != null)
+        ? rs.reduce((a, r) => a + (r.reads || 0), 0) : null,
       // the furthest it ever got, not the mean of its attempts
       level: rs.some(r => r.level != null)
         ? Math.max(...rs.map(r => r.level ?? 0)) : null,
@@ -830,15 +904,18 @@ function boardRows() {
 // the overview carries an interval, so only it earns a rank range; the others
 // are a plain ordering and say so by not pretending otherwise.
 const BOARDS = {
-  explore: {
-    label: () => T.b_scenes, note: () => T.b_n_explore + " " + T.b_pre,
-    // Ranked on scenes, not on ground covered. Distance needs the character's
-    // coordinates, and reading those is off because getting them crashed the
-    // machine, so it is unmeasured on every run and cannot order anything.
-    key: m => m.scenes == null ? -1 : m.scenes,
-    val: m => `<b>${m.scenes == null ? "-" : m.scenes}</b>`,
-    cols: [[() => T.b_reach, m => m.reach == null ? "-" : m.reach],
-           [() => T.b_acts, m => m.actions]],
+  ladder: {
+    label: () => T.b_ladder, note: () => T.b_n_ladder,
+    // The rungs are ordered by difficulty, so counting them is a real ranking.
+    // Ties break on the behavioural ratio, which is the next thing that
+    // separates two runs that got equally far.
+    key: m => reached(m) * 1000 + Math.round((m.meaningful || 0) * 100),
+    val: m => ladder(m),
+    cols: [[() => T.cols.meaningful,
+            m => m.meaningful == null ? "-" : m.meaningful.toFixed(2)],
+           [() => T.b_reads,
+            m => m.reads == null || !m.actions ? "-"
+                 : (m.reads / m.actions).toFixed(2)]],
   },
   progress: {
     label: () => T.b_level, note: () => T.b_n_progress + " " + T.b_pre,
@@ -855,40 +932,19 @@ const BOARDS = {
             + `<i>${(m.lo * 100).toFixed(1)}-${(m.hi * 100).toFixed(1)}</i>`,
     cols: [[() => T.b_mact, m => m.mact], [() => T.b_acts, m => m.actions]],
   },
-  speed: {
-    label: () => T.b_aps,
+  behaviour: {
+    label: () => T.b_aps, note: () => T.b_n_speed,
     key: m => m.aps,
     val: m => `<b>${m.aps.toFixed(2)}</b>`,
     cols: [[() => T.b_think, m => `${secs(m.think50)} / ${secs(m.think95)}`],
-           [() => T.b_ttfa, m => secs(m.ttfa)]],
-    note: () => T.b_n_speed,
-  },
-  effort: {
-    label: () => T.b_acts,
-    key: m => m.actions,
-    val: m => `<b>${m.actions}</b>`,
-    cols: [[() => T.b_keys, m => m.keys || "-"],
-           [() => T.b_played, m => mmss(m.played)]],
-    note: () => T.b_n_effort,
+           [() => T.b_keys, m => m.keys || "-"]],
   },
   frontier: { plot: true, label: () => T.b_front, note: () => T.b_n_front,
     key: m => m.mact },
-  rely: {
-    label: () => T.b_done,
-    // finished share first, then fewest errors, then quickest off the mark:
-    // without the tiebreaks every row ties today and the order is arbitrary
-    key: m => (m.runs ? m.done / m.runs : 0) * 1e6
-            - Math.min(999, m.errors) * 1e3
-            - Math.min(999, m.ttfa || 0),
-    val: m => `<b>${m.done}/${m.runs}</b>`,
-    cols: [[() => T.b_err, m => m.errors],
-           [() => T.b_ttfa, m => secs(m.ttfa)]],
-    note: () => T.b_n_rely,
-  },
 };
 
 // addressable, so a view can be linked to and so each one can be checked
-let bview = BOARDS[Q.get("board")] ? Q.get("board") : "overview";
+let bview = BOARDS[Q.get("board")] ? Q.get("board") : "ladder";
 
 // What this table was computed from. Every field is read off the data the page
 // already has, so it cannot claim a provenance the page cannot back up.
@@ -947,7 +1003,16 @@ function drawFrontier(el, rows) {
   const dots = pts.map(({m, px, py, flip}) => {
     const on = front.includes(m);
     const ty = y(m.meaningful);
-    return `<g class="${on ? "on" : "off"}">`
+    // one run per model means the point can open that run; a native <title>
+    // gives the numbers on hover and on a long press, with no tooltip code
+    const one = m.runs === 1
+      ? (runs.find(r => r.agent === m.agent && !r.running) || {}).id : null;
+    const tip = `${m.agent}\n${T.b_score} ${(m.meaningful * 100).toFixed(1)}%`
+      + `\n${T.b_mact} ${m.mact}\n${T.b_acts} ${m.actions}`
+      + `\n${T.b_ladder} ${reached(m)}/${RUNGS.length}`;
+    return `<g class="${on ? "on" : "off"}${one ? " tap" : ""}"`
+      + (one ? ` data-open="${one}"` : "") + `>`
+      + `<title>${tip}</title>`
       + `<circle cx="${px}" cy="${ty}" r="${on ? 5 : 4}"></circle>`
       + `<text x="${px + (flip ? -9 : 9)}" y="${py + 3.5}"
           text-anchor="${flip ? "end" : "start"}">${m.agent}${
@@ -961,12 +1026,13 @@ function drawFrontier(el, rows) {
     <text x="${L}" y="${H - 6}" class="ax">${T.b_axis_t} &#8594;</text>
     <text x="${L}" y="${TP - 4}" class="ax">&#8593; ${T.b_axis_q}</text>
   </svg></div>`;
+  wireOpen(el);
 }
 
 function drawBoard() {
   const el = $("btable");
   if (!el) return;
-  const B = BOARDS[bview] || BOARDS.overview;
+  const B = BOARDS[bview] || BOARDS.ladder;
   const rows = boardRows().sort((a, b) => (B.key(b) - B.key(a))
                                        || String(a.agent).localeCompare(b.agent));
   if (!rows.length) { el.innerHTML = `<p class="msg">${T.nolog}</p>`; return; }
@@ -1146,21 +1212,30 @@ function render() {
           ${mark(r.agent)}<span>${r.agent}</span>
           ${r.video_url ? `<a class="dl" href="${r.video_url}" download
              title="${T.download}" aria-label="${T.download}">${DL}</a>` : ""}</div>
+        ${ladder(r)}
         <div class="kv">
+          <span>${T.cols.meaningful}</span><b ${lv(r, "meaningful")}>${
+            r.meaningful == null ? "-" : r.meaningful.toFixed(2)}${
+            r.oscillation == null ? "" : ` · ${r.oscillation.toFixed(2)}`}</b>
           <span>${T.b_char}</span><b ${lv(r, "hero")}>${
             r.level == null ? "-" : r.level} · ${
             r.skills == null ? "-" : r.skills} · ${
             r.items == null ? "-" : r.items}</b>
           <span>${T.b_scenes}</span><b ${lv(r, "scenes")}>${
             r.scenes == null ? "-" : r.scenes}</b>
-          <span>${T.cols.meaningful}</span><b ${lv(r, "meaningful")}>${
-            r.meaningful == null ? "-" : r.meaningful.toFixed(2)}${
-            r.oscillation == null ? "" : ` · ${r.oscillation.toFixed(2)}`}</b>
-          <span>${T.cols.actions}</span><b ${lv(r, "acts")}>${r.actions ?? 0} · ${(r.aps ?? 0).toFixed(2)}/s</b>
-          <span>${T.cols.ttfa}</span><b>${secs(r.ttfa)}</b>
-          <span>${T.cols.gap_p50} / p95</span><b>${secs(r.gap_p50)} / ${secs(r.gap_p95)}</b>
-          <span>${T.cols.distinct_keys}</span><b>${r.distinct_keys ?? "-"} · ${r.reads ?? "-"}</b>
         </div>
+        <details class="more">
+          <summary>${T.b_more}</summary>
+          <div class="kv">
+            <span>${T.cols.actions}</span><b ${lv(r, "acts")}>${r.actions ?? 0} · ${(r.aps ?? 0).toFixed(2)}/s</b>
+            <span>${T.b_reads}</span><b>${
+              r.reads == null ? "-" : r.reads}${
+              r.reads != null && r.actions ? ` · ${(r.reads / r.actions).toFixed(2)}` : ""}</b>
+            <span>${T.cols.distinct_keys}</span><b>${r.distinct_keys ?? "-"}</b>
+            <span>${T.cols.ttfa}</span><b>${secs(r.ttfa)}</b>
+            <span>${T.cols.gap_p50} / p95</span><b>${secs(r.gap_p50)} / ${secs(r.gap_p95)}</b>
+          </div>
+        </details>
         ${spark(r.keys)}
       </div>
     </div>`).join("");
@@ -1576,6 +1651,8 @@ function shell(agent, push, id, live) {
   // the server admits only alphanumerics and -_. into a name, which is why
   // the cards interpolate it raw too
   $("wname").innerHTML = mark(agent) + agent;
+  const wl = $("wladder");
+  if (wl) wl.innerHTML = "";
   held.clear(); recent = []; act = null; drawKeys();
   wlog = []; wsum = {}; wcurve = []; drawWatchPanes();
   document.body.classList.add("watching");
@@ -1741,6 +1818,18 @@ async function openReplay(run, push) {
   marks = (tl.marks || []).map(m => ({
     ...m, hold: Math.max(0, ...(m.keys || []).map(k => k[1] || 0))}));
   wsum = {meaningful: 0, uptime_s: run.played, actions: 0};
+  // the run's own progress, from the catalogue entry that opened it
+  const wl = $("wladder");
+  if (wl) {
+    wl.innerHTML = ladder(run, true)
+      + `<div class="wchar">`
+      + [[T.b_level, run.level], [T.b_exp, run.exp], [T.b_skills, run.skills],
+         [T.b_items, run.items], [T.b_scenes, run.scenes],
+         [T.cols.dialogue, run.dialogue]]
+          .map(([k, v]) => `<span><u>${k}</u><b>${v == null ? "-" : v}</b></span>`)
+          .join("")
+      + `</div>`;
+  }
   wlog = []; drawMarks();
   v.src = run.video_url;
   $("veil").classList.add("gone");
