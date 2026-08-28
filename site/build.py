@@ -1189,7 +1189,7 @@ function entries() {{
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             dialogue: s.dialogue || 0,
             oscillation: null, keys: s.keys || {{}},
-            scenes: s.scenes ?? 1, frontier: s.frontier ?? null,
+            scenes: s.scenes ?? null, frontier: s.frontier ?? null,
             // these are known from the first keypress, so a running card
             // shows them rather than dashes; oscillation is not, it is only
             // assembled at teardown
@@ -1213,7 +1213,8 @@ function refreshLive() {{
     if (!r) return;
     if (f === "acts") el.textContent = `${{r.actions}} · ${{r.aps.toFixed(2)}}/s`;
     else if (f === "reach") el.textContent =
-        `${{r.frontier == null ? "-" : r.frontier}} · ${{r.scenes ?? 1}}`;
+        `${{r.frontier == null ? "-" : r.frontier}} · ${{
+            r.scenes == null ? "-" : r.scenes}}`;
     else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
@@ -1277,7 +1278,8 @@ function render() {{
              title="${{T.download}}" aria-label="${{T.download}}">${{DL}}</a>` : ""}}</div>
         <div class="kv">
           <span>${{T.b_reach}}</span><b ${{lv(r, "reach")}}>${{
-            r.frontier == null ? "-" : r.frontier}} · ${{r.scenes ?? 1}}</b>
+            r.frontier == null ? "-" : r.frontier}} · ${{
+            r.scenes == null ? "-" : r.scenes}}</b>
           <span>${{T.cols.meaningful}}</span><b ${{lv(r, "meaningful")}}>${{
             r.meaningful == null ? "-" : r.meaningful.toFixed(2)}}${{
             r.oscillation == null ? "" : ` · ${{r.oscillation.toFixed(2)}}`}}</b>
