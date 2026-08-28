@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="bd449a5eee45">
+<meta name="build" content="67029bfdea1a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -816,13 +816,13 @@ function boardRows() {
 // are a plain ordering and say so by not pretending otherwise.
 const BOARDS = {
   explore: {
-    label: () => T.b_reach, note: () => T.b_n_explore,
-    // ranked on ground covered, with scenes beside it: a run that never left
-    // the opening room scores zero here however busy it looked
-    // unmeasured sorts last rather than as a zero
-    key: m => m.reach == null ? -1 : m.reach,
-    val: m => `<b>${m.reach == null ? "-" : m.reach}</b>`,
-    cols: [[() => T.b_scenes, m => m.scenes == null ? "-" : m.scenes],
+    label: () => T.b_scenes, note: () => T.b_n_explore + " " + T.b_pre,
+    // Ranked on scenes, not on ground covered. Distance needs the character's
+    // coordinates, and reading those is off because getting them crashed the
+    // machine, so it is unmeasured on every run and cannot order anything.
+    key: m => m.scenes == null ? -1 : m.scenes,
+    val: m => `<b>${m.scenes == null ? "-" : m.scenes}</b>`,
+    cols: [[() => T.b_reach, m => m.reach == null ? "-" : m.reach],
            [() => T.b_acts, m => m.actions]],
   },
   overview: {

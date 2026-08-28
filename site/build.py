@@ -970,13 +970,13 @@ function boardRows() {{
 // are a plain ordering and say so by not pretending otherwise.
 const BOARDS = {{
   explore: {{
-    label: () => T.b_reach, note: () => T.b_n_explore,
-    // ranked on ground covered, with scenes beside it: a run that never left
-    // the opening room scores zero here however busy it looked
-    // unmeasured sorts last rather than as a zero
-    key: m => m.reach == null ? -1 : m.reach,
-    val: m => `<b>${{m.reach == null ? "-" : m.reach}}</b>`,
-    cols: [[() => T.b_scenes, m => m.scenes == null ? "-" : m.scenes],
+    label: () => T.b_scenes, note: () => T.b_n_explore + " " + T.b_pre,
+    // Ranked on scenes, not on ground covered. Distance needs the character's
+    // coordinates, and reading those is off because getting them crashed the
+    // machine, so it is unmeasured on every run and cannot order anything.
+    key: m => m.scenes == null ? -1 : m.scenes,
+    val: m => `<b>${{m.scenes == null ? "-" : m.scenes}}</b>`,
+    cols: [[() => T.b_reach, m => m.reach == null ? "-" : m.reach],
            [() => T.b_acts, m => m.actions]],
   }},
   overview: {{
