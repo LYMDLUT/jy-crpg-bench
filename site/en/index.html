@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="67029bfdea1a">
+<meta name="build" content="529b9e46c96c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -492,6 +492,7 @@
   <div class="seg bviews" id="bviews">
     <button data-b="overview" aria-pressed="true">overview</button>
     <button data-b="explore"  aria-pressed="false">exploration</button>
+    <button data-b="progress" aria-pressed="false">character</button>
     <button data-b="speed"    aria-pressed="false">speed</button>
     <button data-b="effort"   aria-pressed="false">effort</button>
     <button data-b="frontier" aria-pressed="false">trade-off</button>
@@ -604,7 +605,7 @@
 </div>
 
 <script>
-const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "total runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "b_front": "trade-off", "b_mact": "meaningful", "b_scenes": "scenes", "b_reach": "ground covered", "b_explore": "exploration", "b_axis_s": "scenes entered", "b_pre": "Ground covered is not being recorded: reading the character's position meant reloading a savestate into the running machine, which crashed it. Unmeasured shows as a dash, never as a zero.", "b_n_explore": "Scenes counts the fades to black the game uses to change scene. Ground covered is how far from each scene's entrance the character actually got, summed over scenes. It is kept as a maximum, so pacing back and forth cannot add to it.", "b_axis_q": "meaningful step ratio (quality)", "b_axis_t": "meaningful actions (throughput)", "b_n_front": "The ratio alone rewards doing very little; the count alone rewards mashing keys. Only both together is better. Models on the line are beaten by nobody on both at once.", "b_dom": "beaten", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "total runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "b_front": "trade-off", "b_mact": "meaningful", "b_scenes": "scenes", "b_reach": "ground covered", "b_progress": "character", "b_level": "level", "b_exp": "exp", "b_skills": "skills", "b_items": "items", "b_n_progress": "The game's own numbers for the character, read out of the machine rather than guessed from the picture. Level has been 1 on every run so far: nothing has got past the opening, and now that is a number rather than an impression.", "b_explore": "exploration", "b_axis_s": "scenes entered", "b_pre": "Ground covered is not being recorded: reading the character's position meant reloading a savestate into the running machine, which crashed it. Unmeasured shows as a dash, never as a zero.", "b_n_explore": "Scenes counts the fades to black the game uses to change scene. Ground covered is how far from each scene's entrance the character actually got, summed over scenes. It is kept as a maximum, so pacing back and forth cannot add to it.", "b_axis_q": "meaningful step ratio (quality)", "b_axis_t": "meaningful actions (throughput)", "b_n_front": "The ratio alone rewards doing very little; the count alone rewards mashing keys. Only both together is better. Models on the line are beaten by nobody on both at once.", "b_dom": "beaten", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -793,6 +794,14 @@ function boardRows() {
       // recorded before this existed carry no such field, and they get null
       // rather than nought: nought would say the agent explored nothing, when
       // what happened is that nobody was measuring.
+      // the furthest it ever got, not the mean of its attempts
+      level: rs.some(r => r.level != null)
+        ? Math.max(...rs.map(r => r.level ?? 0)) : null,
+      exp: rs.some(r => r.exp != null) ? Math.max(...rs.map(r => r.exp ?? 0)) : null,
+      skills: rs.some(r => r.skills != null)
+        ? Math.max(...rs.map(r => r.skills ?? 0)) : null,
+      items: rs.some(r => r.items != null)
+        ? Math.max(...rs.map(r => r.items ?? 0)) : null,
       scenes: rs.some(r => r.scenes != null)
         ? rs.reduce((a, r) => a + ((r.scenes || 1) - 1), 0) + 1 : null,
       reach: rs.some(r => r.frontier != null)
@@ -824,6 +833,14 @@ const BOARDS = {
     val: m => `<b>${m.scenes == null ? "-" : m.scenes}</b>`,
     cols: [[() => T.b_reach, m => m.reach == null ? "-" : m.reach],
            [() => T.b_acts, m => m.actions]],
+  },
+  progress: {
+    label: () => T.b_level, note: () => T.b_n_progress + " " + T.b_pre,
+    key: m => m.level == null ? -1 : m.level * 1e6 + Math.min(999999, m.exp || 0),
+    val: m => `<b>${m.level == null ? "-" : m.level}</b>`
+            + (m.exp ? `<i>${m.exp} ${T.b_exp}</i>` : ""),
+    cols: [[() => T.b_skills, m => m.skills == null ? "-" : m.skills],
+           [() => T.b_items, m => m.items == null ? "-" : m.items]],
   },
   overview: {
     label: () => T.b_score, ci: true,

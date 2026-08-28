@@ -59,6 +59,11 @@ ZH = {
     "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。",
     "b_front": "取舍", "b_mact": "有效动作数",
     "b_scenes": "场景", "b_reach": "走出的距离",
+    "b_progress": "养成", "b_level": "等级", "b_exp": "经验",
+    "b_skills": "武功", "b_items": "物品",
+    "b_n_progress": "游戏自己的角色数值，直接从机器里读出来，不是从画面上猜的。"
+                    "等级到现在为止每一局都是 1：没有任何一个模型走出过开场，"
+                    "现在这件事是个数字，而不是一种印象。",
     "b_explore": "探索",
     "b_axis_s": "进入的场景数",
     "b_pre": "走出的距离目前不统计：读取角色坐标要把存档重新载入正在运行的机器，会把它弄崩。没测到就显示为空，不会写成 0。",
@@ -129,6 +134,12 @@ EN = {
                 "currently says.",
     "b_front": "trade-off", "b_mact": "meaningful",
     "b_scenes": "scenes", "b_reach": "ground covered",
+    "b_progress": "character", "b_level": "level", "b_exp": "exp",
+    "b_skills": "skills", "b_items": "items",
+    "b_n_progress": "The game's own numbers for the character, read out of the "
+                    "machine rather than guessed from the picture. Level has "
+                    "been 1 on every run so far: nothing has got past the "
+                    "opening, and now that is a number rather than an impression.",
     "b_explore": "exploration",
     "b_axis_s": "scenes entered",
     "b_pre": "Ground covered is not being recorded: reading the character's "
@@ -646,6 +657,7 @@ TEMPLATE = r"""<!doctype html>
   <div class="seg bviews" id="bviews">
     <button data-b="overview" aria-pressed="true">{b_overview}</button>
     <button data-b="explore"  aria-pressed="false">{b_explore}</button>
+    <button data-b="progress" aria-pressed="false">{b_progress}</button>
     <button data-b="speed"    aria-pressed="false">{b_speed}</button>
     <button data-b="effort"   aria-pressed="false">{b_effort}</button>
     <button data-b="frontier" aria-pressed="false">{b_front}</button>
@@ -947,6 +959,14 @@ function boardRows() {{
       // recorded before this existed carry no such field, and they get null
       // rather than nought: nought would say the agent explored nothing, when
       // what happened is that nobody was measuring.
+      // the furthest it ever got, not the mean of its attempts
+      level: rs.some(r => r.level != null)
+        ? Math.max(...rs.map(r => r.level ?? 0)) : null,
+      exp: rs.some(r => r.exp != null) ? Math.max(...rs.map(r => r.exp ?? 0)) : null,
+      skills: rs.some(r => r.skills != null)
+        ? Math.max(...rs.map(r => r.skills ?? 0)) : null,
+      items: rs.some(r => r.items != null)
+        ? Math.max(...rs.map(r => r.items ?? 0)) : null,
       scenes: rs.some(r => r.scenes != null)
         ? rs.reduce((a, r) => a + ((r.scenes || 1) - 1), 0) + 1 : null,
       reach: rs.some(r => r.frontier != null)
@@ -978,6 +998,14 @@ const BOARDS = {{
     val: m => `<b>${{m.scenes == null ? "-" : m.scenes}}</b>`,
     cols: [[() => T.b_reach, m => m.reach == null ? "-" : m.reach],
            [() => T.b_acts, m => m.actions]],
+  }},
+  progress: {{
+    label: () => T.b_level, note: () => T.b_n_progress + " " + T.b_pre,
+    key: m => m.level == null ? -1 : m.level * 1e6 + Math.min(999999, m.exp || 0),
+    val: m => `<b>${{m.level == null ? "-" : m.level}}</b>`
+            + (m.exp ? `<i>${{m.exp}} ${{T.b_exp}}</i>` : ""),
+    cols: [[() => T.b_skills, m => m.skills == null ? "-" : m.skills],
+           [() => T.b_items, m => m.items == null ? "-" : m.items]],
   }},
   overview: {{
     label: () => T.b_score, ci: true,
