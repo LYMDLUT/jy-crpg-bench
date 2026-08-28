@@ -61,6 +61,7 @@ ZH = {
     "b_scenes": "场景", "b_reach": "走出的距离",
     "b_explore": "探索",
     "b_axis_s": "进入的场景数",
+    "b_pre": "这项开始统计之前跑的局显示为空，而不是 0。",
     "b_n_explore": "场景数按游戏切换场景时的黑屏计；距离是从每个场景入口走出去的"
                    "最远步数，逐场景累加。距离只取最大值，所以来回踱步加不上去。",
     "b_axis_q": "有效动作率（质量）", "b_axis_t": "有效动作数（产出）",
@@ -130,6 +131,8 @@ EN = {
     "b_scenes": "scenes", "b_reach": "ground covered",
     "b_explore": "exploration",
     "b_axis_s": "scenes entered",
+    "b_pre": "A run recorded before this was measured shows no value rather "
+             "than a zero.",
     "b_n_explore": "Scenes counts the fades to black the game uses to change "
                    "scene. Ground covered is how far from each scene's entrance "
                    "the character actually got, summed over scenes. It is kept "
@@ -939,9 +942,14 @@ function boardRows() {{
       // the ratio says how carefully it acted, this says how much it got done;
       // ranking on either alone rewards the wrong thing
       mact: good,
-      // read out of the emulated machine rather than off the picture
-      scenes: rs.reduce((a, r) => a + ((r.scenes || 1) - 1), 0) + 1,
-      reach: rs.reduce((a, r) => a + (r.frontier || 0), 0),
+      // Read out of the emulated machine rather than off the picture. Runs
+      // recorded before this existed carry no such field, and they get null
+      // rather than nought: nought would say the agent explored nothing, when
+      // what happened is that nobody was measuring.
+      scenes: rs.some(r => r.scenes != null)
+        ? rs.reduce((a, r) => a + ((r.scenes || 1) - 1), 0) + 1 : null,
+      reach: rs.some(r => r.frontier != null)
+        ? rs.reduce((a, r) => a + (r.frontier || 0), 0) : null,
       aps: played > 0.5 ? acts / played : 0,
       played,
       think50: avg(rs.map(r => num(r.gap_p50)).filter(v => v !== null)),
@@ -964,9 +972,11 @@ const BOARDS = {{
     label: () => T.b_reach, note: () => T.b_n_explore,
     // ranked on ground covered, with scenes beside it: a run that never left
     // the opening room scores zero here however busy it looked
-    key: m => m.reach,
-    val: m => `<b>${{m.reach}}</b>`,
-    cols: [[() => T.b_scenes, m => m.scenes], [() => T.b_acts, m => m.actions]],
+    // unmeasured sorts last rather than as a zero
+    key: m => m.reach == null ? -1 : m.reach,
+    val: m => `<b>${{m.reach == null ? "-" : m.reach}}</b>`,
+    cols: [[() => T.b_scenes, m => m.scenes == null ? "-" : m.scenes],
+           [() => T.b_acts, m => m.actions]],
   }},
   overview: {{
     label: () => T.b_score, ci: true,
@@ -1118,7 +1128,8 @@ function drawBoard() {{
         + `width:${{Math.max(1, (m.hi - m.lo) * 100).toFixed(1)}}%"></span>`
         + `<em style="left:${{(m.meaningful * 100).toFixed(1)}}%"></em></div>`
       : `<div class="bbar"><span style="left:0;width:${{
-          (B.key(m) / top * 100).toFixed(1)}}%"></span></div>`;
+          Math.max(0, B.key(m)) / Math.max(top, 1e-9) * 100
+        }}%"></span></div>`;
     return `<div class="brow" data-open="${{m.runs === 1 ? (runs.find(
         r => r.agent === m.agent && !r.running) || {{}}).id || "" : ""}}"
         ${{m.runs === 1 ? 'style="cursor:pointer"' : ""}}>
