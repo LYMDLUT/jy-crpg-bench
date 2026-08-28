@@ -12,6 +12,7 @@ import ctypes
 import hashlib
 import io
 import json
+import struct
 import os
 import pathlib
 import sys
@@ -181,6 +182,84 @@ _POS_OUT = (ctypes.c_int16 * 2)()
 # and a transition drops it near zero, so the threshold is nowhere near
 # anything the game draws normally.
 DARK = 12
+
+# ---------------------------------------------------------------- game stats
+#
+# The game's own character records, read out of a serialised machine. This only
+# ever serialises - it never loads a state back, which is the operation that
+# crashed DOS - so it is safe to do while an agent is playing.
+#
+# The layout is the save file's, taken from the hojy reimplementation and
+# checked against the game's own shipped RANGER.GRP: 320 records of 182 bytes,
+# and across all 320 only two break hp <= maxHp or mp <= maxMp.
+CHAR_SZ = 182
+CHAR_ANCHOR = ("程靈素", 2)          # this NPC's name occurs once in the image
+CHAR_CHECK = (("胡斐", 1), ("苗人鳳", 3))
+# Byte offsets inside one record.
+C_NAME, C_LEVEL, C_EXP, C_HP, C_MAXHP = 8, 30, 32, 34, 36
+C_STAMINA, C_MP, C_MAXMP = 42, 82, 84
+C_ATTACK, C_INTEGRITY, C_REPUTATION, C_POTENTIAL = 86, 112, 118, 120
+C_SKILLS, C_ITEMS = 126, 166
+
+hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
+         "level": None, "exp": None, "hp": None, "maxhp": None,
+         "skills": None, "items": None, "reputation": None, "potential": None}
+
+
+def _state_bytes():
+    if hero["buf"] is None:
+        cap = LIB.core_state_size()
+        if not cap:
+            return None
+        hero["cap"] = cap
+        hero["buf"] = ctypes.create_string_buffer(cap)
+    n = LIB.core_state_copy(hero["buf"], hero["cap"])
+    return hero["buf"].raw[:n] if n > 0 else None
+
+
+def _locate(mem):
+    """Where the character array sits in this image.
+
+    Anchored on a name and confirmed by two neighbours at the right stride.
+    A first hit is not enough: these names appear more than once, and the
+    serialised layout moves between runs.
+    """
+    pat = CHAR_ANCHOR[0].encode("big5")
+    i = mem.find(pat)
+    while i != -1:
+        base = i - C_NAME - CHAR_ANCHOR[1] * CHAR_SZ
+        if base >= 0 and all(
+                mem[base + cid * CHAR_SZ + C_NAME:
+                    base + cid * CHAR_SZ + C_NAME + 10].split(b"\0")[0]
+                == nm.encode("big5") for nm, cid in CHAR_CHECK):
+            return base
+        i = mem.find(pat, i + 1)
+    return None
+
+
+def read_stats():
+    """The player's own record: level and what it has picked up along the way."""
+    mem = _state_bytes()
+    if mem is None:
+        return
+    base = hero["base"]
+    at = base + CHAR_ANCHOR[1] * CHAR_SZ + C_NAME if base is not None else None
+    if at is None or mem[at:at + 6] != CHAR_ANCHOR[0].encode("big5"):
+        base = _locate(mem)          # moved, or never found
+        hero["base"] = base
+    if base is None:
+        return
+    b = mem[base: base + CHAR_SZ]
+    hero["found"] = True
+    hero["level"] = struct.unpack_from("<h", b, C_LEVEL)[0]
+    hero["exp"] = struct.unpack_from("<H", b, C_EXP)[0]
+    hero["hp"] = struct.unpack_from("<h", b, C_HP)[0]
+    hero["maxhp"] = struct.unpack_from("<h", b, C_MAXHP)[0]
+    hero["reputation"] = struct.unpack_from("<h", b, C_REPUTATION)[0]
+    hero["potential"] = struct.unpack_from("<h", b, C_POTENTIAL)[0]
+    hero["skills"] = sum(1 for v in struct.unpack_from("<10h", b, C_SKILLS) if v > 0)
+    hero["items"] = sum(1 for v in struct.unpack_from("<4h", b, C_ITEMS) if v > 0)
+
 
 # Off by default, and it stays off until there is a way to find the
 # coordinates that does not involve reloading a savestate into a running
@@ -571,6 +650,10 @@ def session_summary():
             "oscillation": beh["oscillation"],
             "dialogue": beh["dialogue"],
             "scenes": world["scenes"],
+            "level": hero["level"], "exp": hero["exp"],
+            "hp": hero["hp"], "maxhp": hero["maxhp"],
+            "skills": hero["skills"], "items": hero["items"],
+            "reputation": hero["reputation"], "potential": hero["potential"],
             "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
             # the key histogram, so a card can draw its bars while the run is
             # still going rather than only once it has finished
@@ -824,11 +907,21 @@ async def run_action(request, steps, note, verb="KEY"):
         waited, changed = await settle(baseline)
         note_screen()
         note_move()
+        # Level and the rest move rarely, so this does not need to run every
+        # action; the read is 1.2 ms and the search behind it 0.4 ms.
+        if session["actions"] % 5 == 1:
+            try:
+                read_stats()
+            except Exception as exc:
+                print(f"stat read failed: {exc!r}", flush=True)
         if warden.ON:
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
             warden.run["dialogue"] = beh["dialogue"]
             warden.run["scenes"] = world["scenes"]
+            for k in ("level", "exp", "hp", "maxhp", "skills", "items",
+                      "reputation", "potential"):
+                warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
             warden.run["curve"] = list(curve)
@@ -1008,6 +1101,9 @@ async def api_reset(request):
                    prev=None)
         world.update(scenes=1, banked=0, origin=None, far=0, ok=False,
                      dark=False, miss=0, tried=False)
+        hero.update(base=None, found=False, level=None, exp=None, hp=None,
+                    maxhp=None, skills=None, items=None, reputation=None,
+                    potential=None)
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()
