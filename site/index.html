@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="1473749d7aa3">
+<meta name="build" content="23c7ad5d186b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -146,16 +146,17 @@
   .kv b { font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums;
           text-align: right; letter-spacing: -.1px; }
   /* labelled: an unlabelled bar chart of keys says nothing about which key */
-  .spark { display: flex; gap: 4px; align-items: flex-end; height: 42px;
+  /* the glyph rides on the foot of its own bar, which costs no extra height */
+  .spark { display: flex; gap: 4px; align-items: flex-end; height: 34px;
            margin-top: 12px; }
-  .spark > div { flex: 1; min-width: 0; height: 100%; display: flex;
-                 flex-direction: column; justify-content: flex-end;
-                 align-items: center; gap: 3px; }
-  .spark i { width: 100%; background: #cfcfcf; border-radius: 2px 2px 0 0;
+  .spark > div { flex: 1; min-width: 0; height: 100%; position: relative;
+                 display: flex; align-items: flex-end; }
+  .spark i { width: 100%; background: #d4d4d4; border-radius: 2px 2px 0 0;
              min-height: 2px; }
-  .spark > div:hover i { background: var(--ink); }
-  .spark u { text-decoration: none; font: 10px var(--mono); color: var(--dim);
-             line-height: 1; }
+  .spark > div:hover i { background: #a3a3a3; }
+  .spark u { position: absolute; left: 0; right: 0; bottom: 1px;
+             text-align: center; text-decoration: none; font: 10px var(--mono);
+             color: var(--ink); line-height: 1; pointer-events: none; }
 
   .why { display: inline-flex; align-items: center; gap: 4px; font: 11px var(--mono);
          color: var(--dim); white-space: nowrap; }
@@ -456,8 +457,8 @@
     </div>
     <span class="tc mono" id="tc">0:00</span>
     <select id="rate" class="mono" title="倍速" aria-label="倍速">
-      <option value="0.5">0.5x</option><option value="1" selected>1x</option>
-      <option value="2">2x</option><option value="4">4x</option>
+      <option value="0.5">0.5x</option><option value="1">1x</option>
+      <option value="2">2x</option><option value="4" selected>4x</option>
     </select>
     <a class="ico" id="dl" title="下载 MP4" download>
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -567,9 +568,10 @@ function spark(keys) {
   const e = Object.entries(keys || {});
   if (!e.length) return "";
   // labelled: an unlabelled bar chart of keys is unreadable
-  const top = e.slice(0, 8), max = Math.max(...top.map(x => x[1]));
+  const top = e.sort((a, b) => byKey(a[0], b[0])).slice(0, 8);
+  const max = Math.max(...top.map(x => x[1]));
   return `<div class="spark" title="${T.keyspace}">` + top.map(([k, n]) =>
-    `<div title="${k}: ${n}"><i style="height:${Math.max(9, n / max * 100)}%"></i>`
+    `<div title="${k}: ${n}"><i style="height:${Math.max(14, n / max * 100)}%"></i>`
     + `<u>${GLYPH[k] || k}</u></div>`
   ).join("") + `</div>`;
 }
@@ -943,6 +945,18 @@ const GLYPH = {up: "↗", kp9: "↗", down: "↙", kp1: "↙", left: "↖", kp7:
                right: "↘", kp3: "↘", enter: "⏎", space: "␣", escape: "esc",
                esc: "esc", backspace: "⌫", tab: "⇥"};
 
+// A fixed reading order, so the same key sits in the same place on every run
+// and two runs can be compared at a glance. Frequency order moved the rows
+// around from one replay to the next.
+const KEY_ORDER = ["kp7", "left", "kp9", "up", "kp1", "down", "kp3", "right",
+                   "enter", "space", "escape", "esc", "y", "n",
+                   "tab", "backspace", "(wait)"];
+const keyRank = k => {
+  const i = KEY_ORDER.indexOf(k);
+  return i < 0 ? KEY_ORDER.length : i;
+};
+const byKey = (a, b) => keyRank(a) - keyRank(b) || String(a).localeCompare(b);
+
 function drawKeys(mark) {
   if (mark) {
     // a replayed action knows exactly how long each key was down
@@ -956,7 +970,7 @@ function drawKeys(mark) {
     // same shape as a replayed action: the keys of this action, with how long
     // the longest was held, and whichever are still down highlighted
     $("wkeys").innerHTML = act.keys.map((k, i) =>
-      `<i class="${held.has(k) ? "on" : ""}">${GLYPH[k] || k}${
+      `<i>${GLYPH[k] || k}${
         i === 0 && act.hold ? `<u>${act.hold}</u>` : ""}</i>`).join("");
     return;
   }
@@ -1019,7 +1033,7 @@ function drawWatchPanes() {
   }
   drawCurve(wcurve);
 
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const top = Object.entries(counts).sort((a, b) => byKey(a[0], b[0])).slice(0, 12);
   const max = top.length ? top[0][1] : 1;
   $("whist").innerHTML = top.length
     ? top.map(([k, c]) => `<div><u>${GLYPH[k] || k}</u>`
@@ -1150,8 +1164,7 @@ function drawMarks() {
   // lanes ordered by how much the agent leaned on each key
   const use = {};
   for (const m of marks) for (const [k] of (m.keys || [])) use[k] = (use[k] || 0) + 1;
-  const lanes = Object.entries(use).sort((a, b) => b[1] - a[1])
-                      .slice(0, 10).map(e => e[0]);
+  const lanes = Object.keys(use).sort(byKey).slice(0, 10);
   const row = new Map(lanes.map((k, i) => [k, i]));
   const longest = Math.max(0.001, ...marks.map(m => m.hold || 0));
 
