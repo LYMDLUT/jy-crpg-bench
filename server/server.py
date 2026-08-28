@@ -182,6 +182,14 @@ _POS_OUT = (ctypes.c_int16 * 2)()
 # anything the game draws normally.
 DARK = 12
 
+# Off by default, and it stays off until there is a way to find the
+# coordinates that does not involve reloading a savestate into a running
+# machine. Doing that crashed DOS outright in the container - the session came
+# back showing DOSBox Pure's "DOS Crashed" menu and stopped responding to keys
+# - which is far too high a price for one column. Distance then reports as
+# unmeasured, which the page already draws as a dash rather than a nought.
+CALIBRATE = os.environ.get("QUNXIA_CALIBRATE") == "1"
+
 world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": False,
          "dark": False, "miss": 0, "tried": False}
 
@@ -788,7 +796,7 @@ async def run_action(request, steps, note, verb="KEY"):
             if len(_s) > 2:
                 _k = canon(_s[2])
                 keyhist[_k] = keyhist.get(_k, 0) + 1
-        if not world["ok"] and not world["tried"]:
+        if CALIBRATE and not world["ok"] and not world["tried"]:
             world["tried"] = True
             spent = time.time()
             await calibrate_lazily()
