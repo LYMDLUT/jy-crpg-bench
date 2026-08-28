@@ -287,6 +287,11 @@ async def api_new(request):
         pass
     agent = (body.get("agent") or request.query.get("agent") or "").strip()
     agent = "".join(c for c in agent if c.isalnum() or c in "-_.")[:40]
+    if request.app.get("booting"):
+        return web.json_response(
+            {"ok": False, "error": "still authoring the opening savestate",
+             "hint": "this happens once per cold start; retry in a minute"},
+            status=503, headers=CORS)
     if not agent:
         return web.json_response(
             {"ok": False, "error": "name yourself first",
@@ -436,7 +441,8 @@ async def api_catalog(_request):
 
 async def health(_request):
     return web.json_response({
-        "ok": True, "running": running_count(), "capacity": MAX_SESSIONS,
+        "ok": True, "booting": bool(_request.app.get("booting")),
+        "running": running_count(), "capacity": MAX_SESSIONS,
         "budget": RUN_SECONDS, "max_minutes": MAX_MINUTES,
         "idle_limit": IDLE_LIMIT, "site": SITE},
         headers=CORS)
@@ -555,11 +561,19 @@ async def spawn_sweep(app):
 
 async def ensure_start_state(app):
     """The savestate is tied to the core build, so it cannot be shipped in the
-    image. Author it here, once, on whatever machine this is."""
+    image. Author it here, once, on whatever machine this is.
+
+    Deliberately not awaited from on_startup. Authoring means playing the
+    opening through, which takes minutes, and an aiohttp startup handler runs
+    before the socket is listening: Cloud Run's startup probe gives four
+    minutes, saw nothing on the port, and killed the instance mid-bootstrap,
+    over and over. So the port opens first and this runs behind it, with
+    /session refusing until it lands."""
     state = pathlib.Path(os.environ.get(
         "QUNXIA_START_STATE", str(REPO / "saves" / "start.state")))
     if state.exists():
         print(f"start state present: {state}", flush=True)
+        app["booting"] = False
         return
     print("no start state, playing the opening once to make one", flush=True)
     app["booting"] = True
@@ -585,6 +599,13 @@ async def ensure_start_state(app):
             proc.wait(timeout=10)
         except Exception:
             proc.kill()
+        app["booting"] = False
+        print(f"start state ready: {state.exists()}", flush=True)
+
+
+async def boot_in_background(app):
+    app["booting"] = True
+    app["bootstrap"] = asyncio.create_task(ensure_start_state(app))
 
 
 def main():
@@ -601,7 +622,7 @@ def main():
         web.get("/videos/{name}", video_file),
         web.route("*", "/s/{sid}/{tail:.*}", proxy),
     ])
-    app.on_startup.append(ensure_start_state)
+    app.on_startup.append(boot_in_background)
     app.on_startup.append(spawn_sweep)
     web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8080")),
                 access_log=None)
