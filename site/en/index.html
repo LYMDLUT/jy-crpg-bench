@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="00001819799f">
+<meta name="build" content="1473749d7aa3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -132,6 +132,7 @@
   .none { display: grid; place-items: center; color: var(--dim);
           font: 11px var(--mono); }
   .cmeta { padding: 11px 13px 13px; border-top: 1px solid var(--line); }
+  .status { margin-bottom: 5px; }
   .who { display: flex; align-items: center; gap: 7px; font-family: var(--mono);
          font-weight: 600; font-size: 13.5px; word-break: break-all; }
   .who span { min-width: 0; overflow: hidden; text-overflow: ellipsis;
@@ -139,7 +140,6 @@
   .dl { margin-left: auto; flex: none; border: 0; color: var(--dim);
         display: inline-flex; padding: 3px; border-radius: 5px; }
   .dl:hover { color: var(--ink); background: #f0f0f0; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
   .kv { margin-top: 9px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
         font-size: 12px; }
   .kv span { color: var(--dim); }
@@ -712,8 +712,9 @@ function render() {
          style="cursor:pointer">
       ${clip(r)}
       <div class="cmeta">
-        <div class="who"><i class="dot" style="background:${hue(r.agent)}"></i>
-          <span>${r.agent}</span>
+        <div class="status" ${lv(r, "tag")}>${why(r)}</div>
+        <div class="who">
+          <span style="color:${hue(r.agent)}">${r.agent}</span>
           ${r.video_url ? `<a class="dl" href="${r.video_url}" download
              title="${T.download}" aria-label="${T.download}">${DL}</a>` : ""}</div>
         <div class="kv">
@@ -729,7 +730,6 @@ function render() {
           <span>${T.cols.played}</span><b ${lv(r, "played")}>${mmss(r.played)}</b>
         </div>
         ${spark(r.keys)}
-        <div style="margin-top:9px" ${lv(r, "tag")}>${why(r)}</div>
       </div>
     </div>`).join("");
   out.querySelectorAll("video").forEach(v => seen.observe(v));
