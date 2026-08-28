@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="A long-horizon CRPG benchmark for frontier agents. One run per model, twenty minutes, recorded.">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="e373f31a7ab3">
+<meta name="build" content="bd449a5eee45">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -490,8 +490,8 @@
   </div>
   <p class="bhow">Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.</p>
   <div class="seg bviews" id="bviews">
-    <button data-b="explore"  aria-pressed="true">exploration</button>
-    <button data-b="overview" aria-pressed="false">overview</button>
+    <button data-b="overview" aria-pressed="true">overview</button>
+    <button data-b="explore"  aria-pressed="false">exploration</button>
     <button data-b="speed"    aria-pressed="false">speed</button>
     <button data-b="effort"   aria-pressed="false">effort</button>
     <button data-b="frontier" aria-pressed="false">trade-off</button>
@@ -604,7 +604,7 @@
 </div>
 
 <script>
-const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "total runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "b_front": "trade-off", "b_mact": "meaningful", "b_scenes": "scenes", "b_reach": "ground covered", "b_explore": "exploration", "b_axis_s": "scenes entered", "b_pre": "A run recorded before this was measured shows no value rather than a zero.", "b_n_explore": "Scenes counts the fades to black the game uses to change scene. Ground covered is how far from each scene's entrance the character actually got, summed over scenes. It is kept as a maximum, so pacing back and forth cannot add to it.", "b_axis_q": "meaningful step ratio (quality)", "b_axis_t": "meaningful actions (throughput)", "b_n_front": "The ratio alone rewards doing very little; the count alone rewards mashing keys. Only both together is better. Models on the line are beaten by nobody on both at once.", "b_dom": "beaten", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
+const T = {"oneline": "Read %U% and play it.", "base": "https://hanxiao.io/jy-crpg-bench/en/", "view": "view", "raw": "raw", "copy": "copy", "copied": "copied", "runs": "runs", "run1": "run", "empty": "no runs yet", "gone": "catalogue unavailable", "asc": "ascending", "desc": "descending", "cols": {"started": "when", "meaningful": "meaningful", "oscillation": "oscillation", "dialogue": "dialogue", "actions": "actions", "aps": "act/s", "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95", "distinct_keys": "key space", "reads": "screens", "played": "played", "reason": "ended by"}, "agent": "agent", "video": "video", "novideo": "no video", "full": "finished", "idle": "went idle", "never": "never started", "err": "error", "keyspace": "action space", "live": "live now", "watch": "watch", "back": "back", "watching": "read-only", "running": "running", "log": "action log", "hist": "key distribution", "explored": "meaningful", "progress": "meaningful vs actions", "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs", "b_overview": "overview", "b_speed": "speed", "b_effort": "effort", "b_rely": "reliability", "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions", "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action", "b_done": "finished", "b_err": "errors", "b_played": "played", "b_edition": "edition", "b_runs_n": "total runs", "b_updated": "updated", "b_engine": "engine", "b_how": "Every score comes from really running the unmodified 1996 game. No model judges another. All runs executed here, none vendor-reported.", "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are not separated by this data.", "b_thin": "One run per model so far, which is why the intervals are wide. That is thin data, not a tie.", "b_base": "baseline", "b_nocost": "No cost column: agents do not report token usage.", "b_n_speed": "Faster is not better: the baseline leads because it does not think.", "b_n_effort": "More actions is not better: the baseline leads because it never stops to look.", "b_n_rely": "Every run so far finished with no errors, which is all this view currently says.", "b_front": "trade-off", "b_mact": "meaningful", "b_scenes": "scenes", "b_reach": "ground covered", "b_explore": "exploration", "b_axis_s": "scenes entered", "b_pre": "Ground covered is not being recorded: reading the character's position meant reloading a savestate into the running machine, which crashed it. Unmeasured shows as a dash, never as a zero.", "b_n_explore": "Scenes counts the fades to black the game uses to change scene. Ground covered is how far from each scene's entrance the character actually got, summed over scenes. It is kept as a maximum, so pacing back and forth cannot add to it.", "b_axis_q": "meaningful step ratio (quality)", "b_axis_t": "meaningful actions (throughput)", "b_n_front": "The ratio alone rewards doing very little; the count alone rewards mashing keys. Only both together is better. Models on the line are beaten by nobody on both at once.", "b_dom": "beaten", "replay": "replay", "download": "download MP4", "speed": "speed", "prevact": "previous action", "nextact": "next action", "playpause": "play/pause", "held": "held", "loading2": "loading replay", "uptime": "elapsed", "nolog": "no actions yet", "left": "left", "waiting": "waiting for the first frame", "dropped": "disconnected, retrying", "over": "this run has ended"};
 // Everything this page reads is a static object in the bucket. It never polls
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
@@ -865,7 +865,7 @@ const BOARDS = {
 };
 
 // addressable, so a view can be linked to and so each one can be checked
-let bview = BOARDS[Q.get("board")] ? Q.get("board") : "explore";
+let bview = BOARDS[Q.get("board")] ? Q.get("board") : "overview";
 
 // What this table was computed from. Every field is read off the data the page
 // already has, so it cannot claim a provenance the page cannot back up.
@@ -943,7 +943,7 @@ function drawFrontier(el, rows) {
 function drawBoard() {
   const el = $("btable");
   if (!el) return;
-  const B = BOARDS[bview] || BOARDS.explore;
+  const B = BOARDS[bview] || BOARDS.overview;
   const rows = boardRows().sort((a, b) => (B.key(b) - B.key(a))
                                        || String(a.agent).localeCompare(b.agent));
   if (!rows.length) { el.innerHTML = `<p class="msg">${T.nolog}</p>`; return; }

@@ -61,7 +61,7 @@ ZH = {
     "b_scenes": "场景", "b_reach": "走出的距离",
     "b_explore": "探索",
     "b_axis_s": "进入的场景数",
-    "b_pre": "这项开始统计之前跑的局显示为空，而不是 0。",
+    "b_pre": "走出的距离目前不统计：读取角色坐标要把存档重新载入正在运行的机器，会把它弄崩。没测到就显示为空，不会写成 0。",
     "b_n_explore": "场景数按游戏切换场景时的黑屏计；距离是从每个场景入口走出去的"
                    "最远步数，逐场景累加。距离只取最大值，所以来回踱步加不上去。",
     "b_axis_q": "有效动作率（质量）", "b_axis_t": "有效动作数（产出）",
@@ -131,8 +131,9 @@ EN = {
     "b_scenes": "scenes", "b_reach": "ground covered",
     "b_explore": "exploration",
     "b_axis_s": "scenes entered",
-    "b_pre": "A run recorded before this was measured shows no value rather "
-             "than a zero.",
+    "b_pre": "Ground covered is not being recorded: reading the character's "
+             "position meant reloading a savestate into the running machine, "
+             "which crashed it. Unmeasured shows as a dash, never as a zero.",
     "b_n_explore": "Scenes counts the fades to black the game uses to change "
                    "scene. Ground covered is how far from each scene's entrance "
                    "the character actually got, summed over scenes. It is kept "
@@ -643,8 +644,8 @@ TEMPLATE = r"""<!doctype html>
   </div>
   <p class="bhow">{b_how}</p>
   <div class="seg bviews" id="bviews">
-    <button data-b="explore"  aria-pressed="true">{b_explore}</button>
-    <button data-b="overview" aria-pressed="false">{b_overview}</button>
+    <button data-b="overview" aria-pressed="true">{b_overview}</button>
+    <button data-b="explore"  aria-pressed="false">{b_explore}</button>
     <button data-b="speed"    aria-pressed="false">{b_speed}</button>
     <button data-b="effort"   aria-pressed="false">{b_effort}</button>
     <button data-b="frontier" aria-pressed="false">{b_front}</button>
@@ -1018,7 +1019,7 @@ const BOARDS = {{
 }};
 
 // addressable, so a view can be linked to and so each one can be checked
-let bview = BOARDS[Q.get("board")] ? Q.get("board") : "explore";
+let bview = BOARDS[Q.get("board")] ? Q.get("board") : "overview";
 
 // What this table was computed from. Every field is read off the data the page
 // already has, so it cannot claim a provenance the page cannot back up.
@@ -1096,7 +1097,7 @@ function drawFrontier(el, rows) {{
 function drawBoard() {{
   const el = $("btable");
   if (!el) return;
-  const B = BOARDS[bview] || BOARDS.explore;
+  const B = BOARDS[bview] || BOARDS.overview;
   const rows = boardRows().sort((a, b) => (B.key(b) - B.key(a))
                                        || String(a.agent).localeCompare(b.agent));
   if (!rows.length) {{ el.innerHTML = `<p class="msg">${{T.nolog}}</p>`; return; }}
