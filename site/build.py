@@ -1124,7 +1124,9 @@ function drawWatchPanes() {{
   drawCurve(wcurve);
 
   const top = Object.entries(counts).sort((a, b) => byKey(a[0], b[0])).slice(0, 12);
-  const max = top.length ? top[0][1] : 1;
+  // the tallest bar, not the first one: reading the first entry as the maximum
+  // was only ever true while this list was sorted by count
+  const max = Math.max(1, ...top.map(x => x[1]));
   $("whist").innerHTML = top.length
     ? top.map(([k, c]) => `<div><u>${{GLYPH[k] || k}}</u>`
         + `<i style="width:${{Math.max(3, c / max * 100)}}%"></i><b>${{c}}</b></div>`).join("")

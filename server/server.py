@@ -367,17 +367,39 @@ def rec_reset():
                last_activity=time.time())
 
 
+# The camera is locked to the character, so the character sits at a fixed spot
+# in the frame and the background is what says where you are. That patch is
+# blanked before hashing: the sprite faces whichever way it last walked, which
+# made one tile facing north-west a different place from the same tile facing
+# south-east, so retracing your steps scored as new ground. Measured by
+# diffing a frame against itself after a step out and a step back: the only
+# pixels that moved were x 132-157, y 58-109 of 320x200. Held as fractions
+# because the framebuffer is not promised at that size.
+SPRITE = (120 / 320, 46 / 200, 170 / 320, 122 / 200)
+
+# The menu is a narrow panel down the left, measured at x 20-61, y 18-109, and
+# it covers 15 of the 96 cells. Whether it tips the hash depends on how bright
+# the scene behind it is, so a run that opened the menu in a bright place
+# banked that place twice. Blanked for the same reason as the sprite: a menu is
+# not somewhere you have been. Masking both still told all 7 tiles of the
+# opening room apart, so the discrimination is paid for out of slack.
+PANEL = (16 / 320, 14 / 200, 66 / 320, 114 / 200)
+
+
 def fingerprint():
-    """A coarse signature of the screen: small enough that idle animation and a
-    flickering torch land on the same value, detailed enough that a step's worth
-    of scrolling does not."""
+    """A coarse signature of where the screen is looking, ignoring the
+    character standing in front of it and any menu open over it. The bottom
+    rows are left alone so a dialogue box is still detectable below."""
     w = ctypes.c_int(0)
     h = ctypes.c_int(0)
     n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
     if n <= 0:
         return None
-    img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n])
-    small = img.convert("L").resize((12, 8), Image.BILINEAR)
+    img = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n]).convert("L")
+    for x0, y0, x1, y1 in (SPRITE, PANEL):
+        img.paste(0, (int(x0 * img.width), int(y0 * img.height),
+                      int(x1 * img.width), int(y1 * img.height)))
+    small = img.resize((12, 8), Image.BILINEAR)
     return bytes(v >> 5 for v in small.getdata())      # 8 levels of grey
 
 

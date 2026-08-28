@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="23c7ad5d186b">
+<meta name="build" content="a492d6febf8b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -1034,7 +1034,9 @@ function drawWatchPanes() {
   drawCurve(wcurve);
 
   const top = Object.entries(counts).sort((a, b) => byKey(a[0], b[0])).slice(0, 12);
-  const max = top.length ? top[0][1] : 1;
+  // the tallest bar, not the first one: reading the first entry as the maximum
+  // was only ever true while this list was sorted by count
+  const max = Math.max(1, ...top.map(x => x[1]));
   $("whist").innerHTML = top.length
     ? top.map(([k, c]) => `<div><u>${GLYPH[k] || k}</u>`
         + `<i style="width:${Math.max(3, c / max * 100)}%"></i><b>${c}</b></div>`).join("")
