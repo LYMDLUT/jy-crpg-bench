@@ -44,6 +44,9 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "reads": 0, "errors": 0, "actions": 0,
        "meaningful": 0, "oscillation": 0, "dialogue": 0, "curve": [],
        "scenes": 1, "frontier": 0,
+       # seconds spent on the benchmark's own housekeeping rather than by the
+       # agent, handed back at the end of the run
+       "credit": 0.0,
        "done": None, "result": None}
 
 
@@ -252,7 +255,7 @@ async def warden(rec):
     then publishes it and takes the process down with it."""
     while run["playable"] is None:
         await asyncio.sleep(1)
-    deadline = run["playable"] + BUDGET
+    deadline = run["playable"] + BUDGET + run["credit"]
     while True:
         now = time.time()
         if now >= deadline:

@@ -444,7 +444,8 @@ async def api_catalog(_request):
 
 async def health(_request):
     return web.json_response({
-        "ok": True, "booting": bool(_request.app.get("booting")),
+        "ok": not _request.app.get("bootstrap_failed"),
+        "booting": bool(_request.app.get("booting")),
         "running": running_count(), "capacity": MAX_SESSIONS,
         "budget": RUN_SECONDS, "max_minutes": MAX_MINUTES,
         "idle_limit": IDLE_LIMIT, "site": SITE},
@@ -587,6 +588,27 @@ async def ensure_start_state(app):
         return
     print("no start state, playing the opening once to make one", flush=True)
     app["booting"] = True
+    # The opening is played by a script that can lose its way: a slower machine
+    # burns its budget mid-scene and gives up. One failure used to mean the
+    # container refused every session for as long as it lived, which is how
+    # this went down. Try again instead.
+    for attempt in range(1, 4):
+        try:
+            await author_start_state(state, attempt)
+        except Exception as exc:
+            print(f"bootstrap attempt {attempt} failed: {exc}", flush=True)
+        if state.exists():
+            break
+        await asyncio.sleep(2)
+    app["booting"] = False
+    ok = state.exists()
+    print(f"start state ready: {ok}", flush=True)
+    app["bootstrap_failed"] = not ok
+    return
+
+
+async def author_start_state(state, attempt):
+    print(f"  opening attempt {attempt}", flush=True)
     port, token = free_port(), uuid.uuid4().hex
     env = dict(os.environ)
     env.update(PORT=str(port), QUNXIA_RESET_TOKEN=token,
@@ -600,17 +622,12 @@ async def ensure_start_state(app):
         from bootstrap import build
         await asyncio.get_running_loop().run_in_executor(
             None, lambda: build(f"http://127.0.0.1:{port}", token))
-    except Exception as exc:
-        print(f"bootstrap FAILED, sessions will be refused until it works: {exc}",
-              flush=True)
     finally:
         proc.terminate()
         try:
             proc.wait(timeout=10)
         except Exception:
             proc.kill()
-        app["booting"] = False
-        print(f"start state ready: {state.exists()}", flush=True)
 
 
 async def boot_in_background(app):

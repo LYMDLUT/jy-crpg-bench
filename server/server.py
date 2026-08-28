@@ -180,7 +180,7 @@ _POS_OUT = (ctypes.c_int16 * 2)()
 DARK = 12
 
 world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": False,
-         "dark": False, "miss": 0}
+         "dark": False, "miss": 0, "tried": False}
 
 
 def position():
@@ -785,6 +785,22 @@ async def run_action(request, steps, note, verb="KEY"):
             if len(_s) > 2:
                 _k = canon(_s[2])
                 keyhist[_k] = keyhist.get(_k, 0) + 1
+        if not world["ok"] and not world["tried"]:
+            world["tried"] = True
+            spent = time.time()
+            await calibrate_lazily()
+            spent = time.time() - spent
+            # The agent did not spend this, so it should not pay for it: the
+            # run gets the time back at the far end, and the next gap is
+            # measured from now rather than from before the walk. The clock's
+            # origin is deliberately left alone - the first action was already
+            # timestamped against it, and moving it made time-to-first-action
+            # come out negative.
+            if warden.ON and warden.run["playable"] is not None:
+                warden.run["credit"] += spent
+                warden.run["last"] = time.time()
+                print(f"calibration took {spent:.1f}s; the run gets it back",
+                      flush=True)
         baseline = LIB.core_frame_hash()
         for step in steps:
             kind, val = step[0], step[1]
@@ -979,7 +995,8 @@ async def api_reset(request):
         curve.clear()
         beh.update(meaningful=0, oscillation=0, dialogue=0, last=None,
                    prev=None)
-        world.update(scenes=1, banked=0, origin=None, far=0, ok=True, dark=False)
+        world.update(scenes=1, banked=0, origin=None, far=0, ok=False,
+                     dark=False, miss=0, tried=False)
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()
@@ -1033,18 +1050,18 @@ async def calibrate():
         os.unlink(tmp)
         return data
 
-    async with api_lock:
-        if not LIB.core_load_state(START_STATE.encode()):
-            return None, "no start state"
-        await wait_core_frames(140)
-        states = [await shot()]
-        for name in ("kp3", "kp3", "kp7", "kp7"):
-            base = LIB.core_frame_hash()
-            await tap(KEYS[name], DEFAULT_TAP_FRAMES, name)
-            await settle(base)
-            states.append(await shot())
-        LIB.core_load_state(START_STATE.encode())
-        await wait_core_frames(140)
+    # No lock here: the only caller already holds it, on the first action.
+    if not LIB.core_load_state(START_STATE.encode()):
+        return None, "no start state"
+    await wait_core_frames(140)
+    states = [await shot()]
+    for name in ("kp3", "kp3", "kp7", "kp7"):
+        base = LIB.core_frame_hash()
+        await tap(KEYS[name], DEFAULT_TAP_FRAMES, name)
+        await settle(base)
+        states.append(await shot())
+    LIB.core_load_state(START_STATE.encode())
+    await wait_core_frames(140)
 
     n = min(len(x) for x in states)
     want_up = [0, 1, 2, 1, 0]
@@ -1129,38 +1146,18 @@ async def json_errors(request, handler):
             status=500)
 
 
-async def _calibrate_once(_app):
-    """Locate the coordinates before the agent is let in.
+async def calibrate_lazily():
+    """Locate the coordinates on the first action rather than at startup.
 
-    Done here rather than baked into the image because the serialised layout is
-    not stable across machines or even across runs on one machine. The walk is
-    undone before it returns, so the agent still starts where the opening state
-    left it.
-
-    It waits for the emulator first. On a cold container the core is still
-    coming up when startup handlers run, and serialising it then simply fails,
-    which is how the first attempt at this shipped a whole revision that
-    reported nothing."""
-    async def ready():
-        tmp = START_STATE + ".rdy"
-        try:
-            if not LIB.core_save_state(tmp.encode()):
-                return False
-            os.unlink(tmp)
-            return True
-        except Exception:
-            return False
-
-    for _ in range(120):
-        if await ready():
-            break
-        await asyncio.sleep(0.5)
-    else:
-        print("no position offsets (emulator never became serialisable); "
-              "exploration will not be reported", flush=True)
-        return
-
-    for attempt in range(3):
+    Startup was the wrong place twice over: an aiohttp startup handler runs
+    before the socket listens, so waiting there made the session unreachable;
+    and racing the session's own load of the opening state produced a stream of
+    failed unserialise calls. By the first keypress the machine is definitely
+    running, and this walk ends by reloading the opening state, so the agent
+    The offsets are not baked into the image because the serialised layout is
+    not stable across machines, or even across runs on one machine.
+    """
+    for attempt in range(2):
         try:
             pos, why = await calibrate()
         except Exception as exc:
@@ -1214,7 +1211,6 @@ def main():
         if warden.ON:
             a["warden"] = asyncio.create_task(warden.warden(rec))
     app.on_startup.append(_spawn_pump)
-    app.on_startup.append(_calibrate_once)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
 
