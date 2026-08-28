@@ -7,6 +7,7 @@ page drift within a week, so there is one template and a strings table.
     python3 site/build.py
 """
 import pathlib
+import json
 import re
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -57,6 +58,11 @@ ZH = {
     "b_n_effort": "动作更多不等于更好：基线排在最前，是因为它从不停下来看。",
     "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。",
     "b_front": "取舍", "b_mact": "有效动作数",
+    "b_scenes": "场景", "b_reach": "走出的距离",
+    "b_explore": "探索",
+    "b_axis_s": "进入的场景数",
+    "b_n_explore": "场景数按游戏切换场景时的黑屏计；距离是从每个场景入口走出去的"
+                   "最远步数，逐场景累加。距离只取最大值，所以来回踱步加不上去。",
     "b_axis_q": "有效动作率（质量）", "b_axis_t": "有效动作数（产出）",
     "b_n_front": "有效动作率单看会奖励“少做少错”，有效动作数单看会奖励乱按。"
                  "两者都更高才算真的更好；连线上的模型，没有任何模型能在两项上同时超过它。",
@@ -121,6 +127,13 @@ EN = {
     "b_n_rely": "Every run so far finished with no errors, which is all this view "
                 "currently says.",
     "b_front": "trade-off", "b_mact": "meaningful",
+    "b_scenes": "scenes", "b_reach": "ground covered",
+    "b_explore": "exploration",
+    "b_axis_s": "scenes entered",
+    "b_n_explore": "Scenes counts the fades to black the game uses to change "
+                   "scene. Ground covered is how far from each scene's entrance "
+                   "the character actually got, summed over scenes. It is kept "
+                   "as a maximum, so pacing back and forth cannot add to it.",
     "b_axis_q": "meaningful step ratio (quality)",
     "b_axis_t": "meaningful actions (throughput)",
     "b_n_front": "The ratio alone rewards doing very little; the count alone rewards "
@@ -627,7 +640,8 @@ TEMPLATE = r"""<!doctype html>
   </div>
   <p class="bhow">{b_how}</p>
   <div class="seg bviews" id="bviews">
-    <button data-b="overview" aria-pressed="true">{b_overview}</button>
+    <button data-b="explore"  aria-pressed="true">{b_explore}</button>
+    <button data-b="overview" aria-pressed="false">{b_overview}</button>
     <button data-b="speed"    aria-pressed="false">{b_speed}</button>
     <button data-b="effort"   aria-pressed="false">{b_effort}</button>
     <button data-b="frontier" aria-pressed="false">{b_front}</button>
@@ -925,6 +939,9 @@ function boardRows() {{
       // the ratio says how carefully it acted, this says how much it got done;
       // ranking on either alone rewards the wrong thing
       mact: good,
+      // read out of the emulated machine rather than off the picture
+      scenes: rs.reduce((a, r) => a + ((r.scenes || 1) - 1), 0) + 1,
+      reach: rs.reduce((a, r) => a + (r.frontier || 0), 0),
       aps: played > 0.5 ? acts / played : 0,
       played,
       think50: avg(rs.map(r => num(r.gap_p50)).filter(v => v !== null)),
@@ -943,6 +960,14 @@ function boardRows() {{
 // the overview carries an interval, so only it earns a rank range; the others
 // are a plain ordering and say so by not pretending otherwise.
 const BOARDS = {{
+  explore: {{
+    label: () => T.b_reach, note: () => T.b_n_explore,
+    // ranked on ground covered, with scenes beside it: a run that never left
+    // the opening room scores zero here however busy it looked
+    key: m => m.reach,
+    val: m => `<b>${{m.reach}}</b>`,
+    cols: [[() => T.b_scenes, m => m.scenes], [() => T.b_acts, m => m.actions]],
+  }},
   overview: {{
     label: () => T.b_score, ci: true,
     key: m => m.meaningful,
@@ -983,7 +1008,7 @@ const BOARDS = {{
 }};
 
 // addressable, so a view can be linked to and so each one can be checked
-let bview = BOARDS[Q.get("board")] ? Q.get("board") : "overview";
+let bview = BOARDS[Q.get("board")] ? Q.get("board") : "explore";
 
 // What this table was computed from. Every field is read off the data the page
 // already has, so it cannot claim a provenance the page cannot back up.
@@ -1061,7 +1086,7 @@ function drawFrontier(el, rows) {{
 function drawBoard() {{
   const el = $("btable");
   if (!el) return;
-  const B = BOARDS[bview] || BOARDS.overview;
+  const B = BOARDS[bview] || BOARDS.explore;
   const rows = boardRows().sort((a, b) => (B.key(b) - B.key(a))
                                        || String(a.agent).localeCompare(b.agent));
   if (!rows.length) {{ el.innerHTML = `<p class="msg">${{T.nolog}}</p>`; return; }}
@@ -1153,6 +1178,7 @@ function entries() {{
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             dialogue: s.dialogue || 0,
             oscillation: null, keys: s.keys || {{}},
+            scenes: s.scenes ?? 1, frontier: s.frontier ?? null,
             // these are known from the first keypress, so a running card
             // shows them rather than dashes; oscillation is not, it is only
             // assembled at teardown
@@ -1175,6 +1201,8 @@ function refreshLive() {{
     const r = by[sid];
     if (!r) return;
     if (f === "acts") el.textContent = `${{r.actions}} · ${{r.aps.toFixed(2)}}/s`;
+    else if (f === "reach") el.textContent =
+        `${{r.frontier == null ? "-" : r.frontier}} · ${{r.scenes ?? 1}}`;
     else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
@@ -1237,6 +1265,8 @@ function render() {{
           ${{r.video_url ? `<a class="dl" href="${{r.video_url}}" download
              title="${{T.download}}" aria-label="${{T.download}}">${{DL}}</a>` : ""}}</div>
         <div class="kv">
+          <span>${{T.b_reach}}</span><b ${{lv(r, "reach")}}>${{
+            r.frontier == null ? "-" : r.frontier}} · ${{r.scenes ?? 1}}</b>
           <span>${{T.cols.meaningful}}</span><b ${{lv(r, "meaningful")}}>${{
             r.meaningful == null ? "-" : r.meaningful.toFixed(2)}}${{
             r.oscillation == null ? "" : ` · ${{r.oscillation.toFixed(2)}}`}}</b>
@@ -1967,11 +1997,28 @@ def build(s, stamp="dev"):
                   build=stamp,
                   cols_actions=c["actions"], cols_aps=c["aps"],
                   cols_keys=c["distinct_keys"],
-                  strings=repr(strings).replace("'", '"'))
+                  # json, not repr with the quotes swapped: that turned the
+                  # apostrophe in "scene's entrance" into a quote mark and broke
+                  # the whole string table
+                  strings=json.dumps(strings, ensure_ascii=False))
     return TEMPLATE.format(**fields)
 
 
 def check(html):
+    # The string table is emitted as JSON and read by the page as an object
+    # literal. If it does not parse here it will not parse there, and the whole
+    # page dies rather than one label looking wrong.
+    for line in html.splitlines():
+        if line.startswith("const T = {"):
+            try:
+                json.loads(line[len("const T = "):].rstrip(";"))
+            except Exception as exc:
+                raise SystemExit(f"the string table is not valid JSON: {exc}")
+            break
+    else:
+        raise SystemExit("no string table found in the page")
+
+
     """Two elements answering to one id is a silent, hard-to-see failure: the
     later getElementById wins and one handler simply stops existing. It cost the
     grid/list switcher once already."""

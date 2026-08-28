@@ -43,6 +43,7 @@ ALIAS = {"esc": "escape", "cancel": "escape", "return": "enter", "ok": "enter"}
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "reads": 0, "errors": 0, "actions": 0,
        "meaningful": 0, "oscillation": 0, "dialogue": 0, "curve": [],
+       "scenes": 1, "frontier": 0,
        "done": None, "result": None}
 
 
@@ -140,6 +141,14 @@ def metrics():
         "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
         "gap_max": round(max(gaps), 2) if gaps else None,
         "reads": run["reads"], "errors": run["errors"],
+        # Read out of the emulated machine, not guessed from the picture.
+        # scenes counts the fades to black the game uses to change scene;
+        # frontier is how far from each scene's entrance the character
+        # actually got, summed over scenes. Distance is kept as a maximum, so
+        # pacing back and forth cannot inflate it, which is where the old
+        # screen-based count went wrong.
+        "scenes": run["scenes"],
+        "frontier": run["frontier"],
         # There is no count of distinct places here on purpose. It was
         # measured off the framebuffer and the framebuffer cannot answer it:
         # the menu is an overlay whose size follows where you are, so no fixed

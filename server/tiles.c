@@ -100,6 +100,32 @@ int fb_encode_delta(uint8_t *out, int out_cap, int force_key) {
 
 /* Whole framebuffer as RGB, nearest-neighbour scaled. Used by the REST API,
  * which hands agents a PNG rather than a tile delta. */
+/* Mean brightness of the frame, 0..255, on a sparse grid.
+   A fully black screen is how this game changes scene, and the fade is over
+   in a few frames, so it has to be sampled while waiting rather than after.
+   Every eighth pixel of every fourth row is far more than enough to tell black
+   from not-black, and keeps this cheap enough to call once per frame. */
+int fb_luma(void) {
+    core_lock();
+    const int w = core_width(), h = core_height(), pitch = core_pitch();
+    const uint8_t *src = core_pixels();
+    if (w <= 0 || h <= 0 || !src) { core_unlock(); return -1; }
+    unsigned long sum = 0;
+    int n = 0;
+    for (int y = 0; y < h; y += 4) {
+        const uint32_t *row = (const uint32_t *)(src + (size_t)y * pitch);
+        for (int x = 0; x < w; x += 8) {
+            const uint32_t p = row[x];
+            /* green is most of perceived brightness; one channel is enough
+               to answer "is this black" and costs a third of the loads */
+            sum += (p >> 8) & 0xFF;
+            n++;
+        }
+    }
+    core_unlock();
+    return n ? (int)(sum / n) : -1;
+}
+
 int fb_snapshot(uint8_t *out, int cap, int scale, int *w_out, int *h_out) {
     if (scale < 1) scale = 1;
     if (scale > 6) scale = 6;

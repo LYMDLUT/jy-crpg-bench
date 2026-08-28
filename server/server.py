@@ -46,6 +46,10 @@ LIB.core_last_error.restype = ctypes.c_char_p
 LIB.fb_encode_delta.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 LIB.fb_encode_delta.restype = ctypes.c_int
 LIB.core_frame_hash.restype = ctypes.c_uint64
+LIB.fb_luma.restype = ctypes.c_int
+LIB.core_state_peek.argtypes = [ctypes.POINTER(ctypes.c_size_t), ctypes.c_int,
+                                ctypes.POINTER(ctypes.c_int16)]
+LIB.core_state_peek.restype = ctypes.c_int
 LIB.core_reset.restype = None
 LIB.fb_reset.restype = None
 LIB.fb_snapshot.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
@@ -150,6 +154,89 @@ session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 beh = {"meaningful": 0, "oscillation": 0, "dialogue": 0, "last": None, "prev": None,
        }
 keyhist: dict = {}
+
+# Where the character actually is, read out of the emulated machine rather than
+# guessed from the picture. DOSBox Pure exposes no memory regions, so this
+# serialises and reads two shorts out of the image: 3.6 ms, once per action,
+# against the 312 ms that second of emulation costs anyway.
+#
+# The two offsets were found by walking and watching: both move by one per
+# diagonal step and stop dead at walls, and outdoors kp7 moves one while kp9
+# moves the other, so they are genuinely two axes. The savestate layout is
+# fixed by the core build and the opening state, both of which ship here.
+POS_OFFSETS = (0x00eacda, 0x00eacdc)
+_POS_ARGS = (ctypes.c_size_t * 2)(*POS_OFFSETS)
+_POS_OUT = (ctypes.c_int16 * 2)()
+
+# A scene change blacks the screen out. Measured: the opening room reads 92,
+# and a transition drops it near zero, so the threshold is nowhere near
+# anything the game draws normally.
+DARK = 12
+
+world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": True,
+         "dark": False}
+
+
+def position():
+    """(x, y) in the game's own coordinates, or None if this read is no good.
+
+    Mid-transition the coordinates are briefly nonsense - measured at
+    (-13145, 27812) one action after a scene change, while the new scene was
+    still loading. That is a reason to skip a sample, not to give up: only the
+    core refusing to serialise at all disables the metric, because that will
+    not fix itself."""
+    if not world["ok"]:
+        return None
+    if LIB.core_state_peek(_POS_ARGS, 2, _POS_OUT) != 0:
+        world["ok"] = False
+        return None
+    x, y = _POS_OUT[0], _POS_OUT[1]
+    if not (0 <= x < 1200 and 0 <= y < 1200):
+        return None
+    return x, y
+
+
+def enter_scene():
+    """Bank the ground covered in the scene being left and start the next."""
+    if world["origin"] is not None:
+        world["banked"] += world["far"]
+        world["scenes"] += 1
+    world["origin"], world["far"] = None, 0
+
+
+def note_move():
+    """How much ground this action covered, and whether it changed scene.
+
+    Distance is measured from where the character entered the current scene and
+    kept only as a maximum, so walking back and forth cannot inflate it. That
+    is exactly how the old screen-based count went wrong.
+
+    The origin is deliberately not set from the frame the fade was seen on: the
+    new scene is still loading then and its coordinates have not landed. It is
+    picked up on the next action instead, which costs one step of distance and
+    is worth it for a number that is not nonsense."""
+    if world["dark"]:
+        world["dark"] = False
+        enter_scene()
+        return
+    p = position()
+    if p is None:
+        return
+    o = world["origin"]
+    if o is None:
+        world["origin"], world["far"] = p, 0
+        return
+    # Chebyshev, not Manhattan: a step here is diagonal, moving both axes at
+    # once, so Manhattan would call one step two tiles. This counts steps.
+    d = max(abs(p[0] - o[0]), abs(p[1] - o[1]))
+    # A step moves one tile, so a jump is the floor changing under you: a scene
+    # change whose fade went unseen. Counted as one rather than allowed to
+    # register as a huge distance.
+    if d > world["far"] + 8:
+        enter_scene()
+        world["origin"], world["far"] = p, 0
+        return
+    world["far"] = max(world["far"], d)
 curve: list = []          # (action index, meaningful) sampled as the run goes
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
@@ -457,6 +544,8 @@ def session_summary():
             "meaningful": beh["meaningful"],
             "oscillation": beh["oscillation"],
             "dialogue": beh["dialogue"],
+            "scenes": world["scenes"],
+            "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
             # the key histogram, so a card can draw its bars while the run is
             # still going rather than only once it has finished
             "keys": dict(sorted(keyhist.items(), key=lambda kv: -kv[1])[:12]),
@@ -570,6 +659,11 @@ async def settle(baseline, react=30, stable=9, maxframes=120):
     while n < maxframes:
         await asyncio.sleep(ft)
         n += 1
+        # The fade to black that marks a scene change lasts a handful of
+        # frames and is long gone by the time this returns, so it is caught
+        # here or not at all. A luma sample is about a microsecond.
+        if LIB.fb_luma() < DARK:
+            world["dark"] = True
         h = LIB.core_frame_hash()
         if not reacted:
             if h != baseline:
@@ -687,10 +781,14 @@ async def run_action(request, steps, note, verb="KEY"):
                 await tap(kind, val, step[2] if len(step) > 2 else None)
         waited, changed = await settle(baseline)
         note_screen()
+        note_move()
         if warden.ON:
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
             warden.run["dialogue"] = beh["dialogue"]
+            warden.run["scenes"] = world["scenes"]
+            warden.run["frontier"] = ((world["banked"] + world["far"])
+                                      if world["ok"] else None)
             warden.run["curve"] = list(curve)
     finally:
         api_lock.release()
@@ -866,6 +964,7 @@ async def api_reset(request):
         curve.clear()
         beh.update(meaningful=0, oscillation=0, dialogue=0, last=None,
                    prev=None)
+        world.update(scenes=1, banked=0, origin=None, far=0, ok=True, dark=False)
         if warden.ON and warden.run["playable"] is None:
             warden.playable_now()          # the clock starts when play can
         agents.clear()
