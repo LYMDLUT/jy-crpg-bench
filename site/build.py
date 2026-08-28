@@ -722,8 +722,13 @@ function entries() {{
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             dialogue: s.dialogue || 0,
             oscillation: null, keys: s.keys || {{}},
-            distinct_keys: null, reads: null, ttfa: null,
-            gap_p50: null, gap_p95: null, reason: "running"}};
+            // these are known from the first keypress, so a running card
+            // shows them rather than dashes; oscillation is not, it is only
+            // assembled at teardown
+            distinct_keys: Object.keys(s.keys || {{}}).length,
+            reads: s.reads ?? null, ttfa: s.ttfa ?? null,
+            gap_p50: s.gap_p50 ?? null, gap_p95: s.gap_p95 ?? null,
+            reason: "running"}};
   }}).concat(runs);
 }}
 

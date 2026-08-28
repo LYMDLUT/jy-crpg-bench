@@ -104,6 +104,22 @@ def pct(xs, q):
     return round(xs[min(len(xs) - 1, int(q * len(xs)))], 2)
 
 
+def timing():
+    """The clock figures a card can show while the run is still going.
+
+    metrics() is only assembled at teardown, so a live card had dashes where a
+    finished one had numbers even though the warden had been tracking these
+    from the first keypress."""
+    if not ON or run["playable"] is None:
+        return {}
+    gaps = run["gaps"]
+    return {
+        "ttfa": round(run["first"] - run["playable"], 2) if run["first"] else None,
+        "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
+        "reads": run["reads"], "errors": run["errors"],
+    }
+
+
 def metrics():
     playable = run["playable"] or time.time()
     played = max(0.0, (run["last"] or playable) - playable)

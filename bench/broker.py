@@ -412,6 +412,7 @@ async def api_sessions(_request):
              "actions": s.get("live_actions", 0), "budget": s.get("budget"),
              "meaningful": s.get("live_meaningful", 0),
              "dialogue": s.get("live_dialogue", 0),
+             **s.get("live_timing", {}),
              "uptime": round(s.get("live_uptime", 0)),
              "remaining": max(0, round(s["ends_at"] - now))}
             for s in sessions.values()
@@ -463,6 +464,7 @@ def live_payload():
                  "meaningful": s.get("live_meaningful", 0),
                  "dialogue": s.get("live_dialogue", 0),
                  "keys": s.get("live_keys", {}),
+                 **s.get("live_timing", {}),
                  "uptime": round(s.get("live_uptime", 0)),
                  "budget": s.get("budget"),
                  "watchers": s.get("watchers", 0),
@@ -502,6 +504,8 @@ async def sweep(app):
                         s["live_meaningful"] = d.get("meaningful", 0)
                         s["live_dialogue"] = d.get("dialogue", 0)
                         s["live_keys"] = d.get("keys", {})
+                        s["live_timing"] = {k: d.get(k) for k in
+                                            ("ttfa", "gap_p50", "gap_p95", "reads")}
                 except Exception:
                     pass
 

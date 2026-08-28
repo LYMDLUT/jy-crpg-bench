@@ -453,7 +453,8 @@ def session_summary():
             # still going rather than only once it has finished
             "keys": dict(sorted(keyhist.items(), key=lambda kv: -kv[1])[:12]),
             "by_api": session["by_api"], "by_web": session["by_web"],
-            "agents": dict(agents.most_common(8))}
+            "agents": dict(agents.most_common(8)),
+            **warden.timing()}
 
 
 async def reap():
