@@ -1980,14 +1980,13 @@ tick(bumpShots, 6000);
 // ten-minute-old copy and see a bug that was already fixed. Watch for a new
 // build and pick it up, skipping the cache to ask.
 const BUILD = document.querySelector('meta[name="build"]').content;
+// Beside the page, and the build writes one into each page directory. This
+// used to resolve to /en/version.txt with nothing there.
 const VERSION_URL = new URL("version.txt", T.base).href;
 let reloaded = false;
 tick(async () => {{
   if (reloaded || document.body.classList.contains("watching")) return;
   try {{
-    // ../version.txt from /en/, version.txt from the root: the file lives at
-    // the site root and only the root page was ever finding it, so English
-    // readers never picked up a new build.
     const r = await fetch(VERSION_URL, {{cache: "no-store"}});
     if (!r.ok) return;
     const v = (await r.text()).trim();
@@ -2125,7 +2124,12 @@ def main():
     # stamped so a page already open can notice a new build and reload itself
     raw = build(ZH, "0") + build(EN, "0")
     stamp = hashlib.sha256(raw.encode()).hexdigest()[:12]
-    (HERE / "version.txt").write_text(stamp + "\n", encoding="utf-8")
+    # One per page directory rather than one at the root: the page asks for it
+    # relative to itself, and /en/version.txt was a 404 on every English load,
+    # so those readers never picked up a new build.
+    for d in (HERE, HERE / "en"):
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "version.txt").write_text(stamp + "\n", encoding="utf-8")
     (HERE / "index.html").write_text(check(build(ZH, stamp)), encoding="utf-8")
     (HERE / "en").mkdir(exist_ok=True)
     (HERE / "en" / "index.html").write_text(check(build(EN, stamp)), encoding="utf-8")

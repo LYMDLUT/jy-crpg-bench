@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="5b3e5934d9bd">
+<meta name="build" content="ea1bba1cb794">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -1815,14 +1815,13 @@ tick(bumpShots, 6000);
 // ten-minute-old copy and see a bug that was already fixed. Watch for a new
 // build and pick it up, skipping the cache to ask.
 const BUILD = document.querySelector('meta[name="build"]').content;
+// Beside the page, and the build writes one into each page directory. This
+// used to resolve to /en/version.txt with nothing there.
 const VERSION_URL = new URL("version.txt", T.base).href;
 let reloaded = false;
 tick(async () => {
   if (reloaded || document.body.classList.contains("watching")) return;
   try {
-    // ../version.txt from /en/, version.txt from the root: the file lives at
-    // the site root and only the root page was ever finding it, so English
-    // readers never picked up a new build.
     const r = await fetch(VERSION_URL, {cache: "no-store"});
     if (!r.ok) return;
     const v = (await r.text()).trim();
