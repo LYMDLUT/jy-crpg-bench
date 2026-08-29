@@ -365,6 +365,10 @@ async def ws_handler(request):
     await send_keyframe(ws)
     await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:],
                                   "s": session_summary()}))
+    # code -> (name, core tick at keydown). Browser automation can emit keydown
+    # and keyup within one emulated frame, so remember when each press reached
+    # the core and fence short pulses on release.
+    holding: dict[int, tuple[str, int]] = {}
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
@@ -377,24 +381,23 @@ async def ws_handler(request):
                 if code:
                     down = bool(d.get("down"))
                     rec["actor"] = "web"
-                    LIB.core_key(code, down)
-                    key_event(name, down)
-                    if down:                      # keyup would just double every line
+                    if down and await press_web_key(name, code, holding):
                         log_action("web", "KEY", name)
+                    elif not down:
+                        await release_web_key(name, code, holding)
             elif t == "tap":
                 name = str(d.get("k", "")).lower()
                 code = KEYS.get(name)
                 if code:
                     rec["actor"] = "web"
                     log_action("web", "KEY", name)
-                    LIB.core_key(code, True)
-                    key_event(name, True)
-                    await asyncio.sleep(0.06)
-                    LIB.core_key(code, False)
-                    key_event(name, False)
+                    await tap(code, DEFAULT_TAP_FRAMES, name)
             elif t == "keyframe":
                 await send_keyframe(ws)
     finally:
+        for code, (name, _) in list(holding.items()):
+            LIB.core_key(code, False)
+            key_event(name, False)
         clients.discard(ws)
     return ws
 
@@ -473,6 +476,42 @@ async def wait_core_frames(frames):
         if loop.time() >= deadline:
             raise RuntimeError("emulator frame clock stalled during input")
         await asyncio.sleep(poll)
+
+
+async def press_web_key(name, code, holding):
+    """Press a browser key once and remember the core tick it reached."""
+    if code in holding:
+        return False
+    LIB.core_key(code, True)
+    holding[code] = (name, LIB.core_ticks())
+    key_event(name, True)
+    return True
+
+
+async def release_web_key(name, code, holding):
+    """Release a browser key after it has spanned enough emulated frames.
+
+    Human holds that already exceed the minimum stop immediately. Very short
+    taps are extended only to ``DEFAULT_TAP_FRAMES`` and followed by the normal
+    release fence, making automated browser keypresses as reliable as the REST
+    API without changing long-hold behaviour.
+    """
+    pressed = holding.get(code)
+    if pressed is None:
+        return False
+    pressed_name, pressed_at = pressed
+    elapsed = max(0, LIB.core_ticks() - pressed_at)
+    remaining = max(0, DEFAULT_TAP_FRAMES - elapsed)
+    try:
+        if remaining:
+            await wait_core_frames(remaining)
+    finally:
+        # Cancellation or a dropped socket must never strand a movement key.
+        LIB.core_key(code, False)
+        holding.pop(code, None)
+        key_event(pressed_name or name, False)
+    await wait_core_frames(KEY_RELEASE_FRAMES)
+    return True
 
 
 def key_event(name, down):
