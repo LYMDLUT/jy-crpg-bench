@@ -1,0 +1,13 @@
+src/*.aux
+src/*.bbl
+src/*.blg
+src/*.log
+src/*.out
+src/*.fls
+src/*.fdb_latexmk
+src/build.log
+iclr2027/Master-Template-master/
+iclr2027/mt.zip
+iclr2027/ag.html
+iclr2027/t.zip
+refs/*.pdf
