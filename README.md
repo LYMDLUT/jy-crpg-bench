@@ -250,8 +250,9 @@ model has the API, the controls, the isometric axes and the traps.
 `skills/jyxzz-speedrun-tips/SKILL.md` is the original research the field manual
 came from. Edit that first, then fold anything durable into the served files.
 
-`mcp-server/` wraps the same surface over MCP for clients that speak it. It uses
-the official Python SDK's `FastMCP` server:
+`mcp-server/` wraps the same surface over MCP for clients that speak it. It
+supports both the official Python SDK's current `MCPServer` API and its v1
+`FastMCP` name:
 
 ```sh
 QUNXIA_API=http://127.0.0.1:8765 uv run --with mcp mcp-server/server.py

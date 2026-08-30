@@ -17,13 +17,17 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game_knowledge import GUIDE, INSTRUCTIONS
 
-from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent, TextContent
+
+try:  # mcp 2.x
+    from mcp.server.mcpserver import MCPServer
+except ModuleNotFoundError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as MCPServer
 
 API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765")
 DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "2"))
 
-mcp = FastMCP("qunxia", instructions=INSTRUCTIONS)
+mcp = MCPServer("qunxia", instructions=INSTRUCTIONS)
 
 DEFAULT_TAP_FRAMES = 10
 MAX_HOLD_FRAMES = 1200
