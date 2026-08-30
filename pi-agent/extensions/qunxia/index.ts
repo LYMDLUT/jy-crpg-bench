@@ -8,6 +8,7 @@ import { Type } from "typebox";
 
 const API = process.env.QUNXIA_API ?? "http://127.0.0.1:8765";
 const SCALE = Number(process.env.QUNXIA_SCALE ?? "2");
+const MAX_ACTION_FRAMES = 2800;
 
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
@@ -35,6 +36,18 @@ function offline(err: unknown) {
   };
 }
 
+function inputError(text: string) {
+  return {
+    content: [{ type: "text" as const, text }],
+    details: {},
+    isError: true,
+  };
+}
+
+function actionFits(count: number, hold = 10, gap = 6) {
+  return count * (hold + 2) + Math.max(0, count - 1) * gap <= MAX_ACTION_FRAMES;
+}
+
 /** Turn an API response into a status line plus the screen. */
 function frame(res: Record<string, any>, note: string) {
   const bits: string[] = [];
@@ -43,19 +56,26 @@ function frame(res: Record<string, any>, note: string) {
     bits.push(res.changed ? "screen changed" : "screen did NOT change (no visible effect)");
   }
   if (res.error) bits.push(String(res.error));
-  bits.push(`${res.width}x${res.height}`);
+  if (res.image_error) bits.push(`image unavailable: ${res.image_error}`);
+  if (res.width !== undefined && res.height !== undefined) {
+    bits.push(`${res.width}x${res.height}`);
+  }
 
   const content: Content[] = [{ type: "text", text: `${note} | ${bits.join(" | ")}` }];
   if (typeof res.image === "string") {
     content.push({ type: "image", data: res.image.split(",", 2)[1], mimeType: "image/png" });
   }
-  return { content, details: { ok: res.ok !== false, changed: res.changed, frame: res.frame } };
+  return {
+    content,
+    details: { ok: res.ok !== false, changed: res.changed, frame: res.frame },
+    ...(res.ok === false ? { isError: true } : {}),
+  };
 }
 
 export default function (pi: ExtensionAPI) {
   const act = async (path: string, body: unknown, note: string, signal?: AbortSignal) => {
     try {
-      return frame(await call("POST", `${path}?scale=${SCALE}`, body, signal), note);
+      return frame(await call("POST", `${path}?scale=${SCALE}&image=1`, body, signal), note);
     } catch (err) {
       return offline(err);
     }
@@ -90,14 +110,18 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Press a key in the game",
     parameters: Type.Object({
       key: Type.String({ description: "Key name, e.g. up, enter, esc, y" }),
-      times: Type.Optional(Type.Number({ description: "Repeat count, default 1" })),
-      hold: Type.Optional(Type.Number({ description: "Frames to hold the key, default 4" })),
-      stable: Type.Optional(Type.Number({
+      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
+      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 1200, description: "Frames to hold the key, default 10" })),
+      stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still before the screenshot. Raise if you get a half-written dialogue line.",
       })),
     }),
     async execute(_id, params, signal) {
       const times = params.times ?? 1;
+      const hold = params.hold ?? 10;
+      if (!actionFits(times, hold)) {
+        return inputError(`action exceeds ${MAX_ACTION_FRAMES} frames`);
+      }
       const q = params.stable ? `&stable=${params.stable}` : "";
       const note = times > 1 ? `${params.key} x${times}` : params.key;
       const body = times > 1
@@ -105,7 +129,7 @@ export default function (pi: ExtensionAPI) {
         : { key: params.key, hold: params.hold };
       const path = times > 1 ? "/keys" : "/key";
       try {
-        return frame(await call("POST", `${path}?scale=${SCALE}${q}`, body, signal), note);
+        return frame(await call("POST", `${path}?scale=${SCALE}&image=1${q}`, body, signal), note);
       } catch (err) {
         return offline(err);
       }
@@ -122,11 +146,16 @@ export default function (pi: ExtensionAPI) {
       "the intermediate frames.",
     promptSnippet: "Press a sequence of keys in the game",
     parameters: Type.Object({
-      keys: Type.Array(Type.String(), { description: "Key names in order" }),
-      gap: Type.Optional(Type.Number({ description: "Frames between keys, default 6" })),
+      keys: Type.Array(Type.String(), { minItems: 1, maxItems: 100, description: "Key names in order" }),
+      gap: Type.Optional(Type.Integer({ minimum: 0, maximum: 600, description: "Frames between keys, default 6" })),
     }),
-    execute: (_id, params, signal) =>
-      act("/keys", { keys: params.keys, gap: params.gap }, params.keys.join(" "), signal),
+    execute: (_id, params, signal) => {
+      const gap = params.gap ?? 6;
+      if (!actionFits(params.keys.length, 10, gap)) {
+        return Promise.resolve(inputError(`action exceeds ${MAX_ACTION_FRAMES} frames`));
+      }
+      return act("/keys", { keys: params.keys, gap: params.gap }, params.keys.join(" "), signal);
+    },
   });
 
   pi.registerTool({
@@ -139,18 +168,17 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Walk in the game world",
     parameters: Type.Object({
       direction: Type.String({ description: "up, down, left or right" }),
-      steps: Type.Optional(Type.Number({ description: "Tiles to walk, default 1" })),
+      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Tiles to walk, default 1" })),
     }),
     execute: (_id, params, signal) => {
       const dir = params.direction.toLowerCase();
       if (!["up", "down", "left", "right"].includes(dir)) {
-        return Promise.resolve({
-          content: [{ type: "text" as const, text: "direction must be up, down, left or right" }],
-          details: {},
-          isError: true,
-        });
+        return Promise.resolve(inputError("direction must be up, down, left or right"));
       }
       const steps = Math.max(1, params.steps ?? 1);
+      if (!actionFits(steps)) {
+        return Promise.resolve(inputError(`action exceeds ${MAX_ACTION_FRAMES} frames`));
+      }
       return act("/keys", { keys: Array(steps).fill(dir), gap: 6 }, `move ${dir} x${steps}`, signal);
     },
   });
@@ -163,7 +191,7 @@ export default function (pi: ExtensionAPI) {
       "scene transitions, battle animations and travel on the world map.",
     promptSnippet: "Let the game run for a while",
     parameters: Type.Object({
-      ms: Type.Optional(Type.Number({ description: "Milliseconds, default 1000" })),
+      ms: Type.Optional(Type.Integer({ minimum: 0, maximum: 60000, description: "Milliseconds, default 1000" })),
     }),
     execute: (_id, params, signal) =>
       act("/wait", { ms: params.ms ?? 1000 }, `wait ${params.ms ?? 1000}ms`, signal),

@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  headless-and-mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install aiohttp pillow mcp
+      - run: python -m unittest discover -s server -p 'test_*.py' -v
+      - run: python -m unittest discover -s mcp-server -p 'test_*.py' -v
+      - run: ./server/build.sh
+
+  macos-runner:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build

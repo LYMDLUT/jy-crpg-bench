@@ -1,0 +1,172 @@
+import asyncio
+import base64
+import json
+import pathlib
+import tempfile
+import unittest
+from unittest import mock
+
+
+with mock.patch("ctypes.CDLL", return_value=mock.MagicMock()):
+    import server
+
+
+class FakeRequest:
+    def __init__(self, body=None, query=None):
+        self._body = {} if body is None else body
+        self.query = {} if query is None else query
+        self.headers = {}
+        self.remote = "127.0.0.1"
+
+    async def json(self):
+        if isinstance(self._body, Exception):
+            raise self._body
+        return self._body
+
+
+def response_json(response):
+    return json.loads(response.body)
+
+
+class InputValidationTest(unittest.IsolatedAsyncioTestCase):
+    async def test_key_rejects_fractional_hold(self):
+        response = await server.api_key(FakeRequest({"key": "right", "hold": 1.5}))
+        self.assertEqual(response.status, 400)
+        self.assertIn("integer", response_json(response)["error"])
+
+    async def test_keys_honours_requested_gap(self):
+        captured = {}
+
+        async def fake_run(_request, steps, note, verb="KEY"):
+            captured.update(steps=steps, note=note, verb=verb)
+            return object()
+
+        with mock.patch.object(server, "run_action", fake_run):
+            marker = await server.api_keys(
+                FakeRequest({"keys": ["up", "enter"], "hold": 10, "gap": 17})
+            )
+
+        self.assertIsNotNone(marker)
+        self.assertEqual(
+            captured["steps"],
+            [(server.KEYS["up"], 10, "up"), ("frames", 17),
+             (server.KEYS["enter"], 10, "enter")],
+        )
+
+    async def test_oversized_action_is_rejected(self):
+        response = await server.api_key(
+            FakeRequest({"key": "right", "times": 100, "hold": 100})
+        )
+        self.assertEqual(response.status, 400)
+        self.assertIn("too long", response_json(response)["error"])
+
+    async def test_zero_gap_does_not_insert_a_frame(self):
+        captured = {}
+
+        async def fake_run(_request, steps, _note, verb="KEY"):
+            captured["steps"] = steps
+            return object()
+
+        with mock.patch.object(server, "run_action", fake_run):
+            await server.api_keys(
+                FakeRequest({"keys": ["up", "enter"], "gap": 0})
+            )
+        self.assertEqual(len(captured["steps"]), 2)
+
+    async def test_non_object_json_is_rejected(self):
+        response = await server.api_wait(FakeRequest([1000]))
+        self.assertEqual(response.status, 400)
+
+
+class HistoryTest(unittest.IsolatedAsyncioTestCase):
+    async def test_history_limit_returns_only_newest_entries(self):
+        old = server.history
+        server.history = server.collections.deque(
+            ({"id": i} for i in range(8)), maxlen=server.MAX_HISTORY_LIMIT
+        )
+        try:
+            response = await server.api_history(FakeRequest(query={"limit": "3"}))
+        finally:
+            server.history = old
+        self.assertEqual([item["id"] for item in response_json(response)["history"]], [5, 6, 7])
+
+    async def test_history_rejects_invalid_limit(self):
+        response = await server.api_history(FakeRequest(query={"limit": "all"}))
+        self.assertEqual(response.status, 400)
+
+
+class StatePathTest(unittest.TestCase):
+    def test_state_name_cannot_escape_state_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(server, "STATE_DIR", tmp):
+                path, name = server.state_path({"name": "../../checkpoint"})
+            self.assertEqual(path.parent, pathlib.Path(tmp))
+            self.assertEqual(path.name, f"{name}.state")
+            self.assertNotIn("..", path.name)
+
+
+class AtomicObservationTest(unittest.IsolatedAsyncioTestCase):
+    async def test_action_lock_is_created_on_the_serving_event_loop(self):
+        app = {}
+        old_lock = server.api_lock
+        await server.startup(app)
+        waiter = None
+        try:
+            lock = server.action_lock()
+            await lock.acquire()
+            waiter = asyncio.create_task(server.acquire_action_lock())
+            await asyncio.sleep(0)
+            self.assertFalse(waiter.done())
+            lock.release()
+            self.assertTrue(await waiter)
+            lock.release()
+        finally:
+            if waiter and not waiter.done():
+                waiter.cancel()
+            for task in app.values():
+                task.cancel()
+            await asyncio.gather(*app.values(), return_exceptions=True)
+            server.api_lock = old_lock
+
+    async def test_requested_image_is_captured_before_action_lock_releases(self):
+        fake_lib = mock.MagicMock()
+        fake_lib.core_frame_hash.return_value = 1
+        fake_lib.core_width.return_value = 320
+        fake_lib.core_height.return_value = 200
+        fake_lib.core_frame_serial.return_value = 42
+        fake_lib.core_fps.return_value = 70.0
+
+        async def fake_tap(*_args):
+            return None
+
+        async def fake_settle(*_args, **_kwargs):
+            return 9, True
+
+        def fake_snapshot(_format):
+            self.assertTrue(server.api_lock.locked())
+            return b"png", 320, 200, "image/png"
+
+        old_lock = server.api_lock
+        test_lock = asyncio.Lock()
+        server.api_lock = test_lock
+        try:
+            with mock.patch.object(server, "LIB", fake_lib), \
+                 mock.patch.object(server, "tap", fake_tap), \
+                 mock.patch.object(server, "settle", fake_settle), \
+                 mock.patch.object(server, "snapshot", fake_snapshot), \
+                 mock.patch.object(server, "log_action", lambda *_a, **_k: None):
+                response = await server.run_action(
+                    FakeRequest(query={"image": "1"}),
+                    [(server.KEYS["right"], 10, "right")],
+                    "right",
+                )
+        finally:
+            server.api_lock = old_lock
+
+        result = response_json(response)
+        self.assertFalse(test_lock.locked())
+        self.assertEqual(base64.b64decode(result["image"].split(",", 1)[1]), b"png")
+
+
+if __name__ == "__main__":
+    unittest.main()

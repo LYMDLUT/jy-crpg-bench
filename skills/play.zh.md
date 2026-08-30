@@ -5,8 +5,9 @@
 
 ## 運作方式
 
-「動作」和「看畫面」是分開的呼叫。送按鍵會等畫面穩定，但不回傳圖片；要看畫面
-請用 `GET /api/screen`。先動作，需要時再看。連送幾個鍵、最後看一次也可以。
+預設把「動作」和「看畫面」分成兩次呼叫。送按鍵會等畫面穩定並回傳狀態；要看畫面
+請用 `GET /api/screen`。若需要保證看到的就是自己剛才動作的結果，可在動作 URL 加
+`?image=1`，伺服器會在讓下一位操作者行動前一併截圖。連送幾個鍵、最後看一次也可以。
 
 遊戲全是繁體中文，而所有事情都發生在文字裡：目標、選擇，以及等待特定按鍵的提問。
 
@@ -16,11 +17,14 @@
     POST {BASE}/api/key   {{"key":"kp3"}}           單鍵；可加 "times"、"hold"
     POST {BASE}/api/keys  {{"keys":["kp9","enter"]}} 依序送出多鍵
     POST {BASE}/api/wait  {{"ms":1000}}             讓遊戲自己跑一段時間
+    GET  {BASE}/api/slots                         列出模擬器快照
+    POST {BASE}/api/save  {{"name":"checkpoint"}}   儲存快照
+    POST {BASE}/api/load  {{"name":"checkpoint"}}   還原快照
     GET  {BASE}/api/help                          本技能說明
 
-只有 `/api/screen` 會回傳畫面：JSON 含 `image`，是 base64 的 PNG data URI
-（加 `?format=png` 或 `?format=webp` 可直接取得位元組）。動作類呼叫只回傳
-`changed` 與 `frame`。
+`/api/screen` 會回傳畫面：JSON 含 `image`，是 base64 的 PNG data URI（加
+`?format=png` 或 `?format=webp` 可直接取得位元組）。動作類呼叫預設回傳
+`changed` 與 `frame`；加 `?image=1` 也會回傳同樣的 `image`。
 
     curl -s -X POST {BASE}/api/key -H 'content-type: application/json' \
          -d '{{"key":"enter"}}'
@@ -111,7 +115,7 @@ f1-f12、tab、backspace。
 ## 這個世界
 
 你是小蝦米，一個買了本遊戲 VR 版的現代學生，醒來後發現自己身處金庸武俠小說的
-世界。想回到現代，就得找齊散落各地的十二本金庸小說。小說中的人物可以招募入隊、
+世界。想回到現代，就得找齊散落各地的十四本金庸小說。小說中的人物可以招募入隊、
 可以習得他們的武功；戰鬥是團隊回合制，出手順序由**輕功**高低決定。
 
 只有主角死亡才會結束遊戲，隊友戰敗只是重傷退場，之後還能再上。看到任何像是「被

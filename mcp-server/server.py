@@ -12,17 +12,25 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game_knowledge import GUIDE, INSTRUCTIONS
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent, TextContent
 
 API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765")
 DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "2"))
 
-mcp = MCPServer("qunxia", instructions=INSTRUCTIONS)
+mcp = FastMCP("qunxia", instructions=INSTRUCTIONS)
+
+DEFAULT_TAP_FRAMES = 10
+MAX_HOLD_FRAMES = 1200
+MAX_REPEAT = 100
+MAX_GAP_FRAMES = 600
+MAX_WAIT_MS = 60000
+MAX_ACTION_FRAMES = 2800
 
 
 class GameOffline(RuntimeError):
@@ -33,7 +41,7 @@ def _call(method, path, payload=None, timeout=240):
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(
         API + path, data=data, method=method,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Agent": "mcp"},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -62,7 +70,10 @@ def _result(res, note=""):
                     "screen did NOT change (the action had no visible effect)")
     if res.get("error"):
         bits.append(str(res["error"]))
-    bits.append(f'{res.get("width")}x{res.get("height")}')
+    if res.get("image_error"):
+        bits.append(f'image unavailable: {res["image_error"]}')
+    if res.get("width") is not None and res.get("height") is not None:
+        bits.append(f'{res["width"]}x{res["height"]}')
     line = (note + " | " if note else "") + " | ".join(str(b) for b in bits)
     out.append(TextContent(type="text", text=line))
 
@@ -77,10 +88,28 @@ def _result(res, note=""):
 
 
 def _act(path, payload, note="", **params):
-    q = {"scale": DEFAULT_SCALE}
+    # Native returns an image by default; headless only encodes one when asked.
+    # Requesting it explicitly keeps action + observation atomic on either API.
+    q = {"scale": DEFAULT_SCALE, "image": 1}
     q.update({k: v for k, v in params.items() if v is not None})
     qs = "&".join(f"{k}={v}" for k, v in q.items())
     return _result(_call("POST", f"{path}?{qs}", payload), note)
+
+
+def _bounded(name, value, minimum, maximum):
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer")
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
+def _action_length(count, hold=DEFAULT_TAP_FRAMES, gap=6):
+    total = count * (hold + 2) + max(0, count - 1) * gap
+    if total > MAX_ACTION_FRAMES:
+        raise ValueError(
+            f"action is too long ({total} frames; maximum {MAX_ACTION_FRAMES})"
+        )
 
 
 # ---------------------------------------------------------------- observation
@@ -105,20 +134,25 @@ def guide() -> str:
 # -------------------------------------------------------------------- actions
 
 @mcp.tool()
-def press(key: str, times: int = 1, hold: int = 4, stable: int = None) -> list:
+def press(key: str, times: int = 1, hold: int = DEFAULT_TAP_FRAMES,
+          stable: Optional[int] = None) -> list:
     """Press one key and return the screen it produced.
 
     key: up, down, left, right, enter (or ok), space, esc, y, n, a-z, 0-9,
          f1-f12, tab, backspace, or a combo like "alt+x".
     times: repeat the same key this many times (useful for walking or for
          advancing several dialogue lines).
-    hold: frames to hold the key down, default 4. Raise it only if a press
-         seems to be ignored.
+    hold: frames to hold the key down, default 10.
     stable: frames the picture must hold still before the screenshot is taken.
          Raise it if you get a half-written dialogue line.
 
     Remember: during a cutscene every key just advances the dialogue.
     """
+    _bounded("times", times, 1, MAX_REPEAT)
+    _bounded("hold", hold, 1, MAX_HOLD_FRAMES)
+    _action_length(times, hold)
+    if stable is not None:
+        _bounded("stable", stable, 1, 600)
     if times > 1:
         return _act("/keys", {"keys": [key] * times, "hold": hold},
                     note=f"{key} x{times}", stable=stable)
@@ -126,13 +160,20 @@ def press(key: str, times: int = 1, hold: int = 4, stable: int = None) -> list:
 
 
 @mcp.tool()
-def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
+def press_sequence(keys: list[str], gap: int = 6,
+                   stable: Optional[int] = None) -> list:
     """Press several different keys in order, returning only the final screen.
 
     Use for a known menu path, e.g. ["esc", "down", "down", "enter"]. Prefer
     single presses when you are unsure what a screen will do, because you only
     see the result of the last key here.
     """
+    if not 1 <= len(keys) <= MAX_REPEAT:
+        raise ValueError(f"keys must contain between 1 and {MAX_REPEAT} entries")
+    _bounded("gap", gap, 0, MAX_GAP_FRAMES)
+    _action_length(len(keys), gap=gap)
+    if stable is not None:
+        _bounded("stable", stable, 1, 600)
     return _act("/keys", {"keys": keys, "gap": gap},
                 note=" ".join(keys), stable=stable)
 
@@ -145,9 +186,12 @@ def move(direction: str, steps: int = 1) -> list:
     not blocked, so walking into a person or object is how you talk to it. If
     nothing moves, you are either blocked or inside a cutscene.
     """
+    direction = direction.lower()
     if direction not in ("up", "down", "left", "right"):
         raise ValueError("direction must be up, down, left or right")
-    return _act("/keys", {"keys": [direction] * max(1, steps), "gap": 6},
+    _bounded("steps", steps, 1, MAX_REPEAT)
+    _action_length(steps)
+    return _act("/keys", {"keys": [direction] * steps, "gap": 6},
                 note=f"move {direction} x{steps}")
 
 
@@ -175,6 +219,7 @@ def wait(ms: int = 1000) -> list:
     Use it during boot, scene transitions, battle animations, and travel on the
     world map.
     """
+    _bounded("ms", ms, 0, MAX_WAIT_MS)
     return _act("/wait", {"ms": ms}, note=f"wait {ms}ms")
 
 

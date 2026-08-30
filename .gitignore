@@ -3,6 +3,7 @@
 *.xcodeproj
 DerivedData/
 __pycache__/
+/server/libqunxia.so
 
 # The original game. Copyrighted by its publisher and not ours to
 # redistribute, so it is kept out of the repository. Supply your own copy;

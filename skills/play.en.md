@@ -6,9 +6,10 @@ how you play it is up to you.
 
 ## The loop
 
-Acting and looking are separate calls. A key press applies your input and waits
-for the screen to settle, but returns no picture; `GET /api/screen` returns one.
-Act, then look when you need to see. Sending a few keys and looking once is fine.
+By default, acting and looking are separate calls. A key press waits for the
+screen to settle and returns metadata; `GET /api/screen` returns the picture.
+Add `?image=1` to an action URL when you need the resulting picture atomically,
+before another player can act. Sending a few keys and looking once is also fine.
 
 The game is entirely in Traditional Chinese, and the text is where everything
 happens: objectives, choices, and prompts that expect a specific key.
@@ -19,11 +20,14 @@ happens: objectives, choices, and prompts that expect a specific key.
     POST {BASE}/api/key   {{"key":"kp3"}}           one key; +"times", +"hold"
     POST {BASE}/api/keys  {{"keys":["kp9","enter"]}} several, in order
     POST {BASE}/api/wait  {{"ms":1000}}             let the game run
+    GET  {BASE}/api/slots                         list emulator snapshots
+    POST {BASE}/api/save  {{"name":"checkpoint"}}   save a snapshot
+    POST {BASE}/api/load  {{"name":"checkpoint"}}   restore a snapshot
     GET  {BASE}/api/help                          this skill
 
-Only `/api/screen` returns a picture: JSON with `image`, a base64 PNG data URI
-(`?format=png` or `?format=webp` for raw bytes). Action calls return `changed`
-and `frame` only.
+`/api/screen` returns JSON with `image`, a base64 PNG data URI (`?format=png` or
+`?format=webp` for raw bytes). Action calls return `changed` and `frame`, and
+also return the same `image` when called with `?image=1`.
 
     curl -s -X POST {BASE}/api/key -H 'content-type: application/json' \
          -d '{{"key":"enter"}}'
@@ -129,7 +133,7 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
 
 You are 小蝦米, a modern student who buys a VR copy of this very game and wakes
 inside the world of Jin Yong's wuxia novels. Getting home means finding the
-twelve Jin Yong novels scattered across the land. Characters from those novels
+fourteen Jin Yong novels scattered across the land. Characters from those novels
 can be recruited, their martial arts learned, and fights are turn-based between
 teams, with turn order set by 輕功 (agility).
 
