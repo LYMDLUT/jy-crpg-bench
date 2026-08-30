@@ -25,4 +25,24 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
       - run: swift build
+      - run: python3 -m unittest Scripts/test_agent_launchers.py -v
+
+  pi-adapter:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pi-version: ["0.84.3", "0.84.4"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: npm install -g "@earendil-works/pi-coding-agent@${{ matrix.pi-version }}"
+      - run: python3 -m unittest Scripts/test_pi_e2e.py -v

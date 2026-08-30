@@ -21,11 +21,19 @@ from mcp.types import ImageContent, TextContent
 
 try:  # mcp 2.x
     from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
 except ModuleNotFoundError:  # mcp 1.x
     from mcp.server.fastmcp import FastMCP as MCPServer
+    from mcp.server.fastmcp.exceptions import ToolError
 
-API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765")
-DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "2"))
+API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")
+try:
+    DEFAULT_SCALE = max(1, min(int(os.environ.get("QUNXIA_SCALE", "2")), 6))
+except ValueError:
+    DEFAULT_SCALE = 2
+AGENT = "".join(
+    c for c in os.environ.get("QUNXIA_AGENT", "mcp") if c.isalnum() or c in "-_."
+)[:16] or "mcp"
 
 mcp = MCPServer("qunxia", instructions=INSTRUCTIONS)
 
@@ -37,22 +45,33 @@ MAX_WAIT_MS = 60000
 MAX_ACTION_FRAMES = 2800
 
 
-class GameOffline(RuntimeError):
+class GameOffline(ToolError):
     pass
+
+
+class GameAPIError(ToolError):
+    pass
+
+
+def _decode_response(raw, path):
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise GameOffline(f"{path} returned a non-object JSON response")
+    return value
 
 
 def _call(method, path, payload=None, timeout=240):
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(
         API + path, data=data, method=method,
-        headers={"Content-Type": "application/json", "X-Agent": "mcp"},
+        headers={"Content-Type": "application/json", "X-Agent": AGENT},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read())
+            return _decode_response(r.read(), path)
     except urllib.error.HTTPError as e:
         try:
-            return json.loads(e.read())
+            return _decode_response(e.read(), path)
         except Exception:
             raise GameOffline(f"{path} failed: HTTP {e.code}")
     except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
@@ -65,6 +84,8 @@ def _call(method, path, payload=None, timeout=240):
 
 def _result(res, note=""):
     """Turn an API response into MCP content: a short status line plus the screen."""
+    if res.get("ok", True) is False:
+        raise GameAPIError(str(res.get("error") or "game API rejected the action"))
     out = []
     bits = []
     if not res.get("ok", True):
@@ -76,6 +97,8 @@ def _result(res, note=""):
         bits.append(str(res["error"]))
     if res.get("image_error"):
         bits.append(f'image unavailable: {res["image_error"]}')
+    if res.get("observation") == "follow-up":
+        bits.append("follow-up screenshot (not atomic on a shared session)")
     if res.get("width") is not None and res.get("height") is not None:
         bits.append(f'{res["width"]}x{res["height"]}')
     line = (note + " | " if note else "") + " | ".join(str(b) for b in bits)
@@ -97,7 +120,23 @@ def _act(path, payload, note="", **params):
     q = {"scale": DEFAULT_SCALE, "image": 1}
     q.update({k: v for k, v in params.items() if v is not None})
     qs = "&".join(f"{k}={v}" for k, v in q.items())
-    return _result(_call("POST", f"{path}?{qs}", payload), note)
+    res = _call("POST", f"{path}?{qs}", payload)
+    # Older headless deployments ignore image=1. Stay compatible, but label
+    # the extra GET because another controller could act between the calls.
+    if res.get("ok", True) and not res.get("image"):
+        try:
+            observed = _call("GET", "/screen")
+            if observed.get("ok", True) and observed.get("image"):
+                for key in ("image", "image_width", "image_height", "width",
+                            "height", "frame"):
+                    if key in observed:
+                        res[key] = observed[key]
+                res["observation"] = "follow-up"
+            elif observed.get("ok", True) is False:
+                res["image_error"] = str(observed.get("error") or "screen failed")
+        except GameOffline as exc:
+            res["image_error"] = str(exc)
+    return _result(res, note)
 
 
 def _bounded(name, value, minimum, maximum):
@@ -106,6 +145,12 @@ def _bounded(name, value, minimum, maximum):
     if not minimum <= value <= maximum:
         raise ValueError(f"{name} must be between {minimum} and {maximum}")
     return value
+
+
+def _state_name(name):
+    if not isinstance(name, str) or not 1 <= len(name) <= 64:
+        raise ValueError("name must be a string from 1 to 64 characters")
+    return name
 
 
 def _action_length(count, hold=DEFAULT_TAP_FRAMES, gap=6):
@@ -236,6 +281,7 @@ def save_state(name: str = "agent") -> list:
     Unlike the game's own save system this works anywhere, including mid-scene
     and mid-battle. Take one before anything you might want to undo.
     """
+    _state_name(name)
     return _act("/save", {"name": name}, note=f"save {name}")
 
 
@@ -246,13 +292,17 @@ def load_state(name: str = "agent") -> list:
     Note that a snapshot taken during a cutscene restores into that cutscene,
     so movement will be ignored until you finish reading it.
     """
+    _state_name(name)
     return _act("/load", {"name": name}, note=f"load {name}")
 
 
 @mcp.tool()
 def list_states() -> str:
     """List the snapshots on disk with their sizes and timestamps."""
-    return json.dumps(_call("GET", "/slots"), ensure_ascii=False, indent=2)
+    res = _call("GET", "/slots")
+    if res.get("ok", True) is False:
+        raise GameAPIError(str(res.get("error") or "listing states failed"))
+    return json.dumps(res, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()

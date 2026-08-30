@@ -214,7 +214,7 @@ ways to give it one, and both use the same game knowledge.
 OpenAI-compatible endpoint and nothing else.
 
 ```sh
-npm i -g @earendil-works/pi-coding-agent
+npm i -g @earendil-works/pi-coding-agent@latest
 
 export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
 export QUNXIA_LLM_API_KEY=sk-...
@@ -223,18 +223,21 @@ export QUNXIA_LLM_MODEL=qwen3-vl:32b
 ```
 
 It starts the game if it is not running, waits for the title screen, and drops
-into pi. Add `-p "play the opening"` to run non-interactively.
+into pi. Add `-p "play the opening"` to run non-interactively. Set
+`QUNXIA_AUTO_START=0` when the API belongs to an externally managed server.
 
 Everything the agent needs sits in `pi-agent/`, which pi uses as its
 configuration directory, so your own `~/.pi` is untouched. `SYSTEM.md` replaces
 the coding-agent prompt with the game. `extensions/qunxia/` registers eight
 `game_*` tools that apply input, wait for the screen to settle, and return the
-frame as an image. The model also keeps the pi `bash`, `read`, `write` and
-`edit` tools, and pi compacts context automatically on a long session.
+frame as an image. Shell and file tools are disabled by default so an evaluation
+cannot read the repository; set `QUNXIA_ALLOW_CODING_TOOLS=1` only when that is
+intentional. Pi compacts context automatically during a long session.
 
-Use a vision model. `QUNXIA_LLM_INPUT='"text"'` drops images for a text-only
-model, `QUNXIA_SCALE` changes screenshot size, and `QUNXIA_LLM_CONTEXT` sets the
-context window.
+Use a vision model. `QUNXIA_LLM_INPUT=text` drops images for a text-only model;
+`QUNXIA_LLM_API`, `QUNXIA_SCALE`, `QUNXIA_LLM_CONTEXT` and
+`QUNXIA_LLM_MAX_TOKENS` tune the provider. The generated `models.json` refers
+to `$QUNXIA_LLM_API_KEY` and never stores the key itself.
 
 ### Bring your own harness, take the skill
 
@@ -250,14 +253,31 @@ model has the API, the controls, the isometric axes and the traps.
 `skills/jyxzz-speedrun-tips/SKILL.md` is the original research the field manual
 came from. Edit that first, then fold anything durable into the served files.
 
-`mcp-server/` wraps the same surface over MCP for clients that speak it. It
+### Codex
+
+`mcp-server/` wraps the same surface over MCP for Codex and other clients. It
 supports both the official Python SDK's current `MCPServer` API and its v1
 `FastMCP` name:
 
 ```sh
-QUNXIA_API=http://127.0.0.1:8765 uv run --with mcp mcp-server/server.py
+QUNXIA_API=http://127.0.0.1:8765 uv run --with 'mcp>=1,<3' mcp-server/server.py
 # For the headless runner, use QUNXIA_API=http://127.0.0.1:8080/api
 ```
+
+Codex CLI/app users can register that stdio server once, using an absolute path
+and an engine-specific actor name:
+
+```sh
+QUNXIA_API=http://127.0.0.1:8765 ./Scripts/setup-codex.sh
+```
+
+The setup is idempotent and leaves an existing server of the same name alone.
+Set `QUNXIA_CODEX_REPLACE=1` only when you deliberately want to replace that
+entry with this checkout.
+
+Afterward, ask Codex to use the `qunxia` MCP tools and call `guide` before the
+first action. The same MCP action returns text plus the settled PNG, so Codex
+does not need a browser or a separate screenshot request.
 
 ## Session recording
 
