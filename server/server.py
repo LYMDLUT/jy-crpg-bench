@@ -270,7 +270,9 @@ def read_stats():
 CALIBRATE = os.environ.get("QUNXIA_CALIBRATE") == "1"
 
 world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": False,
-         "dark": False, "miss": 0, "tried": False}
+         "dark": False, "miss": 0, "tried": False,
+         "bigmap": False, "exit_acts": None, "exit_secs": None,
+         "checked_refs": False}
 
 
 def position():
@@ -301,12 +303,45 @@ def position():
     return x, y
 
 
+# "Reached the world map", as a latch. The reference is a fingerprint of the
+# big map captured just outside the spawn compound's exit by the offline
+# harness - which is exactly where every run's first big-map entry lands,
+# because every run starts in the same home. Validated for separability:
+# frames on the map near spawn sit 0-4 cells from the reference, indoor
+# frames sit 16+ away, and the threshold of 8 splits the gap.
+import base64 as _b64
+BIGMAP_REFS = [_b64.b64decode("AwMDAwMDAwMDAgIDAwMDAwICAgMCAgICAwICAgEAAQMCAgICAgICAgEAAQMDAwMCAgICAgEAAgMDAwMDAgEBAQEBAgMDAwMDAQEBAQEBAgMDAwMDAQEBAQEBAQICAgMD")]
+BIGMAP_DIST = 8
+
+
+def _fp_dist(a, b):
+    return sum(1 for x, y in zip(a, b) if abs(x - y) > 1)
+
+
+def looks_like_bigmap(fp):
+    return fp is not None and any(_fp_dist(fp, r) <= BIGMAP_DIST
+                                  for r in BIGMAP_REFS)
+
+
 def enter_scene():
-    """Bank the ground covered in the scene being left and start the next."""
+    """Count the transition and start the next scene.
+
+    The scene count must not depend on position calibration: it was guarded by
+    the position origin once, and with calibration off that guard made the
+    counter structurally stuck at one - a run could cross a real fade and
+    still read scenes=1. Caught by the positive control, not in the field.
+    Distance banking still needs the origin; the count never did."""
+    world["scenes"] += 1
     if world["origin"] is not None:
         world["banked"] += world["far"]
-        world["scenes"] += 1
     world["origin"], world["far"] = None, 0
+    # the first exit is the first real quality signal a run can give: how many
+    # actions and how much clock it took to get out of the spawn scene at all
+    if world["scenes"] == 2 and world["exit_acts"] is None:
+        world["exit_acts"] = session["actions"]
+        world["exit_secs"] = round(time.time() - session["started"], 1)
+        if warden.ON and warden.run["playable"]:
+            world["exit_secs"] = round(time.time() - warden.run["playable"], 1)
 
 
 def note_move():
@@ -611,6 +646,26 @@ def fingerprint():
 # same mistake with a different number.
 
 
+def note_bigmap(fp):
+    """Latch when the screen is the world map.
+
+    Negative control at runtime: the very first fingerprint of a session is
+    the spawn interior, and if that matches the big-map reference the
+    calibration cannot be trusted, so the latch disables itself for the run
+    rather than report a false crossing."""
+    if world["bigmap"] or fp is None:
+        return
+    if not world["checked_refs"]:
+        world["checked_refs"] = True
+        if looks_like_bigmap(fp):
+            world["bigmap"] = None          # miscalibrated: report unmeasured
+            print("bigmap reference matches the spawn interior; flag disabled",
+                  flush=True)
+            return
+    if world["bigmap"] is False and looks_like_bigmap(fp):
+        world["bigmap"] = True
+
+
 def note_screen():
     """What the screen did in response to the last action.
 
@@ -630,6 +685,7 @@ def note_screen():
     fp = fingerprint()
     if fp is None:
         return
+    note_bigmap(fp)
     before = beh["last"]
     if before is not None and fp != before:
         beh["meaningful"] += 1
@@ -649,6 +705,8 @@ def session_summary():
             "meaningful": beh["meaningful"],
             "oscillation": beh["oscillation"],
             "scenes": world["scenes"],
+            "bigmap": world["bigmap"],
+            "exit_acts": world["exit_acts"], "exit_secs": world["exit_secs"],
             "level": hero["level"], "exp": hero["exp"],
             "hp": hero["hp"], "maxhp": hero["maxhp"],
             "skills": hero["skills"], "items": hero["items"],
@@ -917,6 +975,9 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
             warden.run["scenes"] = world["scenes"]
+            warden.run["bigmap"] = world["bigmap"]
+            warden.run["exit_acts"] = world["exit_acts"]
+            warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential"):
                 warden.run[k] = hero[k]
@@ -1097,7 +1158,8 @@ async def api_reset(request):
         curve.clear()
         beh.update(meaningful=0, oscillation=0, last=None, prev=None)
         world.update(scenes=1, banked=0, origin=None, far=0, ok=False,
-                     dark=False, miss=0, tried=False)
+                     dark=False, miss=0, tried=False, bigmap=False,
+                     exit_acts=None, exit_secs=None, checked_refs=False)
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
                     potential=None)

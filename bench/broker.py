@@ -418,6 +418,7 @@ async def api_sessions(_request):
              "meaningful": s.get("live_meaningful", 0),
              "scenes": s.get("live_scenes", 1),
              "frontier": s.get("live_frontier"),
+             **(s.get("live_world") or {}),
              **(s.get("live_hero") or {}),
              **s.get("live_timing", {}),
              "uptime": round(s.get("live_uptime", 0)),
@@ -472,6 +473,7 @@ def live_payload():
                  "meaningful": s.get("live_meaningful", 0),
                      "scenes": s.get("live_scenes", 1),
                  "frontier": s.get("live_frontier"),
+                 **(s.get("live_world") or {}),
                  **(s.get("live_hero") or {}),
                  "keys": s.get("live_keys", {}),
                  **s.get("live_timing", {}),
@@ -513,6 +515,8 @@ async def sweep(app):
                         s["live_uptime"] = d.get("uptime_s", 0)
                         s["live_meaningful"] = d.get("meaningful", 0)
                         s["live_scenes"] = d.get("scenes", 1)
+                        s["live_world"] = {k: d.get(k) for k in
+                                           ("bigmap", "exit_acts", "exit_secs")}
                         s["live_hero"] = {k: d.get(k) for k in
                                           ("level", "exp", "hp", "maxhp",
                                            "skills", "items")}

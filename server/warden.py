@@ -48,6 +48,7 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "reads": 0, "errors": 0, "actions": 0,
        "meaningful": 0, "oscillation": 0, "curve": [],
        "scenes": 1, "frontier": 0,
+       "bigmap": False, "exit_acts": None, "exit_secs": None,
        # the game's own numbers for the character, read out of the machine
        "level": None, "exp": None, "hp": None, "maxhp": None, "skills": None,
        "items": None, "reputation": None, "potential": None,
@@ -160,6 +161,10 @@ def metrics():
         # screen-based count went wrong.
         "scenes": run["scenes"],
         "frontier": run["frontier"],
+        # the first real quality signal: how much it cost to leave the spawn
+        # scene at all, and whether the world map was ever reached
+        "bigmap": run["bigmap"],
+        "exit_acts": run["exit_acts"], "exit_secs": run["exit_secs"],
         # What the character actually became. Level barely moves in twenty
         # minutes, which is itself the finding.
         **{k: run[k] for k in ("level", "exp", "hp", "maxhp", "skills",

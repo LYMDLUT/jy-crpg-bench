@@ -59,6 +59,11 @@ ZH = {
     "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。",
     "b_front": "取舍", "b_mact": "有效动作数",
     "b_scenes": "场景", "b_reach": "走出的距离",
+    "b_exit": "首次出门", "b_map": "大地图", "m_map": "踏上大地图",
+    "b_n_exit": "首次出门＝第一次场景切换（全屏黑屏）花的动作数与时间。有效动作率"
+                "只说明按键有没有反应，一个模型可以每个动作都有效却一直在出生的"
+                "院子里打转；首次出门才是第一个真正的进度信号。大地图用出生地"
+                "出口外标定的参照指纹判定。",
     "b_ladder": "进度", "b_more": "其余数据", "b_reads": "看屏/动作",
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
     "m_exp": "拿到经验", "m_scene": "离开开场场景",
@@ -142,6 +147,13 @@ EN = {
                 "currently says.",
     "b_front": "trade-off", "b_mact": "useful acts",
     "b_scenes": "scenes", "b_reach": "ground covered",
+    "b_exit": "first exit", "b_map": "world map", "m_map": "reached the world map",
+    "b_n_exit": "First exit is what the first scene transition (the full-screen "
+                "fade) cost: actions and clock. The meaningful ratio only says "
+                "keys get reactions; a model can score high on it while "
+                "circling the spawn compound forever. First exit is the first "
+                "real progress signal. The world-map flag matches a reference "
+                "fingerprint calibrated just outside the spawn exit.",
     "b_ladder": "progress", "b_more": "more", "b_reads": "looks / act",
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
     "m_exp": "gained experience",
@@ -947,8 +959,15 @@ const RUNGS = [
   {{k: "m_item",  at: r => r.items == null ? null : r.items > 3}},
   {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
   {{k: "m_scene", at: r => r.scenes == null ? null : r.scenes > 1}},
+  {{k: "m_map",   at: r => r.bigmap == null ? null : !!r.bigmap}},
   {{k: "m_level", at: r => r.level == null ? null : r.level > 1}},
 ]; 
+
+function fexit(r) {{
+  if (r.exit_acts == null && r.exit_secs == null)
+    return r.scenes == null ? "-" : "\u2014";
+  return `${{r.exit_acts}} \u00b7 ${{mmss(r.exit_secs || 0)}}`;
+}}
 
 function rungs(r) {{ return RUNGS.map(m => m.at(r)); }}
 function reached(r) {{ return rungs(r).filter(v => v === true).length; }}
@@ -1069,6 +1088,12 @@ function boardRows() {{
         ? Math.max(...rs.map(r => r.skills ?? 0)) : null,
       items: rs.some(r => r.items != null)
         ? Math.max(...rs.map(r => r.items ?? 0)) : null,
+      bigmap: rs.some(r => r.bigmap != null)
+        ? rs.some(r => r.bigmap === true) : null,
+      exit_acts: rs.some(r => r.exit_acts != null)
+        ? Math.min(...rs.filter(r => r.exit_acts != null).map(r => r.exit_acts)) : null,
+      exit_secs: rs.some(r => r.exit_secs != null)
+        ? Math.min(...rs.filter(r => r.exit_secs != null).map(r => r.exit_secs)) : null,
       scenes: rs.some(r => r.scenes != null)
         ? rs.reduce((a, r) => a + ((r.scenes || 1) - 1), 0) + 1 : null,
       reach: rs.some(r => r.frontier != null)
@@ -1092,17 +1117,19 @@ function boardRows() {{
 // are a plain ordering and say so by not pretending otherwise.
 const BOARDS = {{
   ladder: {{
-    label: () => T.b_ladder, note: () => T.b_n_ladder,
+    label: () => T.b_ladder, note: () => T.b_n_ladder + " " + T.b_n_exit,
     // The rungs are ordered by difficulty, so counting them is a real ranking.
     // Ties break on the behavioural ratio, which is the next thing that
     // separates two runs that got equally far.
-    key: m => reached(m) * 1000 + Math.round((m.meaningful || 0) * 100),
+    // rungs first; among runs equally far, the cheaper first exit wins;
+    // among runs that never left, the behavioural ratio orders them
+    key: m => reached(m) * 1e8
+            + (m.exit_acts != null ? 1e6 - Math.min(999999, m.exit_acts) : 0)
+            + Math.round((m.meaningful || 0) * 100),
     val: m => ladder(m),
-    cols: [[() => T.cols.meaningful,
-            m => m.meaningful == null ? "-" : m.meaningful.toFixed(2)],
-           [() => T.b_reads,
-            m => m.reads == null || !m.actions ? "-"
-                 : (m.reads / m.actions).toFixed(2)]],
+    cols: [[() => T.b_exit, m => fexit(m)],
+           [() => T.cols.meaningful,
+            m => m.meaningful == null ? "-" : m.meaningful.toFixed(2)]],
   }},
   progress: {{
     label: () => T.b_level, note: () => T.b_n_progress + " " + T.b_pre,
@@ -1312,6 +1339,8 @@ function entries() {{
             meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
             oscillation: null, keys: s.keys || {{}},
             scenes: s.scenes ?? null, frontier: s.frontier ?? null,
+            bigmap: s.bigmap ?? null,
+            exit_acts: s.exit_acts ?? null, exit_secs: s.exit_secs ?? null,
             // these are known from the first keypress, so a running card
             // shows them rather than dashes; oscillation is not, it is only
             // assembled at teardown
@@ -1407,8 +1436,10 @@ function render() {{
             r.level == null ? "-" : r.level}} · ${{
             r.skills == null ? "-" : r.skills}} · ${{
             r.items == null ? "-" : r.items}}</b>
+          <span>${{T.b_exit}}</span><b ${{lv(r, "exit")}}>${{fexit(r)}}</b>
           <span>${{T.b_scenes}}</span><b ${{lv(r, "scenes")}}>${{
-            r.scenes == null ? "-" : r.scenes}}</b>
+            r.scenes == null ? "-" : r.scenes}}${{
+            r.bigmap == null ? "" : r.bigmap ? " \u00b7 \u2713" : " \u00b7 \u2715"}}</b>
         </div>
         <details class="more">
           <summary>${{T.b_more}}</summary>
