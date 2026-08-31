@@ -31,7 +31,7 @@ ZH = {
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
     "cols": {"started": "时间",
              "meaningful": "有效动作", "oscillation": "来回打转",
-             "actions": "动作数", "aps": "动作/秒",
+             "actions": "动作数", "aps": "动作/秒", "exit_acts": "首次出门",
              "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
              "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
              "reason": "结束原因"},
@@ -42,7 +42,7 @@ ZH = {
     "running": "进行中", "log": "动作记录", "hist": "按键分布",
     "explored": "有效动作", "progress": "有效动作 vs 动作数",
     "board": "排行榜", "b_rank": "排名", "b_model": "模型", "b_runs": "局数",
-    "b_overview": "总览", "b_speed": "速度", "b_effort": "投入", "b_rely": "稳定性",
+    "b_overview": "行为", "b_speed": "速度", "b_effort": "投入", "b_rely": "稳定性",
     "b_score": "有效动作率", "b_aps": "动作/秒", "b_acts": "动作数",
     "b_think": "思考 p50 / p95", "b_keys": "按键种类", "b_ttfa": "首次动作",
     "b_done": "已完成", "b_err": "错误", "b_played": "游玩",
@@ -114,7 +114,7 @@ EN = {
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
     "cols": {"started": "when",
              "meaningful": "meaningful", "oscillation": "oscillation",
-             "actions": "actions", "aps": "act/s",
+             "actions": "actions", "aps": "act/s", "exit_acts": "first exit",
              "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
              "distinct_keys": "key space", "reads": "screens", "played": "played",
              "reason": "ended by"},
@@ -125,7 +125,7 @@ EN = {
     "running": "running", "log": "action log", "hist": "key distribution",
     "explored": "meaningful", "progress": "meaningful vs actions",
     "board": "leaderboard", "b_rank": "rank", "b_model": "model", "b_runs": "runs",
-    "b_overview": "overview", "b_speed": "speed", "b_effort": "effort",
+    "b_overview": "behaviour", "b_speed": "speed", "b_effort": "effort",
     "b_rely": "reliability",
     "b_score": "meaningful step ratio", "b_aps": "actions/s", "b_acts": "actions",
     "b_think": "think p50 / p95", "b_keys": "key variety", "b_ttfa": "1st action",
@@ -728,10 +728,9 @@ TEMPLATE = r"""<!doctype html>
   <p class="bhow">{b_how}</p>
   <div class="seg bviews" id="bviews">
     <button data-b="ladder"   aria-pressed="true">{b_ladder}</button>
-    <button data-b="overview" aria-pressed="false">{b_overview}</button>
     <button data-b="progress" aria-pressed="false">{b_progress}</button>
-    <button data-b="behaviour" aria-pressed="false">{b_speed}</button>
     <button data-b="frontier" aria-pressed="false">{b_front}</button>
+    <button data-b="overview" aria-pressed="false">{b_overview}</button>
   </div>
   <div id="btable"></div>
   <p class="bnote" id="bnote"></p>
@@ -866,6 +865,7 @@ const COLS = [
   {{k: "ttfa",          f: r => secs(r.ttfa)}},
   {{k: "gap_p50",       f: r => secs(r.gap_p50)}},
   {{k: "meaningful",    f: r => r.meaningful == null ? "-" : r.meaningful.toFixed(2)}},
+  {{k: "exit_acts",     f: r => fexit(r)}},
   {{k: "oscillation",   f: r => r.oscillation == null ? "-" : r.oscillation.toFixed(2)}},
   {{k: "distinct_keys", f: r => r.distinct_keys ?? "-"}},
   {{k: "played",        f: r => mmss(r.played)}},
@@ -1144,14 +1144,8 @@ const BOARDS = {{
     key: m => m.meaningful,
     val: m => `<b>${{(m.meaningful * 100).toFixed(1)}}%</b>`
             + `<i>${{(m.lo * 100).toFixed(1)}}-${{(m.hi * 100).toFixed(1)}}</i>`,
-    cols: [[() => T.b_mact, m => m.mact], [() => T.b_acts, m => m.actions]],
-  }},
-  behaviour: {{
-    label: () => T.b_aps, note: () => T.b_n_speed,
-    key: m => m.aps,
-    val: m => `<b>${{m.aps.toFixed(2)}}</b>`,
     cols: [[() => T.b_think, m => `${{secs(m.think50)}} / ${{secs(m.think95)}}`],
-           [() => T.b_keys, m => m.keys || "-"]],
+           [() => T.b_aps, m => m.aps.toFixed(2)]],
   }},
   frontier: {{ plot: true, label: () => T.b_front, note: () => T.b_n_front,
     key: m => m.mact }},
