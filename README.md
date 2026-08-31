@@ -4,7 +4,7 @@
 
 A long-horizon benchmark for frontier agents, built on an unmodified 1996 wuxia
 CRPG. An agent is given raw 320×200 frames, a key vocabulary, and one page of
-objectives, then left to find twelve books in an open world it has never seen.
+objectives, then left to find fourteen books in an open world it has never seen.
 
 | | |
 |---|---|
@@ -12,7 +12,7 @@ objectives, then left to find twelve books in an open world it has never seen.
 | Observation | raw VGA frames, 320×200, Traditional Chinese text |
 | Action | 16 keys, isometric movement on four diagonal axes |
 | Horizon | open world, no fixed episode length |
-| Objective | recover twelve books and return to the present |
+| Objective | recover fourteen books and return to the present |
 | Interfaces | HTTP, MCP, built-in pi harness, browser |
 | Runners | native macOS (Metal), headless Linux (browser stream) |
 
@@ -40,7 +40,7 @@ failing near the beginning of their games.
 This environment adds four properties those suites do not combine.
 
 **Long-horizon open world.** A CRPG has no level to clear. Progress comes from
-recruiting characters, learning martial arts, and locating twelve books spread
+recruiting characters, learning martial arts, and locating fourteen books spread
 across a large map, so an episode is measured in hours and the reward signal is
 whatever the agent can infer from dialogue.
 
@@ -93,10 +93,11 @@ For the browser runner, see `server/README.md`.
 
 ## Control loop
 
-Acting and looking are separate calls. A key press applies input and waits for
-the screen to settle; a screen call returns the picture. An agent acts several
-times and looks when it needs to see, which costs one settle per action and one
-encode per look.
+A key press applies input and waits for the screen to settle. The native runner
+includes that settled picture by default. The headless runner returns metadata
+by default to avoid encoding images nobody reads; add `?image=1` to capture the
+picture before the action lock is released, or call `/api/screen` separately.
+The MCP and pi tools request the atomic action image.
 
 ```mermaid
 sequenceDiagram
@@ -107,9 +108,7 @@ sequenceDiagram
     S->>E: key down, hold, key up
     E-->>S: frame hashes, 70 fps
     Note over S,E: wait for the picture to change,<br/>then to hold still
-    S-->>A: {"changed": true}
-    A->>S: GET /api/screen
-    S-->>A: PNG of the settled screen
+    S-->>A: {"changed": true, "image": "..."} when requested
 ```
 
 Waiting for the screen to change before waiting for it to settle is what makes
@@ -192,13 +191,17 @@ POST /load   {"slot":1}
 POST /reset
 ```
 
-`image` comes back as a base64 PNG data URI. `?format=png` gives raw bytes,
-`?image=0` skips the capture, and `?react`, `?stable` and `?maxsettle` tune the
-wait. `"changed": false` means the action had no visible effect. `frame` counts
+`image` is a base64 PNG data URI. Native actions include it unless `?image=0`;
+headless actions include it with `?image=1`. `?format=png` gives raw bytes on a
+screen request, and `?react`, `?stable` and `?maxsettle` tune the wait.
+`"changed": false` means the framebuffer never visibly changed; it is not a
+game-success signal. `frame` counts
 distinct video frames and stalls on a static screen, while `ticks` always rises
 while the emulator runs. Boot takes about 14 seconds.
 
-The browser runner exposes the same surface under `/api/`.
+The browser runner exposes the same key, screen, save/load and history surface
+under `/api/`. Its benchmark reset remains token-protected so a visitor cannot
+wipe a shared run.
 
 ## Letting an LLM play
 
@@ -211,7 +214,7 @@ ways to give it one, and both use the same game knowledge.
 OpenAI-compatible endpoint and nothing else.
 
 ```sh
-npm i -g @earendil-works/pi-coding-agent
+npm i -g @earendil-works/pi-coding-agent@latest
 
 export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
 export QUNXIA_LLM_API_KEY=sk-...
@@ -220,18 +223,21 @@ export QUNXIA_LLM_MODEL=qwen3-vl:32b
 ```
 
 It starts the game if it is not running, waits for the title screen, and drops
-into pi. Add `-p "play the opening"` to run non-interactively.
+into pi. Add `-p "play the opening"` to run non-interactively. Set
+`QUNXIA_AUTO_START=0` when the API belongs to an externally managed server.
 
 Everything the agent needs sits in `pi-agent/`, which pi uses as its
 configuration directory, so your own `~/.pi` is untouched. `SYSTEM.md` replaces
-the coding-agent prompt with the game. `extensions/qunxia/` registers nine
+the coding-agent prompt with the game. `extensions/qunxia/` registers eight
 `game_*` tools that apply input, wait for the screen to settle, and return the
-frame as an image. The model also keeps the pi `bash`, `read`, `write` and
-`edit` tools, and pi compacts context automatically on a long session.
+frame as an image. Shell and file tools are disabled by default so an evaluation
+cannot read the repository; set `QUNXIA_ALLOW_CODING_TOOLS=1` only when that is
+intentional. Pi compacts context automatically during a long session.
 
-Use a vision model. `QUNXIA_LLM_INPUT='"text"'` drops images for a text-only
-model, `QUNXIA_SCALE` changes screenshot size, and `QUNXIA_LLM_CONTEXT` sets the
-context window.
+Use a vision model. `QUNXIA_LLM_INPUT=text` drops images for a text-only model;
+`QUNXIA_LLM_API`, `QUNXIA_SCALE`, `QUNXIA_LLM_CONTEXT` and
+`QUNXIA_LLM_MAX_TOKENS` tune the provider. The generated `models.json` refers
+to `$QUNXIA_LLM_API_KEY` and never stores the key itself.
 
 ### Bring your own harness, take the skill
 
@@ -247,7 +253,31 @@ model has the API, the controls, the isometric axes and the traps.
 `skills/jyxzz-speedrun-tips/SKILL.md` is the original research the field manual
 came from. Edit that first, then fold anything durable into the served files.
 
-`mcp-server/` wraps the same surface over MCP for clients that speak it.
+### Codex
+
+`mcp-server/` wraps the same surface over MCP for Codex and other clients. It
+supports both the official Python SDK's current `MCPServer` API and its v1
+`FastMCP` name:
+
+```sh
+QUNXIA_API=http://127.0.0.1:8765 uv run --with 'mcp>=1,<3' mcp-server/server.py
+# For the headless runner, use QUNXIA_API=http://127.0.0.1:8080/api
+```
+
+Codex CLI/app users can register that stdio server once, using an absolute path
+and an engine-specific actor name:
+
+```sh
+QUNXIA_API=http://127.0.0.1:8765 ./Scripts/setup-codex.sh
+```
+
+The setup is idempotent and leaves an existing server of the same name alone.
+Set `QUNXIA_CODEX_REPLACE=1` only when you deliberately want to replace that
+entry with this checkout.
+
+Afterward, ask Codex to use the `qunxia` MCP tools and call `guide` before the
+first action. The same MCP action returns text plus the settled PNG, so Codex
+does not need a browser or a separate screenshot request.
 
 ## Session recording
 

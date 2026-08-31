@@ -2,6 +2,7 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,10 +37,14 @@ static fn_set_controller g_set_controller;
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t *g_fb;
 static size_t g_fb_cap;
-static int g_w, g_h, g_pitch;
-static uint64_t g_serial;
-static uint64_t g_ticks;
-static uint64_t g_hash;
+static _Atomic int g_w, g_h, g_pitch;
+static _Atomic uint64_t g_serial;
+static _Atomic uint64_t g_ticks;
+static _Atomic uint64_t g_hash;
+/* libretro cores are single-threaded. The headless runner receives input on
+   asyncio's thread while retro_run lives on the emulation thread, so calls
+   into the core must never overlap. */
+static pthread_mutex_t g_core_mu = PTHREAD_MUTEX_INITIALIZER;
 
 /* ---- audio ring ---- */
 #define AUDIO_RING_FRAMES 32768
@@ -407,48 +412,69 @@ void core_shutdown(void) {
 }
 
 void core_run_frame(void) {
+    pthread_mutex_lock(&g_core_mu);
     if (g_run) g_run();
     g_ticks++;
+    pthread_mutex_unlock(&g_core_mu);
 }
 
-void core_reset(void) {
-    core_release_all_keys();
-    core_audio_reset();
-    if (g_reset) g_reset();
-}
-
-void core_key(int retrok, bool down) {
+static void key_unlocked(int retrok, bool down) {
     if (retrok < 0 || retrok >= (int)RETROK_LAST) return;
     if (g_keys[retrok] == (down ? 1 : 0)) return;
     g_keys[retrok] = down ? 1 : 0;
     if (g_kbd_cb) g_kbd_cb(down, (unsigned)retrok, 0, 0);
 }
 
-void core_release_all_keys(void) {
+static void release_all_keys_unlocked(void) {
     for (int i = 0; i < (int)RETROK_LAST; i++) {
-        if (g_keys[i]) {
-            g_keys[i] = 0;
-            if (g_kbd_cb) g_kbd_cb(false, (unsigned)i, 0, 0);
-        }
+        if (g_keys[i]) key_unlocked(i, false);
     }
 }
 
+void core_reset(void) {
+    pthread_mutex_lock(&g_core_mu);
+    release_all_keys_unlocked();
+    core_audio_reset();
+    if (g_reset) g_reset();
+    pthread_mutex_unlock(&g_core_mu);
+}
+
+void core_key(int retrok, bool down) {
+    pthread_mutex_lock(&g_core_mu);
+    key_unlocked(retrok, down);
+    pthread_mutex_unlock(&g_core_mu);
+}
+
+void core_release_all_keys(void) {
+    pthread_mutex_lock(&g_core_mu);
+    release_all_keys_unlocked();
+    pthread_mutex_unlock(&g_core_mu);
+}
+
 void core_mouse_move(int dx, int dy) {
+    pthread_mutex_lock(&g_core_mu);
     g_mouse_dx += dx;
     g_mouse_dy += dy;
+    pthread_mutex_unlock(&g_core_mu);
 }
 
 void core_mouse_button(int button, bool down) {
+    pthread_mutex_lock(&g_core_mu);
     if (button >= 0 && button < 3) g_mouse_btn[button] = down ? 1 : 0;
+    pthread_mutex_unlock(&g_core_mu);
 }
 
 bool core_save_state(const char *path) {
     if (!g_ser_size || !g_ser) return false;
+    pthread_mutex_lock(&g_core_mu);
     size_t n = g_ser_size();
+    pthread_mutex_unlock(&g_core_mu);
     if (n == 0) { set_err("core reports zero savestate size"); return false; }
     void *buf = malloc(n);
     if (!buf) return false;
+    pthread_mutex_lock(&g_core_mu);
     bool ok = g_ser(buf, n);
+    pthread_mutex_unlock(&g_core_mu);
     if (ok) {
         FILE *f = fopen(path, "wb");
         if (!f) { free(buf); set_err("cannot open savestate for write"); return false; }
@@ -474,8 +500,10 @@ bool core_load_state(const char *path) {
     size_t got = fread(buf, 1, (size_t)n, f);
     fclose(f);
     if (got != (size_t)n) { free(buf); return false; }
-    core_release_all_keys();
+    pthread_mutex_lock(&g_core_mu);
+    release_all_keys_unlocked();
     bool ok = g_unser(buf, (size_t)n);
+    pthread_mutex_unlock(&g_core_mu);
     free(buf);
     if (ok) core_audio_reset();
     else set_err("retro_unserialize failed");
