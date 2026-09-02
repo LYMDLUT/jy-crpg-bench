@@ -147,6 +147,7 @@ recording_pending: collections.deque = collections.deque()
 recording_writer_task = None
 recording_flush_lock = None
 recording_file_lock = threading.Lock()
+recording_resetting = False
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -307,6 +308,8 @@ def rec_note_activity():
 
 
 def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
+    if recording_resetting:
+        return
     now = time.time()
     ev = {"t": round(now - rec["started"], 3)}
     if kind == "f":
@@ -496,14 +499,22 @@ def rec_prune(now):
             rec["bytes"] = _recording_bytes(rec["events"])
 
 
-def rec_reset():
-    recording_pending.clear()
-    rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
-               last_activity=time.time())
-    if RECORDING_FILE:
-        # Synchronize with an in-flight to_thread append so a reset cannot be
-        # followed by stale pre-reset events in the new journal.
-        _write_recording_header()
+async def rec_reset():
+    global recording_resetting
+    recording_resetting = True
+    try:
+        if RECORDING_FILE:
+            async with recording_lock():
+                recording_pending.clear()
+                rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
+                           last_activity=time.time())
+                _write_recording_header()
+        else:
+            recording_pending.clear()
+            rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
+                       last_activity=time.time())
+    finally:
+        recording_resetting = False
 
 
 def session_summary():
@@ -1204,7 +1215,7 @@ async def api_reset(request):
         _seq[0] = 0
         session.update(started=time.time(), actions=0, by_api=0, by_web=0)
         agents.clear()
-        rec_reset()
+        await rec_reset()
         await asyncio.sleep(0.4 if restored else 1.5)
 
     await fanout(json.dumps({"t": "clear"}), text=True)
