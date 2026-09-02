@@ -59,8 +59,10 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   seconds so a pruned recording always has somewhere to start replaying from.
   The endpoint starts at the first retained keyframe and rebases timestamps to
   zero, so an idle session cannot make playback wait for its discarded uptime.
-  The page plays it back at 4x from a button in the activity header, and can
-  export it as a video from another. Export composites the frames with the keys
+  The page plays it back at 4x from a button in the activity header; the overlay
+  has pause/resume plus a clickable and draggable seek bar that rebuilds from
+  the nearest keyframe. It can export the recording as a video from another
+  button. Export composites the frames with the keys
   that were held and encodes in the browser with MediaRecorder. MP4 is used when
   supported; otherwise the download is accurately labeled WebM. MediaRecorder
   captures in real time, so an export takes the retained recording length

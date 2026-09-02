@@ -50,8 +50,13 @@
   #vcrkeys .k { font-size: 13px; min-width: 20px; padding: 2px 6px; }
   #vcrbar { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #9a9aa6; }
   #vcrkeys { display: flex; gap: 4px; min-height: 20px; align-items: center; }
-  #vcrtrack { width: 260px; height: 4px; background: #26262c; border-radius: 2px; overflow: hidden; }
-  #vcrfill { display: block; height: 4px; width: 0; background: #6cb6ff; }
+  #vcrtrack { width: min(36vw, 320px); height: 8px; background: #30303a;
+    border: 1px solid #4a4a58; border-radius: 3px; overflow: hidden;
+    cursor: pointer; touch-action: none; }
+  #vcrtrack:focus { outline: 1px solid #8ecdf7; outline-offset: 2px; }
+  #vcrfill { display: block; height: 100%; width: 0; min-width: 0;
+    background: #6cb6ff; transition: width .08s linear; }
+  #vcrpause { min-width: 72px; padding: 3px 8px; font-size: 11px; }
   #logrows { overflow-y: auto; padding: 6px 0 10px; flex: 1; }
   .r { display: flex; gap: 7px; padding: 2px 12px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
   .r:hover { background: #17171c; }
@@ -219,8 +224,12 @@
   <canvas id="vcv" width="320" height="200"></canvas>
   <div id="vcrkeys"></div>
   <div id="vcrbar">
-    <span id="vcrtime">0:00</span>
-    <span id="vcrtrack"><span id="vcrfill"></span></span>
+    <span id="vcrtime">0:00 / 0:00</span>
+    <span id="vcrtrack" role="slider" tabindex="0" aria-label="回放进度"
+      aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+      <span id="vcrfill"></span>
+    </span>
+    <button id="vcrpause" disabled>Ⅱ pause</button>
     <button id="vcrclose">close</button>
   </div>
 </div>
@@ -341,17 +350,196 @@ async function loadRecording() {
   return normalizeRecording(await response.json());
 }
 
-let vcrTimer = null;
+let vcrTimer = null, vcrRaf = null, playback = null;
+const vcrPause = document.getElementById("vcrpause");
+const vcrTime = document.getElementById("vcrtime");
+const vcrFill = document.getElementById("vcrfill");
+const vcrTrack = document.getElementById("vcrtrack");
+
+function updateVcrProgress(current, total) {
+  const safeTotal = Math.max(0, Number(total) || 0);
+  const safeCurrent = Math.min(safeTotal, Math.max(0, Number(current) || 0));
+  const ratio = safeTotal > 0 ? safeCurrent / safeTotal : 1;
+  vcrFill.style.width = (ratio * 100).toFixed(2) + "%";
+  vcrFill.style.minWidth = ratio > 0 ? "2px" : "0";
+  vcrTime.textContent = fmt(safeCurrent) + " / " + fmt(safeTotal);
+  vcrTrack.setAttribute("aria-valuemax", safeTotal.toFixed(3));
+  vcrTrack.setAttribute("aria-valuenow", safeCurrent.toFixed(3));
+}
+
+function resetVcrProgress() {
+  vcrFill.style.width = "0%";
+  vcrFill.style.minWidth = "0";
+  vcrTime.textContent = "0:00 / 0:00";
+  vcrPause.disabled = true;
+  vcrPause.textContent = "Ⅱ pause";
+  vcrPause.title = "没有可暂停的回放时长";
+}
+
+function vcrTicker() {
+  const state = playback;
+  if (!state || state.cancelled) return;
+  const current = state.paused
+    ? state.clock
+    : Math.min(state.total, (performance.now() - state.origin) * state.speed / 1000);
+  updateVcrProgress(current, state.total);
+  vcrRaf = requestAnimationFrame(vcrTicker);
+}
+
+function renderVcrKeys(state) {
+  vcrKeys.textContent = "";
+  if (state.actor) {
+    const who = document.createElement("span");
+    who.textContent = state.actor;
+    who.style.color = colorOf(state.actor);
+    who.style.marginRight = "6px";
+    vcrKeys.appendChild(who);
+  }
+  for (const k of state.down) {
+    const chip = document.createElement("span");
+    chip.className = "k" + (ARROW.has(k) ? " arrow" : "");
+    chip.textContent = GLYPH[k] ?? k;
+    vcrKeys.appendChild(chip);
+  }
+}
+
+function clearVcrCanvas() {
+  vcv.width = 320;
+  vcv.height = 200;
+  vctx.fillStyle = "#000";
+  vctx.fillRect(0, 0, vcv.width, vcv.height);
+}
+
+function seekRatio(clientX) {
+  const rect = vcrTrack.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+}
+
+async function seekPlayback(state, target) {
+  if (!state || state.cancelled || state.done) return;
+  state.paused = true;
+  state.pausedAt = performance.now();
+  if (vcrTimer !== null) { clearTimeout(vcrTimer); vcrTimer = null; }
+  vcrPause.textContent = "▶ resume";
+  const version = ++state.seekVersion;
+  const start = (() => {
+    let found = 0;
+    for (let i = 0; i < state.events.length; i++) {
+      const ev = state.events[i];
+      if (ev.d && ev.k && ev.t <= target) found = i;
+    }
+    return found;
+  })();
+  state.cache = {};
+  state.down.clear();
+  state.actor = "";
+  clearVcrCanvas();
+  let index = start;
+  while (index < state.events.length && state.events[index].t <= target + 0.001) {
+    if (version !== state.seekVersion || state.cancelled) return;
+    const ev = state.events[index++];
+    if (ev.d) {
+      paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, state.cache);
+    } else if (ev.key) {
+      if (ev.who) state.actor = ev.who;
+      ev.down ? state.down.add(ev.key) : state.down.delete(ev.key);
+      renderVcrKeys(state);
+    }
+  }
+  if (version !== state.seekVersion || state.cancelled) return;
+  state.index = index;
+  state.clock = target;
+  const now = performance.now();
+  state.origin = now - target * 1000 / state.speed;
+  state.pausedAt = now;
+  updateVcrProgress(state.clock, state.total);
+  renderVcrKeys(state);
+}
+
+function queueSeek(state, target) {
+  if (!state || state.cancelled || state.done || state.total <= 0) return;
+  state.seekTarget = Math.max(0, Math.min(state.total, target));
+  if (state.seeking) return;
+  state.seeking = true;
+  (async () => {
+    try {
+      while (state.seekTarget !== null && !state.cancelled) {
+        const next = state.seekTarget;
+        state.seekTarget = null;
+        await seekPlayback(state, next);
+      }
+    } finally {
+      state.seeking = false;
+    }
+  })().catch(() => {
+    if (!state.cancelled) {
+      vcrClose();
+      playBtn.textContent = "▶ error";
+    }
+  });
+}
+
 function vcrClose() {
   if (vcrStop) { vcrStop(); vcrStop = null; }
   if (vcrTimer !== null) { clearTimeout(vcrTimer); vcrTimer = null; }
+  if (vcrRaf !== null) { cancelAnimationFrame(vcrRaf); vcrRaf = null; }
+  seekPointer = null;
+  playback = null;
   vcr.classList.remove("on");
   playBtn.disabled = false;
   playBtn.textContent = "▶ 4×";
+  resetVcrProgress();
 }
 document.getElementById("vcrclose").onclick = vcrClose;
 vcr.onclick = e => { if (e.target === vcr) vcrClose(); };
 addEventListener("keydown", e => { if (e.key === "Escape" && vcr.classList.contains("on")) vcrClose(); });
+vcrPause.onclick = () => {
+  const state = playback;
+  if (!state || state.cancelled || state.done) return;
+  if (state.paused) {
+    const now = performance.now();
+    state.origin += now - state.pausedAt;
+    state.pausedAt = 0;
+    state.paused = false;
+    vcrPause.textContent = "Ⅱ pause";
+    state.schedule?.();
+  } else {
+    state.paused = true;
+    state.pausedAt = performance.now();
+    if (vcrTimer !== null) { clearTimeout(vcrTimer); vcrTimer = null; }
+    vcrPause.textContent = "▶ resume";
+  }
+};
+let seekPointer = null;
+vcrTrack.addEventListener("pointerdown", e => {
+  const state = playback;
+  if (!state || state.done || state.total <= 0) return;
+  e.preventDefault();
+  seekPointer = e.pointerId;
+  vcrTrack.setPointerCapture?.(e.pointerId);
+  queueSeek(state, seekRatio(e.clientX) * state.total);
+});
+vcrTrack.addEventListener("pointermove", e => {
+  if (seekPointer === e.pointerId && playback) {
+    e.preventDefault();
+    queueSeek(playback, seekRatio(e.clientX) * playback.total);
+  }
+});
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  vcrTrack.addEventListener(type, e => {
+    if (seekPointer === e.pointerId || type === "lostpointercapture") seekPointer = null;
+  });
+}
+vcrTrack.addEventListener("keydown", e => {
+  const state = playback;
+  if (!state || state.done || state.total <= 0) return;
+  const step = Math.max(1, state.total / 100);
+  if (e.key === "ArrowLeft") { e.preventDefault(); queueSeek(state, state.clock - step); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); queueSeek(state, state.clock + step); }
+  else if (e.key === "Home") { e.preventDefault(); queueSeek(state, 0); }
+  else if (e.key === "End") { e.preventDefault(); queueSeek(state, state.total); }
+});
+resetVcrProgress();
 
 // ---- export the recording as a video ---------------------------------------
 const saveBtn = document.getElementById("save");
@@ -555,54 +743,68 @@ playBtn.onclick = async () => {
   vcrKeys.textContent = "";
 
   const SPEED = 4;
-  const total = events[events.length - 1].t || 1;
-  const cache = {};
-  const down = new Set();
-  let cancelled = false, i = 0;
-  vcrStop = () => { cancelled = true; };
-
-  const t0 = performance.now();
-  const step = async () => {
-    while (i < events.length && !cancelled) {
-      const ev = events[i];
-      const due = t0 + (ev.t * 1000) / SPEED;
-      const wait = due - performance.now();
-      if (wait > 4) { vcrTimer = setTimeout(step, wait); return; }
-      i++;
-      if (ev.d) {
-        paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, cache);
-      } else if (ev.key) {
-        ev.down ? down.add(ev.key) : down.delete(ev.key);
-        vcrKeys.textContent = "";
-        if (ev.who) {
-          const who = document.createElement("span");
-          who.textContent = ev.who;
-          who.style.color = colorOf(ev.who);
-          who.style.marginRight = "6px";
-          vcrKeys.appendChild(who);
-        }
-        for (const k of down) {
-          const chip = document.createElement("span");
-          chip.className = "k" + (ARROW.has(k) ? " arrow" : "");
-          chip.textContent = GLYPH[k] ?? k;
-          vcrKeys.appendChild(chip);
-        }
-      }
-      document.getElementById("vcrfill").style.width = (ev.t / total) * 100 + "%";
-      document.getElementById("vcrtime").textContent = fmt(ev.t);
-    }
-    vcrTimer = null;
-    if (!cancelled) {
-      playBtn.textContent = "▶ 4×";
-      vcrStop = null;
-    }
+  const total = events[events.length - 1].t || 0;
+  const state = playback = {
+    events, total, speed: SPEED, index: 0, clock: 0,
+    origin: performance.now(), paused: false, pausedAt: 0,
+    cancelled: false, done: false, schedule: null,
+    cache: {}, down: new Set(), actor: "", seekVersion: 0,
+    seekTarget: null, seeking: false,
   };
-  step().catch(() => {
-    if (cancelled) return;
+  vcrPause.disabled = total <= 0;
+  vcrPause.textContent = "Ⅱ pause";
+  vcrPause.title = total > 0 ? "暂停回放" : "当前录制只有一帧";
+  updateVcrProgress(0, total);
+
+  const finish = () => {
+    state.done = true;
+    state.clock = state.total;
+    updateVcrProgress(state.total, state.total);
+    vcrPause.disabled = true;
+    vcrPause.textContent = "Ⅱ pause";
+    if (vcrRaf !== null) { cancelAnimationFrame(vcrRaf); vcrRaf = null; }
+    vcrTimer = null;
+    vcrStop = null;
+    playBtn.textContent = "▶ 4×";
+  };
+  const schedule = async () => {
+    if (state.cancelled || state.paused || state.done) return;
+    while (state.index < state.events.length && !state.cancelled && !state.paused) {
+      const ev = state.events[state.index];
+      const due = state.origin + (ev.t * 1000) / state.speed;
+      const wait = due - performance.now();
+      if (wait > 4) {
+        vcrTimer = setTimeout(() => {
+          vcrTimer = null;
+          state.schedule?.();
+        }, Math.min(wait, 1000));
+        return;
+      }
+      state.index++;
+      if (ev.d) {
+        paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, state.cache);
+      } else if (ev.key) {
+        if (ev.who) state.actor = ev.who;
+        ev.down ? state.down.add(ev.key) : state.down.delete(ev.key);
+        renderVcrKeys(state);
+      }
+      state.clock = ev.t;
+      updateVcrProgress(state.clock, state.total);
+    }
+    if (!state.cancelled && !state.paused) finish();
+  };
+  state.schedule = () => schedule().catch(() => {
+    if (state.cancelled) return;
     vcrClose();
     playBtn.textContent = "▶ error";
     setTimeout(() => { if (!vcr.classList.contains("on")) playBtn.textContent = "▶ 4×"; }, 3000);
   });
+  vcrStop = () => {
+    state.cancelled = true;
+    if (vcrTimer !== null) { clearTimeout(vcrTimer); vcrTimer = null; }
+  };
+  state.schedule();
+  vcrRaf = requestAnimationFrame(vcrTicker);
 };
 
 function connect() {
