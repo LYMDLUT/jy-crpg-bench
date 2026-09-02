@@ -128,6 +128,8 @@ MAX_HISTORY_LIMIT = 300
 # 注音 IME, which is a puzzle about input methods and not about the game.
 START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT.parent / "saves" / "start.state"))
 STATE_DIR = os.environ.get("QUNXIA_STATE_DIR", str(ROOT.parent / "saves" / "states"))
+RECORDING_FILE = os.environ.get("QUNXIA_RECORDING", "")
+RECORDING_FLUSH_SECONDS = float(os.environ.get("QUNXIA_RECORDING_FLUSH_SECONDS", "0.5"))
 
 # Everything anyone does to this session, so the page can show who is doing
 # what. The game is shared, so this doubles as "why did the screen just move".
@@ -138,6 +140,8 @@ session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
 agents: collections.Counter = collections.Counter()
 rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
              "last_activity": time.time(), "actor": ""}
+recording_pending: collections.deque = collections.deque()
+recording_writer_task = None
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -311,12 +315,93 @@ def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
         if rec["actor"]:
             ev["who"] = rec["actor"]
     rec["events"].append(ev)
+    if RECORDING_FILE:
+        recording_pending.append(dict(ev))
     rec_prune(now)
 
 
 def _recording_bytes(events):
     """Approximate the compressed payload bytes represented by ``events``."""
     return sum(len(e.get("d", "")) * 3 // 4 for e in events)
+
+
+def _recording_path():
+    return pathlib.Path(RECORDING_FILE) if RECORDING_FILE else None
+
+
+def _write_recording_header():
+    path = _recording_path()
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"version": 1, "started": rec["started"]}) + "\n",
+                    encoding="utf-8")
+
+
+def load_persisted_recording():
+    """Restore the full per-user recording before the pump starts."""
+    path = _recording_path()
+    if path is None or not path.is_file():
+        if path is not None:
+            _write_recording_header()
+        return
+    try:
+        with path.open("r", encoding="utf-8") as stream:
+            header = json.loads(stream.readline() or "{}")
+            started = float(header.get("started", rec["started"]))
+            events = []
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    # A crash can leave only the final append incomplete. Keep
+                    # all complete events before that line.
+                    break
+                if isinstance(event, dict) and "t" in event:
+                    events.append(event)
+        rec.update(started=started, events=events,
+                   bytes=_recording_bytes(events), last_activity=time.time(), actor="")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        # A partially written journal should not prevent the game from booting.
+        rec.update(events=[], bytes=0)
+        _write_recording_header()
+
+
+def _append_recording_batch(batch):
+    path = _recording_path()
+    if path is None or not batch:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as stream:
+        for event in batch:
+            stream.write(json.dumps(event, separators=(",", ":"), ensure_ascii=False) + "\n")
+        stream.flush()
+
+
+async def flush_recording():
+    if not RECORDING_FILE or not recording_pending:
+        return
+    batch = list(recording_pending)
+    recording_pending.clear()
+    try:
+        await asyncio.to_thread(_append_recording_batch, batch)
+    except Exception:
+        recording_pending.extendleft(reversed(batch))
+        raise
+
+
+async def recording_writer():
+    """Batch journal writes so frame encoding never waits on disk I/O."""
+    try:
+        while True:
+            await asyncio.sleep(max(0.05, RECORDING_FLUSH_SECONDS))
+            try:
+                await flush_recording()
+            except Exception as exc:
+                stats["last_error"] = f"recording: {type(exc).__name__}: {exc}"
+    except asyncio.CancelledError:
+        await flush_recording()
+        raise
 
 
 def _first_keyframe(events):
@@ -361,6 +446,11 @@ def rec_prune(now):
     untouched game does not grow forever while still showing its own animation.
     And the whole thing is capped, dropping from the front to the oldest
     keyframe that fits, because deltas cannot be replayed from the middle."""
+    # Multi-user sessions opt into the disk journal so their replay can span
+    # browser and backend restarts. Keep that full history in memory as well;
+    # the bounded in-memory mode remains the default for standalone runs.
+    if RECORDING_FILE:
+        return
     idle_for = now - rec["last_activity"]
     if idle_for > IDLE_AFTER:
         cutoff = round(now - rec["started"] - IDLE_TAIL, 3)
@@ -383,8 +473,11 @@ def rec_prune(now):
 
 
 def rec_reset():
+    recording_pending.clear()
     rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
                last_activity=time.time())
+    if RECORDING_FILE:
+        _write_recording_header()
 
 
 def session_summary():
@@ -1093,6 +1186,7 @@ async def api_snapshot(request):
 
 async def api_recording(_request):
     """The session so far as tile deltas and key presses, for playback."""
+    await flush_recording()
     events = recording_events()
     return web.json_response({
         "started": rec["started"],
@@ -1134,10 +1228,26 @@ async def status(_request):
 
 
 async def startup(app):
-    global api_lock
+    global api_lock, recording_writer_task
     api_lock = asyncio.Lock()
+    load_persisted_recording()
     app["pump"] = asyncio.create_task(pump())
     app["reaper"] = asyncio.create_task(reap())
+    if RECORDING_FILE:
+        recording_writer_task = asyncio.create_task(recording_writer())
+        app["recording_writer"] = recording_writer_task
+
+
+async def cleanup(app):
+    tasks = []
+    for name in ("pump", "reaper", "recording_writer"):
+        task = app.get(name)
+        if task:
+            task.cancel()
+            tasks.append(task)
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    await flush_recording()
 
 
 def main():
@@ -1178,6 +1288,7 @@ def main():
     # Startup handlers are awaited, so the workers are detached tasks rather
     # than returned, or startup would block on loops that never end.
     app.on_startup.append(startup)
+    app.on_cleanup.append(cleanup)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
 

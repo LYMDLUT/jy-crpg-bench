@@ -53,10 +53,11 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   cannot be confirmed by probing. Pauses the emulation thread first, since
   `retro_reset` underneath a running `retro_run` is a race.
 - `/api/recording` the session as tile deltas plus key presses, for playback.
-  Recording restarts with the game, keeps every frame while anyone is acting,
-  and once idle keeps only the last 30 seconds so an untouched game still shows
-  its own animation without growing forever. A whole picture is forced every 30
-  seconds so a pruned recording always has somewhere to start replaying from.
+  Recording starts with the game and is journaled per user, so a browser reload
+  or backend restart does not move its origin. Multi-user sessions retain the
+  complete journal; standalone sessions may still use the bounded in-memory
+  view. A whole picture is forced every 30 seconds so a retained recording
+  always has somewhere to start replaying from.
   The endpoint starts at the first retained keyframe and rebases timestamps to
   zero, so an idle session cannot make playback wait for its discarded uptime.
   The page plays it back at 4x from a button in the activity header; the overlay

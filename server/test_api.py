@@ -131,6 +131,25 @@ class RecordingTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["duration"], 0)
         self.assertEqual(body["events"], [])
 
+    async def test_recording_journal_survives_reload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_file, old_rec, old_pending = server.RECORDING_FILE, server.rec, server.recording_pending
+            try:
+                server.RECORDING_FILE = str(pathlib.Path(tmp) / "recording.jsonl")
+                server.rec = {"started": 1000.0, "events": [], "bytes": 0,
+                              "last_key": 0.0, "last_activity": 1000.0, "actor": ""}
+                server.recording_pending = server.collections.deque()
+                server._write_recording_header()
+                server.recording_pending.append({"t": 1.25, "d": "frame", "k": 1})
+                await server.flush_recording()
+                server.rec["events"] = []
+                server.rec["bytes"] = 0
+                server.load_persisted_recording()
+                self.assertEqual(server.rec["started"], 1000.0)
+                self.assertEqual(server.rec["events"], [{"t": 1.25, "d": "frame", "k": 1}])
+            finally:
+                server.RECORDING_FILE, server.rec, server.recording_pending = old_file, old_rec, old_pending
+
 
 class StatePathTest(unittest.TestCase):
     def test_state_name_cannot_escape_state_directory(self):

@@ -283,10 +283,11 @@ does not need a browser or a separate screenshot request.
 
 Every game is recorded from the moment it starts. A recording is the same tile
 deltas the browser stream uses, kept with timestamps and with the key presses
-that caused them, so it costs little to keep and nothing extra to produce.
-While anyone is acting every frame is kept; once the game has been idle for a
-few seconds only the last thirty seconds are retained, which captures the
-animation an untouched game plays without growing without end.
+that caused them, so it costs little to keep and nothing extra to produce. The
+journal is stored per user, so refreshing the browser or restarting its backend
+does not reset the recording origin; multi-user sessions can therefore replay
+from the original game start. Standalone runs keep a bounded idle tail, while
+the multi-user journal retains the complete session on disk.
 
 The recording endpoint starts at the first retained keyframe and rebases its
 timestamps to zero, so a long-idle session cannot make playback wait for the
