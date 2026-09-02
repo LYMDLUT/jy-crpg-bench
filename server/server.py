@@ -32,6 +32,7 @@ CORE = os.environ.get("QUNXIA_CORE", str(ROOT.parent / "cores" / "dosbox_pure_li
 GAME = os.environ.get("QUNXIA_GAME", str(ROOT.parent / "game" / "PLAY.BAT"))
 SAVES = os.environ.get("QUNXIA_SAVES", str(ROOT.parent / "saves"))
 PORT = int(os.environ.get("PORT", "8080"))
+HOST = os.environ.get("QUNXIA_HOST", "0.0.0.0")
 SEND_HZ = float(os.environ.get("QUNXIA_SEND_HZ", "20"))
 
 LIB.core_set_option.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
@@ -127,7 +128,9 @@ MAX_HISTORY_LIMIT = 300
 # room with a character already made, because creating one means driving the
 # 注音 IME, which is a puzzle about input methods and not about the game.
 START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT.parent / "saves" / "start.state"))
-STATE_DIR = os.environ.get("QUNXIA_STATE_DIR", str(ROOT.parent / "saves" / "states"))
+RESUME_STATE = os.environ.get("QUNXIA_RESUME_STATE", "")
+AUTOSAVE_SECONDS = float(os.environ.get("QUNXIA_AUTOSAVE_SECONDS", "0"))
+STATE_DIR = os.environ.get("QUNXIA_STATE_DIR", str(pathlib.Path(SAVES) / "states"))
 RECORDING_FILE = os.environ.get("QUNXIA_RECORDING", "")
 RECORDING_FLUSH_SECONDS = float(os.environ.get("QUNXIA_RECORDING_FLUSH_SECONDS", "0.5"))
 
@@ -142,6 +145,8 @@ rec: dict = {"started": time.time(), "events": [], "bytes": 0, "last_key": 0.0,
              "last_activity": time.time(), "actor": ""}
 recording_pending: collections.deque = collections.deque()
 recording_writer_task = None
+recording_flush_lock = None
+recording_file_lock = threading.Lock()
 THUMB_W = 150
 THUMB_KEEP = 40          # only the newest entries carry an image, to bound memory
 
@@ -333,9 +338,10 @@ def _write_recording_header():
     path = _recording_path()
     if path is None:
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"version": 1, "started": rec["started"]}) + "\n",
-                    encoding="utf-8")
+    with recording_file_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"version": 1, "started": rec["started"]}) + "\n",
+                        encoding="utf-8")
 
 
 def load_persisted_recording():
@@ -371,23 +377,34 @@ def _append_recording_batch(batch):
     path = _recording_path()
     if path is None or not batch:
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as stream:
-        for event in batch:
-            stream.write(json.dumps(event, separators=(",", ":"), ensure_ascii=False) + "\n")
-        stream.flush()
+    with recording_file_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as stream:
+            for event in batch:
+                stream.write(json.dumps(event, separators=(",", ":"), ensure_ascii=False) + "\n")
+            stream.flush()
+
+
+def recording_lock():
+    global recording_flush_lock
+    if recording_flush_lock is None:
+        recording_flush_lock = asyncio.Lock()
+    return recording_flush_lock
 
 
 async def flush_recording():
-    if not RECORDING_FILE or not recording_pending:
+    if not RECORDING_FILE:
         return
-    batch = list(recording_pending)
-    recording_pending.clear()
-    try:
-        await asyncio.to_thread(_append_recording_batch, batch)
-    except Exception:
-        recording_pending.extendleft(reversed(batch))
-        raise
+    async with recording_lock():
+        if not recording_pending:
+            return
+        batch = list(recording_pending)
+        recording_pending.clear()
+        try:
+            await asyncio.to_thread(_append_recording_batch, batch)
+        except Exception:
+            recording_pending.extendleft(reversed(batch))
+            raise
 
 
 async def recording_writer():
@@ -466,9 +483,16 @@ def rec_prune(now):
             rec["bytes"] = _recording_bytes(keep)
 
     if rec["bytes"] > REC_MAX_BYTES:
-        start = _first_keyframe(rec["events"])
-        if start:
-            rec["events"] = rec["events"][start:]
+        events = rec["events"]
+        start = _first_keyframe(events)
+        while start is not None and _recording_bytes(events[start:]) > REC_MAX_BYTES:
+            next_start = next((i for i in range(start + 1, len(events))
+                               if events[i].get("k") and events[i].get("d")), None)
+            if next_start is None:
+                break
+            start = next_start
+        if start is not None and start > 0:
+            rec["events"] = events[start:]
             rec["bytes"] = _recording_bytes(rec["events"])
 
 
@@ -477,11 +501,14 @@ def rec_reset():
     rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
                last_activity=time.time())
     if RECORDING_FILE:
+        # Synchronize with an in-flight to_thread append so a reset cannot be
+        # followed by stale pre-reset events in the new journal.
         _write_recording_header()
 
 
 def session_summary():
-    return {"uptime_s": round(time.time() - session["started"], 1),
+    return {"started_at": session["started"],
+            "uptime_s": round(time.time() - session["started"], 1),
             "actions": session["actions"],
             "by_api": session["by_api"], "by_web": session["by_web"],
             "agents": dict(agents.most_common(8))}
@@ -495,6 +522,31 @@ async def reap():
         for ws in list(clients):
             if ws.closed:
                 clients.discard(ws)
+
+
+async def save_resume_state():
+    """Persist the live multi-user session without racing the emulator thread."""
+    if not RESUME_STATE or not await acquire_action_lock():
+        return False
+    try:
+        await pause_emulator()
+        try:
+            LIB.core_release_all_keys()
+            os.makedirs(os.path.dirname(RESUME_STATE) or ".", exist_ok=True)
+            return bool(LIB.core_save_state(RESUME_STATE.encode()))
+        finally:
+            resume_emulator()
+    finally:
+        action_lock().release()
+
+
+async def autosave_resume():
+    while True:
+        await asyncio.sleep(AUTOSAVE_SECONDS)
+        try:
+            await save_resume_state()
+        except Exception as exc:
+            stats["last_error"] = f"autosave: {exc}"
 
 
 async def send_keyframe(ws):
@@ -1228,19 +1280,22 @@ async def status(_request):
 
 
 async def startup(app):
-    global api_lock, recording_writer_task
+    global api_lock, recording_writer_task, recording_flush_lock
     api_lock = asyncio.Lock()
+    recording_flush_lock = asyncio.Lock()
     load_persisted_recording()
     app["pump"] = asyncio.create_task(pump())
     app["reaper"] = asyncio.create_task(reap())
     if RECORDING_FILE:
         recording_writer_task = asyncio.create_task(recording_writer())
         app["recording_writer"] = recording_writer_task
+    if RESUME_STATE and AUTOSAVE_SECONDS > 0:
+        app["autosave"] = asyncio.create_task(autosave_resume())
 
 
 async def cleanup(app):
     tasks = []
-    for name in ("pump", "reaper", "recording_writer"):
+    for name in ("pump", "reaper", "autosave", "recording_writer"):
         task = app.get(name)
         if task:
             task.cancel()
@@ -1248,6 +1303,11 @@ async def cleanup(app):
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
     await flush_recording()
+    if RESUME_STATE:
+        try:
+            await save_resume_state()
+        except Exception as exc:
+            stats["last_error"] = f"shutdown autosave: {exc}"
 
 
 def main():
@@ -1264,6 +1324,11 @@ def main():
         LIB.core_set_option(k.encode(), v.encode())
     if not LIB.core_init(CORE.encode(), GAME.encode(), SAVES.encode()):
         raise SystemExit("core_init failed: " + LIB.core_last_error().decode())
+    if RESUME_STATE and os.path.exists(RESUME_STATE):
+        if not LIB.core_load_state(RESUME_STATE.encode()):
+            print("resume state failed: " + LIB.core_last_error().decode(), file=sys.stderr)
+        else:
+            LIB.fb_reset()
     threading.Thread(target=emulate, daemon=True).start()
 
     app = web.Application()
@@ -1289,7 +1354,7 @@ def main():
     # than returned, or startup would block on loops that never end.
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
-    web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
+    web.run_app(app, host=HOST, port=PORT, access_log=None)
 
 
 if __name__ == "__main__":

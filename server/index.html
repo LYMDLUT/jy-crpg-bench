@@ -30,13 +30,13 @@
   }
   #side h2 em { font-style: normal; color: #5b5b66; font-size: 10px; letter-spacing: 0; }
   #side h2 .right { display: flex; align-items: center; gap: 8px; }
-  #play, #save {
+  #play, #save, #savecancel {
     padding: 3px 9px; font-size: 10.5px; letter-spacing: .04em;
     background: #17171b; border: 1px solid #2e2e36; border-radius: 4px;
     color: #cdcdd6; cursor: pointer;
   }
-  #play:hover, #save:hover { border-color: #4a4a58; color: #fff; }
-  #play[disabled], #save[disabled] { opacity: .45; cursor: default; }
+  #play:hover, #save:hover, #savecancel:hover { border-color: #4a4a58; color: #fff; }
+  #play[disabled], #save[disabled], #savecancel[disabled] { opacity: .45; cursor: default; }
   #vcr {
     position: fixed; inset: 0; z-index: 20; display: none;
     background: #000d; backdrop-filter: blur(2px);
@@ -238,7 +238,8 @@
 <aside id="side">
   <h2>ACTIVITY
     <span class="right"><em id="logcount"></em>
-      <button id="play">▶ 4×</button><button id="save">⤓ mp4</button></span>
+      <button id="play">▶ 4×</button><button id="save">⤓ mp4</button>
+      <button id="savecancel" hidden>× cancel</button></span>
   </h2>
   <div id="meter">
     <span>played <b id="m-time">0:00</b></span>
@@ -416,7 +417,8 @@ function seekRatio(clientX) {
 }
 
 async function seekPlayback(state, target) {
-  if (!state || state.cancelled || state.done) return;
+  if (!state || state.cancelled) return;
+  state.done = false;
   state.paused = true;
   state.pausedAt = performance.now();
   if (vcrTimer !== null) { clearTimeout(vcrTimer); vcrTimer = null; }
@@ -452,12 +454,14 @@ async function seekPlayback(state, target) {
   const now = performance.now();
   state.origin = now - target * 1000 / state.speed;
   state.pausedAt = now;
+  vcrPause.disabled = state.total <= 0;
+  if (vcrRaf === null) vcrRaf = requestAnimationFrame(vcrTicker);
   updateVcrProgress(state.clock, state.total);
   renderVcrKeys(state);
 }
 
 function queueSeek(state, target) {
-  if (!state || state.cancelled || state.done || state.total <= 0) return;
+  if (!state || state.cancelled || state.total <= 0) return;
   state.seekTarget = Math.max(0, Math.min(state.total, target));
   if (state.seeking) return;
   state.seeking = true;
@@ -513,7 +517,7 @@ vcrPause.onclick = () => {
 let seekPointer = null;
 vcrTrack.addEventListener("pointerdown", e => {
   const state = playback;
-  if (!state || state.done || state.total <= 0) return;
+  if (!state || state.total <= 0) return;
   e.preventDefault();
   seekPointer = e.pointerId;
   vcrTrack.setPointerCapture?.(e.pointerId);
@@ -532,7 +536,7 @@ for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
 }
 vcrTrack.addEventListener("keydown", e => {
   const state = playback;
-  if (!state || state.done || state.total <= 0) return;
+  if (!state || state.total <= 0) return;
   const step = Math.max(1, state.total / 100);
   if (e.key === "ArrowLeft") { e.preventDefault(); queueSeek(state, state.clock - step); }
   else if (e.key === "ArrowRight") { e.preventDefault(); queueSeek(state, state.clock + step); }
@@ -569,6 +573,13 @@ function setSaveLabel() {
     : "当前浏览器不支持 MP4，将导出 WebM";
 }
 setSaveLabel();
+const saveCancel = document.getElementById("savecancel");
+let exportCancelled = false;
+saveCancel.onclick = () => {
+  exportCancelled = true;
+  saveCancel.disabled = true;
+  saveCancel.textContent = "canceling";
+};
 
 saveBtn.onclick = async () => {
   const mime = pickMime();
@@ -667,6 +678,7 @@ saveBtn.onclick = async () => {
     chunks = [];
     mr.ondataavailable = e => e.data.size && chunks.push(e.data);
     finished = new Promise(r => (mr.onstop = r));
+    mr.onerror = () => { exportCancelled = true; };
     mr.start();
   } catch (error) {
     saveBtn.disabled = playBtn.disabled = false;
@@ -675,6 +687,10 @@ saveBtn.onclick = async () => {
     setTimeout(setSaveLabel, 4000);
     return;
   }
+  exportCancelled = false;
+  saveCancel.hidden = false;
+  saveCancel.disabled = false;
+  saveCancel.textContent = "× cancel";
 
   const SPEED = 4;
   const total = events[events.length - 1].t || 1;
@@ -682,39 +698,61 @@ saveBtn.onclick = async () => {
   let i = 0;
   let raf = requestAnimationFrame(function loop() { compose(); raf = requestAnimationFrame(loop); });
 
-  while (i < events.length) {
-    const ev = events[i];
-    const wait = t0 + (ev.t * 1000) / SPEED - performance.now();
-    if (wait > 2) { await new Promise(r => setTimeout(r, wait)); continue; }
-    i++;
-    clock = ev.t;
-    if (ev.d) {
-      paintDelta(await inflate(b64bytes(ev.d)), work, wctx, cache);
-    } else if (ev.key) {
-      if (ev.who) actor = ev.who;
-      ev.down ? down.add(ev.key) : down.delete(ev.key);
+  let completed = false;
+  try {
+    while (i < events.length) {
+      if (exportCancelled) throw new Error("导出已取消");
+      const ev = events[i];
+      const wait = t0 + (ev.t * 1000) / SPEED - performance.now();
+      if (wait > 2) {
+        await new Promise(r => setTimeout(r, Math.min(wait, 250)));
+        continue;
+      }
+      i++;
+      clock = ev.t;
+      if (ev.d) {
+        paintDelta(await inflate(b64bytes(ev.d)), work, wctx, cache);
+      } else if (ev.key) {
+        if (ev.who) actor = ev.who;
+        ev.down ? down.add(ev.key) : down.delete(ev.key);
+      }
+      const left = Math.max(0, (total - ev.t) / SPEED);
+      saveBtn.textContent = Math.round((ev.t / total) * 100) + "% " + fmt(left);
     }
-    const left = Math.max(0, (total - ev.t) / SPEED);
-    saveBtn.textContent = Math.round((ev.t / total) * 100) + "% " + fmt(left);
+
+    if (exportCancelled) throw new Error("导出已取消");
+    await new Promise(r => setTimeout(r, 300));   // let the tail frames be sampled
+    cancelAnimationFrame(raf);
+    if (mr.state !== "inactive") mr.stop();
+    await finished;
+
+    const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
+    const blob = new Blob(chunks, { type: mime });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `jy-crpg-bench-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.${ext}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    saveBtn.textContent = "⤓ " + ext;
+    saveBtn.title = "导出完成";
+    completed = true;
+  } catch (error) {
+    saveBtn.textContent = exportCancelled ? "⤓ canceled" : "⤓ error";
+    saveBtn.title = error?.message || "视频导出失败";
+    setTimeout(setSaveLabel, 4000);
+  } finally {
+    cancelAnimationFrame(raf);
+    if (mr && mr.state !== "inactive") {
+      try { mr.stop(); } catch {}
+      try { await finished; } catch {}
+    }
+    stream.getTracks?.().forEach(track => track.stop());
+    saveCancel.hidden = true;
+    saveCancel.disabled = false;
+    saveCancel.textContent = "× cancel";
+    saveBtn.disabled = playBtn.disabled = false;
+    if (completed) setTimeout(setSaveLabel, 3000);
   }
-
-  await new Promise(r => setTimeout(r, 300));   // let the tail frames be sampled
-  cancelAnimationFrame(raf);
-  mr.stop();
-  await finished;
-
-  const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
-  const blob = new Blob(chunks, { type: mime });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `jy-crpg-bench-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.${ext}`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-
-  saveBtn.textContent = "⤓ " + ext;
-  saveBtn.title = "导出完成";
-  saveBtn.disabled = playBtn.disabled = false;
-  setTimeout(setSaveLabel, 3000);
 };
 
 playBtn.onclick = async () => {
@@ -765,6 +803,7 @@ playBtn.onclick = async () => {
     if (vcrRaf !== null) { cancelAnimationFrame(vcrRaf); vcrRaf = null; }
     vcrTimer = null;
     vcrStop = null;
+    playBtn.disabled = false;
     playBtn.textContent = "▶ 4×";
   };
   const schedule = async () => {
@@ -815,7 +854,20 @@ function connect() {
   sock.onmessage = e => {
     if (typeof e.data === "string") {
       const m = JSON.parse(e.data);
-      if (m.t === "log") { m.e.forEach(addLog); if (m.s) setMeter(m.s); }
+      if (m.t === "log") {
+        // A process restart resets history ids and session counters. Clear the
+        // old panel before accepting the new backlog, otherwise deduplication
+        // hides every fresh entry until ids catch up.
+        if (m.s && meter) {
+          const oldUptime = meter.uptime_s + (Date.now() - meterAt) / 1000;
+          const restarted = m.s.started_at !== undefined && meter.started_at !== undefined
+            ? m.s.started_at !== meter.started_at
+            : m.s.actions < meter.actions || m.s.uptime_s + 3 < oldUptime;
+          if (restarted) clearLog();
+        }
+        m.e.forEach(addLog);
+        if (m.s) setMeter(m.s);
+      }
       else if (m.t === "key") { holdKey(m.k, m.down); noteKeyTiming(m.k, m.down); }
       else if (m.t === "clear") clearLog();
     } else {
@@ -1046,26 +1098,34 @@ const MAP = {
   Enter: "enter", Escape: "esc", " ": "space", Backspace: "backspace", Tab: "tab",
 };
 const held = new Set();
+const press = k => { if (!held.has(k)) { held.add(k); send({ t: "key", k, down: true }); } };
+const release = k => { if (held.delete(k)) send({ t: "key", k, down: false }); };
+
+// Switching apps or tabs can lose keyup; release all keys before the browser
+// stops delivering events so a movement key cannot strand the game walking.
+const releaseAll = () => { for (const k of [...held]) release(k); };
+
 addEventListener("keydown", e => {
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
   if (!k) return;
   e.preventDefault();
-  if (held.has(k)) return;          // ignore auto-repeat, the game does its own
-  held.add(k);
-  send({ t: "key", k, down: true });
+  if (e.repeat) return;             // the game does its own auto-repeat
+  press(k);
 });
 addEventListener("keyup", e => {
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
   if (!k) return;
   e.preventDefault();
-  held.delete(k);
-  send({ t: "key", k, down: false });
+  release(k);
 });
+addEventListener("blur", releaseAll);
+addEventListener("pagehide", releaseAll);
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
 
 for (const b of document.querySelectorAll("button[data-k]")) {
   const k = b.dataset.k;
-  const down = e => { e.preventDefault(); send({ t: "key", k, down: true }); };
-  const up = e => { e.preventDefault(); send({ t: "key", k, down: false }); };
+  const down = e => { e.preventDefault(); press(k); };
+  const up = e => { e.preventDefault(); release(k); };
   b.addEventListener("pointerdown", down);
   b.addEventListener("pointerup", up);
   b.addEventListener("pointerleave", up);

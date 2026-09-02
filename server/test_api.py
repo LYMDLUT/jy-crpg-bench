@@ -96,6 +96,26 @@ class HistoryTest(unittest.IsolatedAsyncioTestCase):
 
 
 class RecordingTest(unittest.IsolatedAsyncioTestCase):
+    def test_recording_byte_prune_keeps_latest_fitting_keyframe(self):
+        old_file, old_max, old_rec = server.RECORDING_FILE, server.REC_MAX_BYTES, server.rec
+        try:
+            server.RECORDING_FILE = ""
+            server.REC_MAX_BYTES = 10
+            server.rec = {
+                "started": 0.0,
+                "events": [
+                    {"t": 0.0, "d": "aaaaaaaa", "k": 1},
+                    {"t": 1.0, "d": "bbbbbbbb"},
+                    {"t": 2.0, "d": "cccc", "k": 1},
+                ],
+                "bytes": 16,
+                "last_activity": 100.0,
+            }
+            server.rec_prune(100.0)
+            self.assertEqual(server.rec["events"], [{"t": 2.0, "d": "cccc", "k": 1}])
+        finally:
+            server.RECORDING_FILE, server.REC_MAX_BYTES, server.rec = old_file, old_max, old_rec
+
     async def test_recording_is_rebased_to_retained_keyframe(self):
         old = server.rec
         server.rec = {
