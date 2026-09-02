@@ -288,9 +288,14 @@ While anyone is acting every frame is kept; once the game has been idle for a
 few seconds only the last thirty seconds are retained, which captures the
 animation an untouched game plays without growing without end.
 
+The recording endpoint starts at the first retained keyframe and rebases its
+timestamps to zero, so a long-idle session cannot make playback wait for the
+discarded prefix.
+
 The activity panel has a button to replay at 4x, and another to export the
 recording as a video with the keys composited into the frame. Encoding happens
-in the browser, so a shared instance spends nothing on it.
+in the browser, so a shared instance spends nothing on it. MP4 is used when
+supported; otherwise the download is accurately labeled WebM.
 
 ## Emulated CPU speed
 

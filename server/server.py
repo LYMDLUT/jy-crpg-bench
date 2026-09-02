@@ -314,6 +314,48 @@ def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
     rec_prune(now)
 
 
+def _recording_bytes(events):
+    """Approximate the compressed payload bytes represented by ``events``."""
+    return sum(len(e.get("d", "")) * 3 // 4 for e in events)
+
+
+def _first_keyframe(events):
+    return next((i for i, e in enumerate(events)
+                 if e.get("k") and e.get("d")), None)
+
+
+def recording_events():
+    """Return a replayable recording with a zero-based local timeline.
+
+    Idle and byte pruning can leave the retained events starting many hours
+    after the session began.  Replaying those original timestamps makes the
+    browser wait for the old session uptime before showing the first frame.
+    Start at the first retained keyframe and rebase timestamps so playback and
+    export describe the retained recording, not the discarded prefix.
+    """
+    events = list(rec["events"])
+    if not events:
+        return []
+    start = _first_keyframe(events)
+    if start is None:
+        start = next((i for i, e in enumerate(events) if e.get("d")), 0)
+    events = events[start:]
+    try:
+        base = float(events[0].get("t", 0))
+    except (TypeError, ValueError):
+        base = 0.0
+    out = []
+    for event in events:
+        item = dict(event)
+        try:
+            timestamp = float(item.get("t", 0))
+        except (TypeError, ValueError):
+            timestamp = base
+        item["t"] = round(max(0.0, timestamp - base), 3)
+        out.append(item)
+    return out
+
+
 def rec_prune(now):
     """Two bounds. A long idle tail keeps only its last IDLE_TAIL seconds, so an
     untouched game does not grow forever while still showing its own animation.
@@ -331,14 +373,13 @@ def rec_prune(now):
         keep = [e for e in head if e["t"] <= idle_began] + tail
         if len(keep) < len(rec["events"]):
             rec["events"] = keep
+            rec["bytes"] = _recording_bytes(keep)
 
     if rec["bytes"] > REC_MAX_BYTES:
-        for i, ev in enumerate(rec["events"]):
-            if ev.get("k") and i > 0:
-                dropped = rec["events"][:i]
-                rec["bytes"] -= sum(len(e.get("d", "")) * 3 // 4 for e in dropped)
-                rec["events"] = rec["events"][i:]
-                break
+        start = _first_keyframe(rec["events"])
+        if start:
+            rec["events"] = rec["events"][start:]
+            rec["bytes"] = _recording_bytes(rec["events"])
 
 
 def rec_reset():
@@ -1052,10 +1093,11 @@ async def api_snapshot(request):
 
 async def api_recording(_request):
     """The session so far as tile deltas and key presses, for playback."""
+    events = recording_events()
     return web.json_response({
         "started": rec["started"],
-        "duration": round(time.time() - rec["started"], 2),
-        "events": rec["events"],
+        "duration": round(events[-1]["t"] if events else 0, 2),
+        "events": events,
         "bytes": rec["bytes"],
     })
 

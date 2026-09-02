@@ -248,6 +248,9 @@ const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d", { alpha: false });
 const veil = document.getElementById("veil");
 const stat = document.getElementById("stat");
+// Keep endpoints relative so the same page works at / for a single-user
+// server and under /u/<opaque-id>/ behind the multi-user gateway.
+const endpoint = path => new URL(path, new URL(".", location.href));
 let sock, tileImg = null, got = 0, bytes = 0;
 
 function fit() {
@@ -313,8 +316,35 @@ let vcrStop = null;
 
 const b64bytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 
+// Pruning keeps a recent keyframe but its timestamp is relative to the whole
+// session.  Normalize the retained slice defensively so old servers and
+// already-running sessions cannot make playback wait for discarded hours.
+function normalizeRecording(recording) {
+  const source = Array.isArray(recording?.events) ? recording.events : [];
+  if (!source.length) return [];
+  const keyframe = source.findIndex(ev => ev && ev.d && ev.k);
+  const firstFrame = source.findIndex(ev => ev && ev.d);
+  const start = keyframe >= 0 ? keyframe : (firstFrame >= 0 ? firstFrame : 0);
+  const base = Number(source[start]?.t);
+  const origin = Number.isFinite(base) ? base : 0;
+  return source.slice(start).map(ev => {
+    const item = { ...ev };
+    const timestamp = Number(ev?.t);
+    item.t = Number.isFinite(timestamp) ? Math.max(0, timestamp - origin) : 0;
+    return item;
+  });
+}
+
+async function loadRecording() {
+  const response = await fetch(endpoint("api/recording"), { cache: "no-store" });
+  if (!response.ok) throw new Error(`recording request failed (${response.status})`);
+  return normalizeRecording(await response.json());
+}
+
+let vcrTimer = null;
 function vcrClose() {
   if (vcrStop) { vcrStop(); vcrStop = null; }
+  if (vcrTimer !== null) { clearTimeout(vcrTimer); vcrTimer = null; }
   vcr.classList.remove("on");
   playBtn.disabled = false;
   playBtn.textContent = "▶ 4×";
@@ -327,17 +357,37 @@ addEventListener("keydown", e => { if (e.key === "Escape" && vcr.classList.conta
 const saveBtn = document.getElementById("save");
 
 function pickMime() {
+  if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== "function") return "";
   for (const t of ["video/mp4;codecs=avc1.42E01E", "video/mp4",
                    "video/webm;codecs=vp9", "video/webm"]) {
-    if (MediaRecorder.isTypeSupported(t)) return t;
+    try {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    } catch {}
   }
   return "";
 }
 
-saveBtn.onclick = async () => {
-  if (!window.MediaRecorder) return;
+function setSaveLabel() {
   const mime = pickMime();
-  if (!mime) { saveBtn.textContent = "unsupported"; return; }
+  if (!mime) {
+    saveBtn.textContent = "⤓ video";
+    saveBtn.title = "当前浏览器不支持视频导出";
+    return;
+  }
+  const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
+  saveBtn.textContent = "⤓ " + ext;
+  saveBtn.title = ext === "mp4"
+    ? "导出当前录制为 MP4"
+    : "当前浏览器不支持 MP4，将导出 WebM";
+}
+setSaveLabel();
+
+saveBtn.onclick = async () => {
+  const mime = pickMime();
+  if (!mime) {
+    setSaveLabel();
+    return;
+  }
 
   saveBtn.disabled = true;
   playBtn.disabled = true;
@@ -347,9 +397,21 @@ saveBtn.onclick = async () => {
   // MediaRecorder samples in real time, so the export takes the recording
   // length divided by the playback speed. Say so rather than appear stuck.
   try {
-    events = (await (await fetch("/api/recording")).json()).events || [];
-  } catch { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
-  if (!events.length) { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
+    events = await loadRecording();
+  } catch (error) {
+    saveBtn.disabled = playBtn.disabled = false;
+    saveBtn.textContent = "⤓ error";
+    saveBtn.title = error?.message || "读取录制失败";
+    setTimeout(setSaveLabel, 4000);
+    return;
+  }
+  if (!events.length) {
+    saveBtn.disabled = playBtn.disabled = false;
+    saveBtn.textContent = "⤓ empty";
+    saveBtn.title = "当前没有可播放的录制";
+    setTimeout(setSaveLabel, 3000);
+    return;
+  }
 
   // 640x400 keeps both game modes at a whole multiple, plus a strip for keys.
   const W = 640, H = 400, BAR = 56;
@@ -403,12 +465,28 @@ saveBtn.onclick = async () => {
   };
 
   compose();
+  if (typeof out.captureStream !== "function") {
+    saveBtn.disabled = playBtn.disabled = false;
+    saveBtn.textContent = "⤓ unsupported";
+    saveBtn.title = "当前浏览器不支持画布视频导出";
+    setTimeout(setSaveLabel, 4000);
+    return;
+  }
   const stream = out.captureStream(30);
-  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
-  const chunks = [];
-  mr.ondataavailable = e => e.data.size && chunks.push(e.data);
-  const finished = new Promise(r => (mr.onstop = r));
-  mr.start();
+  let mr, chunks, finished;
+  try {
+    mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
+    chunks = [];
+    mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+    finished = new Promise(r => (mr.onstop = r));
+    mr.start();
+  } catch (error) {
+    saveBtn.disabled = playBtn.disabled = false;
+    saveBtn.textContent = "⤓ error";
+    saveBtn.title = error?.message || "浏览器无法启动视频编码";
+    setTimeout(setSaveLabel, 4000);
+    return;
+  }
 
   const SPEED = 4;
   const total = events[events.length - 1].t || 1;
@@ -446,18 +524,29 @@ saveBtn.onclick = async () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 
   saveBtn.textContent = "⤓ " + ext;
+  saveBtn.title = "导出完成";
   saveBtn.disabled = playBtn.disabled = false;
+  setTimeout(setSaveLabel, 3000);
 };
 
 playBtn.onclick = async () => {
   playBtn.disabled = true;
   playBtn.textContent = "loading";
-  let recording;
+  let events;
   try {
-    recording = await (await fetch("/api/recording")).json();
-  } catch { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
-  const events = recording.events || [];
-  if (!events.length) { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
+    events = await loadRecording();
+  } catch {
+    playBtn.disabled = false;
+    playBtn.textContent = "▶ error";
+    setTimeout(() => { if (!vcr.classList.contains("on")) playBtn.textContent = "▶ 4×"; }, 3000);
+    return;
+  }
+  if (!events.length) {
+    playBtn.disabled = false;
+    playBtn.textContent = "▶ empty";
+    setTimeout(() => { if (!vcr.classList.contains("on")) playBtn.textContent = "▶ 4×"; }, 3000);
+    return;
+  }
 
   playBtn.textContent = "playing";
   vcr.classList.add("on");
@@ -466,7 +555,7 @@ playBtn.onclick = async () => {
   vcrKeys.textContent = "";
 
   const SPEED = 4;
-  const total = events[events.length - 1].t;
+  const total = events[events.length - 1].t || 1;
   const cache = {};
   const down = new Set();
   let cancelled = false, i = 0;
@@ -478,7 +567,7 @@ playBtn.onclick = async () => {
       const ev = events[i];
       const due = t0 + (ev.t * 1000) / SPEED;
       const wait = due - performance.now();
-      if (wait > 4) { setTimeout(step, wait); return; }
+      if (wait > 4) { vcrTimer = setTimeout(step, wait); return; }
       i++;
       if (ev.d) {
         paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, cache);
@@ -502,13 +591,24 @@ playBtn.onclick = async () => {
       document.getElementById("vcrfill").style.width = (ev.t / total) * 100 + "%";
       document.getElementById("vcrtime").textContent = fmt(ev.t);
     }
-    if (!cancelled) { playBtn.textContent = "▶ 4×"; }
+    vcrTimer = null;
+    if (!cancelled) {
+      playBtn.textContent = "▶ 4×";
+      vcrStop = null;
+    }
   };
-  step();
+  step().catch(() => {
+    if (cancelled) return;
+    vcrClose();
+    playBtn.textContent = "▶ error";
+    setTimeout(() => { if (!vcr.classList.contains("on")) playBtn.textContent = "▶ 4×"; }, 3000);
+  });
 };
 
 function connect() {
-  sock = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  const wsURL = endpoint("ws");
+  wsURL.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  sock = new WebSocket(wsURL);
   sock.binaryType = "arraybuffer";
   sock.onmessage = e => {
     if (typeof e.data === "string") {
@@ -776,7 +876,7 @@ cv.addEventListener("click", () => cv.focus());
 const promptEl = document.getElementById("prompt");
 let lang = "en";
 function loadSkill() {
-  fetch("/api/help?lang=" + lang).then(r => r.text()).then(t => promptEl.value = t)
+  fetch(endpoint("api/help?lang=" + lang)).then(r => r.text()).then(t => promptEl.value = t)
     .catch(() => promptEl.value = "could not load /api/help");
 }
 for (const b of document.querySelectorAll(".lang button")) {
@@ -799,7 +899,7 @@ document.getElementById("copy").onclick = async () => {
   c.classList.add("on");
   setTimeout(() => c.classList.remove("on"), 1400);
 };
-document.getElementById("open").onclick = () => window.open("/api/help?lang=" + lang, "_blank");
+document.getElementById("open").onclick = () => window.open(endpoint("api/help?lang=" + lang), "_blank");
 
 fit();
 connect();

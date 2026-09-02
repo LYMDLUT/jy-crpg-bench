@@ -95,6 +95,43 @@ class HistoryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 400)
 
 
+class RecordingTest(unittest.IsolatedAsyncioTestCase):
+    async def test_recording_is_rebased_to_retained_keyframe(self):
+        old = server.rec
+        server.rec = {
+            "started": 1000.0,
+            "events": [
+                {"t": 120.0, "key": "right", "down": True},
+                {"t": 121.0, "d": "discarded"},
+                {"t": 125.0, "d": "keyframe", "k": 1},
+                {"t": 127.5, "key": "right", "down": False},
+            ],
+            "bytes": 0,
+        }
+        try:
+            events = server.recording_events()
+            self.assertEqual(events[0], {"t": 0.0, "d": "keyframe", "k": 1})
+            self.assertEqual(events[-1]["t"], 2.5)
+            response = await server.api_recording(FakeRequest())
+        finally:
+            server.rec = old
+
+        body = response_json(response)
+        self.assertEqual(body["duration"], 2.5)
+        self.assertEqual(body["events"][0]["t"], 0.0)
+
+    async def test_empty_recording_has_zero_duration(self):
+        old = server.rec
+        server.rec = {"started": 1000.0, "events": [], "bytes": 0}
+        try:
+            response = await server.api_recording(FakeRequest())
+        finally:
+            server.rec = old
+        body = response_json(response)
+        self.assertEqual(body["duration"], 0)
+        self.assertEqual(body["events"], [])
+
+
 class StatePathTest(unittest.TestCase):
     def test_state_name_cannot_escape_state_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
