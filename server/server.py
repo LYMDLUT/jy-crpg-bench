@@ -205,7 +205,7 @@ C_SKILLS, C_ITEMS = 126, 166
 hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "level": None, "exp": None, "hp": None, "maxhp": None,
          "skills": None, "items": None, "reputation": None, "potential": None,
-         "carried_items": None, "inventory_distinct": None,
+         "role_item_slots": None, "inventory_distinct": None,
          "inventory_total": None, "picked_item": None,
          "inventory_baseline": None}
 
@@ -262,10 +262,11 @@ def read_stats():
     hero["reputation"] = struct.unpack_from("<h", b, C_REPUTATION)[0]
     hero["potential"] = struct.unpack_from("<h", b, C_POTENTIAL)[0]
     hero["skills"] = sum(1 for v in struct.unpack_from("<10h", b, C_SKILLS) if v > 0)
-    # These four fields belong to the character, not the party's public bag.
-    # Older runs exposed their count as `items`; retain it under an honest name
-    # but never use it for the picked-an-item milestone.
-    hero["carried_items"] = sum(
+    # These are role-local seed/AI item slots, not player-configurable
+    # inventory. NPC items move into the public bag when that role joins; in
+    # battle, player characters use the public bag while non-player characters
+    # may use these slots. Never use them for the pickup milestone.
+    hero["role_item_slots"] = sum(
         1 for v in struct.unpack_from("<4h", b, C_ITEMS) if v >= 0)
 
     inventory = decode_inventory(mem, base)
@@ -730,7 +731,7 @@ def session_summary():
             "level": hero["level"], "exp": hero["exp"],
             "hp": hero["hp"], "maxhp": hero["maxhp"],
             "skills": hero["skills"], "items": hero["items"],
-            "carried_items": hero["carried_items"],
+            "role_item_slots": hero["role_item_slots"],
             "inventory_distinct": hero["inventory_distinct"],
             "inventory_total": hero["inventory_total"],
             "picked_item": hero["picked_item"],
@@ -1003,7 +1004,7 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["exit_acts"] = world["exit_acts"]
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
-                      "reputation", "potential", "carried_items",
+                      "reputation", "potential", "role_item_slots",
                       "inventory_distinct", "inventory_total", "picked_item"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
@@ -1187,7 +1188,7 @@ async def api_reset(request):
                      exit_acts=None, exit_secs=None, checked_refs=False)
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
-                    potential=None, carried_items=None,
+                    potential=None, role_item_slots=None,
                     inventory_distinct=None, inventory_total=None,
                     picked_item=None, inventory_baseline=None)
         agents.clear()

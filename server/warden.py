@@ -52,7 +52,7 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        # the game's own numbers for the character, read out of the machine
        "level": None, "exp": None, "hp": None, "maxhp": None, "skills": None,
        "items": None, "reputation": None, "potential": None,
-       "carried_items": None, "inventory_distinct": None,
+       "role_item_slots": None, "inventory_distinct": None,
        "inventory_total": None, "picked_item": None,
        # seconds spent on the benchmark's own housekeeping rather than by the
        # agent, handed back at the end of the run
@@ -171,7 +171,7 @@ def metrics():
         # minutes, which is itself the finding.
         **{k: run[k] for k in ("level", "exp", "hp", "maxhp", "skills",
                                "items", "reputation", "potential",
-                               "carried_items", "inventory_distinct",
+                               "role_item_slots", "inventory_distinct",
                                "inventory_total", "picked_item")},
         # There is no count of distinct places here on purpose. It was
         # measured off the framebuffer and the framebuffer cannot answer it:

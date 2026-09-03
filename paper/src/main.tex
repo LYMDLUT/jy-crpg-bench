@@ -303,11 +303,13 @@ The agent sees only pixels. The \emph{benchmark} reads the machine.
 
 \textbf{Character ground truth.} The game's save format is a plain
 six-section archive whose second section is 320 records of 182 bytes, one per named
-character, with fields for level, experience, HP, skills, carried items,
-reputation, and aptitude. The same block stores the party's 200-slot public
+character, with fields for level, experience, HP, skills, four role-local item
+slots, reputation, and aptitude. NPCs use those slots for item grants and
+non-player battle inventory; they are not player-configurable bags. The same
+block stores the party's 200-slot public
 inventory immediately before the character array; the inventory-gain
 milestone compares that bag with the opening state rather than confusing it
-with the protagonist's four carried-item slots. We validated the layout against the game's own
+with the protagonist's four role-local slots. We validated the layout against the game's own
 shipped save files (across all 320 records, only two violate
 $\mathrm{hp}\le\mathrm{maxHp} \lor \mathrm{mp}\le\mathrm{maxMp}$, both
 data-entry quirks of the original game) and then located the same array in
