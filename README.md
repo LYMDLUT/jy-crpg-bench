@@ -224,7 +224,7 @@ into pi. Add `-p "play the opening"` to run non-interactively.
 
 Everything the agent needs sits in `pi-agent/`, which pi uses as its
 configuration directory, so your own `~/.pi` is untouched. `SYSTEM.md` replaces
-the coding-agent prompt with the game. `extensions/qunxia/` registers nine
+the coding-agent prompt with the game. `extensions/qunxia/` registers eight
 `game_*` tools that apply input, wait for the screen to settle, and return the
 frame as an image. The model also keeps the pi `bash`, `read`, `write` and
 `edit` tools, and pi compacts context automatically on a long session.
