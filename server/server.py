@@ -25,6 +25,7 @@ from aiohttp import WSMsgType, web
 from PIL import Image
 
 import warden
+from state_reader import decode_inventory, inventory_gained
 
 from prompt import system_prompt
 
@@ -203,7 +204,10 @@ C_SKILLS, C_ITEMS = 126, 166
 
 hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "level": None, "exp": None, "hp": None, "maxhp": None,
-         "skills": None, "items": None, "reputation": None, "potential": None}
+         "skills": None, "items": None, "reputation": None, "potential": None,
+         "carried_items": None, "inventory_distinct": None,
+         "inventory_total": None, "picked_item": None,
+         "inventory_baseline": None}
 
 
 def _state_bytes():
@@ -238,7 +242,7 @@ def _locate(mem):
 
 
 def read_stats():
-    """The player's own record: level and what it has picked up along the way."""
+    """Read the protagonist and public inventory from the emulated machine."""
     mem = _state_bytes()
     if mem is None:
         return
@@ -258,7 +262,22 @@ def read_stats():
     hero["reputation"] = struct.unpack_from("<h", b, C_REPUTATION)[0]
     hero["potential"] = struct.unpack_from("<h", b, C_POTENTIAL)[0]
     hero["skills"] = sum(1 for v in struct.unpack_from("<10h", b, C_SKILLS) if v > 0)
-    hero["items"] = sum(1 for v in struct.unpack_from("<4h", b, C_ITEMS) if v > 0)
+    # These four fields belong to the character, not the party's public bag.
+    # Older runs exposed their count as `items`; retain it under an honest name
+    # but never use it for the picked-an-item milestone.
+    hero["carried_items"] = sum(
+        1 for v in struct.unpack_from("<4h", b, C_ITEMS) if v >= 0)
+
+    inventory = decode_inventory(mem, base)
+    if inventory is not None:
+        hero["inventory_distinct"] = len(inventory)
+        hero["inventory_total"] = sum(inventory.values())
+        opening = hero["inventory_baseline"]
+        if opening is None:
+            hero["inventory_baseline"] = dict(inventory)
+            hero["picked_item"] = False
+        elif inventory_gained(opening, inventory):
+            hero["picked_item"] = True
 
 
 # Off by default, and it stays off until there is a way to find the
@@ -711,6 +730,10 @@ def session_summary():
             "level": hero["level"], "exp": hero["exp"],
             "hp": hero["hp"], "maxhp": hero["maxhp"],
             "skills": hero["skills"], "items": hero["items"],
+            "carried_items": hero["carried_items"],
+            "inventory_distinct": hero["inventory_distinct"],
+            "inventory_total": hero["inventory_total"],
+            "picked_item": hero["picked_item"],
             "reputation": hero["reputation"], "potential": hero["potential"],
             "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
             # the key histogram, so a card can draw its bars while the run is
@@ -965,13 +988,13 @@ async def run_action(request, steps, note, verb="KEY"):
         waited, changed = await settle(baseline)
         note_screen()
         note_move()
-        # Level and the rest move rarely, so this does not need to run every
-        # action; the read is 1.2 ms and the search behind it 0.4 ms.
-        if session["actions"] % 5 == 1:
-            try:
-                read_stats()
-            except Exception as exc:
-                print(f"stat read failed: {exc!r}", flush=True)
+        # Inventory can increase and be consumed between sparse samples.  The
+        # read is ~1.2 ms against hundreds of ms per action, so sample every
+        # action and latch gains relative to the opening state.
+        try:
+            read_stats()
+        except Exception as exc:
+            print(f"stat read failed: {exc!r}", flush=True)
         if warden.ON:
             warden.run["meaningful"] = beh["meaningful"]
             warden.run["oscillation"] = beh["oscillation"]
@@ -980,7 +1003,8 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["exit_acts"] = world["exit_acts"]
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
-                      "reputation", "potential"):
+                      "reputation", "potential", "carried_items",
+                      "inventory_distinct", "inventory_total", "picked_item"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -1163,12 +1187,18 @@ async def api_reset(request):
                      exit_acts=None, exit_secs=None, checked_refs=False)
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
-                    potential=None)
-        if warden.ON and warden.run["playable"] is None:
-            warden.playable_now()          # the clock starts when play can
+                    potential=None, carried_items=None,
+                    inventory_distinct=None, inventory_total=None,
+                    picked_item=None, inventory_baseline=None)
         agents.clear()
         rec_reset()
         await asyncio.sleep(0.4 if restored else 1.5)
+        try:
+            read_stats()                  # establish the opening inventory
+        except Exception as exc:
+            print(f"opening stat read failed: {exc!r}", flush=True)
+        if warden.ON and warden.run["playable"] is None:
+            warden.playable_now()          # the clock starts when play can
 
     await fanout(json.dumps({"t": "clear"}), text=True)
     for ws in list(clients):

@@ -51,9 +51,10 @@ persistent character progression (levels, skills, items, reputation) that
 only rewards coherent multi-step play. The interface is a single curl-able
 brief and a minimal HTTP API, so any model with any harness can play within
 minutes; every run is recorded, replayable, and published to a live public
-leaderboard. Rather than scoring pixels, we read the game's own memory:
-milestones and character statistics come from the emulated machine's state,
-which we show matters: two intuitive screen-derived progress metrics we first
+leaderboard. Rather than treating pixel change alone as progress, we combine
+request logs and validated transition detectors with inventory and character
+statistics read from the emulated machine's state. This distinction matters:
+two intuitive screen-derived progress metrics we first
 deployed were later proven invalid (one inflated $2\times$ by sprite
 orientation and menu overlays, letting a random-key baseline top the
 leaderboard; one structurally incapable of ever firing). Across six frontier
@@ -302,8 +303,11 @@ The agent sees only pixels. The \emph{benchmark} reads the machine.
 
 \textbf{Character ground truth.} The game's save format is a plain
 six-section archive whose second section is 320 records of 182 bytes, one per named
-character, with fields for level, experience, HP, skills, items,
-reputation, and aptitude. We validated the layout against the game's own
+character, with fields for level, experience, HP, skills, carried items,
+reputation, and aptitude. The same block stores the party's 200-slot public
+inventory immediately before the character array; the inventory-gain
+milestone compares that bag with the opening state rather than confusing it
+with the protagonist's four carried-item slots. We validated the layout against the game's own
 shipped save files (across all 320 records, only two violate
 $\mathrm{hp}\le\mathrm{maxHp} \lor \mathrm{mp}\le\mathrm{maxMp}$, both
 data-entry quirks of the original game) and then located the same array in
@@ -332,13 +336,14 @@ action} (does the model look before acting), \emph{think-time} percentiles
 coverage} (distinct keys used). Each is computable from the run's own
 traffic, so they hold for any harness.
 
-\textbf{The milestone ladder.} Progress is summarised as six strictly-ordered
-milestones, each read from ground truth, in the spirit of Crafter's
-achievements \citep{hafner2022crafter}: \emph{acted} $\prec$ \emph{screen
-responded} $\prec$ \emph{picked something up} $\prec$ \emph{gained
-experience} $\prec$ \emph{left the opening scene} $\prec$ \emph{reached
-level~2}. Because each rung is strictly harder than its predecessor, the
-count of rungs is an ordering, not a weighted score. A rung a run predates
+\textbf{The milestone summary.} Progress is summarised as seven observable
+milestones, in the spirit of Crafter's achievements
+\citep{hafner2022crafter}: \emph{acted}, \emph{screen responded}, \emph{picked
+something up}, \emph{left the opening scene}, \emph{reached the world map},
+\emph{gained experience}, and \emph{reached level~2}. These mix request-log,
+framebuffer, and machine-state evidence and are not claimed to form one strict
+total order: the game permits different paths. Their count is an achievement
+summary rather than a hand-weighted score. A milestone a run predates
 (instrumentation landed mid-campaign) is reported as \emph{unmeasured},
 never as failed: an unmeasured zero and a true zero are different claims,
 and conflating them is how one of our own metrics went wrong.
@@ -592,7 +597,7 @@ accumulating them is operational, not architectural. (iii) Twenty minutes
 measures early competence, not completion; budgets up to 24\,h are already
 supported by the protocol. (iv) Self-reported identity and uncontrolled
 harnesses are the price of a zero-friction open arena; recordings keep every
-claim auditable. (v) Two milestone rungs (items, experience) were
+claim auditable. (v) Two milestones (inventory gain, experience) were
 instrumented mid-campaign, so older runs carry \emph{unmeasured} rather than values, the honest cost of building
 in public.
 
@@ -603,11 +608,13 @@ work benchmarking commercial titles \citep{zhang2025videogamebench,
 bellemare2013ale}. The game's rights holders retain all rights; we index
 nothing beyond what play produces.
 
-\textbf{What progress will look like.} The ladder is arranged so that the
-next signals are unambiguous: an item taken from the chest, a first point of
-experience, a fade to black. Each is a machine-state event that cannot be
-gamed from pixels, each is published live with its replay, and each is, today, unreached. When a model climbs a rung, the leaderboard will show
-exactly which one, on exactly which run, with the video to watch it happen.
+\textbf{What progress will look like.} The milestone view makes the next
+signals explicit: a positive change in the public inventory, a first point of
+experience, a fade to black, and arrival on the world map. Inventory and
+experience come from machine state; transitions and world-map arrival use
+validated framebuffer detectors. Each is published with its replay. When a
+model reaches a milestone, the leaderboard will show exactly which one, on
+exactly which run, with the video to watch it happen.
 
 \section*{Ethics statement}
 The benchmark evaluates publicly released models on a commercial game under
@@ -657,8 +664,9 @@ oscillation rate $=\frac{1}{n}\sum_i \mathbf{1}[f_i = f_{i-2} \wedge f_i
 $\{t_i - t_{i-1}\}$; looks/act $=$ screen reads $/\,n$; action-space
 coverage $=|\{\text{distinct keys}\}|$. Fingerprints are $12\times8$,
 3-bit-quantised grayscale downsamples with the camera-locked sprite region
-masked (\S\ref{sec:pitfalls}). Milestones read machine state as defined in
-\S\ref{sec:measure}. Wilson intervals use $z=1.96$
+masked (\S\ref{sec:pitfalls}). Milestone predicates use request logs,
+framebuffer detectors, or machine state as defined in \S\ref{sec:measure}.
+Wilson intervals use $z=1.96$
 \citep{wilson1927probable}; a model's rank range spans positions consistent
 with pairwise CI overlap \citep{chiang2024chatbot}.
 

@@ -1,6 +1,10 @@
 # Benchmark harness
 
-One game per model, twenty minutes, recorded end to end and published.
+One game per model. The default twenty-minute run fits inside the default
+recording-memory budget and is published end to end. Both the run duration and
+recording limit are configurable; a longer run is complete when the host raises
+`QUNXIA_REC_MAX_BYTES` to fit it, and otherwise prunes old recording history at
+that limit.
 
 ```
 POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
@@ -28,8 +32,10 @@ server/warden.py inside each game process. Owns that run's clock, teardown,
 The point of the split is that nothing central supervises a run. The process
 that played the game is the one that decides it is over, renders it, publishes
 it, and takes itself down. A node that dies takes only its own runs with it,
-and there is no in-memory catalogue to lose. There is deliberately no cap on
-concurrent sessions and no queue - what limits them is CPU, not bookkeeping.
+and there is no in-memory catalogue to lose. The broker has no queue and uses a
+configurable admission guard: `QUNXIA_MAX_SESSIONS` defaults to 24 for the
+measured host. A larger machine can raise it; the guard only prevents admitting
+one more run than that host's memory can sustain.
 
 ## What a run looks like
 

@@ -68,9 +68,8 @@ ZH = {
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
     "m_exp": "拿到经验", "m_scene": "离开开场场景",
     "m_level": "升到 2 级",
-    "b_n_ladder": "全部来自游戏自己的状态。"
-                  "六级台阶到现在为止没人越过第二级：画面有反应了，"
-                  "但没有从开场场景里走出去。"
+    "b_n_ladder": "七个可验证里程碑来自请求记录、游戏画面和机器状态。"
+                  "它们展示取得的成果，不假定所有里程碑都必须按同一顺序发生。"
                   "空心的一格表示那一局跑的时候还没开始统计这项，不是没做到。",
     "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
     "b_skills": "武功", "b_items": "物品",
@@ -158,9 +157,9 @@ EN = {
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
     "m_exp": "gained experience",
     "m_scene": "left the opening scene", "m_level": "reached level 2",
-    "b_n_ladder": "Six rungs, all from the game's own state, each harder than "
-                  "the last. Nothing has yet cleared the second: the screen "
-                  "responds, but nobody has got out of the opening scene. A "
+    "b_n_ladder": "Seven verifiable milestones come from request logs, game "
+                  "frames, and machine state. They show what a run achieved "
+                  "without assuming every milestone must occur in one order. A "
                   "hollow rung means that run predates the measurement, not "
                   "that it failed.",
     "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp",
@@ -945,10 +944,10 @@ function spark(keys) {{
 // Every run loops on its own, muted, so the page reads as a wall of agents
 // playing at once. Native controls on every card were the noisiest thing here;
 // the clip links to its own mp4 instead.
-// How far a run actually got, as rungs rather than as a table of numbers.
-// Every one is read from the game's own state, and each is strictly harder
-// than the one before it, so the count is a real ordering and not a score
-// somebody weighted into existence.
+// How far a run actually got, as verifiable milestones rather than a table of
+// numbers. They mix request, frame, and machine-state evidence and need not
+// occur in one strict order; the count is an achievement summary, not a claim
+// about a single canonical path through the game.
 //
 // A rung is reached, not reached, or unknown. Unknown matters: most runs here
 // predate the character and scene reads, and drawing those as failures would
@@ -956,10 +955,10 @@ function spark(keys) {{
 const RUNGS = [
   {{k: "m_act",   at: r => (r.actions ?? 0) > 0}},
   {{k: "m_move",  at: r => r.meaningful == null ? null : r.meaningful > 0}},
-  {{k: "m_item",  at: r => r.items == null ? null : r.items > 3}},
-  {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
+  {{k: "m_item",  at: r => r.picked_item == null ? null : !!r.picked_item}},
   {{k: "m_scene", at: r => r.scenes == null ? null : r.scenes > 1}},
   {{k: "m_map",   at: r => r.bigmap == null ? null : !!r.bigmap}},
+  {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
   {{k: "m_level", at: r => r.level == null ? null : r.level > 1}},
 ]; 
 
@@ -1086,8 +1085,10 @@ function boardRows() {{
       exp: rs.some(r => r.exp != null) ? Math.max(...rs.map(r => r.exp ?? 0)) : null,
       skills: rs.some(r => r.skills != null)
         ? Math.max(...rs.map(r => r.skills ?? 0)) : null,
-      items: rs.some(r => r.items != null)
-        ? Math.max(...rs.map(r => r.items ?? 0)) : null,
+      inventory: rs.some(r => r.inventory_distinct != null)
+        ? Math.max(...rs.map(r => r.inventory_distinct ?? 0)) : null,
+      picked_item: rs.some(r => r.picked_item != null)
+        ? rs.some(r => r.picked_item === true) : null,
       bigmap: rs.some(r => r.bigmap != null)
         ? rs.some(r => r.bigmap === true) : null,
       exit_acts: rs.some(r => r.exit_acts != null)
@@ -1137,7 +1138,7 @@ const BOARDS = {{
     val: m => `<b>${{m.level == null ? "-" : m.level}}</b>`
             + (m.exp ? `<i>${{m.exp}} ${{T.b_exp}}</i>` : ""),
     cols: [[() => T.b_skills, m => m.skills == null ? "-" : m.skills],
-           [() => T.b_items, m => m.items == null ? "-" : m.items]],
+           [() => T.b_items, m => m.inventory == null ? "-" : m.inventory]],
   }},
   overview: {{
     label: () => T.b_score, ci: true,
@@ -1429,7 +1430,7 @@ function render() {{
           <span>${{T.b_char}}</span><b ${{lv(r, "hero")}}>${{
             r.level == null ? "-" : r.level}} · ${{
             r.skills == null ? "-" : r.skills}} · ${{
-            r.items == null ? "-" : r.items}}</b>
+            r.inventory_distinct == null ? "-" : r.inventory_distinct}}</b>
           <span>${{T.b_exit}}</span><b ${{lv(r, "exit")}}>${{fexit(r)}}</b>
           <span>${{T.b_scenes}}</span><b ${{lv(r, "scenes")}}>${{
             r.scenes == null ? "-" : r.scenes}}${{
@@ -2105,7 +2106,7 @@ async function openReplay(run, push) {{
     wl.innerHTML = ladder(run, true)
       + `<div class="wchar">`
       + [[T.b_level, run.level], [T.b_exp, run.exp], [T.b_skills, run.skills],
-         [T.b_items, run.items], [T.b_scenes, run.scenes]]
+         [T.b_items, run.inventory_distinct], [T.b_scenes, run.scenes]]
           .map(([k, v]) => `<span><u>${{k}}</u><b>${{v == null ? "-" : v}}</b></span>`)
           .join("")
       + `</div>`;
