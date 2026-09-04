@@ -8,11 +8,14 @@ import { fileURLToPath } from "node:url";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const prepare = join(root, "Scripts", "prepare-pi-run.mjs");
+const readProfile = join(root, "Scripts", "read-pi-profile.mjs");
 const benchmarkHelp = [
   "# Benchmark help fixture",
+  "## API",
+  "`POST {BASE}/api/key`",
+  "`POST {BASE}/api/keys`",
+  "`POST {BASE}/api/wait`",
   "## 移動：請用九宮數字鍵的名稱",
-  "`changed: true` 不代表你真的動了",
-  "## 最優先：先去拿羅盤",
 ].join("\n");
 const benchmarkHelpUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(benchmarkHelp)}`;
 
@@ -101,6 +104,19 @@ test("unknown profiles fail closed", async () => {
   assert.match(result.stderr, /unknown QUNXIA_PI_PROFILE/);
 });
 
+test("profile lookup explains an unknown profile", () => {
+  const result = spawnSync(process.execPath, [
+    readProfile,
+    join(root, "pi-agent", "profiles.json"),
+    "not-a-profile",
+  ], {
+    encoding: "utf8",
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unknown QUNXIA_PI_PROFILE not-a-profile/);
+  assert.match(result.stderr, /available profiles:/);
+});
+
 test("benchmark profile exposes only broker-supported game tools", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "qunxia-pi-benchmark-"));
   const result = invoke(runsDir, "benchmark-a", "benchmark");
@@ -121,7 +137,7 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
   const prompt = await readFile(join(runsDir, "benchmark-a", "config", "SYSTEM.md"), "utf8");
   assert.match(prompt, /BEGIN SESSION-SPECIFIC BENCHMARK BRIEF/);
   assert.match(prompt, /session is isolated/);
-  assert.match(prompt, /最優先：先去拿羅盤/);
+  assert.match(prompt, /POST \{BASE\}\/api\/key/);
   assert.doesNotMatch(prompt, /Entering a Chinese name/);
 });
 

@@ -243,6 +243,12 @@ return metadata only; the model calls `game_look` when it needs the next native
 # Pure visual baseline (the default)
 QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
 
+# Timed benchmark session (use that session's isolated API URL)
+QUNXIA_PI_PROFILE=benchmark \
+QUNXIA_API=http://127.0.0.1:8084/u/<session-id>/api \
+QUNXIA_RUN_ID=benchmark-01 \
+  ./Scripts/play-agent.sh -p "play until BENCHMARK ENDED"
+
 # Explicitly continue the same run; model, API, profile and tool configuration
 # must still match its recorded manifest.
 QUNXIA_RUN_ID=baseline-01 QUNXIA_RESUME=1 \

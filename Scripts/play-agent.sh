@@ -56,7 +56,7 @@ if [[ "$ACTUAL_PI_VERSION" != "$PI_VERSION" ]]; then
   exit 1
 fi
 
-PROFILE_PROMPT="$(node -e 'const fs=require("node:fs"); const profiles=JSON.parse(fs.readFileSync(process.argv[1])); const profile=profiles[process.argv[2]]; if(!profile)process.exit(1); process.stdout.write(profile.prompt)' "$ROOT/pi-agent/profiles.json" "$PROFILE")"
+PROFILE_PROMPT="$(node "$ROOT/Scripts/read-pi-profile.mjs" "$ROOT/pi-agent/profiles.json" "$PROFILE")"
 BENCH_HELP_URL=""
 if [[ "$PROFILE_PROMPT" == "session-help" ]]; then
   if [[ "$API_SUPPLIED" == "0" ]]; then

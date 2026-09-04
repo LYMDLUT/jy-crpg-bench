@@ -136,8 +136,20 @@ if (profileDefinition.prompt === "session-help") {
   }
 
   const markers = language.toLowerCase().startsWith("zh")
-    ? ["## 移動：請用九宮數字鍵的名稱", "`changed: true` 不代表你真的動了", "## 最優先：先去拿羅盤"]
-    : ["## Movement: use the numpad names", "`changed: true` does not mean you moved", "## First priority: get the compass"];
+    ? [
+        "## API",
+        "`POST {BASE}/api/key`",
+        "`POST {BASE}/api/keys`",
+        "`POST {BASE}/api/wait`",
+        "## 移動：請用九宮數字鍵的名稱",
+      ]
+    : [
+        "## API",
+        "`POST {BASE}/api/key`",
+        "`POST {BASE}/api/keys`",
+        "`POST {BASE}/api/wait`",
+        "## Movement: use the numpad names",
+      ];
   const missing = markers.filter((marker) => !benchmarkHelp.includes(marker));
   if (missing.length) {
     throw new Error(`benchmark help is incomplete; missing: ${missing.join(", ")}`);
