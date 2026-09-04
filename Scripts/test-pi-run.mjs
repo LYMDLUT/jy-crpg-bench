@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   clampThinkingLevel,
   getSupportedThinkingLevels,
+  streamSimple,
 } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/compat.js";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -41,13 +42,14 @@ function invoke(runsDir, runId, profile = "strict", resume = false, overrides = 
       QUNXIA_BENCH_HELP_URL: benchmarkHelpUrl,
       QUNXIA_LLM_BASE_URL: "http://model.invalid/v1",
       QUNXIA_MODEL_REF: "local-test/test-model",
+      QUNXIA_MODEL_CONFIG: "",
       QUNXIA_LLM_INPUT_JSON: '["text","image"]',
       QUNXIA_LLM_CONTEXT: "128000",
       QUNXIA_LLM_MAX_TOKENS: "8192",
       QUNXIA_LLM_API: "openai-completions",
       QUNXIA_LLM_REASONING: "1",
       QUNXIA_LLM_SUPPORTS_REASONING_EFFORT: "1",
-      QUNXIA_THINKING: profile === "benchmark" ? "max" : "",
+      QUNXIA_THINKING: profile === "benchmark" ? "high" : "",
       QUNXIA_API: "http://game.invalid",
       QUNXIA_HARNESS_DIRTY: "0",
       QUNXIA_RESUME: resume ? "1" : "0",
@@ -69,7 +71,7 @@ test("new runs have separate state and resolved profiles", async () => {
   assert.equal(a.paths.help, null);
   assert.equal(a.scale, 1);
   assert.equal(a.observeAfterAction, true);
-  assert.equal(a.model.thinkingLevel, null);
+  assert.equal(a.model.thinkingLevel, "medium");
   assert.equal(a.model.ref, "local-test/test-model");
   assert.equal(a.model.provider, "local-test");
   assert.deepEqual(a.extensions, ["qunxia"]);
@@ -108,7 +110,7 @@ test("existing runs require explicit compatible resume", async () => {
   assert.match(changedModel.stderr, /model configuration changed/);
 
   const changedThinking = invoke(runsDir, "resume-a", "strict", true, {
-    QUNXIA_THINKING: "max",
+    QUNXIA_THINKING: "high",
   });
   assert.notEqual(changedThinking.status, 0);
   assert.match(changedThinking.stderr, /model configuration changed/);
@@ -172,14 +174,15 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
   assert.equal(manifest.model.api, "openai-completions");
   assert.equal(manifest.model.reasoning, true);
   assert.equal(manifest.model.supportsReasoningEffort, true);
-  assert.equal(manifest.model.thinkingLevel, "max");
-  assert.deepEqual(manifest.model.thinkingLevelMap, { max: "max" });
+  assert.equal(manifest.model.thinkingLevel, "high");
+  assert.equal(manifest.model.mappedThinkingLevel, "high");
+  assert.deepEqual(manifest.model.thinkingLevelMap, {});
   const models = JSON.parse(
     await readFile(join(runsDir, "benchmark-a", "config", "models.json"), "utf8"),
   );
   const model = models.providers[manifest.model.provider].models[0];
-  assert.ok(getSupportedThinkingLevels(model).includes("max"));
-  assert.equal(clampThinkingLevel(model, "max"), "max");
+  assert.ok(getSupportedThinkingLevels(model).includes("high"));
+  assert.equal(clampThinkingLevel(model, "high"), "high");
   const prompt = await readFile(join(runsDir, "benchmark-a", "config", "SYSTEM.md"), "utf8");
   assert.match(prompt, /BEGIN SESSION-SPECIFIC BENCHMARK BRIEF/);
   assert.match(prompt, /character is already named/);
@@ -245,4 +248,105 @@ test("benchmark profile fails closed without complete session help", async () =>
   });
   assert.notEqual(incomplete.status, 0);
   assert.match(incomplete.stderr, /benchmark help is incomplete/);
+});
+
+const geminiDefinition = {
+  id: "gemini-3.8-flash",
+  api: "google-generative-ai",
+  reasoning: true,
+  input: ["text", "image"],
+  contextWindow: 1048576,
+  maxTokens: 65536,
+  thinkingLevelMap: {
+    off: null, minimal: null, low: "low", medium: "medium", high: "high",
+    xhigh: null, max: null,
+  },
+};
+
+async function prepareDefinedModel(definition, thinking, runId = "defined-model") {
+  const runsDir = await mkdtemp(join(tmpdir(), "qunxia-model-definition-"));
+  const definitionPath = join(runsDir, "model.json");
+  await writeFile(definitionPath, JSON.stringify(definition));
+  const overrides = {
+    QUNXIA_MODEL_REF: `test-route/${definition.id}`,
+    QUNXIA_MODEL_CONFIG: definitionPath,
+    QUNXIA_THINKING: thinking,
+    QUNXIA_LLM_API: "", QUNXIA_LLM_REASONING: "",
+    QUNXIA_LLM_SUPPORTS_REASONING_EFFORT: "", QUNXIA_LLM_INPUT_JSON: "",
+    QUNXIA_LLM_CONTEXT: "", QUNXIA_LLM_MAX_TOKENS: "",
+  };
+  return { runsDir, runId, overrides, result: invoke(runsDir, runId, "benchmark", false, overrides) };
+}
+
+test("Gemini definition survives isolation and produces native HIGH thinking", async () => {
+  const { runsDir, runId, result, overrides } = await prepareDefinedModel(geminiDefinition, "high");
+  assert.equal(result.status, 0, result.stderr);
+  const runDir = join(runsDir, runId);
+  const manifest = JSON.parse(await readFile(join(runDir, "run.json"), "utf8"));
+  const config = JSON.parse(await readFile(join(runDir, "config", "models.json"), "utf8"));
+  const provider = config.providers["test-route"];
+  const model = { ...provider.models[0], provider: "test-route", api: provider.api, baseUrl: provider.baseUrl };
+  assert.equal(model.api, "google-generative-ai");
+  assert.deepEqual(getSupportedThinkingLevels(model), ["low", "medium", "high"]);
+  assert.equal(manifest.model.thinkingLevel, "high");
+  assert.equal(manifest.model.mappedThinkingLevel, "high");
+  assert.equal(model.contextWindow, 1048576);
+  assert.equal(model.maxTokens, 65536);
+  assert.equal(provider.compat, undefined);
+  let payload;
+  await streamSimple(model, {
+    messages: [{ role: "user", content: "test", timestamp: 0 }],
+  }, {
+    reasoning: manifest.model.thinkingLevel,
+    apiKey: "fake-test-key",
+    onPayload(value) { payload = value; throw new Error("captured before network"); },
+  }).result();
+  assert.equal(payload.config.thinkingConfig.thinkingLevel, "HIGH");
+  assert.equal(payload.config.thinkingConfig.thinkingBudget, undefined);
+  assert.equal(payload.config.maxOutputTokens, 65536);
+  const resumed = invoke(runsDir, runId, "benchmark", true, {
+    ...overrides, QUNXIA_MODEL_CONFIG: "", QUNXIA_THINKING: "",
+  });
+  assert.equal(resumed.status, 0, resumed.stderr);
+});
+
+test("unsupported Max is rejected rather than manufactured or silently reduced", async () => {
+  const gemini = await prepareDefinedModel(geminiDefinition, "max");
+  assert.notEqual(gemini.result.status, 0);
+  assert.match(gemini.result.stderr, /unsupported thinking level max; supported: low, medium, high/);
+  const runsDir = await mkdtemp(join(tmpdir(), "qunxia-no-max-"));
+  const custom = invoke(runsDir, "custom", "benchmark", false, { QUNXIA_THINKING: "max" });
+  assert.notEqual(custom.status, 0);
+  assert.match(custom.stderr, /unsupported thinking level max/);
+});
+
+test("an explicitly defined Max-capable model sends the declared provider effort", async () => {
+  const { runsDir, runId, result } = await prepareDefinedModel({
+    id: "max-model", api: "openai-completions", reasoning: true,
+    supportsReasoningEffort: true, thinkingLevelMap: { max: "max" },
+  }, "max");
+  assert.equal(result.status, 0, result.stderr);
+  const config = JSON.parse(await readFile(join(runsDir, runId, "config", "models.json"), "utf8"));
+  const provider = config.providers["test-route"];
+  const model = { ...provider.models[0], api: provider.api, baseUrl: provider.baseUrl,
+    provider: "test-route", compat: provider.compat };
+  assert.equal(clampThinkingLevel(model, "max"), "max");
+  let payload;
+  await streamSimple(model, { messages: [{ role: "user", content: "test", timestamp: 0 }] }, {
+    reasoning: "max", apiKey: "fake-test-key",
+    onPayload(value) { payload = value; throw new Error("captured before network"); },
+  }).result();
+  assert.equal(payload.reasoning_effort, "max");
+});
+
+test("the manifest preserves an explicit off mapping without claiming a wire capture", async () => {
+  const { runsDir, runId, result } = await prepareDefinedModel({
+    id: "off-model", api: "openai-completions", reasoning: true,
+    supportsReasoningEffort: true, thinkingLevelMap: { off: "none" },
+  }, "off");
+  assert.equal(result.status, 0, result.stderr);
+  const manifest = JSON.parse(await readFile(join(runsDir, runId, "run.json"), "utf8"));
+  assert.equal(manifest.model.thinkingLevel, "off");
+  assert.equal(manifest.model.mappedThinkingLevel, "none");
+  assert.equal("providerThinkingLevel" in manifest.model, false);
 });

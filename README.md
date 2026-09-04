@@ -210,7 +210,7 @@ Pi harness below exposes the selected game operations as typed tools.
 `pi-agent/` is a complete harness built on [pi](https://pi.dev). Pi is pinned to
 version 0.84.4 in `package-lock.json`; the supported Node minimum and preferred
 version are recorded in `package.json` and `.node-version`. Install the exact
-dependency set once, then supply an OpenAI-compatible endpoint.
+dependency set once, then supply an OpenAI-compatible or Gemini API endpoint.
 
 ```sh
 npm ci
@@ -248,7 +248,7 @@ QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
 BASE_URL=https://benchmark.example/s/replace-with-the-created-session-id
 QUNXIA_PI_PROFILE=benchmark \
 QUNXIA_API="${BASE_URL%/}/api" \
-QUNXIA_THINKING=max \
+QUNXIA_THINKING=high \
 QUNXIA_LLM_REASONING=1 \
 QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
 QUNXIA_RUN_ID=benchmark-01 \
@@ -266,15 +266,49 @@ tools without changing the launcher; the resolved extensions and tool allowlist
 are copied into the run manifest for later auditing. The manifest also records
 whether the harness checkout had uncommitted changes.
 
-Formal benchmark runs require an explicit `QUNXIA_THINKING` value: `off`,
-`minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. Set
-`QUNXIA_LLM_REASONING=1` and `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1` only when
-the selected OpenAI-compatible endpoint actually accepts reasoning effort.
-`QUNXIA_LLM_API` selects `openai-completions` (the default) or
-`openai-responses`, and `QUNXIA_LLM_MAX_TOKENS` defaults to 8192. The resolved
-API, reasoning support, thinking level, context window, and output limit are
-recorded in `run.json` and must match when a run is resumed. Set thinking with
-`QUNXIA_THINKING`; the launcher rejects an unrecorded `--thinking` override.
+Formal benchmark runs require an explicit `QUNXIA_THINKING` supported by the
+model. `QUNXIA_LLM_API` accepts `openai-completions` (default),
+`openai-responses`, or `google-generative-ai`. OpenAI-compatible Chat endpoints
+also need `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1` when reasoning is enabled.
+
+Set `QUNXIA_MODEL_CONFIG` to an absolute path to a JSON model definition using
+Pi's `id`, `api`, `reasoning`, `input`, `contextWindow`, `maxTokens`, and
+`thinkingLevelMap` fields. For example, Gemini 3.8 Flash's highest level is High:
+
+```json
+{
+  "id": "gemini-3.8-flash",
+  "api": "google-generative-ai",
+  "reasoning": true,
+  "input": ["text", "image"],
+  "contextWindow": 1048576,
+  "maxTokens": 65536,
+  "thinkingLevelMap": {
+    "off": null, "minimal": null,
+    "low": "low", "medium": "medium", "high": "high",
+    "xhigh": null, "max": null
+  }
+}
+```
+
+Use it with `QUNXIA_MODEL_CONFIG=/absolute/path/gemini.json`,
+`QUNXIA_LLM_MODEL=your-provider/gemini-3.8-flash`, and `QUNXIA_THINKING=high`.
+`QUNXIA_LLM_BASE_URL` still supplies the endpoint (including `/v1beta` for a
+native Gemini endpoint), and `QUNXIA_LLM_API_KEY` supplies authentication.
+The definition contains model capabilities only; shared Pi account settings
+are not imported. Nonempty `QUNXIA_LLM_*` environment values override the
+definition's API, input, context, output, and reasoning settings.
+
+For a model supporting Max, declare its actual mapping, for example
+`"thinkingLevelMap": {"max": "max"}`; Chat endpoints can also declare
+`"supportsReasoningEffort": true`. Merely requesting Max does not enable it.
+Unsupported levels are reported before play, rather than silently clamped.
+The resolved Pi level and its configured mapping (`mappedThinkingLevel`) are
+recorded in `run.json` together with the model definition. The mapping is not
+a capture of the final HTTP parameter: Pi's provider adapter may translate it
+further (for example, Gemini Pro maps Medium to High). Resume reuses the recorded definition by default
+and rejects incompatible explicit overrides. Set thinking with
+`QUNXIA_THINKING`; the launcher rejects a separate `--thinking` override.
 
 The built-in Pi harness calls the game HTTP API directly through the `qunxia`
 extension; it does not pass through MCP. `mcp-server/` is the separate adapter

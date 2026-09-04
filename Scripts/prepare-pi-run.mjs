@@ -10,12 +10,6 @@ const required = [
   "QUNXIA_PI_VERSION",
   "QUNXIA_LLM_BASE_URL",
   "QUNXIA_MODEL_REF",
-  "QUNXIA_LLM_INPUT_JSON",
-  "QUNXIA_LLM_CONTEXT",
-  "QUNXIA_LLM_MAX_TOKENS",
-  "QUNXIA_LLM_API",
-  "QUNXIA_LLM_REASONING",
-  "QUNXIA_LLM_SUPPORTS_REASONING_EFFORT",
   "QUNXIA_API",
 ];
 
@@ -95,9 +89,19 @@ if (new Set(profileDefinition.tools).size !== profileDefinition.tools.length) {
   throw new Error(`profile ${profile} contains duplicate tools`);
 }
 
+// This is an explicit model definition, not a shared Pi account/configuration.
+// Resume defaults to the definition snapshotted in the run manifest.
+const modelDefinition = process.env.QUNXIA_MODEL_CONFIG
+  ? JSON.parse(await readFile(process.env.QUNXIA_MODEL_CONFIG, "utf8"))
+  : (existingManifest?.model ?? {});
+if (process.env.QUNXIA_MODEL_CONFIG && modelDefinition.id !== modelId) {
+  throw new Error("model definition id does not match the requested provider/model");
+}
 let input;
 try {
-  input = JSON.parse(process.env.QUNXIA_LLM_INPUT_JSON);
+  input = process.env.QUNXIA_LLM_INPUT_JSON
+    ? JSON.parse(process.env.QUNXIA_LLM_INPUT_JSON)
+    : (modelDefinition.input ?? ["text", "image"]);
 } catch (error) {
   throw new Error(`QUNXIA_LLM_INPUT must be a JSON array: ${error.message}`);
 }
@@ -110,27 +114,29 @@ if (
   throw new Error('QUNXIA_LLM_INPUT must contain only "text" and "image"');
 }
 
-const contextWindow = Number(process.env.QUNXIA_LLM_CONTEXT);
+const contextWindow = Number(process.env.QUNXIA_LLM_CONTEXT || modelDefinition.contextWindow || 128000);
 if (!Number.isSafeInteger(contextWindow) || contextWindow <= 0) {
   throw new Error("QUNXIA_LLM_CONTEXT must be a positive integer");
 }
-const maxTokens = Number(process.env.QUNXIA_LLM_MAX_TOKENS);
+const maxTokens = Number(process.env.QUNXIA_LLM_MAX_TOKENS || modelDefinition.maxTokens || 8192);
 if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0 || maxTokens > contextWindow) {
   throw new Error("QUNXIA_LLM_MAX_TOKENS must be a positive integer no larger than QUNXIA_LLM_CONTEXT");
 }
-const api = process.env.QUNXIA_LLM_API;
-if (!["openai-completions", "openai-responses"].includes(api)) {
-  throw new Error("QUNXIA_LLM_API must be openai-completions or openai-responses");
+const api = process.env.QUNXIA_LLM_API || modelDefinition.api || "openai-completions";
+if (!["openai-completions", "openai-responses", "google-generative-ai"].includes(api)) {
+  throw new Error("QUNXIA_LLM_API must be openai-completions, openai-responses or google-generative-ai");
 }
-const parseFlag = (name) => {
+const parseFlag = (name, fallback) => {
   const value = process.env[name];
+  if (!value) return fallback;
   if (value !== "0" && value !== "1") throw new Error(`${name} must be 0 or 1`);
   return value === "1";
 };
-const reasoning = parseFlag("QUNXIA_LLM_REASONING");
-const supportsReasoningEffort = parseFlag("QUNXIA_LLM_SUPPORTS_REASONING_EFFORT");
+const reasoning = parseFlag("QUNXIA_LLM_REASONING", modelDefinition.reasoning === true);
+const supportsReasoningEffort = parseFlag(
+  "QUNXIA_LLM_SUPPORTS_REASONING_EFFORT", modelDefinition.supportsReasoningEffort === true);
 const requestedThinking = process.env.QUNXIA_THINKING || null;
-const thinkingLevel = resume && requestedThinking === null
+let thinkingLevel = resume && requestedThinking === null
   ? (existingManifest?.model?.thinkingLevel ?? null)
   : requestedThinking;
 const thinkingLevels = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -140,11 +146,34 @@ if (thinkingLevel !== null && !thinkingLevels.has(thinkingLevel)) {
 if (profile === "benchmark" && thinkingLevel === null) {
   throw new Error("benchmark runs require an explicit QUNXIA_THINKING level");
 }
-if (thinkingLevel !== null && thinkingLevel !== "off"
-    && (!reasoning || !supportsReasoningEffort)) {
+const thinkingLevelMap = modelDefinition.thinkingLevelMap ?? {};
+if (typeof thinkingLevelMap !== "object" || Array.isArray(thinkingLevelMap)
+    || Object.entries(thinkingLevelMap).some(([level, value]) =>
+      !thinkingLevels.has(level) || (value !== null && (typeof value !== "string" || !value)))) {
+  throw new Error("thinkingLevelMap must map Pi levels to provider strings or null");
+}
+// Match Pi's supported-level contract: extended levels require model metadata;
+// requesting max must never manufacture max support for an arbitrary model.
+const supportedThinkingLevels = [...thinkingLevels].filter(level => reasoning
+  ? thinkingLevelMap[level] !== null && (!["xhigh", "max"].includes(level)
+      || typeof thinkingLevelMap[level] === "string")
+  : level === "off");
+thinkingLevel ??= supportedThinkingLevels.includes("medium") ? "medium" : supportedThinkingLevels[0];
+if (thinkingLevel !== "off"
+    && (!reasoning || (api === "openai-completions" && !supportsReasoningEffort))) {
   throw new Error(
     `QUNXIA_THINKING=${thinkingLevel} requires a reasoning model and an endpoint that supports reasoning effort`,
   );
+}
+if (!supportedThinkingLevels.includes(thinkingLevel)) {
+  throw new Error(`unsupported thinking level ${thinkingLevel}; supported: ${supportedThinkingLevels.join(", ")}`);
+}
+// This is configuration metadata, not the adapter's final wire value. For
+// example, Pi's Gemini adapter maps Pro medium to HIGH and handles off itself.
+const mappedThinkingLevel = thinkingLevelMap[thinkingLevel] ?? (thinkingLevel === "off" ? null : thinkingLevel);
+if (api === "google-generative-ai" && thinkingLevel !== "off"
+    && !["minimal", "low", "medium", "high"].includes(mappedThinkingLevel.toLowerCase())) {
+  throw new Error("Google thinkingLevelMap values must be minimal, low, medium or high");
 }
 
 let benchmarkHelp = null;
@@ -232,9 +261,8 @@ const identity = {
     reasoning,
     supportsReasoningEffort,
     thinkingLevel,
-    thinkingLevelMap: ["xhigh", "max"].includes(thinkingLevel)
-      ? { [thinkingLevel]: thinkingLevel }
-      : undefined,
+    mappedThinkingLevel,
+    thinkingLevelMap,
   },
 };
 
@@ -244,7 +272,7 @@ const models = {
       baseUrl: identity.model.baseUrl,
       api: identity.model.api,
       apiKey: "$QUNXIA_LLM_API_KEY",
-      compat: {
+      compat: api === "google-generative-ai" ? undefined : {
         supportsDeveloperRole: false,
         supportsReasoningEffort: identity.model.supportsReasoningEffort,
       },
