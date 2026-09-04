@@ -244,9 +244,10 @@ return metadata only; the model calls `game_look` when it needs the next native
 QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
 
 # Timed benchmark session (use that session's isolated API URL)
-SESSION_ID=replace-with-the-created-session-id
+# Set BASE_URL to the base_url returned by POST /session.
+BASE_URL=https://benchmark.example/s/replace-with-the-created-session-id
 QUNXIA_PI_PROFILE=benchmark \
-QUNXIA_API="http://127.0.0.1:8084/u/$SESSION_ID/api" \
+QUNXIA_API="${BASE_URL%/}/api" \
 QUNXIA_THINKING=max \
 QUNXIA_LLM_REASONING=1 \
 QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
