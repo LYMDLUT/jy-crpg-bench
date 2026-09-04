@@ -326,7 +326,31 @@ async def api_new(request):
     })
 
 
+PUBLIC_SESSION_ROUTES = {
+    ("GET", "api/screen"),
+    ("GET", "api/help"),
+    ("POST", "api/key"),
+    ("POST", "api/keys"),
+    ("POST", "api/wait"),
+}
+
+
+def public_session_route(method, tail, websocket=False):
+    """Whether an untrusted benchmark client may reach this game route."""
+    path = str(tail or "").strip("/")
+    if websocket:
+        return method == "GET" and path == "ws"
+    return (method, path) in PUBLIC_SESSION_ROUTES
+
+
 async def proxy(request):
+    tail = request.match_info.get("tail", "")
+    websocket = request.headers.get("Upgrade", "").lower() == "websocket"
+    if not public_session_route(request.method, tail, websocket):
+        raise web.HTTPNotFound(
+            text=json.dumps({"ok": False, "error": "route not available in benchmark sessions"}),
+            content_type="application/json")
+
     sid = request.match_info["sid"]
     sess = sessions.get(sid)
     if not sess:
@@ -341,10 +365,9 @@ async def proxy(request):
             res = await wait_published(sid, res)
         return web.json_response(ended_payload(sess, res), status=410)
 
-    tail = request.match_info.get("tail", "")
     url = f"http://127.0.0.1:{sess['port']}/{tail}"
 
-    if request.headers.get("Upgrade", "").lower() == "websocket":
+    if websocket:
         return await spectate(request, sess, url)
 
     data = await request.read()
