@@ -136,7 +136,9 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       key: Type.String({ description: "Key name, e.g. up, enter, esc, y" }),
       times: Type.Optional(Type.Number({ description: "Repeat count, default 1" })),
-      hold: Type.Optional(Type.Number({ description: "Frames to hold the key, default 4" })),
+      hold: Type.Optional(Type.Number({
+        description: "Frames to hold the key. Omit to use the game server's safe tap default.",
+      })),
       stable: Type.Optional(Type.Number({
         description: "Frames the picture must hold still before the screenshot. Raise if you get a half-written dialogue line.",
       })),

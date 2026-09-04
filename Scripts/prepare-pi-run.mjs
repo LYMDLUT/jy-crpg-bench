@@ -135,22 +135,28 @@ if (profileDefinition.prompt === "session-help") {
     benchmarkHelp = await response.text();
   }
 
-  const markers = language.toLowerCase().startsWith("zh")
-    ? [
-        "## API",
-        "`POST {BASE}/api/key`",
-        "`POST {BASE}/api/keys`",
-        "`POST {BASE}/api/wait`",
-        "## 移動：請用九宮數字鍵的名稱",
-      ]
-    : [
-        "## API",
-        "`POST {BASE}/api/key`",
-        "`POST {BASE}/api/keys`",
-        "`POST {BASE}/api/wait`",
-        "## Movement: use the numpad names",
-      ];
-  const missing = markers.filter((marker) => !benchmarkHelp.includes(marker));
+  const lines = benchmarkHelp.split("\n").map((line) => line.trim());
+  const hasEndpoint = (method, path) => lines.some((line) => {
+    const [seenMethod, url] = line.split(/\s+/, 2);
+    return seenMethod === method && url?.endsWith(path);
+  });
+  const requirements = [
+    ["GET /api/screen", hasEndpoint("GET", "/api/screen")],
+    ["POST /api/key", hasEndpoint("POST", "/api/key")],
+    ["POST /api/keys", hasEndpoint("POST", "/api/keys")],
+    ["POST /api/wait", hasEndpoint("POST", "/api/wait")],
+    [
+      language.toLowerCase().startsWith("zh")
+        ? "## 移動：請用九宮數字鍵的名稱"
+        : "## Movement: use the numpad names",
+      benchmarkHelp.includes(
+        language.toLowerCase().startsWith("zh")
+          ? "## 移動：請用九宮數字鍵的名稱"
+          : "## Movement: use the numpad names",
+      ),
+    ],
+  ];
+  const missing = requirements.filter(([, present]) => !present).map(([label]) => label);
   if (missing.length) {
     throw new Error(`benchmark help is incomplete; missing: ${missing.join(", ")}`);
   }

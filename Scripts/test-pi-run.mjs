@@ -12,9 +12,10 @@ const readProfile = join(root, "Scripts", "read-pi-profile.mjs");
 const benchmarkHelp = [
   "# Benchmark help fixture",
   "## API",
-  "`POST {BASE}/api/key`",
-  "`POST {BASE}/api/keys`",
-  "`POST {BASE}/api/wait`",
+  "GET  http://game.invalid/api/screen look, pressing nothing",
+  "POST http://game.invalid/api/key one key",
+  "POST http://game.invalid/api/keys several keys",
+  "POST http://game.invalid/api/wait let the game run",
   "## 移動：請用九宮數字鍵的名稱",
 ].join("\n");
 const benchmarkHelpUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(benchmarkHelp)}`;
@@ -137,8 +138,18 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
   const prompt = await readFile(join(runsDir, "benchmark-a", "config", "SYSTEM.md"), "utf8");
   assert.match(prompt, /BEGIN SESSION-SPECIFIC BENCHMARK BRIEF/);
   assert.match(prompt, /session is isolated/);
-  assert.match(prompt, /POST \{BASE\}\/api\/key/);
+  assert.match(prompt, /POST http:\/\/game\.invalid\/api\/key/);
+  assert.doesNotMatch(prompt, /\{BASE\}/);
   assert.doesNotMatch(prompt, /Entering a Chinese name/);
+});
+
+test("game press leaves the server tap duration authoritative", async () => {
+  const extension = await readFile(
+    join(root, "pi-agent", "extensions", "qunxia", "index.ts"),
+    "utf8",
+  );
+  assert.match(extension, /Omit to use the game server's safe tap default/);
+  assert.doesNotMatch(extension, /default 4/);
 });
 
 test("benchmark profile fails closed without complete session help", async () => {
