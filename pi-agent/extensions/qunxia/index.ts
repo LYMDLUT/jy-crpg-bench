@@ -140,7 +140,7 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Press a key in the game",
     parameters: Type.Object({
       key: Type.String({ description: "Key name, e.g. up, enter, esc, y" }),
-      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
+      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 32, description: "Repeat count, default 1" })),
       hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames to hold the key. Omit to use the game server's safe tap default.",
       })),
@@ -149,7 +149,7 @@ export default function (pi: ExtensionAPI) {
       })),
     }),
     async execute(_id, params, signal) {
-      const times = boundedInteger(params.times, 1, 1, 100);
+      const times = boundedInteger(params.times, 1, 1, 32);
       const stable = params.stable === undefined
         ? undefined : boundedInteger(params.stable, 9, 1, 600);
       const q = stable ? `&stable=${stable}` : "";
@@ -173,7 +173,7 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Press a sequence of keys in the game",
     parameters: Type.Object({
       keys: Type.Array(Type.String(), {
-        minItems: 1, maxItems: 100, description: "Key names in order",
+        minItems: 1, maxItems: 32, description: "Key names in order",
       }),
       gap: Type.Optional(Type.Integer({ minimum: 0, maximum: 600,
         description: "Frames between keys, default 6" })),
@@ -203,7 +203,7 @@ export default function (pi: ExtensionAPI) {
       direction: Type.String({
         description: "kp7/kp9/kp1/kp3, or left/up/down/right",
       }),
-      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 100,
+      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 32,
         description: "Tiles to walk, default 1" })),
       hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames to hold for long movement" })),
@@ -227,7 +227,7 @@ export default function (pi: ExtensionAPI) {
       if (params.hold !== undefined) {
         return act("/key", { key, hold: params.hold }, `move ${dir} hold ${params.hold}`, signal);
       }
-      const steps = boundedInteger(params.steps, 1, 1, 100);
+      const steps = boundedInteger(params.steps, 1, 1, 32);
       return act("/keys", { keys: Array(steps).fill(key), gap: 6 }, `move ${dir} x${steps}`, signal);
     },
   });

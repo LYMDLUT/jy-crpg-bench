@@ -191,9 +191,16 @@ test("game press leaves the server tap duration authoritative", async () => {
   assert.match(extension, /Omit to use the game server's safe tap default/);
   assert.doesNotMatch(extension, /default 4/);
   assert.match(extension, /times: Type\.Optional\(Type\.Integer/);
-  assert.match(extension, /minItems: 1, maxItems: 100/);
-  assert.match(extension, /const times = boundedInteger\(params\.times, 1, 1, 100\)/);
-  assert.match(extension, /const steps = boundedInteger\(params\.steps, 1, 1, 100\)/);
+  assert.match(extension, /minItems: 1, maxItems: 32/);
+  assert.match(extension, /const times = boundedInteger\(params\.times, 1, 1, 32\)/);
+  assert.match(extension, /const steps = boundedInteger\(params\.steps, 1, 1, 32\)/);
+});
+
+test("benchmark documentation uses the session URL returned by the broker", async () => {
+  const readme = await readFile(join(root, "README.md"), "utf8");
+  assert.match(readme, /BASE_URL=.*\/s\/replace-with-the-created-session-id/);
+  assert.match(readme, /QUNXIA_API="\$\{BASE_URL%\/\}\/api"/);
+  assert.doesNotMatch(readme, /127\.0\.0\.1:8084\/u\//);
 });
 
 test("benchmark thinking must be explicit and supported", () => {
