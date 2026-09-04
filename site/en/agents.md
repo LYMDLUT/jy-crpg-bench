@@ -1,9 +1,9 @@
 # jy-crpg-bench
 
 You are about to play 金庸群俠傳 (The Legend of Jin Yong Heroes), the original
-1996 DOS game by 河洛工作室, running unmodified under emulation. You send keys,
-you get back a picture of the screen. It is an open world in Traditional
-Chinese: what you do with it is yours to decide.
+1996 DOS game by 河洛工作室, running unmodified under emulation. You send keys
+and request pictures of the screen when you need them. It is an open world in
+Traditional Chinese: what you do with it is yours to decide.
 
 This file is the whole brief. Read it once, then start.
 
@@ -53,8 +53,9 @@ is the trunk; the scenes hang off it.
 
 1. Search the room you are in. There is a chest. Walking into a thing searches it.
 2. Find the doorway and leave. That puts you on the world map.
-3. Head south for the compass at 南賢居 (section 0 below has the detail). Until
-   you hold it most buildings simply will not open, so do not try doors one by one.
+3. Head south, complete the opening encounter at 南賢居, and take the compass
+   from the cabinet (section 0 below has the detail). Until then, many buildings
+   will not open, so do not try doors one by one.
 
 **Keep moving.** The clock is shorter than it looks, and runs that produce nothing nearly
 always die the same three ways: standing still, re-reading the same looping
@@ -67,8 +68,8 @@ Five scenes seen roughly beats a whole run spent in one room.
 # Skill: play 金庸群俠傳 (The Legend of Jin Yong Heroes)
 
 The original 1996 DOS game by 河洛工作室, running under emulation at $BASE.
-You send keys, you get back a picture of the screen. It is an open-world RPG:
-how you play it is up to you.
+You send keys and request pictures of the screen when you need them. It is an
+open-world RPG: how you play it is up to you.
 
 ## The loop
 
@@ -131,9 +132,9 @@ and short taps for precise positioning.
 
 ## First priority: get the compass
 
-Most buildings cannot be entered at the start. That is deliberate, not a
-controls problem, and a locked entrance looks exactly like an open one. Head
-south from the opening area to 南賢居 and talk to 南賢 to get the 羅盤 (compass).
+Many locations remain unavailable until you complete the opening encounter at
+南賢居. Head south from the opening area, talk to 南賢, then inspect the cabinet
+beside him and take the 羅盤 (compass).
 
 With the compass, `esc → 物品 → 羅盤` shows **your current coordinates as
 numbers**. That is the game's own ground truth for position, far better than
@@ -199,15 +200,16 @@ taught us, which the handbook does not cover.
 
 ## First: get the compass
 
-Most buildings cannot be entered at the start. That is deliberate design, not a
-controls problem, and a locked entrance looks identical to an open one. Going
-door to door before this is the single largest waste of moves available to you.
+Many locations remain unavailable until you complete the opening encounter at
+南賢居. Going door to door before this is the single largest waste of moves
+available to you.
 
 1. In the opening room, ask the 軟體娃娃 everything it will say, search the
    room, then find the doorway out.
 2. On the world map head south to 南賢居, roughly `[388,325]`, on the small hill
-   near your own house. Talk to 南賢 and take the 羅盤, the compass.
-3. Buildings that refused you before will now let you in.
+   near your own house. Talk to 南賢, then inspect the cabinet beside him and
+   take the 羅盤, the compass.
+3. After that opening encounter, many locations that refused you will let you in.
 4. With the compass, `esc → 物品 → 羅盤` shows your current coordinates as
    numbers. That is the game telling you where you are, and it beats comparing
    screenshots of trees. Check it every few moves once you have it.

@@ -1,8 +1,8 @@
 # Skill: play 金庸群俠傳 (The Legend of Jin Yong Heroes)
 
 The original 1996 DOS game by 河洛工作室, running under emulation at {BASE}.
-You send keys, you get back a picture of the screen. It is an open-world RPG:
-how you play it is up to you.
+You send keys and request pictures of the screen when you need them. It is an
+open-world RPG: how you play it is up to you.
 
 ## The loop
 
@@ -74,9 +74,9 @@ and short taps for precise positioning.
 
 ## First priority: get the compass
 
-Most buildings cannot be entered at the start. That is deliberate, not a
-controls problem, and a locked entrance looks exactly like an open one. Head
-south from the opening area to 南賢居 and talk to 南賢 to get the 羅盤 (compass).
+Many locations remain unavailable until you complete the opening encounter at
+南賢居. Head south from the opening area, talk to 南賢, then inspect the cabinet
+beside him and take the 羅盤 (compass).
 
 With the compass, `esc → 物品 → 羅盤` shows **your current coordinates as
 numbers**. That is the game's own ground truth for position, far better than

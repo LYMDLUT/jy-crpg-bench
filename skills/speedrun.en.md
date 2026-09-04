@@ -6,15 +6,16 @@ taught us, which the handbook does not cover.
 
 ## First: get the compass
 
-Most buildings cannot be entered at the start. That is deliberate design, not a
-controls problem, and a locked entrance looks identical to an open one. Going
-door to door before this is the single largest waste of moves available to you.
+Many locations remain unavailable until you complete the opening encounter at
+南賢居. Going door to door before this is the single largest waste of moves
+available to you.
 
 1. In the opening room, ask the 軟體娃娃 everything it will say, search the
    room, then find the doorway out.
 2. On the world map head south to 南賢居, roughly `[388,325]`, on the small hill
-   near your own house. Talk to 南賢 and take the 羅盤, the compass.
-3. Buildings that refused you before will now let you in.
+   near your own house. Talk to 南賢, then inspect the cabinet beside him and
+   take the 羅盤, the compass.
+3. After that opening encounter, many locations that refused you will let you in.
 4. With the compass, `esc → 物品 → 羅盤` shows your current coordinates as
    numbers. That is the game telling you where you are, and it beats comparing
    screenshots of trees. Check it every few moves once you have it.
