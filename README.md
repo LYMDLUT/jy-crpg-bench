@@ -247,7 +247,11 @@ model has the API, the controls, the isometric axes and the traps.
 `skills/jyxzz-speedrun-tips/SKILL.md` is the original research the field manual
 came from. Edit that first, then fold anything durable into the served files.
 
-`mcp-server/` wraps the same surface over MCP for clients that speak it.
+`mcp-server/` wraps the same surface over MCP 2.x for clients that speak it.
+It loads guidance from the same `skills/` files as `/api/help`. Set
+`QUNXIA_MCP_PROFILE=benchmark` to expose only `look`, `press`,
+`press_sequence`, and `wait`; benchmark actions return metadata and `look`
+returns the native 320x200 frame. Standalone mode keeps the convenience tools.
 
 ## Session recording
 
