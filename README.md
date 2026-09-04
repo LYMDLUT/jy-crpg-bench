@@ -217,7 +217,7 @@ npm ci
 
 export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
 export QUNXIA_LLM_API_KEY=sk-...
-export QUNXIA_LLM_MODEL=qwen3-vl:32b
+export QUNXIA_LLM_MODEL=local-openai/qwen3-vl:32b
 ./Scripts/play-agent.sh
 ```
 
@@ -247,6 +247,9 @@ QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
 SESSION_ID=replace-with-the-created-session-id
 QUNXIA_PI_PROFILE=benchmark \
 QUNXIA_API="http://127.0.0.1:8084/u/$SESSION_ID/api" \
+QUNXIA_THINKING=max \
+QUNXIA_LLM_REASONING=1 \
+QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
 QUNXIA_RUN_ID=benchmark-01 \
   ./Scripts/play-agent.sh -p "play until BENCHMARK ENDED"
 
@@ -263,6 +266,16 @@ run manifest for later auditing. Profiles may select only tools supplied by the
 isolated game extension, so they cannot accidentally enable host filesystem or
 shell tools. Formal runs also refuse a dirty Git checkout;
 set `QUNXIA_ALLOW_DIRTY=1` only for a deliberately non-reproducible trial.
+
+Formal benchmark runs require an explicit `QUNXIA_THINKING` value: `off`,
+`minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. Set
+`QUNXIA_LLM_REASONING=1` and `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1` only when
+the selected OpenAI-compatible endpoint actually accepts reasoning effort.
+`QUNXIA_LLM_API` selects `openai-completions` (the default) or
+`openai-responses`, and `QUNXIA_LLM_MAX_TOKENS` defaults to 8192. The resolved
+API, reasoning support, thinking level, context window, and output limit are
+recorded in `run.json` and must match when a run is resumed. Set thinking with
+`QUNXIA_THINKING`; the launcher rejects an unrecorded `--thinking` override.
 
 The built-in Pi harness calls the game HTTP API directly through the `qunxia`
 extension; it does not pass through MCP. `mcp-server/` is the separate adapter

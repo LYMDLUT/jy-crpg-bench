@@ -9,9 +9,15 @@ const required = [
   "QUNXIA_PI_PROFILE",
   "QUNXIA_PI_VERSION",
   "QUNXIA_LLM_BASE_URL",
+  "QUNXIA_MODEL_REF",
+  "QUNXIA_LLM_PROVIDER",
   "QUNXIA_LLM_MODEL",
   "QUNXIA_LLM_INPUT_JSON",
   "QUNXIA_LLM_CONTEXT",
+  "QUNXIA_LLM_MAX_TOKENS",
+  "QUNXIA_LLM_API",
+  "QUNXIA_LLM_REASONING",
+  "QUNXIA_LLM_SUPPORTS_REASONING_EFFORT",
   "QUNXIA_API",
 ];
 
@@ -103,6 +109,38 @@ const contextWindow = Number(process.env.QUNXIA_LLM_CONTEXT);
 if (!Number.isSafeInteger(contextWindow) || contextWindow <= 0) {
   throw new Error("QUNXIA_LLM_CONTEXT must be a positive integer");
 }
+const maxTokens = Number(process.env.QUNXIA_LLM_MAX_TOKENS);
+if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0 || maxTokens > contextWindow) {
+  throw new Error("QUNXIA_LLM_MAX_TOKENS must be a positive integer no larger than QUNXIA_LLM_CONTEXT");
+}
+const api = process.env.QUNXIA_LLM_API;
+if (!["openai-completions", "openai-responses"].includes(api)) {
+  throw new Error("QUNXIA_LLM_API must be openai-completions or openai-responses");
+}
+const parseFlag = (name) => {
+  const value = process.env[name];
+  if (value !== "0" && value !== "1") throw new Error(`${name} must be 0 or 1`);
+  return value === "1";
+};
+const reasoning = parseFlag("QUNXIA_LLM_REASONING");
+const supportsReasoningEffort = parseFlag("QUNXIA_LLM_SUPPORTS_REASONING_EFFORT");
+const requestedThinking = process.env.QUNXIA_THINKING || null;
+const thinkingLevel = resume && requestedThinking === null
+  ? (existingManifest?.model?.thinkingLevel ?? null)
+  : requestedThinking;
+const thinkingLevels = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
+if (thinkingLevel !== null && !thinkingLevels.has(thinkingLevel)) {
+  throw new Error("QUNXIA_THINKING has an invalid level");
+}
+if (profile === "benchmark" && thinkingLevel === null) {
+  throw new Error("benchmark runs require an explicit QUNXIA_THINKING level");
+}
+if (thinkingLevel !== null && thinkingLevel !== "off"
+    && (!reasoning || !supportsReasoningEffort)) {
+  throw new Error(
+    `QUNXIA_THINKING=${thinkingLevel} requires a reasoning model and an endpoint that supports reasoning effort`,
+  );
+}
 
 let benchmarkHelp = null;
 let systemPrompt;
@@ -188,28 +226,37 @@ const identity = {
   tools: profileDefinition.tools,
   prompt: promptMetadata,
   model: {
-    provider: "qunxia",
+    ref: process.env.QUNXIA_MODEL_REF,
+    provider: process.env.QUNXIA_LLM_PROVIDER,
     id: process.env.QUNXIA_LLM_MODEL,
     baseUrl: process.env.QUNXIA_LLM_BASE_URL,
     input,
     contextWindow,
-    maxTokens: 8192,
+    maxTokens,
+    api,
+    reasoning,
+    supportsReasoningEffort,
+    thinkingLevel,
   },
 };
 
 const models = {
   providers: {
-    qunxia: {
+    [identity.model.provider]: {
       baseUrl: identity.model.baseUrl,
-      api: "openai-completions",
+      api: identity.model.api,
       apiKey: "$QUNXIA_LLM_API_KEY",
-      compat: { supportsDeveloperRole: false, supportsReasoningEffort: false },
+      compat: {
+        supportsDeveloperRole: false,
+        supportsReasoningEffort: identity.model.supportsReasoningEffort,
+      },
       models: [{
         id: identity.model.id,
         name: identity.model.id,
         input: identity.model.input,
         contextWindow: identity.model.contextWindow,
         maxTokens: identity.model.maxTokens,
+        reasoning: identity.model.reasoning,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       }],
     },
