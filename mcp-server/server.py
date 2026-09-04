@@ -25,6 +25,11 @@ BENCHMARK = PROFILE == "benchmark"
 DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "1" if BENCHMARK else "2"))
 BASE = API[:-4] if API.endswith("/api") else API
 LANGUAGE = os.environ.get("QUNXIA_BENCH_LANG", "en")
+MAX_KEYS_PER_ACTION = 32
+MAX_HOLD_FRAMES = 600
+MAX_GAP_FRAMES = 600
+MAX_STABLE_FRAMES = 600
+MAX_WAIT_MS = 60000
 
 
 def _benchmark_guide():
@@ -54,6 +59,13 @@ def expose(enabled=True):
 
 class GameOffline(RuntimeError):
     pass
+
+
+def _bounded_int(name, value, minimum, maximum):
+    if (isinstance(value, bool) or not isinstance(value, int)
+            or not minimum <= value <= maximum):
+        raise ValueError(f"{name} must be an integer from {minimum} to {maximum}")
+    return value
 
 
 def _call(method, path, payload=None, timeout=240):
@@ -158,6 +170,11 @@ def press(key: str, times: int = 1, hold: int = None, stable: int = None) -> lis
 
     Remember: during a cutscene every key just advances the dialogue.
     """
+    times = _bounded_int("times", times, 1, MAX_KEYS_PER_ACTION)
+    if hold is not None:
+        hold = _bounded_int("hold", hold, 1, MAX_HOLD_FRAMES)
+    if stable is not None:
+        stable = _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
     payload = {"hold": hold} if hold is not None else {}
     if times > 1:
         return _act("/keys", {"keys": [key] * times, **payload},
@@ -173,6 +190,11 @@ def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
     single presses when you are unsure what a screen will do, because you only
     see the result of the last key here.
     """
+    if not 1 <= len(keys) <= MAX_KEYS_PER_ACTION:
+        raise ValueError(f"keys must contain from 1 to {MAX_KEYS_PER_ACTION} entries")
+    gap = _bounded_int("gap", gap, 0, MAX_GAP_FRAMES)
+    if stable is not None:
+        stable = _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
     return _act("/keys", {"keys": keys, "gap": gap},
                 note=" ".join(keys), stable=stable)
 
@@ -187,7 +209,8 @@ def move(direction: str, steps: int = 1) -> list:
     """
     if direction not in ("up", "down", "left", "right"):
         raise ValueError("direction must be up, down, left or right")
-    return _act("/keys", {"keys": [direction] * max(1, steps), "gap": 6},
+    steps = _bounded_int("steps", steps, 1, MAX_KEYS_PER_ACTION)
+    return _act("/keys", {"keys": [direction] * steps, "gap": 6},
                 note=f"move {direction} x{steps}")
 
 
@@ -199,6 +222,7 @@ def wait(ms: int = 1000) -> list:
     world map. Benchmark mode returns metadata only; call look when you need
     the next visible frame.
     """
+    ms = _bounded_int("ms", ms, 0, MAX_WAIT_MS)
     return _act("/wait", {"ms": ms}, note=f"wait {ms}ms")
 
 

@@ -42,6 +42,28 @@ class PressContractTests(unittest.TestCase):
             note="kp3 x2", stable=8,
         )
 
+    def test_action_batches_match_the_game_server_limit(self):
+        with self.assertRaisesRegex(
+                ValueError, "times must be an integer from 1 to 32"):
+            SERVER.press("kp3", times=33)
+        with self.assertRaisesRegex(
+                ValueError, "keys must contain from 1 to 32"):
+            SERVER.press_sequence(["kp3"] * 33)
+        with self.assertRaisesRegex(
+                ValueError, "steps must be an integer from 1 to 32"):
+            SERVER.move("right", steps=33)
+
+    def test_action_timing_parameters_are_bounded(self):
+        with self.assertRaisesRegex(
+                ValueError, "hold must be an integer from 1 to 600"):
+            SERVER.press("kp3", hold=0)
+        with self.assertRaisesRegex(
+                ValueError, "stable must be an integer from 1 to 600"):
+            SERVER.press("kp3", stable=601)
+        with self.assertRaisesRegex(
+                ValueError, "gap must be an integer from 0 to 600"):
+            SERVER.press_sequence(["kp3", "enter"], gap=-1)
+
     def test_benchmark_actions_suppress_images(self):
         benchmark = load_server("benchmark")
         with patch.object(benchmark, "_call", return_value={"ok": True}) as call:
