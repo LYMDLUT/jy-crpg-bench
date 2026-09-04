@@ -99,9 +99,9 @@ bounce between two tiles, reporting a change each time. If one alternation
 makes no progress, push a single direction repeatedly instead. That is what got
 us through the forest, not alternating.
 
-**A fully black screen usually means a fade or loading transition.** Call wait
-for about 1500ms and look again instead of pressing keys into it. Treat it as a
-possible failure only if it stays black after waiting.
+**A fully black screen does not reveal its cause.** Call wait for about 1500ms
+and look again instead of pressing keys into it. Treat it as a possible failure
+only if it stays black after waiting.
 
 **An entrance is one specific tile.** Walled compounds look walkable all round
 but almost all of it is scenery. Walk the full perimeter and test each gap

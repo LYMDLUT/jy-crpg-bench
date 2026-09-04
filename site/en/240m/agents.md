@@ -173,9 +173,9 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
 - **If alternating two keys stalls**, you are bouncing between two tiles because
   the second key is blocked. Do not retry the same pair, push a single direction
   repeatedly instead.
-- **A fully black screen usually means a fade or loading transition.** Call
-  `/api/wait` for about 1500ms and look again rather than pressing keys into
-  it. Treat it as a possible failure only if it stays black after waiting.
+- **A fully black screen does not reveal its cause.** Call `/api/wait` for about
+  1500ms and look again rather than pressing keys into it. Treat it as a
+  possible failure only if it stays black after waiting.
 - **A building's entrance is one specific tile**, not the whole wall. Walk the
   full perimeter and test each gap inward before concluding you cannot get in.
 - **Looping ambient chatter is not a quest.** If the same opening line comes
@@ -294,9 +294,9 @@ bounce between two tiles, reporting a change each time. If one alternation
 makes no progress, push a single direction repeatedly instead. That is what got
 us through the forest, not alternating.
 
-**A fully black screen usually means a fade or loading transition.** Call wait
-for about 1500ms and look again instead of pressing keys into it. Treat it as a
-possible failure only if it stays black after waiting.
+**A fully black screen does not reveal its cause.** Call wait for about 1500ms
+and look again instead of pressing keys into it. Treat it as a possible failure
+only if it stays black after waiting.
 
 **An entrance is one specific tile.** Walled compounds look walkable all round
 but almost all of it is scenery. Walk the full perimeter and test each gap
