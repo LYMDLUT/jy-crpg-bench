@@ -43,8 +43,9 @@ class BigMapSignalTests(unittest.TestCase):
 
 class InputLimitTests(unittest.IsolatedAsyncioTestCase):
     class Request:
-        def __init__(self, body):
+        def __init__(self, body, query=None):
             self.body = body
+            self.query = query or {}
 
         async def json(self):
             return self.body
@@ -66,6 +67,21 @@ class InputLimitTests(unittest.IsolatedAsyncioTestCase):
         key_steps = [step for step in steps if len(step) > 2]
         self.assertEqual(len(key_steps), game_server.MAX_KEYS_PER_ACTION)
         self.assertTrue(all(step[1] == game_server.MAX_HOLD_FRAMES for step in key_steps))
+
+    async def test_sequence_honors_gap_and_stable_parameters(self):
+        action = AsyncMock(return_value="ok")
+        with patch.object(game_server, "run_action", action):
+            await game_server.api_keys(self.Request(
+                {"keys": ["kp3", "enter"], "gap": 17},
+                {"stable": "23"},
+            ))
+        steps = action.await_args.args[1]
+        self.assertEqual(steps[1], ("frames", 17))
+        self.assertEqual(action.await_args.kwargs["stable"], 23)
+
+    async def test_sequence_requires_a_list(self):
+        response = await game_server.api_keys(self.Request({"keys": "enter"}))
+        self.assertEqual(response.status, 400)
 
 
 if __name__ == "__main__":

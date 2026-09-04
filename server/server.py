@@ -133,8 +133,12 @@ LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 DEFAULT_TAP_FRAMES = 10
 KEY_RELEASE_FRAMES = 2
 BETWEEN_TAPS_FRAMES = 6
+DEFAULT_STABLE_FRAMES = 9
+DEFAULT_SETTLE_MAX_FRAMES = 120
 MAX_KEYS_PER_ACTION = 32
 MAX_HOLD_FRAMES = 600
+MAX_GAP_FRAMES = 600
+MAX_STABLE_FRAMES = 600
 # Reset restores this rather than rebooting. It puts the agent in the opening
 # room with a character already made, because creating one means driving the
 # 注音 IME, which is a puzzle about input methods and not about the game.
@@ -852,7 +856,8 @@ def snapshot(fmt="png"):
     return out.getvalue(), w.value, h.value, mime
 
 
-async def settle(baseline, react=30, stable=9, maxframes=120):
+async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
+                 maxframes=DEFAULT_SETTLE_MAX_FRAMES):
     """Wait for the game to react, then for the picture to hold still.
 
     Three ways to be done. The picture stops changing; or it starts cycling,
@@ -937,7 +942,8 @@ def held_note(steps):
     return f"{longest:.1f}s" if longest >= 0.25 else ""
 
 
-async def run_action(request, steps, note, verb="KEY"):
+async def run_action(request, steps, note, verb="KEY",
+                     stable=DEFAULT_STABLE_FRAMES):
     """Steps are key taps, ``("wait", seconds)`` or ``("frames", count)``.
 
     Deliberately does not return a screenshot. Encoding a PNG for every
@@ -1009,7 +1015,9 @@ async def run_action(request, steps, note, verb="KEY"):
                 await wait_core_frames(val)
             else:
                 await tap(kind, val, step[2] if len(step) > 2 else None)
-        waited, changed = await settle(baseline)
+        waited, changed = await settle(
+            baseline, stable=stable,
+            maxframes=max(DEFAULT_SETTLE_MAX_FRAMES, stable))
         note_screen()
         note_move()
         # Inventory can increase and be consumed between sparse samples.  The
@@ -1113,18 +1121,24 @@ async def api_key(request):
         return web.json_response({"ok": False, "error": "unknown key"}, status=400)
     hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=MAX_HOLD_FRAMES)
     times = num(d, "times", 1, lo=1, hi=MAX_KEYS_PER_ACTION)
+    stable = num(getattr(request, "query", {}), "stable", DEFAULT_STABLE_FRAMES,
+                 lo=1, hi=MAX_STABLE_FRAMES)
     name = str(d.get("key")).strip().lower()
     steps = []
     for i in range(times):
         steps.append((code, hold, name))
         if i != times - 1:
             steps.append(("frames", BETWEEN_TAPS_FRAMES))
-    return await run_action(request, steps, name + (f" x{times}" if times > 1 else ""))
+    return await run_action(
+        request, steps, name + (f" x{times}" if times > 1 else ""),
+        stable=stable)
 
 
 async def api_keys(request):
     d = await body_of(request)
     names = d.get("keys") or []
+    if not isinstance(names, list):
+        return web.json_response({"ok": False, "error": "keys must be a list"}, status=400)
     if len(names) > MAX_KEYS_PER_ACTION:
         return web.json_response(
             {"ok": False, "error": f"at most {MAX_KEYS_PER_ACTION} keys per action"},
@@ -1133,12 +1147,16 @@ async def api_keys(request):
     if not names or any(c is None for c in codes):
         return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
     hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=MAX_HOLD_FRAMES)
+    gap = num(d, "gap", BETWEEN_TAPS_FRAMES, lo=0, hi=MAX_GAP_FRAMES)
+    stable = num(getattr(request, "query", {}), "stable", DEFAULT_STABLE_FRAMES,
+                 lo=1, hi=MAX_STABLE_FRAMES)
     steps = []
     for i, c in enumerate(codes):
         steps.append((c, hold, str(names[i]).strip().lower()))
-        if i != len(codes) - 1:
-            steps.append(("frames", BETWEEN_TAPS_FRAMES))
-    return await run_action(request, steps, " ".join(map(str, names)), verb="KEYS")
+        if i != len(codes) - 1 and gap:
+            steps.append(("frames", gap))
+    return await run_action(
+        request, steps, " ".join(map(str, names)), verb="KEYS", stable=stable)
 
 
 async def api_wait(request):
