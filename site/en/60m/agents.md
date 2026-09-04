@@ -174,9 +174,6 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
   repeatedly instead.
 - **A fully black screen is a scene transition**, not a crash. Call `/api/wait`
   about 1500ms and look again rather than pressing keys into the fade.
-- **The menu sometimes opens by itself** when every direction is blocked. Press
-  esc, wait, look, repeat until it closes, then go the opposite way, because the
-  direction that triggered it is a wall.
 - **A building's entrance is one specific tile**, not the whole wall. Walk the
   full perimeter and test each gap inward before concluding you cannot get in.
 - **Looping ambient chatter is not a quest.** If the same opening line comes
@@ -296,10 +293,6 @@ us through the forest, not alternating.
 
 **A fully black screen is a scene transition.** Call wait for about 1500ms and
 look again. Keys pressed into a fade get eaten by the incoming scene.
-
-**The menu sometimes opens by itself** when every direction is blocked. Press
-esc, wait, look, repeat until it closes, then go the opposite way, because the
-direction that triggered it is a wall.
 
 **An entrance is one specific tile.** Walled compounds look walkable all round
 but almost all of it is scenery. Walk the full perimeter and test each gap
