@@ -12,6 +12,11 @@ const ACTION_RESULT = OBSERVE_AFTER_ACTION
   ? "The resulting visible frame is returned."
   : "Only action metadata is returned; call game_look when you need the next visible frame.";
 
+function boundedInteger(value: number | undefined, fallback: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(value ?? fallback)));
+}
+
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
 async function call(method: string, path: string, body?: unknown, signal?: AbortSignal) {
@@ -135,17 +140,19 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Press a key in the game",
     parameters: Type.Object({
       key: Type.String({ description: "Key name, e.g. up, enter, esc, y" }),
-      times: Type.Optional(Type.Number({ description: "Repeat count, default 1" })),
-      hold: Type.Optional(Type.Number({
+      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
+      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames to hold the key. Omit to use the game server's safe tap default.",
       })),
-      stable: Type.Optional(Type.Number({
+      stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still before the screenshot. Raise if you get a half-written dialogue line.",
       })),
     }),
     async execute(_id, params, signal) {
-      const times = params.times ?? 1;
-      const q = params.stable ? `&stable=${params.stable}` : "";
+      const times = boundedInteger(params.times, 1, 1, 100);
+      const stable = params.stable === undefined
+        ? undefined : boundedInteger(params.stable, 9, 1, 600);
+      const q = stable ? `&stable=${stable}` : "";
       const note = times > 1 ? `${params.key} x${times}` : params.key;
       const body = times > 1
         ? { keys: Array(times).fill(params.key), hold: params.hold }
@@ -165,9 +172,12 @@ export default function (pi: ExtensionAPI) {
       `the intermediate frames. ${ACTION_RESULT}`,
     promptSnippet: "Press a sequence of keys in the game",
     parameters: Type.Object({
-      keys: Type.Array(Type.String(), { description: "Key names in order" }),
-      gap: Type.Optional(Type.Number({ description: "Frames between keys, default 6" })),
-      stable: Type.Optional(Type.Number({
+      keys: Type.Array(Type.String(), {
+        minItems: 1, maxItems: 100, description: "Key names in order",
+      }),
+      gap: Type.Optional(Type.Integer({ minimum: 0, maximum: 600,
+        description: "Frames between keys, default 6" })),
+      stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still after the sequence",
       })),
     }),
@@ -193,8 +203,10 @@ export default function (pi: ExtensionAPI) {
       direction: Type.String({
         description: "kp7/kp9/kp1/kp3, or left/up/down/right",
       }),
-      steps: Type.Optional(Type.Number({ description: "Tiles to walk, default 1" })),
-      hold: Type.Optional(Type.Number({ description: "Frames to hold for long movement" })),
+      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 100,
+        description: "Tiles to walk, default 1" })),
+      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
+        description: "Frames to hold for long movement" })),
     }),
     execute: (_id, params, signal) => {
       const dir = params.direction.toLowerCase();
@@ -215,7 +227,7 @@ export default function (pi: ExtensionAPI) {
       if (params.hold !== undefined) {
         return act("/key", { key, hold: params.hold }, `move ${dir} hold ${params.hold}`, signal);
       }
-      const steps = Math.max(1, params.steps ?? 1);
+      const steps = boundedInteger(params.steps, 1, 1, 100);
       return act("/keys", { keys: Array(steps).fill(key), gap: 6 }, `move ${dir} x${steps}`, signal);
     },
   });
@@ -228,7 +240,8 @@ export default function (pi: ExtensionAPI) {
       `scene transitions, battle animations and travel on the world map. ${ACTION_RESULT}`,
     promptSnippet: "Let the game run for a while",
     parameters: Type.Object({
-      ms: Type.Optional(Type.Number({ description: "Milliseconds, default 1000" })),
+      ms: Type.Optional(Type.Integer({ minimum: 0, maximum: 60000,
+        description: "Milliseconds, default 1000" })),
     }),
     execute: (_id, params, signal) =>
       act("/wait", { ms: params.ms ?? 1000 }, `wait ${params.ms ?? 1000}ms`, signal),

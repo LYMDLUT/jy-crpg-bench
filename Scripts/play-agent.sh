@@ -27,7 +27,7 @@ API="${API%/}"
 API_SUPPLIED=0
 [[ -n "${QUNXIA_API:-}" ]] && API_SUPPLIED=1
 if [[ "$API_SUPPLIED" == "1" ]]; then
-  STATUS_URL="${QUNXIA_STATUS_URL:-${API%/api}/status}"
+  STATUS_URL="${QUNXIA_STATUS_URL:-$API/screen?format=png&spectate=1}"
 else
   STATUS_URL="${QUNXIA_STATUS_URL:-$API/screen?format=png}"
 fi

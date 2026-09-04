@@ -148,6 +148,12 @@ test("the launcher requires a full provider/model reference", () => {
   assert.match(result.stderr, /must include non-empty provider and model names/);
 });
 
+test("supplied benchmark APIs are probed through the public visual route", async () => {
+  const launcher = await readFile(playAgent, "utf8");
+  assert.match(launcher, /\/screen\?format=png&spectate=1/);
+  assert.doesNotMatch(launcher, /\$\{API%\/api\}\/status/);
+});
+
 test("benchmark profile exposes only broker-supported game tools", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "qunxia-pi-benchmark-"));
   const result = invoke(runsDir, "benchmark-a", "benchmark");
@@ -184,6 +190,10 @@ test("game press leaves the server tap duration authoritative", async () => {
   );
   assert.match(extension, /Omit to use the game server's safe tap default/);
   assert.doesNotMatch(extension, /default 4/);
+  assert.match(extension, /times: Type\.Optional\(Type\.Integer/);
+  assert.match(extension, /minItems: 1, maxItems: 100/);
+  assert.match(extension, /const times = boundedInteger\(params\.times, 1, 1, 100\)/);
+  assert.match(extension, /const steps = boundedInteger\(params\.steps, 1, 1, 100\)/);
 });
 
 test("benchmark thinking must be explicit and supported", () => {
