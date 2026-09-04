@@ -120,24 +120,25 @@ def guide() -> str:
 # -------------------------------------------------------------------- actions
 
 @mcp.tool()
-def press(key: str, times: int = 1, hold: int = 4, stable: int = None) -> list:
+def press(key: str, times: int = 1, hold: int = None, stable: int = None) -> list:
     """Press one key. In benchmark mode, call look after acting.
 
-    key: up, down, left, right, enter (or ok), space, esc, y, n, a-z, 0-9,
-         f1-f12, tab, backspace, or a combo like "alt+x".
+    key: kp1, kp3, kp7, kp9 (preferred movement keys), up, down, left, right,
+         enter (or ok), space, esc, y, n, a-z, 0-9, f1-f12, tab,
+         backspace, or a combo like "alt+x".
     times: repeat the same key this many times (useful for walking or for
          advancing several dialogue lines).
-    hold: frames to hold the key down, default 4. Raise it only if a press
-         seems to be ignored.
-    stable: frames the picture must hold still before the screenshot is taken.
-         Raise it if you get a half-written dialogue line.
+    hold: frames to hold the key down. Omit it to use the game server's safe
+         tap default; override it only for an intentional longer press.
+    stable: frames the picture must hold still before the action settles.
 
     Remember: during a cutscene every key just advances the dialogue.
     """
+    payload = {"hold": hold} if hold is not None else {}
     if times > 1:
-        return _act("/keys", {"keys": [key] * times, "hold": hold},
+        return _act("/keys", {"keys": [key] * times, **payload},
                     note=f"{key} x{times}", stable=stable)
-    return _act("/key", {"key": key, "hold": hold}, note=key, stable=stable)
+    return _act("/key", {"key": key, **payload}, note=key, stable=stable)
 
 
 @mcp.tool()
@@ -185,10 +186,11 @@ def open_menu() -> list:
 
 @mcp.tool()
 def wait(ms: int = 1000) -> list:
-    """Let the game run without pressing anything, then return the screen.
+    """Let the game run without pressing anything.
 
     Use it during boot, scene transitions, battle animations, and travel on the
-    world map.
+    world map. Benchmark mode returns metadata only; call look when you need
+    the next visible frame.
     """
     return _act("/wait", {"ms": ms}, note=f"wait {ms}ms")
 
