@@ -2,6 +2,7 @@ import importlib.util
 import pathlib
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 
@@ -19,13 +20,14 @@ class BigMapSignalTests(unittest.TestCase):
             scenes=1,
             bigmap=False,
             checked_refs=False,
+            dark=False,
         )
 
     def tearDown(self):
         game_server.world.clear()
         game_server.world.update(self.original)
 
-    def test_reference_cannot_latch_before_a_scene_transition(self):
+    def test_reference_cannot_latch_before_a_full_black_boundary(self):
         reference = game_server.BIGMAP_REFS[0]
         interior = bytes((value + 32) % 256 for value in reference)
 
@@ -40,8 +42,20 @@ class BigMapSignalTests(unittest.TestCase):
         game_server.note_bigmap(reference)
         self.assertTrue(game_server.world["bigmap"])
 
+    def test_transition_is_committed_before_bigmap_detection(self):
+        reference = game_server.BIGMAP_REFS[0]
+        interior = bytes((value + 32) % 256 for value in reference)
+        game_server.note_bigmap(interior)
+        game_server.world["dark"] = True
 
-class InputLimitTests(unittest.IsolatedAsyncioTestCase):
+        game_server.note_move()
+        game_server.note_bigmap(reference)
+
+        self.assertEqual(game_server.world["scenes"], 2)
+        self.assertTrue(game_server.world["bigmap"])
+
+
+class InputContractTests(unittest.IsolatedAsyncioTestCase):
     class Request:
         def __init__(self, body, query=None):
             self.body = body
@@ -50,23 +64,17 @@ class InputLimitTests(unittest.IsolatedAsyncioTestCase):
         async def json(self):
             return self.body
 
-    async def test_sequence_length_is_bounded(self):
-        response = await game_server.api_keys(self.Request({
-            "keys": ["enter"] * (game_server.MAX_KEYS_PER_ACTION + 1),
-        }))
-        self.assertEqual(response.status, 400)
-
-    async def test_repeat_and_hold_are_clamped_before_execution(self):
+    async def test_repeat_and_hold_preserve_the_existing_api_limits(self):
         action = AsyncMock(return_value="ok")
         with patch.object(game_server, "run_action", action):
             await game_server.api_key(self.Request({
                 "key": "enter", "times": 1000000, "hold": 1000000,
             }))
         steps = action.await_args.args[1]
-        self.assertEqual(len(steps), game_server.MAX_KEYS_PER_ACTION * 2 - 1)
+        self.assertEqual(len(steps), 100 * 2 - 1)
         key_steps = [step for step in steps if len(step) > 2]
-        self.assertEqual(len(key_steps), game_server.MAX_KEYS_PER_ACTION)
-        self.assertTrue(all(step[1] == game_server.MAX_HOLD_FRAMES for step in key_steps))
+        self.assertEqual(len(key_steps), 100)
+        self.assertTrue(all(step[1] == 100000 for step in key_steps))
 
     async def test_sequence_honors_gap_and_stable_parameters(self):
         action = AsyncMock(return_value="ok")
@@ -82,6 +90,19 @@ class InputLimitTests(unittest.IsolatedAsyncioTestCase):
     async def test_sequence_requires_a_list(self):
         response = await game_server.api_keys(self.Request({"keys": "enter"}))
         self.assertEqual(response.status, 400)
+
+    async def test_settle_budget_can_fit_reaction_and_stability(self):
+        fake_lib = SimpleNamespace(
+            core_fps=lambda: 60.0,
+            fb_luma=lambda: 100,
+            core_frame_hash=lambda: 2,
+        )
+        with (patch.object(game_server, "LIB", fake_lib),
+              patch.object(game_server.asyncio, "sleep", AsyncMock())):
+            waited, changed = await game_server.settle(
+                1, react=30, stable=5, maxframes=1)
+        self.assertTrue(changed)
+        self.assertEqual(waited, 6)
 
 
 if __name__ == "__main__":

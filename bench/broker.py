@@ -70,7 +70,7 @@ VIDEO_WAIT = float(os.environ.get("QUNXIA_VIDEO_WAIT", "300"))
 CORS = {"Access-Control-Allow-Origin": "*"}
 LIVE_HERO_FIELDS = (
     "level", "exp", "hp", "maxhp", "skills", "items",
-    "role_item_slots", "inventory_distinct", "inventory_total", "picked_item",
+    "inventory_distinct", "picked_item",
 )
 LIVE_TIMING_FIELDS = (
     "ttfa", "gap_p50", "gap_p95", "reads",

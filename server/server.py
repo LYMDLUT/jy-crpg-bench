@@ -135,9 +135,6 @@ KEY_RELEASE_FRAMES = 2
 BETWEEN_TAPS_FRAMES = 6
 DEFAULT_STABLE_FRAMES = 9
 DEFAULT_SETTLE_MAX_FRAMES = 120
-MAX_KEYS_PER_ACTION = 32
-MAX_HOLD_FRAMES = 600
-MAX_GAP_FRAMES = 600
 MAX_STABLE_FRAMES = 600
 # Reset restores this rather than rebooting. It puts the agent in the opening
 # room with a character already made, because creating one means driving the
@@ -157,9 +154,9 @@ session = {"started": time.time(), "actions": 0, "key_events": 0,
 # ground covered, and going in circles adds nothing, which is the point.
 # Behavioural counters, following definitions from the game-agent benchmark
 # literature so the numbers mean the same thing elsewhere:
-#   screen-changing decision ratio - whether the frame differs before/after
-#     one API decision. This is not a uniform environment-step metric because
-#     one decision may contain several keys or a held key.
+#   screen-changing decision ratio - whether successive decision-result frames
+#     differ. This is not a uniform environment-step metric because one
+#     decision may contain several keys or a held key.
 #   repetition rate        - AgentQuest (arXiv 2404.06411), repeated actions
 #     over steps taken.
 #   progress vs steps      - TextQuests (2507.23701) and BALROG (2411.13543)
@@ -208,13 +205,12 @@ CHAR_CHECK = (("胡斐", 1), ("苗人鳳", 3))
 C_NAME, C_LEVEL, C_EXP, C_HP, C_MAXHP = 8, 30, 32, 34, 36
 C_STAMINA, C_MP, C_MAXMP = 42, 82, 84
 C_ATTACK, C_INTEGRITY, C_REPUTATION, C_POTENTIAL = 86, 112, 118, 120
-C_SKILLS, C_ITEMS = 126, 166
+C_SKILLS = 126
 
 hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "level": None, "exp": None, "hp": None, "maxhp": None,
          "skills": None, "items": None, "reputation": None, "potential": None,
-         "role_item_slots": None, "inventory_distinct": None,
-         "inventory_total": None, "picked_item": None,
+         "inventory_distinct": None, "picked_item": None,
          "inventory_baseline": None}
 
 
@@ -270,17 +266,11 @@ def read_stats():
     hero["reputation"] = struct.unpack_from("<h", b, C_REPUTATION)[0]
     hero["potential"] = struct.unpack_from("<h", b, C_POTENTIAL)[0]
     hero["skills"] = sum(1 for v in struct.unpack_from("<10h", b, C_SKILLS) if v > 0)
-    # These are role-local seed/AI item slots, not player-configurable
-    # inventory. NPC items move into the public bag when that role joins; in
-    # battle, player characters use the public bag while non-player characters
-    # may use these slots. Never use them for the pickup milestone.
-    hero["role_item_slots"] = sum(
-        1 for v in struct.unpack_from("<4h", b, C_ITEMS) if v >= 0)
-
+    # The four values at offset 166 are role-local seed/AI slots, not the
+    # player's inventory, so deliberately do not score or publish them.
     inventory = decode_inventory(mem, base)
     if inventory is not None:
         hero["inventory_distinct"] = len(inventory)
-        hero["inventory_total"] = sum(inventory.values())
         opening = hero["inventory_baseline"]
         if opening is None:
             hero["inventory_baseline"] = dict(inventory)
@@ -696,10 +686,9 @@ def note_bigmap(fp):
             print("bigmap reference matches the spawn interior; flag disabled",
                   flush=True)
             return
-    # The world map is reachable only after leaving the opening interior. A
-    # later interior view can resemble the coarse reference even when the
-    # first-frame negative control did not; requiring a real scene transition
-    # prevents that false positive without weakening the reference itself.
+    # A later interior view can resemble the coarse reference even when the
+    # opening negative control did not. Require at least one detected full-black
+    # boundary before accepting the world-map fingerprint.
     if (world["bigmap"] is False and world["scenes"] >= 2
             and looks_like_bigmap(fp)):
         world["bigmap"] = True
@@ -754,9 +743,7 @@ def session_summary():
             "level": hero["level"], "exp": hero["exp"],
             "hp": hero["hp"], "maxhp": hero["maxhp"],
             "skills": hero["skills"], "items": hero["items"],
-            "role_item_slots": hero["role_item_slots"],
             "inventory_distinct": hero["inventory_distinct"],
-            "inventory_total": hero["inventory_total"],
             "picked_item": hero["picked_item"],
             "reputation": hero["reputation"], "potential": hero["potential"],
             "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
@@ -867,6 +854,8 @@ async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
     under the action lock, so it set the floor on how fast several agents can
     take turns.
     """
+    # A full reaction window can precede the requested stable run.
+    maxframes = max(maxframes, react + stable)
     ft = 1.0 / max(1.0, LIB.core_fps())
     reacted = react == 0
     last, runs, n = baseline, 0, 0
@@ -874,9 +863,8 @@ async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
     while n < maxframes:
         await asyncio.sleep(ft)
         n += 1
-        # The fade to black that marks a scene change lasts a handful of
-        # frames and is long gone by the time this returns, so it is caught
-        # here or not at all. A luma sample is about a microsecond.
+        # A fully black frame can be brief and gone by the time this returns, so
+        # record only that visible signal here. A luma sample is about a microsecond.
         if LIB.fb_luma() < DARK:
             world["dark"] = True
         h = LIB.core_frame_hash()
@@ -1015,11 +1003,9 @@ async def run_action(request, steps, note, verb="KEY",
                 await wait_core_frames(val)
             else:
                 await tap(kind, val, step[2] if len(step) > 2 else None)
-        waited, changed = await settle(
-            baseline, stable=stable,
-            maxframes=max(DEFAULT_SETTLE_MAX_FRAMES, stable))
-        note_screen()
+        waited, changed = await settle(baseline, stable=stable)
         note_move()
+        note_screen()
         # Inventory can increase and be consumed between sparse samples.  The
         # read is ~1.2 ms against hundreds of ms per action, so sample every
         # action and latch gains relative to the opening state.
@@ -1035,8 +1021,8 @@ async def run_action(request, steps, note, verb="KEY",
             warden.run["exit_acts"] = world["exit_acts"]
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
-                      "reputation", "potential", "role_item_slots",
-                      "inventory_distinct", "inventory_total", "picked_item"):
+                      "reputation", "potential", "inventory_distinct",
+                      "picked_item"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -1119,8 +1105,8 @@ async def api_key(request):
     code = keycode(d.get("key", ""))
     if not code:
         return web.json_response({"ok": False, "error": "unknown key"}, status=400)
-    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=MAX_HOLD_FRAMES)
-    times = num(d, "times", 1, lo=1, hi=MAX_KEYS_PER_ACTION)
+    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=100000)
+    times = num(d, "times", 1, lo=1, hi=100)
     stable = num(getattr(request, "query", {}), "stable", DEFAULT_STABLE_FRAMES,
                  lo=1, hi=MAX_STABLE_FRAMES)
     name = str(d.get("key")).strip().lower()
@@ -1139,15 +1125,11 @@ async def api_keys(request):
     names = d.get("keys") or []
     if not isinstance(names, list):
         return web.json_response({"ok": False, "error": "keys must be a list"}, status=400)
-    if len(names) > MAX_KEYS_PER_ACTION:
-        return web.json_response(
-            {"ok": False, "error": f"at most {MAX_KEYS_PER_ACTION} keys per action"},
-            status=400)
     codes = [keycode(k) for k in names]
     if not names or any(c is None for c in codes):
         return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
-    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=MAX_HOLD_FRAMES)
-    gap = num(d, "gap", BETWEEN_TAPS_FRAMES, lo=0, hi=MAX_GAP_FRAMES)
+    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=100000)
+    gap = num(d, "gap", BETWEEN_TAPS_FRAMES, lo=0)
     stable = num(getattr(request, "query", {}), "stable", DEFAULT_STABLE_FRAMES,
                  lo=1, hi=MAX_STABLE_FRAMES)
     steps = []
@@ -1234,12 +1216,12 @@ async def api_reset(request):
                      exit_acts=None, exit_secs=None, checked_refs=False)
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
-                    potential=None, role_item_slots=None,
-                    inventory_distinct=None, inventory_total=None,
-                    picked_item=None, inventory_baseline=None)
+                    potential=None, inventory_distinct=None, picked_item=None,
+                    inventory_baseline=None)
         agents.clear()
         rec_reset()
         await asyncio.sleep(0.4 if restored else 1.5)
+        note_screen()                  # seed the opening-frame negative control
         try:
             read_stats()                  # establish the opening inventory
         except Exception as exc:

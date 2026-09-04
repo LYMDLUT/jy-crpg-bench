@@ -60,14 +60,13 @@ Everything is taken from the run's own traffic, so it holds for any harness.
 
 What the screen itself is read for, none of it a model judging another model:
 
-- **meaningful step ratio** - actions that changed the screen at all, over
-  actions taken. On its own it rewards doing very little, so the board shows
+- **screen-changing decision ratio** - adjacent decision results whose final
+  frames differ. On its own it rewards doing very little, so the board shows
   the count beside it and plots one against the other.
 - **oscillation** - A to B and back to A, the failure the literature names.
-- **scenes** - fades to black, which is how this game changes scene. The
-  opening room reads luma 92 and a real transition reads 0, so the threshold
-  of 12 is nowhere near anything the game draws. Seventy-four actions of
-  walking and menus produced no false positive.
+- **scenes** - a legacy name for detected fully black transitions. This is a
+  proxy rather than proof of which scene was entered. The opening room reads
+  luma 92 and the detection threshold is 12.
 - **ground covered** - how far from each scene's entrance the character got,
   summed over scenes, kept as a maximum so retracing cannot inflate it.
   **Off by default.** It needs the character's coordinates, and the only way

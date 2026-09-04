@@ -31,7 +31,7 @@ ZH = {
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
     "cols": {"started": "时间",
              "meaningful": "画面变化决策", "oscillation": "来回打转",
-             "actions": "决策调用", "aps": "决策/秒", "exit_acts": "首次出门",
+             "actions": "决策调用", "aps": "决策/秒", "exit_acts": "首次全黑代理",
              "ttfa": "首次动作", "gap_p50": "思考 p50", "gap_p95": "思考 p95",
              "distinct_keys": "按键种类", "reads": "看画面", "played": "游玩",
              "reason": "结束原因"},
@@ -58,30 +58,28 @@ ZH = {
     "b_n_effort": "决策调用更多不等于更好：基线排在最前，是因为它从不停下来看。",
     "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。",
     "b_front": "取舍", "b_mact": "画面变化决策数",
-    "b_scenes": "场景", "b_reach": "走出的距离",
-    "b_exit": "首次出门", "b_map": "大地图", "m_map": "踏上大地图",
-    "b_n_exit": "首次出门＝第一次场景切换（全屏黑屏）花的决策调用数与时间。画面变化决策率"
-                "只说明一次调用前后的画面是否不同，不是统一环境步数；一个模型可以每次调用都改变画面却一直在出生的"
-                "院子里打转；首次出门才是第一个真正的进度信号。大地图用出生地"
-                "出口外标定的参照指纹判定。",
+    "b_scenes": "黑屏分段", "b_reach": "走出的距离",
+    "b_exit": "首次全黑代理", "b_map": "大地图", "m_map": "踏上大地图",
+    "b_n_exit": "首次出门目前以第一次检测到全黑画面的决策调用数与时间作为代理信号；"
+                "全黑本身不能证明原因。画面变化决策率只比较相邻决策结果，不是统一环境步数。"
+                "大地图使用出生地出口外标定的参照指纹判定。",
     "b_ladder": "进度", "b_more": "其余数据", "b_reads": "看屏/决策",
     "b_inputs": "决策 · 按键 · 按住帧",
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
-    "m_exp": "拿到经验", "m_scene": "离开开场场景",
-    "m_level": "升到 2 级",
-    "b_n_ladder": "七个可验证里程碑来自请求记录、游戏画面和机器状态。"
+    "m_exp": "拿到经验", "m_level": "升到 2 级",
+    "b_n_ladder": "六个可验证里程碑来自请求记录、游戏画面和机器状态。"
                   "它们展示取得的成果，不假定所有里程碑都必须按同一顺序发生。"
                   "空心的一格表示那一局跑的时候还没开始统计这项，不是没做到。",
     "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
-    "b_skills": "武功", "b_items": "物品",
-    "b_n_progress": "游戏自己的角色数值，直接从机器里读出来，不是从画面上猜的。"
+    "b_skills": "武功", "b_items": "物品种类",
+    "b_n_progress": "游戏自己的角色数值与公共背包，直接从机器里读出来，不是从画面上猜的。"
                     "等级到现在为止每一局都是 1：没有任何一个模型走出过开场，"
                     "现在这件事是个数字，而不是一种印象。",
     "b_explore": "探索",
-    "b_axis_s": "进入的场景数",
+    "b_axis_s": "黑屏分段数",
     "b_pre": "走出的距离目前不统计：读取角色坐标要把存档重新载入正在运行的机器，会把它弄崩。没测到就显示为空，不会写成 0。",
-    "b_n_explore": "场景数按游戏切换场景时的黑屏计；距离是从每个场景入口走出去的"
-                   "最远步数，逐场景累加。距离只取最大值，所以来回踱步加不上去。",
+    "b_n_explore": "黑屏分段数是初始画面加检测到全黑画面的次数，只是代理信号，不识别实际场景。"
+                   "距离是从每段入口走出去的最远步数并逐段累加，只取最大值，来回踱步加不上去。",
     "b_axis_q": "画面变化决策率", "b_axis_t": "画面变化决策数",
     "b_n_front": "画面变化决策率单看会奖励“少做少错”，变化决策数单看会奖励乱按。"
                  "两者都更高才算真的更好；连线上的模型，没有任何模型能在两项上同时超过它。",
@@ -114,7 +112,7 @@ EN = {
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
     "cols": {"started": "when",
              "meaningful": "screen-changing decisions", "oscillation": "oscillation",
-             "actions": "decision calls", "aps": "decisions/s", "exit_acts": "first exit",
+             "actions": "decision calls", "aps": "decisions/s", "exit_acts": "first-black proxy",
              "ttfa": "1st action", "gap_p50": "think p50", "gap_p95": "think p95",
              "distinct_keys": "key space", "reads": "screens", "played": "played",
              "reason": "ended by"},
@@ -146,39 +144,37 @@ EN = {
     "b_n_rely": "Every run so far finished with no errors, which is all this view "
                 "currently says.",
     "b_front": "trade-off", "b_mact": "screen-changing decisions",
-    "b_scenes": "scenes", "b_reach": "ground covered",
-    "b_exit": "first exit", "b_map": "world map", "m_map": "reached the world map",
-    "b_n_exit": "First exit is what the first scene transition (the full-screen "
-                "fade) cost: decision calls and clock. The screen-changing ratio compares "
-                "the frame before and after a call; it is not a uniform environment-step metric. A model can score high while "
-                "circling the spawn compound forever. First exit is the first "
-                "real progress signal. The world-map flag matches a reference "
+    "b_scenes": "black-frame segments", "b_reach": "ground covered",
+    "b_exit": "first-black proxy", "b_map": "world map", "m_map": "reached the world map",
+    "b_n_exit": "First exit currently uses the first decision that detects a fully "
+                "black frame as a proxy; black alone does not establish its cause. "
+                "The screen-changing ratio compares adjacent decision results, not "
+                "uniform environment steps. The world-map flag matches a reference "
                 "fingerprint calibrated just outside the spawn exit.",
     "b_ladder": "progress", "b_more": "more", "b_reads": "looks / decision",
     "b_inputs": "decisions · keys · held frames",
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
-    "m_exp": "gained experience",
-    "m_scene": "left the opening scene", "m_level": "reached level 2",
-    "b_n_ladder": "Seven verifiable milestones come from request logs, game "
+    "m_exp": "gained experience", "m_level": "reached level 2",
+    "b_n_ladder": "Six verifiable milestones come from request logs, game "
                   "frames, and machine state. They show what a run achieved "
                   "without assuming every milestone must occur in one order. A "
                   "hollow rung means that run predates the measurement, not "
                   "that it failed.",
     "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp",
-    "b_skills": "skills", "b_items": "items",
-    "b_n_progress": "The game's own numbers for the character, read out of the "
-                    "machine rather than guessed from the picture. Level has "
+    "b_skills": "skills", "b_items": "item types",
+    "b_n_progress": "The game's own character and shared-inventory values, read "
+                    "from the machine rather than guessed from the picture. Level has "
                     "been 1 on every run so far: nothing has got past the "
                     "opening, and now that is a number rather than an impression.",
     "b_explore": "exploration",
-    "b_axis_s": "scenes entered",
+    "b_axis_s": "black-frame segments",
     "b_pre": "Ground covered is not being recorded: reading the character's "
              "position meant reloading a savestate into the running machine, "
              "which crashed it. Unmeasured shows as a dash, never as a zero.",
-    "b_n_explore": "Scenes counts the fades to black the game uses to change "
-                   "scene. Ground covered is how far from each scene's entrance "
-                   "the character actually got, summed over scenes. It is kept "
-                   "as a maximum, so pacing back and forth cannot add to it.",
+    "b_n_explore": "Black-frame segments are the initial frame plus detected fully "
+                   "black frames. This is a proxy and does not identify actual scenes. "
+                   "Ground covered keeps the furthest displacement per segment, so "
+                   "pacing back and forth cannot add to it.",
     "b_axis_q": "screen-changing decision ratio",
     "b_axis_t": "screen-changing decisions",
     "b_n_front": "The ratio alone rewards doing very little; the count alone rewards "
@@ -959,7 +955,6 @@ const RUNGS = [
       ? (r.actions ?? 0) > 0 : r.key_events > 0}},
   {{k: "m_move",  at: r => r.meaningful == null ? null : r.meaningful > 0}},
   {{k: "m_item",  at: r => r.picked_item == null ? null : !!r.picked_item}},
-  {{k: "m_scene", at: r => r.scenes == null ? null : r.scenes > 1}},
   {{k: "m_map",   at: r => r.bigmap == null ? null : !!r.bigmap}},
   {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
   {{k: "m_level", at: r => r.level == null ? null : r.level > 1}},
@@ -1123,14 +1118,9 @@ function boardRows() {{
 const BOARDS = {{
   ladder: {{
     label: () => T.b_ladder, note: () => T.b_n_ladder + " " + T.b_n_exit,
-    // The rungs are ordered by difficulty, so counting them is a real ranking.
-    // Ties break on the behavioural ratio, which is the next thing that
-    // separates two runs that got equally far.
-    // rungs first; among runs equally far, the cheaper first exit wins;
-    // among runs that never left, the behavioural ratio orders them
-    key: m => reached(m) * 1e8
-            + (m.exit_acts != null ? 1e6 - Math.min(999999, m.exit_acts) : 0)
-            + Math.round((m.meaningful || 0) * 100),
+    // Count verified milestones only. Behavioural and first-black measurements
+    // remain diagnostic columns rather than hidden tie-breakers.
+    key: m => reached(m),
     val: m => ladder(m),
     cols: [[() => T.b_exit, m => fexit(m)],
            [() => T.cols.meaningful,
