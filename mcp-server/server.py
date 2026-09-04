@@ -149,12 +149,13 @@ def guide() -> str:
 # -------------------------------------------------------------------- actions
 
 @mcp.tool()
-def press(key: str, times: int = 1, hold: int = None, stable: int = None) -> list:
+def press(key: str, times: int = 1, hold: int | None = None,
+          stable: int | None = None) -> list:
     """Press one key. In benchmark mode, call look after acting.
 
     key: kp1, kp3, kp7, kp9 (preferred movement keys), up, down, left, right,
          enter (or ok), space, esc, y, n, a-z, 0-9, f1-f12, tab,
-         backspace, or a combo like "alt+x".
+         backspace. The native runner also accepts combos like "alt+x".
     times: repeat the same key this many times (useful for walking or for
          advancing several dialogue lines).
     hold: frames to hold the key down. Omit it to use the game server's safe
@@ -172,7 +173,8 @@ def press(key: str, times: int = 1, hold: int = None, stable: int = None) -> lis
 
 
 @mcp.tool()
-def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
+def press_sequence(keys: list[str], gap: int = 6,
+                   stable: int | None = None) -> list:
     """Press several different keys in order.
 
     Use for a known menu path, e.g. ["esc", "down", "down", "enter"]. Prefer
