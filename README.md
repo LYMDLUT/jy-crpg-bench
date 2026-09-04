@@ -273,7 +273,8 @@ also need `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1` when reasoning is enabled.
 
 Set `QUNXIA_MODEL_CONFIG` to an absolute path to a JSON model definition using
 Pi's `id`, `api`, `reasoning`, `input`, `contextWindow`, `maxTokens`, and
-`thinkingLevelMap` fields. For example, Gemini 3.8 Flash's highest level is High:
+`thinkingLevelMap` fields. For example, Gemini 3.8 Flash's highest level is High
+([Google's supported levels](https://ai.google.dev/gemini-api/docs/thinking)):
 
 ```json
 {
