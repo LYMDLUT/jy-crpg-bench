@@ -1,13 +1,23 @@
 import importlib.util
+import os
 import pathlib
 import unittest
 from unittest.mock import patch
 
 
 MODULE_PATH = pathlib.Path(__file__).with_name("server.py")
-SPEC = importlib.util.spec_from_file_location("qunxia_mcp_server", MODULE_PATH)
-SERVER = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(SERVER)
+
+
+def load_server(profile):
+    with patch.dict(os.environ, {"QUNXIA_MCP_PROFILE": profile}):
+        spec = importlib.util.spec_from_file_location(
+            f"qunxia_mcp_server_{profile}", MODULE_PATH)
+        server = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(server)
+        return server
+
+
+SERVER = load_server("standalone")
 
 
 class PressContractTests(unittest.TestCase):
@@ -27,13 +37,24 @@ class PressContractTests(unittest.TestCase):
         )
 
     def test_benchmark_actions_suppress_images(self):
-        with (
-            patch.object(SERVER, "BENCHMARK", True),
-            patch.object(SERVER, "_call", return_value={"ok": True}) as call,
-        ):
-            SERVER._act("/key", {"key": "esc"})
+        benchmark = load_server("benchmark")
+        with patch.object(benchmark, "_call", return_value={"ok": True}) as call:
+            benchmark._act("/key", {"key": "esc"})
         path = call.call_args.args[1]
+        self.assertIn("scale=1", path)
         self.assertIn("image=0", path)
+
+    def test_profiles_register_the_expected_tools(self):
+        standalone = set(SERVER.mcp._tool_manager._tools)
+        benchmark = load_server("benchmark")
+        self.assertEqual(
+            set(benchmark.mcp._tool_manager._tools),
+            {"look", "press", "press_sequence", "wait"},
+        )
+        self.assertTrue(
+            {"guide", "move", "save_state", "load_state", "reset_game"}
+            < standalone,
+        )
 
 
 if __name__ == "__main__":
