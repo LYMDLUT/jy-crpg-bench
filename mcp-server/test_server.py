@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import os
 import pathlib
@@ -15,7 +16,12 @@ def load_server(profile):
     environment = {"QUNXIA_MCP_PROFILE": profile}
     if profile == "benchmark":
         environment["QUNXIA_BENCH_HELP_URL"] = SESSION_GUIDE_URL
-    with patch.dict(os.environ, environment):
+    environment = {
+        **{key: value for key, value in os.environ.items()
+           if not key.startswith("QUNXIA_")},
+        **environment,
+    }
+    with patch.dict(os.environ, environment, clear=True):
         spec = importlib.util.spec_from_file_location(
             f"qunxia_mcp_server_{profile}", MODULE_PATH)
         server = importlib.util.module_from_spec(spec)
@@ -24,6 +30,10 @@ def load_server(profile):
 
 
 SERVER = load_server("standalone")
+
+
+def tool_names(server):
+    return {tool.name for tool in asyncio.run(server.mcp.list_tools())}
 
 
 class PressContractTests(unittest.TestCase):
@@ -42,27 +52,17 @@ class PressContractTests(unittest.TestCase):
             note="kp3 x2", stable=8,
         )
 
-    def test_action_batches_match_the_game_server_limit(self):
+    def test_locally_expanded_action_batches_are_bounded(self):
         with self.assertRaisesRegex(
-                ValueError, "times must be an integer from 1 to 32"):
-            SERVER.press("kp3", times=33)
+                ValueError, "times must be an integer from 1 to 100"):
+            SERVER.press("kp3", times=101)
         with self.assertRaisesRegex(
-                ValueError, "keys must contain from 1 to 32"):
-            SERVER.press_sequence(["kp3"] * 33)
-        with self.assertRaisesRegex(
-                ValueError, "steps must be an integer from 1 to 32"):
-            SERVER.move("right", steps=33)
+                ValueError, "steps must be an integer from 1 to 100"):
+            SERVER.move("right", steps=101)
 
-    def test_action_timing_parameters_are_bounded(self):
-        with self.assertRaisesRegex(
-                ValueError, "hold must be an integer from 1 to 600"):
-            SERVER.press("kp3", hold=0)
-        with self.assertRaisesRegex(
-                ValueError, "stable must be an integer from 1 to 600"):
-            SERVER.press("kp3", stable=601)
-        with self.assertRaisesRegex(
-                ValueError, "gap must be an integer from 0 to 600"):
-            SERVER.press_sequence(["kp3", "enter"], gap=-1)
+    def test_broker_end_payload_keeps_played_seconds(self):
+        result = SERVER._result({"ended": True, "played": 42})
+        self.assertIn('"played_seconds": 42', result[0].text)
 
     def test_benchmark_actions_suppress_images(self):
         benchmark = load_server("benchmark")
@@ -73,7 +73,7 @@ class PressContractTests(unittest.TestCase):
         self.assertIn("image=0", path)
 
     def test_profiles_register_the_expected_tools(self):
-        standalone = set(SERVER.mcp._tool_manager._tools)
+        standalone = tool_names(SERVER)
         benchmark = load_server("benchmark")
         self.assertEqual(
             standalone,
@@ -83,7 +83,7 @@ class PressContractTests(unittest.TestCase):
             },
         )
         self.assertEqual(
-            set(benchmark.mcp._tool_manager._tools),
+            tool_names(benchmark),
             {"look", "press", "press_sequence", "wait"},
         )
         self.assertNotIn("interact", standalone)

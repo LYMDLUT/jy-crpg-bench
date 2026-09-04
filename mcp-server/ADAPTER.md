@@ -8,8 +8,8 @@ raw HTTP endpoints; use their MCP equivalents instead:
 
 {ACTION_BEHAVIOR}
 
-The MCP server is already connected to the game. Do not use curl, a browser,
-the host filesystem, or another transport.
+The MCP server is already connected to the game. Use the MCP tools above rather
+than the raw HTTP examples in the guide.
 
 {SESSION_BEHAVIOR}
 

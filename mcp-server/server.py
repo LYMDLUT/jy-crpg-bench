@@ -25,15 +25,11 @@ BENCHMARK = PROFILE == "benchmark"
 DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "1" if BENCHMARK else "2"))
 BASE = API[:-4] if API.endswith("/api") else API
 LANGUAGE = os.environ.get("QUNXIA_BENCH_LANG", "en")
-MAX_KEYS_PER_ACTION = 32
-MAX_HOLD_FRAMES = 600
-MAX_GAP_FRAMES = 600
-MAX_STABLE_FRAMES = 600
-MAX_WAIT_MS = 60000
+MAX_ARRAY_REPEAT = 100
 
 
 def _benchmark_guide():
-    """Snapshot the guide served by the exact benchmark session we control."""
+    """Snapshot benchmark guidance, defaulting to the connected session."""
     url = os.environ.get("QUNXIA_BENCH_HELP_URL")
     if not url:
         url = f"{API}/help?{urllib.parse.urlencode({'lang': LANGUAGE})}"
@@ -83,21 +79,18 @@ def _call(method, path, payload=None, timeout=240):
         except Exception:
             raise GameOffline(f"{path} failed: HTTP {e.code}")
     except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
-        raise GameOffline(
-            f"Cannot reach the game at {API} ({e}). Start it with "
-            "'./Scripts/run.sh' in the repo, wait about 14 seconds for the "
-            "title screen, then retry."
-        )
+        raise GameOffline(f"Cannot reach the game at {API} ({e}). Check "
+                          "QUNXIA_API and the selected game or benchmark session.")
 
 
 def _result(res, note=""):
     """Turn an API response into MCP content: a short status line plus the screen."""
     if res.get("ended"):
-        return [TextContent(type="text", text="BENCHMARK ENDED | " + json.dumps({
-            key: res.get(key) for key in (
-                "reason", "why", "actions", "played_seconds",
-                "video_url", "video_pending")
-        }, ensure_ascii=False))]
+        summary = {key: res.get(key) for key in
+                   ("reason", "why", "actions", "video_url", "video_pending")}
+        summary["played_seconds"] = res.get("played_seconds", res.get("played"))
+        return [TextContent(type="text", text="BENCHMARK ENDED | "
+                            + json.dumps(summary, ensure_ascii=False))]
     out = []
     bits = []
     if not res.get("ok", True):
@@ -170,11 +163,7 @@ def press(key: str, times: int = 1, hold: int = None, stable: int = None) -> lis
 
     Remember: during a cutscene every key just advances the dialogue.
     """
-    times = _bounded_int("times", times, 1, MAX_KEYS_PER_ACTION)
-    if hold is not None:
-        hold = _bounded_int("hold", hold, 1, MAX_HOLD_FRAMES)
-    if stable is not None:
-        stable = _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
+    times = _bounded_int("times", times, 1, MAX_ARRAY_REPEAT)
     payload = {"hold": hold} if hold is not None else {}
     if times > 1:
         return _act("/keys", {"keys": [key] * times, **payload},
@@ -190,11 +179,6 @@ def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
     single presses when you are unsure what a screen will do, because you only
     see the result of the last key here.
     """
-    if not 1 <= len(keys) <= MAX_KEYS_PER_ACTION:
-        raise ValueError(f"keys must contain from 1 to {MAX_KEYS_PER_ACTION} entries")
-    gap = _bounded_int("gap", gap, 0, MAX_GAP_FRAMES)
-    if stable is not None:
-        stable = _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
     return _act("/keys", {"keys": keys, "gap": gap},
                 note=" ".join(keys), stable=stable)
 
@@ -209,7 +193,7 @@ def move(direction: str, steps: int = 1) -> list:
     """
     if direction not in ("up", "down", "left", "right"):
         raise ValueError("direction must be up, down, left or right")
-    steps = _bounded_int("steps", steps, 1, MAX_KEYS_PER_ACTION)
+    steps = _bounded_int("steps", steps, 1, MAX_ARRAY_REPEAT)
     return _act("/keys", {"keys": [direction] * steps, "gap": 6},
                 note=f"move {direction} x{steps}")
 
@@ -222,7 +206,6 @@ def wait(ms: int = 1000) -> list:
     world map. Benchmark mode returns metadata only; call look when you need
     the next visible frame.
     """
-    ms = _bounded_int("ms", ms, 0, MAX_WAIT_MS)
     return _act("/wait", {"ms": ms}, note=f"wait {ms}ms")
 
 
