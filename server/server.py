@@ -133,6 +133,8 @@ LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 DEFAULT_TAP_FRAMES = 10
 KEY_RELEASE_FRAMES = 2
 BETWEEN_TAPS_FRAMES = 6
+MAX_KEYS_PER_ACTION = 32
+MAX_HOLD_FRAMES = 600
 # Reset restores this rather than rebooting. It puts the agent in the opening
 # room with a character already made, because creating one means driving the
 # 注音 IME, which is a puzzle about input methods and not about the game.
@@ -143,15 +145,17 @@ START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT.parent / "saves" / "
 history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
 # Counted per game, so a reset starts a fresh session rather than continuing one.
-session = {"started": time.time(), "actions": 0, "by_api": 0, "by_web": 0}
+session = {"started": time.time(), "actions": 0, "key_events": 0,
+           "input_frames": 0, "wait_calls": 0, "by_api": 0, "by_web": 0}
 # Every distinct place the agent has stood. The camera is locked to the
 # character, so each tile of ground it reaches paints a different picture;
 # walking back over old ground repeats one. Counting distinct pictures counts
 # ground covered, and going in circles adds nothing, which is the point.
 # Behavioural counters, following definitions from the game-agent benchmark
 # literature so the numbers mean the same thing elsewhere:
-#   meaningful step ratio  - GVGAI-LLM (arXiv 2508.08501), a step counts when
-#     it changes the state at all; weak agents score low by oscillating.
+#   screen-changing decision ratio - whether the frame differs before/after
+#     one API decision. This is not a uniform environment-step metric because
+#     one decision may contain several keys or a held key.
 #   repetition rate        - AgentQuest (arXiv 2404.06411), repeated actions
 #     over steps taken.
 #   progress vs steps      - TextQuests (2507.23701) and BALROG (2411.13543)
@@ -419,7 +423,8 @@ def make_thumb():
     return "data:image/webp;base64," + base64.b64encode(out.getvalue()).decode()
 
 
-def log_action(src, verb, target, detail="", ok=True, thumb=False):
+def log_action(src, verb, target, detail="", ok=True, thumb=False,
+               key_events=None, input_frames=0, wait_call=False):
     _seq[0] += 1
     entry = {"id": _seq[0], "at": time.time(), "src": src, "verb": verb,
              "target": str(target)[:60], "detail": str(detail)[:60], "ok": ok}
@@ -435,6 +440,11 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False):
     if verb in ("KEY", "KEYS", "TEXT", "WAIT"):
         rec_note_activity()
         session["actions"] += 1
+        if key_events is None:
+            key_events = 1 if verb in ("KEY", "TEXT") else 0
+        session["key_events"] += key_events
+        session["input_frames"] += input_frames
+        session["wait_calls"] += int(wait_call or verb == "WAIT")
         session["by_web" if src == "web" else "by_api"] += 1
         agents[src] += 1
     history.append(entry)
@@ -728,6 +738,10 @@ def session_summary():
     return {"started_at": session["started"],
             "uptime_s": round(time.time() - session["started"], 1),
             "actions": session["actions"],
+            "decision_calls": session["actions"],
+            "key_events": session["key_events"],
+            "input_frames": session["input_frames"],
+            "wait_calls": session["wait_calls"],
             "meaningful": beh["meaningful"],
             "oscillation": beh["oscillation"],
             "scenes": world["scenes"],
@@ -952,14 +966,18 @@ async def run_action(request, steps, note, verb="KEY"):
         # Logged before the keys are sent, not after: the panel should show an
         # action starting, not report it once it is already over.
         rec["actor"] = actor(request)
-        log_action(rec["actor"], verb, note, detail=held_note(steps))
+        key_steps = [step for step in steps if len(step) > 2]
+        input_frames = sum(int(step[1]) for step in key_steps)
+        log_action(rec["actor"], verb, note, detail=held_note(steps),
+                   key_events=len(key_steps), input_frames=input_frames,
+                   wait_call=not key_steps)
         rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         if warden.ON:
             # Only key steps carry a name at index 2; "wait" and "frames" are
             # pairs. Filtering by kind broke the moment a new pause kind was
             # added, so key off the shape instead.
-            warden.note_action([s[2] for s in steps if len(s) > 2] or ["(wait)"],
-                               note)
+            warden.note_action([step[2] for step in key_steps], note,
+                               input_frames=input_frames)
         # counted here rather than only in the warden, so a run that is still
         # going can show its own key distribution
         for _s in steps:
@@ -1093,8 +1111,8 @@ async def api_key(request):
     code = keycode(d.get("key", ""))
     if not code:
         return web.json_response({"ok": False, "error": "unknown key"}, status=400)
-    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=100000)
-    times = num(d, "times", 1, lo=1, hi=100)
+    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=MAX_HOLD_FRAMES)
+    times = num(d, "times", 1, lo=1, hi=MAX_KEYS_PER_ACTION)
     name = str(d.get("key")).strip().lower()
     steps = []
     for i in range(times):
@@ -1107,10 +1125,14 @@ async def api_key(request):
 async def api_keys(request):
     d = await body_of(request)
     names = d.get("keys") or []
+    if len(names) > MAX_KEYS_PER_ACTION:
+        return web.json_response(
+            {"ok": False, "error": f"at most {MAX_KEYS_PER_ACTION} keys per action"},
+            status=400)
     codes = [keycode(k) for k in names]
     if not names or any(c is None for c in codes):
         return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
-    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=100000)
+    hold = num(d, "hold", DEFAULT_TAP_FRAMES, lo=1, hi=MAX_HOLD_FRAMES)
     steps = []
     for i, c in enumerate(codes):
         steps.append((c, hold, str(names[i]).strip().lower()))
@@ -1184,7 +1206,8 @@ async def api_reset(request):
             paused.clear()
         history.clear()
         _seq[0] = 0
-        session.update(started=time.time(), actions=0, by_api=0, by_web=0)
+        session.update(started=time.time(), actions=0, key_events=0,
+                       input_frames=0, wait_calls=0, by_api=0, by_web=0)
         keyhist.clear()
         curve.clear()
         beh.update(meaningful=0, oscillation=0, last=None, prev=None)
