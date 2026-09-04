@@ -48,13 +48,18 @@ class PressContractTests(unittest.TestCase):
         standalone = set(SERVER.mcp._tool_manager._tools)
         benchmark = load_server("benchmark")
         self.assertEqual(
+            standalone,
+            {
+                "guide", "look", "press", "press_sequence", "move", "wait",
+                "save_state", "load_state", "list_states", "reset_game",
+            },
+        )
+        self.assertEqual(
             set(benchmark.mcp._tool_manager._tools),
             {"look", "press", "press_sequence", "wait"},
         )
-        self.assertTrue(
-            {"guide", "move", "save_state", "load_state", "reset_game"}
-            < standalone,
-        )
+        self.assertNotIn("interact", standalone)
+        self.assertNotIn("open_menu", standalone)
 
 
 if __name__ == "__main__":

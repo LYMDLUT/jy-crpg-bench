@@ -113,7 +113,12 @@ def look() -> list:
 
 @expose(not BENCHMARK)
 def guide() -> str:
-    """The canonical game manual plus the MCP tool-name mapping."""
+    """Re-read the canonical game manual and MCP tool-name mapping.
+
+    The MCP server also sends this text as server instructions at connection
+    time. This tool is a compatibility fallback for clients that do not place
+    those optional instructions into the model context.
+    """
     return GUIDE
 
 
@@ -165,23 +170,6 @@ def move(direction: str, steps: int = 1) -> list:
         raise ValueError("direction must be up, down, left or right")
     return _act("/keys", {"keys": [direction] * max(1, steps), "gap": 6},
                 note=f"move {direction} x{steps}")
-
-
-@expose(not BENCHMARK)
-def interact() -> list:
-    """Interact with whatever the character is facing, confirm a menu choice,
-    or advance one line of dialogue. This sends enter."""
-    return _act("/key", {"key": "enter"}, note="interact")
-
-
-@expose(not BENCHMARK)
-def open_menu() -> list:
-    """Open the in-game main menu (醫療 / 解毒 / 物品 / 狀態) by sending esc.
-
-    Also the reliable test for whether a cutscene is still running: if the menu
-    does not appear, you are not free to act yet.
-    """
-    return _act("/key", {"key": "esc"}, note="esc")
 
 
 @mcp.tool()
