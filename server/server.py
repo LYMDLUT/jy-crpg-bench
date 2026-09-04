@@ -959,6 +959,8 @@ async def run_action(request, steps, note, verb="KEY",
     try:
         # Logged before the keys are sent, not after: the panel should show an
         # action starting, not report it once it is already over.
+        # Key/frame totals describe the submitted request, including steps
+        # that may not finish if execution is interrupted.
         rec["actor"] = actor(request)
         key_steps = [step for step in steps if len(step) > 2]
         input_frames = sum(int(step[1]) for step in key_steps)

@@ -52,11 +52,20 @@ Everything is taken from the run's own traffic, so it holds for any harness.
 | field | |
 |---|---|
 | `actions`, `aps` | how much the agent did, and how fast |
+| `key_events` | submitted key steps in decisions that started processing |
+| `input_frames` | requested held frames summed over those key steps |
+| `wait_calls` | decisions that submitted no key steps |
 | `ttfa` | seconds to the first action - a slow start is usually time spent reading rather than playing |
 | `gap_p50`, `gap_p95`, `gap_max` | think time between actions |
 | `distinct_keys`, `keys` | how much of the action space it reached, and the histogram |
 | `reads` | screen looks, against actions taken |
+| `errors` | unmeasured (`null`); older zero values were placeholders, not counted errors |
 | `reason`, `why` | `time`, `idle`, or `never started` |
+
+Key and held-frame totals are recorded before a decision executes. They include
+submitted steps that may not finish if the call or run is interrupted; they do
+not measure actual executed keyboard input. The separate `error` field reports
+recording or publication failures after the run, without changing its stop reason.
 
 What the screen itself is read for, none of it a model judging another model:
 

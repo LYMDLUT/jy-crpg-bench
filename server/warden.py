@@ -45,7 +45,8 @@ CATALOG_OBJECT = "catalog.json"
 ALIAS = {"esc": "escape", "cancel": "escape", "return": "enter", "ok": "enter"}
 
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
-       "reads": 0, "errors": 0, "actions": 0, "key_events": 0,
+       # Request errors have no counter; the historical zero was a placeholder.
+       "reads": 0, "errors": None, "actions": 0, "key_events": 0,
        "input_frames": 0, "wait_calls": 0,
        "meaningful": 0, "oscillation": 0, "curve": [],
        "scenes": 1, "frontier": 0,
@@ -66,10 +67,12 @@ def playable_now():
 
 
 def note_action(keys, label="", input_frames=0):
-    """Record one model decision and its physical keyboard exposure.
+    """Record a decision's submitted keys and requested held frames.
 
     A wait is still a decision call and therefore participates in timing, but
-    it is recorded separately from keyboard activity.
+    it is recorded separately from key submissions. These totals are recorded
+    before execution, so they also include steps an interrupted call may not
+    finish; they are not measurements of executed keys or frames.
     """
     now = time.time()
     if run["last"] is not None:
@@ -197,10 +200,11 @@ def metrics():
         # Share of adjacent decision results whose final frames differ. This is
         # diagnostic, not a uniform environment step or proof of movement.
         "meaningful": round(run["meaningful"] / n, 3) if n else 0.0,
+        "meaningful_count": run["meaningful"],
         # A -> B -> A oscillation, the failure mode GVGAI-LLM names explicitly.
         "oscillation": round(run["oscillation"] / n, 3) if n else 0.0,
-        # Progress against decision-call count. Physical exposure is reported
-        # separately as key_events and input_frames.
+        # Progress against decision-call count. Submitted keys and requested
+        # held frames are reported separately as key_events and input_frames.
         "curve": run["curve"][-200:],
         "keys": dict(sorted(run["keys"].items(), key=lambda kv: -kv[1])),
         "distinct_keys": len(run["keys"]),

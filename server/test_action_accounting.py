@@ -26,7 +26,7 @@ class ActionAccountingTests(unittest.TestCase):
         self.assertEqual(warden.run["first"], 2.0)
         self.assertEqual(warden.run["last"], 2.0)
 
-    def test_batch_reports_each_key_and_held_frame(self):
+    def test_batch_reports_submitted_keys_and_requested_frames(self):
         warden.note_action(["kp3", "kp3", "enter"], input_frames=30)
         self.assertEqual(warden.run["actions"], 1)
         self.assertEqual(warden.run["key_events"], 3)
@@ -36,6 +36,17 @@ class ActionAccountingTests(unittest.TestCase):
     def test_final_metrics_keep_the_end_reason(self):
         warden.run["done"] = "idle"
         self.assertEqual(warden.metrics()["reason"], "idle")
+
+    def test_final_metrics_keep_exact_screen_change_count(self):
+        warden.run.update(actions=4000, meaningful=1)
+        metrics = warden.metrics()
+        self.assertEqual(metrics["meaningful"], 0)
+        self.assertEqual(metrics["meaningful_count"], 1)
+
+    def test_errors_remain_unmeasured_in_live_and_final_metrics(self):
+        self.assertIsNone(warden.metrics()["errors"])
+        with patch.object(warden, "ON", True):
+            self.assertIsNone(warden.timing()["errors"])
 
 
 if __name__ == "__main__":

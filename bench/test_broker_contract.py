@@ -17,7 +17,7 @@ class LivePayloadTests(unittest.TestCase):
         self.assertEqual(live["inventory_distinct"], summary["inventory_distinct"])
         self.assertEqual(live["picked_item"], summary["picked_item"])
 
-    def test_live_timing_contract_includes_input_exposure(self):
+    def test_live_timing_contract_includes_submitted_input_totals(self):
         summary = {key: index for index, key in enumerate(broker.LIVE_TIMING_FIELDS)}
         live = broker.live_timing(summary)
         for field in ("decision_calls", "key_events", "input_frames", "wait_calls"):

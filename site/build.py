@@ -37,6 +37,7 @@ ZH = {
              "reason": "结束原因"},
     "agent": "模型", "video": "视频", "novideo": "无视频",
     "full": "已完成", "idle": "中途停摆", "never": "从未出手", "err": "失败",
+    "publish_err": "录像或发布失败",
     "keyspace": "按键分布",
     "live": "正在进行", "watch": "观看", "back": "返回", "watching": "只读",
     "running": "进行中", "log": "动作记录", "hist": "按键分布",
@@ -50,13 +51,13 @@ ZH = {
     "b_engine": "引擎",
     "b_how": "每个分数都来自真实运行未经修改的 1996 年原版游戏，没有模型评审。"
              "全部由我们自己跑出，没有厂商自报。",
-    "b_ci": "区间为 95% Wilson 置信区间。排名区间重叠的模型，这份数据分不出高下。",
-    "b_thin": "目前每个模型只有一局，区间因此很宽：这是数据量的问题，不是平局。",
+    "b_ci": "区间为按独立决策假设计算的 95% Wilson 参考区间；同局决策存在相关性，不能据此推断跨局模型差异。",
+    "b_thin": "旧记录若未保存原始变化次数，则从已保存比例近似还原；未测记录不计入比例分母。",
     "b_base": "基线",
     "b_nocost": "不统计成本：agent 不上报 token 用量。",
     "b_n_speed": "更快不等于更好：基线排在最前，是因为它不思考。",
     "b_n_effort": "决策调用更多不等于更好：基线排在最前，是因为它从不停下来看。",
-    "b_n_rely": "目前每一局都完整跑完、没有报错，这一栏眼下也只说明了这一点。",
+    "b_n_rely": "请求错误次数尚未统计；旧记录的零值也是占位值，不能据此判断零错误。",
     "b_front": "取舍", "b_mact": "画面变化决策数",
     "b_scenes": "黑屏分段", "b_reach": "走出的距离",
     "b_exit": "首次全黑代理", "b_map": "大地图", "m_map": "踏上大地图",
@@ -64,7 +65,7 @@ ZH = {
                 "全黑本身不能证明原因。画面变化决策率只比较相邻决策结果，不是统一环境步数。"
                 "大地图使用出生地出口外标定的参照指纹判定。",
     "b_ladder": "进度", "b_more": "其余数据", "b_reads": "看屏/决策",
-    "b_inputs": "决策 · 按键 · 按住帧",
+    "b_inputs": "决策 · 提交键数 · 请求按住帧",
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
     "m_exp": "拿到经验", "m_level": "升到 2 级",
     "b_n_ladder": "六个可验证里程碑来自请求记录、游戏画面和机器状态。"
@@ -73,8 +74,7 @@ ZH = {
     "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
     "b_skills": "武功", "b_items": "物品种类",
     "b_n_progress": "游戏自己的角色数值与公共背包，直接从机器里读出来，不是从画面上猜的。"
-                    "等级到现在为止每一局都是 1：没有任何一个模型走出过开场，"
-                    "现在这件事是个数字，而不是一种印象。",
+                    "等级和经验反映角色养成，不能单凭等级判断是否离开开场。",
     "b_explore": "探索",
     "b_axis_s": "黑屏分段数",
     "b_pre": "走出的距离目前不统计：读取角色坐标要把存档重新载入正在运行的机器，会把它弄崩。没测到就显示为空，不会写成 0。",
@@ -82,7 +82,7 @@ ZH = {
                    "距离是从每段入口走出去的最远步数并逐段累加，只取最大值，来回踱步加不上去。",
     "b_axis_q": "画面变化决策率", "b_axis_t": "画面变化决策数",
     "b_n_front": "画面变化决策率单看会奖励“少做少错”，变化决策数单看会奖励乱按。"
-                 "两者都更高才算真的更好；连线上的模型，没有任何模型能在两项上同时超过它。",
+                 "连线上的模型，没有其他模型在两项上都不低于它且至少一项更高。",
     "b_dom": "被超过",
     "replay": "回放", "download": "下载 MP4", "speed": "倍速",
     "prevact": "上一个动作", "nextact": "下一个动作", "playpause": "播放/暂停",
@@ -118,7 +118,7 @@ EN = {
              "reason": "ended by"},
     "agent": "agent", "video": "video", "novideo": "no video",
     "full": "finished", "idle": "went idle", "never": "never started",
-    "err": "error", "keyspace": "action space",
+    "err": "error", "publish_err": "recording or publication error", "keyspace": "action space",
     "live": "live now", "watch": "watch", "back": "back", "watching": "read-only",
     "running": "running", "log": "action log", "hist": "key distribution",
     "explored": "screen-changing", "progress": "screen changes vs decisions",
@@ -132,17 +132,18 @@ EN = {
     "b_engine": "engine",
     "b_how": "Every score comes from really running the unmodified 1996 game. "
              "No model judges another. All runs executed here, none vendor-reported.",
-    "b_ci": "Intervals are 95% Wilson. Models whose rank ranges overlap are "
-            "not separated by this data.",
-    "b_thin": "One run per model so far, which is why the intervals are wide. "
-              "That is thin data, not a tie.",
+    "b_ci": "Intervals are 95% Wilson references assuming independent decisions. "
+            "Decisions within a run are correlated, so these do not establish "
+            "model differences across runs.",
+    "b_thin": "Older records without raw change counts are approximated from "
+              "their saved ratios; unmeasured records do not enter the denominator.",
     "b_base": "baseline",
     "b_nocost": "No cost column: agents do not report token usage.",
     "b_n_speed": "Faster is not better: the baseline leads because it does not think.",
     "b_n_effort": "More decision calls is not better: the baseline leads because it never "
                   "stops to look.",
-    "b_n_rely": "Every run so far finished with no errors, which is all this view "
-                "currently says.",
+    "b_n_rely": "Request errors are not counted. Historical zero values were "
+                "placeholders and do not establish an error-free run.",
     "b_front": "trade-off", "b_mact": "screen-changing decisions",
     "b_scenes": "black-frame segments", "b_reach": "ground covered",
     "b_exit": "first-black proxy", "b_map": "world map", "m_map": "reached the world map",
@@ -152,7 +153,7 @@ EN = {
                 "uniform environment steps. The world-map flag matches a reference "
                 "fingerprint calibrated just outside the spawn exit.",
     "b_ladder": "progress", "b_more": "more", "b_reads": "looks / decision",
-    "b_inputs": "decisions · keys · held frames",
+    "b_inputs": "decisions · submitted keys · requested held frames",
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
     "m_exp": "gained experience", "m_level": "reached level 2",
     "b_n_ladder": "Six verifiable milestones come from request logs, game "
@@ -163,9 +164,9 @@ EN = {
     "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp",
     "b_skills": "skills", "b_items": "item types",
     "b_n_progress": "The game's own character and shared-inventory values, read "
-                    "from the machine rather than guessed from the picture. Level has "
-                    "been 1 on every run so far: nothing has got past the "
-                    "opening, and now that is a number rather than an impression.",
+                    "from the machine rather than guessed from the picture. Level "
+                    "and experience describe character growth; level alone does not "
+                    "establish whether a run left the opening.",
     "b_explore": "exploration",
     "b_axis_s": "black-frame segments",
     "b_pre": "Ground covered is not being recorded: reading the character's "
@@ -178,8 +179,8 @@ EN = {
     "b_axis_q": "screen-changing decision ratio",
     "b_axis_t": "screen-changing decisions",
     "b_n_front": "The ratio alone rewards doing very little; the count alone rewards "
-                 "mashing keys. Only both together is better. Models on the line are "
-                 "beaten by nobody on both at once.",
+                 "mashing keys. No other model matches or exceeds a model on the "
+                 "line on both measures while improving at least one.",
     "b_dom": "beaten",
     "replay": "replay", "download": "download MP4", "speed": "speed",
     "prevact": "previous action", "nextact": "next action", "playpause": "play/pause",
@@ -885,12 +886,14 @@ const I = {{
 // worth knowing about it, and it used to sit at the bottom of the stat block
 // under everything else.
 function why(r) {{
-  const t = `<b class="ptime">${{mmss(r.played)}}</b>`;
+  const t = `<b class="ptime">${{mmss(r.played)}}</b>`
+    + (r.error ? ` · ${{T.publish_err}}` : "");
   if (r.running) return `<span class="runtag"><span class="pulse"></span>`
     + `${{T.running}} · ${{t}} · ${{T.left}} ${{mmss(r.remaining)}}</span>`;
-  if (r.error)              return `<span class="why bad">${{I.bad}}${{T.err}} · ${{t}}</span>`;
   if (r.reason === "time")  return `<span class="why ok">${{I.ok}}${{T.full}} · ${{t}}</span>`;
   if (r.reason === "idle")  return `<span class="why warn">${{I.warn}}${{T.idle}} · ${{t}}</span>`;
+  if (r.error && r.reason !== "never started")
+    return `<span class="why bad">${{I.bad}}${{T.err}} · ${{t}}</span>`;
   return `<span class="why warn">${{I.warn}}${{T.never}} · ${{t}}</span>`;
 }}
 
@@ -953,7 +956,8 @@ function spark(keys) {{
 const RUNGS = [
   {{k: "m_act",   at: r => r.key_events == null
       ? (r.actions ?? 0) > 0 : r.key_events > 0}},
-  {{k: "m_move",  at: r => r.meaningful == null ? null : r.meaningful > 0}},
+  {{k: "m_move",  at: r => (r.meaningful_count ?? r.meaningful) == null ? null
+      : (r.meaningful_count ?? r.meaningful) > 0}},
   {{k: "m_item",  at: r => r.picked_item == null ? null : !!r.picked_item}},
   {{k: "m_map",   at: r => r.bigmap == null ? null : !!r.bigmap}},
   {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
@@ -1033,14 +1037,11 @@ function drawStats() {{
 // happening and the only one worth watching.
 // ---------------------------------------------------------------- leaderboard
 
-// A Wilson score interval. The diagnostic is a proportion - screen-changing
-// decisions over decision calls - so its uncertainty is binomial and can be
-// stated honestly rather than implied by a rank. Wilson rather than the normal
-// approximation because it behaves at small n and near 0 and 1, which is
-// exactly where these runs sit.
+// A Wilson reference interval under an independent-decision assumption.
+// Decisions within a run are correlated; this is not cross-run uncertainty.
 function wilson(k, n, z) {{
   z = z || 1.96;
-  if (!n) return [0, 0, 0];
+  if (!n) return [null, null, null];
   const p = k / n, d = 1 + z * z / n;
   const c = (p + z * z / (2 * n)) / d;
   const h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
@@ -1063,15 +1064,22 @@ function boardRows() {{
   const out = [];
   for (const [agent, rs] of by) {{
     const acts = rs.reduce((a, r) => a + (r.actions || 0), 0);
-    // `meaningful` is stored as a ratio; the count is what pools across runs
-    const good = rs.reduce((a, r) => a + Math.round((r.meaningful || 0) * (r.actions || 0)), 0);
-    const [lo, p, hi] = wilson(good, acts);
+    const measured = rs.filter(r => r.meaningful_count != null || r.meaningful != null);
+    const samples = measured.reduce((a, r) => a + (r.actions || 0), 0);
+    // Keep raw counts exact. Legacy ratios were rounded, so their fallback
+    // remains approximate rather than silently changing the saved schema.
+    const good = measured.reduce((a, r) => a + (r.meaningful_count
+      ?? Math.round(r.meaningful * (r.actions || 0))), 0);
+    const [lo, p, hi] = wilson(good, samples);
     const played = rs.reduce((a, r) => a + (r.played || 0), 0);
     out.push({{
       agent, runs: rs.length, actions: acts, meaningful: p, lo, hi,
+      // Preserve the same legacy fallback as each run's acted milestone.
+      key_events: rs.reduce((a, r) => a + (r.key_events ?? r.actions ?? 0), 0),
+      meaningful_count: measured.length ? good : null,
       // the ratio says how carefully it acted, this says how much it got done;
       // ranking on either alone rewards the wrong thing
-      mact: good,
+      mact: measured.length ? good : null,
       // Read out of the emulated machine rather than off the picture. Runs
       // recorded before this existed carry no such field, and they get null
       // rather than nought: nought would say the agent explored nothing, when
@@ -1104,8 +1112,9 @@ function boardRows() {{
       think95: avg(rs.map(r => num(r.gap_p95)).filter(v => v !== null)),
       ttfa: avg(rs.map(r => num(r.ttfa)).filter(v => v !== null)),
       keys: Math.max(0, ...rs.map(r => r.distinct_keys || 0)),
-      errors: rs.reduce((a, r) => a + (r.errors || 0), 0),
-      done: rs.filter(r => r.reason === "time" && !r.error).length,
+      // The runner never counted request errors; legacy zeros are placeholders.
+      errors: null,
+      done: rs.filter(r => r.reason === "time").length,
       baseline: /random|baseline/i.test(agent),
     }});
   }}
@@ -1136,8 +1145,8 @@ const BOARDS = {{
   }},
   overview: {{
     label: () => T.b_score, ci: true,
-    key: m => m.meaningful,
-    val: m => `<b>${{(m.meaningful * 100).toFixed(1)}}%</b>`
+    key: m => m.meaningful ?? -1,
+    val: m => m.meaningful == null ? "<b>-</b>" : `<b>${{(m.meaningful * 100).toFixed(1)}}%</b>`
             + `<i>${{(m.lo * 100).toFixed(1)}}-${{(m.hi * 100).toFixed(1)}}</i>`,
     cols: [[() => T.b_think, m => `${{secs(m.think50)}} / ${{secs(m.think95)}}`],
            [() => T.b_aps, m => m.aps.toFixed(2)]],
@@ -1160,18 +1169,17 @@ function provenance() {{
   $("pvup").textContent = last ? new Date(last * 1000).toISOString().slice(0, 10) : "-";
 }}
 
-// Quality against throughput. Neither axis is a score on its own: a model that
-// takes six careful decisions in twenty minutes scores 1.00 on the ratio, and one
-// that sends many changing decisions wins on the count. A model is only genuinely better when it
-// beats another on both, so what the plot draws is the set nobody beats twice.
+// Plot the Pareto frontier: no other model matches or exceeds both diagnostics
+// while strictly improving at least one.
 function drawFrontier(el, rows) {{
+  rows = rows.filter(m => m.meaningful != null);
   const W = 940, H = 342, L = 58, R = 18, TP = 30, BT = 40;
   const maxT = Math.max(1, ...rows.map(m => m.mact));
   const x = v => L + (v / maxT) * (W - L - R);
   const y = v => TP + (1 - v) * (H - TP - BT);
 
-  const front = rows.filter(m => !rows.some(o => o.meaningful > m.meaningful
-                                              && o.mact > m.mact))
+  const front = rows.filter(m => !rows.some(o => o.meaningful >= m.meaningful
+      && o.mact >= m.mact && (o.meaningful > m.meaningful || o.mact > m.mact)))
                     .sort((a, b) => a.mact - b.mact);
 
   const grid = [0, .25, .5, .75, 1].map(v =>
@@ -1255,14 +1263,17 @@ function drawBoard() {{
     // A rank range, not a rank: a model is only above another when their
     // intervals are actually apart. Ranking 6 runs to the integer would be a
     // precision this data does not have.
-    let pos = `<b>${{i + 1}}</b>`;
-    if (B.ci) {{
-      const better = rows.filter(o => o.lo > m.hi).length;
-      const worse = rows.filter(o => o.hi < m.lo).length;
-      const a = better + 1, b = rows.length - worse;
+    const rank = B.ci ? i + 1 : rows.findIndex(o => B.key(o) === B.key(m)) + 1;
+    let pos = `<b>${{rank}}</b>`;
+    if (B.ci && m.meaningful == null) pos = "<b>-</b>";
+    else if (B.ci) {{
+      const measured = rows.filter(o => o.meaningful != null);
+      const better = measured.filter(o => o.lo > m.hi).length;
+      const worse = measured.filter(o => o.hi < m.lo).length;
+      const a = better + 1, b = measured.length - worse;
       if (b > a) pos += `<u>${{a}}-${{b}}</u>`;
     }}
-    const bar = B.ci
+    const bar = B.ci && m.meaningful == null ? "" : B.ci
       ? `<div class="bbar"><span style="left:${{(m.lo * 100).toFixed(1)}}%;`
         + `width:${{Math.max(1, (m.hi - m.lo) * 100).toFixed(1)}}%"></span>`
         + `<em style="left:${{(m.meaningful * 100).toFixed(1)}}%"></em></div>`
@@ -1325,7 +1336,8 @@ function entries() {{
             aps: (() => {{ const n = st.actions ?? s.actions ?? 0;
                           return up > 1 && n ? +(n / up).toFixed(3) : 0; }})(),
             shot: s.shot || 0,
-            meaningful: acts ? +((s.meaningful || 0) / acts).toFixed(3) : 0,
+            meaningful: s.meaningful == null ? null : acts ? s.meaningful / acts : 0,
+            meaningful_count: s.meaningful ?? null,
             oscillation: null, keys: s.keys || {{}},
             scenes: s.scenes ?? null, frontier: s.frontier ?? null,
             bigmap: s.bigmap ?? null,
@@ -1363,7 +1375,8 @@ function refreshLive() {{
     else if (f === "reach") el.textContent =
         `${{r.frontier == null ? "-" : r.frontier}} · ${{
             r.scenes == null ? "-" : r.scenes}}`;
-    else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
+    else if (f === "meaningful") el.textContent =
+        r.meaningful == null ? "-" : r.meaningful.toFixed(2);
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
     else if (f === "inputs") el.textContent = `${{
