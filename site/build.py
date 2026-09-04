@@ -977,7 +977,8 @@ function ladder(r, big) {{
     `<i class="${{v === true ? "on" : v === null ? "unk" : "off"}}"
        title="${{T[RUNGS[i].k]}}"></i>`).join("");
   const last = got.lastIndexOf(true);
-  return `<div class="ladder${{big ? " big" : ""}}">${{dots}}`
+  const liveTag = r.running ? ` data-live="${{r.id}}:ladder"` : "";
+  return `<div class="ladder${{big ? " big" : ""}}"${{liveTag}}>${{dots}}`
     + `<b>${{reached(r)}}/${{RUNGS.length}}</b>`
     + (big && last >= 0 ? `<u>${{T[RUNGS[last].k]}}</u>` : "")
     + `</div>`;
@@ -1336,6 +1337,10 @@ function entries() {{
             scenes: s.scenes ?? null, frontier: s.frontier ?? null,
             bigmap: s.bigmap ?? null,
             exit_acts: s.exit_acts ?? null, exit_secs: s.exit_secs ?? null,
+            level: s.level ?? null, exp: s.exp ?? null,
+            skills: s.skills ?? null,
+            inventory_distinct: s.inventory_distinct ?? null,
+            picked_item: s.picked_item ?? null,
             // these are known from the first keypress, so a running card
             // shows them rather than dashes; oscillation is not, it is only
             // assembled at teardown
@@ -1364,6 +1369,15 @@ function refreshLive() {{
     else if (f === "meaningful") el.textContent = (r.meaningful ?? 0).toFixed(2);
     else if (f === "played") el.textContent = mmss(r.played);
     else if (f === "tag") el.innerHTML = why(r);
+    else if (f === "ladder") el.outerHTML = ladder(r);
+    else if (f === "hero") el.textContent = `${{
+      r.level == null ? "-" : r.level}} · ${{
+      r.skills == null ? "-" : r.skills}} · ${{
+      r.inventory_distinct == null ? "-" : r.inventory_distinct}}`;
+    else if (f === "exit") el.textContent = fexit(r);
+    else if (f === "scenes") el.textContent = `${{
+      r.scenes == null ? "-" : r.scenes}}${{
+      r.bigmap == null ? "" : r.bigmap ? " · ✓" : " · ✕"}}`;
     else {{
       const c = COLS.find(x => x.k === f);
       if (c) el.innerHTML = c.f(r);
