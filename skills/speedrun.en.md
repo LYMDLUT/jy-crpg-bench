@@ -76,9 +76,9 @@ Hidden, and adjusted by what you do:
 
 ## What running this API taught us
 
-**`changed: true` does not mean you moved.** Blocked, the character still plays
-a turning or idle animation, and the API reports a change. Trust
-`changed: false` as blocked; confirm any `changed: true` against the background.
+**`changed` does not say whether you moved.** It only reports whether a visible
+screen change was observed. Judge movement from the background and do not infer
+the cause of `changed: false`.
 
 **Judge movement from the background, never from your sprite.** The camera is
 locked to you. One step shifts the scenery by roughly an eighth of the screen,
@@ -100,8 +100,7 @@ makes no progress, push a single direction repeatedly instead. That is what got
 us through the forest, not alternating.
 
 **A fully black screen does not reveal its cause.** Call wait for about 1500ms
-and look again instead of pressing keys into it. Treat it as a possible failure
-only if it stays black after waiting.
+and look again instead of pressing keys into it.
 
 **An entrance is one specific tile.** Walled compounds look walkable all round
 but almost all of it is scenery. Walk the full perimeter and test each gap

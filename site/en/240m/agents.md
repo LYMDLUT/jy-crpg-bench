@@ -163,9 +163,9 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
 
 ## Traps that will cost you the most time
 
-- **`changed: true` does not mean you moved.** Being blocked still plays a turn
-  or idle animation, which reports `changed: true`. Trust `changed: false` as
-  "blocked", but verify any `changed: true` against the background.
+- **`changed` does not say whether you moved.** It only reports whether a visible
+  screen change was observed. Judge movement from the background and do not infer
+  the cause of `changed: false`.
 - **You will go in circles.** Nothing on screen says where you are. Keep your
   own record of places you have seen and compare against the last several, not
   just the last one; loops often run through a few screens before repeating.
@@ -174,8 +174,7 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
   the second key is blocked. Do not retry the same pair, push a single direction
   repeatedly instead.
 - **A fully black screen does not reveal its cause.** Call `/api/wait` for about
-  1500ms and look again rather than pressing keys into it. Treat it as a
-  possible failure only if it stays black after waiting.
+  1500ms and look again rather than pressing keys into it.
 - **A building's entrance is one specific tile**, not the whole wall. Walk the
   full perimeter and test each gap inward before concluding you cannot get in.
 - **Looping ambient chatter is not a quest.** If the same opening line comes
@@ -271,9 +270,9 @@ Hidden, and adjusted by what you do:
 
 ## What running this API taught us
 
-**`changed: true` does not mean you moved.** Blocked, the character still plays
-a turning or idle animation, and the API reports a change. Trust
-`changed: false` as blocked; confirm any `changed: true` against the background.
+**`changed` does not say whether you moved.** It only reports whether a visible
+screen change was observed. Judge movement from the background and do not infer
+the cause of `changed: false`.
 
 **Judge movement from the background, never from your sprite.** The camera is
 locked to you. One step shifts the scenery by roughly an eighth of the screen,
@@ -295,8 +294,7 @@ makes no progress, push a single direction repeatedly instead. That is what got
 us through the forest, not alternating.
 
 **A fully black screen does not reveal its cause.** Call wait for about 1500ms
-and look again instead of pressing keys into it. Treat it as a possible failure
-only if it stays black after waiting.
+and look again instead of pressing keys into it.
 
 **An entrance is one specific tile.** Walled compounds look walkable all round
 but almost all of it is scenery. Walk the full perimeter and test each gap
