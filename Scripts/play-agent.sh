@@ -18,8 +18,6 @@ if [[ "$QUNXIA_LLM_MODEL" != */* || "$QUNXIA_LLM_MODEL" == */ || "$QUNXIA_LLM_MO
   exit 2
 fi
 MODEL_REF="$QUNXIA_LLM_MODEL"
-MODEL_PROVIDER="${MODEL_REF%%/*}"
-MODEL_ID="${MODEL_REF#*/}"
 
 PI_BIN="$ROOT/node_modules/.bin/pi"
 API="${QUNXIA_API:-http://127.0.0.1:8765}"
@@ -27,9 +25,9 @@ API="${API%/}"
 API_SUPPLIED=0
 [[ -n "${QUNXIA_API:-}" ]] && API_SUPPLIED=1
 if [[ "$API_SUPPLIED" == "1" ]]; then
-  STATUS_URL="${QUNXIA_STATUS_URL:-$API/screen?format=png&spectate=1}"
+  STATUS_URL="$API/screen?format=png&spectate=1"
 else
-  STATUS_URL="${QUNXIA_STATUS_URL:-$API/screen?format=png}"
+  STATUS_URL="$API/screen?format=png"
 fi
 KEY="${QUNXIA_LLM_API_KEY:-local}"
 INPUT="${QUNXIA_LLM_INPUT:-[\"text\",\"image\"]}"
@@ -53,39 +51,6 @@ if [[ "$RESUME" != "0" && "$RESUME" != "1" ]]; then
   print -u2 "QUNXIA_RESUME must be 0 or 1"
   exit 2
 fi
-if [[ "$LLM_API" != "openai-completions" && "$LLM_API" != "openai-responses" ]]; then
-  print -u2 "QUNXIA_LLM_API must be openai-completions or openai-responses"
-  exit 2
-fi
-if [[ "$REASONING" != "0" && "$REASONING" != "1" ]]; then
-  print -u2 "QUNXIA_LLM_REASONING must be 0 or 1"
-  exit 2
-fi
-if [[ "$SUPPORTS_REASONING_EFFORT" != "0" && "$SUPPORTS_REASONING_EFFORT" != "1" ]]; then
-  print -u2 "QUNXIA_LLM_SUPPORTS_REASONING_EFFORT must be 0 or 1"
-  exit 2
-fi
-if [[ ! "$MAX_TOKENS" =~ '^[1-9][0-9]*$' ]]; then
-  print -u2 "QUNXIA_LLM_MAX_TOKENS must be a positive integer"
-  exit 2
-fi
-if [[ -n "$THINKING" && "$THINKING" != "off" && "$THINKING" != "minimal" \
-      && "$THINKING" != "low" && "$THINKING" != "medium" \
-      && "$THINKING" != "high" && "$THINKING" != "xhigh" \
-      && "$THINKING" != "max" ]]; then
-  print -u2 "QUNXIA_THINKING must be off, minimal, low, medium, high, xhigh or max"
-  exit 2
-fi
-if [[ "$PROFILE" == "benchmark" && "$RESUME" == "0" && -z "$THINKING" ]]; then
-  print -u2 "benchmark runs require an explicit QUNXIA_THINKING level (use off for a non-reasoning model)"
-  exit 2
-fi
-if [[ -n "$THINKING" && "$THINKING" != "off" \
-      && ("$REASONING" != "1" || "$SUPPORTS_REASONING_EFFORT" != "1") ]]; then
-  print -u2 "QUNXIA_THINKING=$THINKING requires QUNXIA_LLM_REASONING=1 and QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1"
-  exit 2
-fi
-
 if [[ ! -x "$PI_BIN" ]]; then
   print -u2 "Pinned Pi is not installed. Run: npm ci"
   exit 1
@@ -108,11 +73,11 @@ if [[ "$PROFILE_PROMPT" == "session-help" ]]; then
     print -u2 "benchmark profiles require an explicit QUNXIA_API session URL"
     exit 2
   fi
-  BENCH_HELP_URL="${QUNXIA_BENCH_HELP_URL:-$API/help?lang=$BENCH_LANG}"
+  BENCH_HELP_URL="$API/help?lang=$BENCH_LANG"
 fi
 
-# Preserve the isolation flags by accepting only output/thinking options and a
-# prompt. Resource, provider, model and session flags are intentionally rejected.
+# Preserve the recorded model, tool and session settings while accepting output
+# options and a prompt.
 USER_ARGS=()
 while (( $# > 0 )); do
   case "$1" in
@@ -125,12 +90,16 @@ while (( $# > 0 )); do
         print -u2 "$1 requires a value"
         exit 2
       fi
+      if [[ "$2" != "text" && "$2" != "json" ]]; then
+        print -u2 "--mode must be text or json in the isolated runner"
+        exit 2
+      fi
       USER_ARGS+=("$1" "$2")
       shift 2
       ;;
     --mode=*)
-      USER_ARGS+=("$1")
-      shift
+      print -u2 "Pi requires '--mode text' or '--mode json'; --mode=... is not supported"
+      exit 2
       ;;
     --thinking|--thinking=*)
       print -u2 "set QUNXIA_THINKING instead of passing $1; the resolved level is recorded in run.json"
@@ -167,10 +136,6 @@ RUNS_DIR="$(cd "$RUNS_DIR" && pwd -P)"
 RUN_DIR="$RUNS_DIR/$RUN_ID"
 HARNESS_DIRTY=0
 [[ -n "$(git status --porcelain 2>/dev/null)" ]] && HARNESS_DIRTY=1
-if [[ "$HARNESS_DIRTY" == "1" && "${QUNXIA_ALLOW_DIRTY:-0}" != "1" ]]; then
-  print -u2 "the harness has uncommitted changes; commit them or set QUNXIA_ALLOW_DIRTY=1 for a non-reproducible trial"
-  exit 1
-fi
 
 env \
   QUNXIA_ROOT="$ROOT" \
@@ -182,8 +147,6 @@ env \
   QUNXIA_BENCH_HELP_URL="$BENCH_HELP_URL" \
   QUNXIA_LLM_BASE_URL="$QUNXIA_LLM_BASE_URL" \
   QUNXIA_MODEL_REF="$MODEL_REF" \
-  QUNXIA_LLM_PROVIDER="$MODEL_PROVIDER" \
-  QUNXIA_LLM_MODEL="$MODEL_ID" \
   QUNXIA_LLM_INPUT_JSON="$INPUT" \
   QUNXIA_LLM_CONTEXT="$CTX" \
   QUNXIA_LLM_MAX_TOKENS="$MAX_TOKENS" \
@@ -249,9 +212,7 @@ THINKING_ARGS=()
 cd "$WORKSPACE_DIR"
 exec env \
   PI_CODING_AGENT_DIR="$CONFIG_DIR" \
-  PI_CODING_AGENT_SESSION_DIR="$SESSION_DIR" \
   PI_OFFLINE=1 \
-  PI_TELEMETRY=0 \
   QUNXIA_API="$API" \
   QUNXIA_SCALE="$SCALE" \
   QUNXIA_OBSERVE_AFTER_ACTION="$OBSERVE_AFTER_ACTION" \
@@ -260,14 +221,10 @@ exec env \
     --model "$MODEL_REF" \
     --session-dir "$SESSION_DIR" \
     --name "$RUN_ID" \
-    --no-builtin-tools \
     --no-extensions \
     "${EXTENSIONS[@]}" \
     --no-skills \
-    --no-prompt-templates \
-    --no-themes \
     --no-context-files \
-    --no-approve \
     --tools "$TOOLS" \
     "${THINKING_ARGS[@]}" \
     "${RESUME_ARGS[@]}" \

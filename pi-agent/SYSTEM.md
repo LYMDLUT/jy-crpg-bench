@@ -74,7 +74,7 @@ A warning the game itself gives you: 「你們這些人都是這樣的，自以�
 
 - If this run provides `game_save` and `game_load`, snapshot before anything
   risky and restore when needed. Timed benchmark profiles intentionally omit
-  those tools, so progress cannot be rewound during a scored run.
+  those tools, so they provide no out-of-band emulator rewind during a scored run.
 - The harness isolates every run and exposes no host filesystem or shell tools.
   Use only the game tools selected by the active profile.
 - When you are lost, `game_look` and read the screen again rather than pressing

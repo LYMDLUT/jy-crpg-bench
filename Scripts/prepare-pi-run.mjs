@@ -10,8 +10,6 @@ const required = [
   "QUNXIA_PI_VERSION",
   "QUNXIA_LLM_BASE_URL",
   "QUNXIA_MODEL_REF",
-  "QUNXIA_LLM_PROVIDER",
-  "QUNXIA_LLM_MODEL",
   "QUNXIA_LLM_INPUT_JSON",
   "QUNXIA_LLM_CONTEXT",
   "QUNXIA_LLM_MAX_TOKENS",
@@ -30,6 +28,13 @@ const runDir = process.env.QUNXIA_RUN_DIR;
 const runId = process.env.QUNXIA_RUN_ID;
 const profile = process.env.QUNXIA_PI_PROFILE;
 const resume = process.env.QUNXIA_RESUME === "1";
+const modelRef = process.env.QUNXIA_MODEL_REF;
+const slash = modelRef.indexOf("/");
+if (slash <= 0 || slash === modelRef.length - 1) {
+  throw new Error("QUNXIA_MODEL_REF must contain provider/model");
+}
+const modelProvider = modelRef.slice(0, slash);
+const modelId = modelRef.slice(slash + 1);
 const configDir = join(runDir, "config");
 const sessionDir = join(runDir, "sessions");
 const workspaceDir = join(runDir, "workspace");
@@ -183,16 +188,6 @@ if (profileDefinition.prompt === "session-help") {
     ["POST /api/key", hasEndpoint("POST", "/api/key")],
     ["POST /api/keys", hasEndpoint("POST", "/api/keys")],
     ["POST /api/wait", hasEndpoint("POST", "/api/wait")],
-    [
-      language.toLowerCase().startsWith("zh")
-        ? "## 移動：請用九宮數字鍵的名稱"
-        : "## Movement: use the numpad names",
-      benchmarkHelp.includes(
-        language.toLowerCase().startsWith("zh")
-          ? "## 移動：請用九宮數字鍵的名稱"
-          : "## Movement: use the numpad names",
-      ),
-    ],
   ];
   const missing = requirements.filter(([, present]) => !present).map(([label]) => label);
   if (missing.length) {
@@ -226,9 +221,9 @@ const identity = {
   tools: profileDefinition.tools,
   prompt: promptMetadata,
   model: {
-    ref: process.env.QUNXIA_MODEL_REF,
-    provider: process.env.QUNXIA_LLM_PROVIDER,
-    id: process.env.QUNXIA_LLM_MODEL,
+    ref: modelRef,
+    provider: modelProvider,
+    id: modelId,
     baseUrl: process.env.QUNXIA_LLM_BASE_URL,
     input,
     contextWindow,
@@ -237,6 +232,9 @@ const identity = {
     reasoning,
     supportsReasoningEffort,
     thinkingLevel,
+    thinkingLevelMap: ["xhigh", "max"].includes(thinkingLevel)
+      ? { [thinkingLevel]: thinkingLevel }
+      : undefined,
   },
 };
 
@@ -257,6 +255,7 @@ const models = {
         contextWindow: identity.model.contextWindow,
         maxTokens: identity.model.maxTokens,
         reasoning: identity.model.reasoning,
+        thinkingLevelMap: identity.model.thinkingLevelMap,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       }],
     },
@@ -272,7 +271,6 @@ if (resume) {
     "piPackage",
     "piVersion",
     "nodeVersion",
-    "harnessDirty",
     "gameApi",
     "scale",
     "observeAfterAction",
@@ -290,9 +288,6 @@ if (resume) {
     throw new Error(`cannot resume ${runId}: model configuration changed`);
   }
 
-  manifest.resumeCount = (manifest.resumeCount || 0) + 1;
-  manifest.lastResumedAt = new Date().toISOString();
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
   process.stdout.write(`${runDir}\n`);
   process.exit(0);
 }
@@ -331,7 +326,6 @@ for (const extension of profileDefinition.extensions) {
 const manifest = {
   ...identity,
   createdAt: new Date().toISOString(),
-  resumeCount: 0,
   paths: {
     config: "config",
     sessions: "sessions",

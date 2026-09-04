@@ -12,11 +12,6 @@ const ACTION_RESULT = OBSERVE_AFTER_ACTION
   ? "The resulting visible frame is returned."
   : "Only action metadata is returned; call game_look when you need the next visible frame.";
 
-function boundedInteger(value: number | undefined, fallback: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(min, Math.trunc(value ?? fallback)));
-}
-
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
 async function call(method: string, path: string, body?: unknown, signal?: AbortSignal) {
@@ -34,9 +29,8 @@ function offline(err: unknown) {
     content: [{
       type: "text" as const,
       text:
-        `The game is not reachable at ${API} (${err}). It must be running: start it ` +
-        `with ./Scripts/run.sh from the repo and give it about 14 seconds to reach ` +
-        `the title screen.`,
+        `The game is not reachable at ${API} (${err}). Check QUNXIA_API and the ` +
+        `selected game or benchmark session.`,
     }],
     details: { error: String(err) },
     isError: true,
@@ -53,7 +47,7 @@ function frame(res: Record<string, any>, note: string) {
           reason: res.reason,
           why: res.why,
           actions: res.actions,
-          played_seconds: res.played_seconds,
+          played_seconds: res.played_seconds ?? res.played,
           video_url: res.video_url,
           video_pending: res.video_pending,
         })}`,
@@ -140,8 +134,8 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Press a key in the game",
     parameters: Type.Object({
       key: Type.String({ description: "Key name, e.g. up, enter, esc, y" }),
-      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 32, description: "Repeat count, default 1" })),
-      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
+      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
+      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 100000,
         description: "Frames to hold the key. Omit to use the game server's safe tap default.",
       })),
       stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
@@ -149,9 +143,8 @@ export default function (pi: ExtensionAPI) {
       })),
     }),
     async execute(_id, params, signal) {
-      const times = boundedInteger(params.times, 1, 1, 32);
-      const stable = params.stable === undefined
-        ? undefined : boundedInteger(params.stable, 9, 1, 600);
+      const times = params.times ?? 1;
+      const stable = params.stable;
       const q = stable ? `&stable=${stable}` : "";
       const note = times > 1 ? `${params.key} x${times}` : params.key;
       const body = times > 1
@@ -173,9 +166,9 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Press a sequence of keys in the game",
     parameters: Type.Object({
       keys: Type.Array(Type.String(), {
-        minItems: 1, maxItems: 32, description: "Key names in order",
+        minItems: 1, description: "Key names in order",
       }),
-      gap: Type.Optional(Type.Integer({ minimum: 0, maximum: 600,
+      gap: Type.Optional(Type.Integer({ minimum: 0,
         description: "Frames between keys, default 6" })),
       stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still after the sequence",
@@ -203,10 +196,8 @@ export default function (pi: ExtensionAPI) {
       direction: Type.String({
         description: "kp7/kp9/kp1/kp3, or left/up/down/right",
       }),
-      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 32,
+      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 100,
         description: "Tiles to walk, default 1" })),
-      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
-        description: "Frames to hold for long movement" })),
     }),
     execute: (_id, params, signal) => {
       const dir = params.direction.toLowerCase();
@@ -224,10 +215,7 @@ export default function (pi: ExtensionAPI) {
           isError: true,
         });
       }
-      if (params.hold !== undefined) {
-        return act("/key", { key, hold: params.hold }, `move ${dir} hold ${params.hold}`, signal);
-      }
-      const steps = boundedInteger(params.steps, 1, 1, 32);
+      const steps = params.steps ?? 1;
       return act("/keys", { keys: Array(steps).fill(key), gap: 6 }, `move ${dir} x${steps}`, signal);
     },
   });

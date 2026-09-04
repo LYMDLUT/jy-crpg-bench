@@ -1,6 +1,6 @@
 {
   "strict": {
-    "description": "Pure visual baseline with only game interaction tools",
+    "description": "Isolated standalone play with game interaction tools",
     "prompt": "standalone",
     "scale": 1,
     "observeAfterAction": true,
@@ -17,7 +17,7 @@
     ]
   },
   "benchmark": {
-    "description": "Timed automation benchmark with only endpoints supported by the broker",
+    "description": "Timed automation benchmark with the canonical four game tools",
     "prompt": "session-help",
     "scale": 1,
     "observeAfterAction": false,

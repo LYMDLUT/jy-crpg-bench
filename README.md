@@ -203,7 +203,7 @@ The browser runner exposes the same surface under `/api/`.
 ## Letting an LLM play
 
 An LLM cannot call an HTTP API on its own, so it needs a harness. The built-in
-Pi harness below exposes the same HTTP surface as typed, allowlisted tools.
+Pi harness below exposes the selected game operations as typed tools.
 
 ### Bring your own model, use the built-in harness
 
@@ -221,26 +221,26 @@ export QUNXIA_LLM_MODEL=local-openai/qwen3-vl:32b
 ./Scripts/play-agent.sh
 ```
 
-It starts the game if it is not running, waits for the title screen, and drops
-into pi. Add `-p "play the opening"` to run non-interactively. The script never
-uses a global `pi` executable.
+When no external game API is supplied, it starts the local game if needed and
+waits for the title screen. It then drops into pi. Add `-p "play the opening"`
+to run non-interactively. The script never uses a global `pi` executable.
 
-Every invocation gets a fresh directory under `.runs/pi/<run-id>/`, including
+Every new run gets a fresh directory under `.runs/pi/<run-id>/`, including
 its own Pi configuration, sessions, empty working directory and run manifest.
 The API key stays in the process environment rather than being written to that
-directory. User extensions, skills, prompt templates, context files and Pi's
-built-in `bash`, `read`, `write` and `edit` tools are disabled.
+directory. User extensions, skills, context files and Pi's built-in `bash`,
+`read`, `write` and `edit` tools are not exposed.
 
 Tool exposure is declared in `pi-agent/profiles.json`. The default `strict`
 profile loads only the eight local `game_*` tools. For a timed automation
-session, use `benchmark`: it exposes exactly the four endpoints supported by
-the broker, fetches and snapshots the active session's `/api/help?lang=zh`, and
-fails closed if essential movement guidance is missing. Benchmark actions
+session, use `benchmark`: it exposes the canonical four game tools, fetches and
+snapshots the active session's `/api/help?lang=zh`, and verifies that the four
+documented API operations are present. Benchmark actions
 return metadata only; the model calls `game_look` when it needs the next native
 320x200 frame.
 
 ```sh
-# Pure visual baseline (the default)
+# Isolated standalone play (the default)
 QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
 
 # Timed benchmark session (use that session's isolated API URL)
@@ -261,12 +261,10 @@ QUNXIA_RUN_ID=baseline-01 QUNXIA_RESUME=1 \
 ```
 
 Use a distinct `QUNXIA_RUN_ID` and game API/session URL for each concurrent
-agent. To add an experimental tool set, add a named profile rather than editing
-the launcher; the resolved extensions and tool allowlist are copied into the
-run manifest for later auditing. Profiles may select only tools supplied by the
-isolated game extension, so they cannot accidentally enable host filesystem or
-shell tools. Formal runs also refuse a dirty Git checkout;
-set `QUNXIA_ALLOW_DIRTY=1` only for a deliberately non-reproducible trial.
+agent. A named profile can select a different subset of the registered game
+tools without changing the launcher; the resolved extensions and tool allowlist
+are copied into the run manifest for later auditing. The manifest also records
+whether the harness checkout had uncommitted changes.
 
 Formal benchmark runs require an explicit `QUNXIA_THINKING` value: `off`,
 `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. Set

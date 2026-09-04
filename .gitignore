@@ -27,8 +27,6 @@ pi-agent/*
 !pi-agent/BENCHMARK.md
 !pi-agent/profiles.json
 !pi-agent/extensions/
-!pi-agent/extensions/qunxia/
-!pi-agent/extensions/qunxia/**
 
 # The original game is copyrighted by its publisher and not ours to
 # redistribute. Scripts/pack-game.sh builds the archive from a supplied copy.

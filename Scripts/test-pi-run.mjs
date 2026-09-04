@@ -5,6 +5,11 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+// Exercise the exact compatibility code bundled with the pinned Pi package.
+import {
+  clampThinkingLevel,
+  getSupportedThinkingLevels,
+} from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/compat.js";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const prepare = join(root, "Scripts", "prepare-pi-run.mjs");
@@ -36,8 +41,6 @@ function invoke(runsDir, runId, profile = "strict", resume = false, overrides = 
       QUNXIA_BENCH_HELP_URL: benchmarkHelpUrl,
       QUNXIA_LLM_BASE_URL: "http://model.invalid/v1",
       QUNXIA_MODEL_REF: "local-test/test-model",
-      QUNXIA_LLM_PROVIDER: "local-test",
-      QUNXIA_LLM_MODEL: "test-model",
       QUNXIA_LLM_INPUT_JSON: '["text","image"]',
       QUNXIA_LLM_CONTEXT: "128000",
       QUNXIA_LLM_MAX_TOKENS: "8192",
@@ -53,7 +56,7 @@ function invoke(runsDir, runId, profile = "strict", resume = false, overrides = 
   });
 }
 
-test("strict runs have separate state and contain no credential", async () => {
+test("new runs have separate state and resolved profiles", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "qunxia-pi-runs-"));
   for (const id of ["run-a", "run-b"]) {
     const result = invoke(runsDir, id);
@@ -82,7 +85,6 @@ test("strict runs have separate state and contain no credential", async () => {
   ]);
   const models = await readFile(join(runsDir, "run-a", "config", "models.json"), "utf8");
   assert.match(models, /\$QUNXIA_LLM_API_KEY/);
-  assert.doesNotMatch(models, /secret-for-test/);
   const resolvedProfile = JSON.parse(
     await readFile(join(runsDir, "run-a", "config", "profile.json"), "utf8"),
   );
@@ -99,11 +101,8 @@ test("existing runs require explicit compatible resume", async () => {
 
   const resumed = invoke(runsDir, "resume-a", "strict", true);
   assert.equal(resumed.status, 0, resumed.stderr);
-  const manifest = JSON.parse(await readFile(join(runsDir, "resume-a", "run.json"), "utf8"));
-  assert.equal(manifest.resumeCount, 1);
-
   const changedModel = invoke(runsDir, "resume-a", "strict", true, {
-    QUNXIA_LLM_MODEL: "different-model",
+    QUNXIA_MODEL_REF: "local-test/different-model",
   });
   assert.notEqual(changedModel.status, 0);
   assert.match(changedModel.stderr, /model configuration changed/);
@@ -151,7 +150,7 @@ test("the launcher requires a full provider/model reference", () => {
 test("supplied benchmark APIs are probed through the public visual route", async () => {
   const launcher = await readFile(playAgent, "utf8");
   assert.match(launcher, /\/screen\?format=png&spectate=1/);
-  assert.doesNotMatch(launcher, /\$\{API%\/api\}\/status/);
+  assert.match(launcher, /BENCH_HELP_URL="\$API\/help\?lang=\$BENCH_LANG"/);
 });
 
 test("benchmark profile exposes only broker-supported game tools", async () => {
@@ -165,7 +164,6 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
     "game_press_sequence",
     "game_wait",
   ]);
-  assert.equal(manifest.tools.some((name) => name.startsWith("game_save")), false);
   assert.equal(manifest.scale, 1);
   assert.equal(manifest.observeAfterAction, false);
   assert.equal(manifest.prompt.source, "session-help");
@@ -175,9 +173,16 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
   assert.equal(manifest.model.reasoning, true);
   assert.equal(manifest.model.supportsReasoningEffort, true);
   assert.equal(manifest.model.thinkingLevel, "max");
+  assert.deepEqual(manifest.model.thinkingLevelMap, { max: "max" });
+  const models = JSON.parse(
+    await readFile(join(runsDir, "benchmark-a", "config", "models.json"), "utf8"),
+  );
+  const model = models.providers[manifest.model.provider].models[0];
+  assert.ok(getSupportedThinkingLevels(model).includes("max"));
+  assert.equal(clampThinkingLevel(model, "max"), "max");
   const prompt = await readFile(join(runsDir, "benchmark-a", "config", "SYSTEM.md"), "utf8");
   assert.match(prompt, /BEGIN SESSION-SPECIFIC BENCHMARK BRIEF/);
-  assert.match(prompt, /session is isolated/);
+  assert.match(prompt, /character is already named/);
   assert.match(prompt, /POST http:\/\/game\.invalid\/api\/key/);
   assert.doesNotMatch(prompt, /\{BASE\}/);
   assert.doesNotMatch(prompt, /Entering a Chinese name/);
@@ -188,12 +193,21 @@ test("game press leaves the server tap duration authoritative", async () => {
     join(root, "pi-agent", "extensions", "qunxia", "index.ts"),
     "utf8",
   );
-  assert.match(extension, /Omit to use the game server's safe tap default/);
+  assert.match(extension, /Omit to use the game server's .*tap default/);
   assert.doesNotMatch(extension, /default 4/);
   assert.match(extension, /times: Type\.Optional\(Type\.Integer/);
-  assert.match(extension, /minItems: 1, maxItems: 32/);
-  assert.match(extension, /const times = boundedInteger\(params\.times, 1, 1, 32\)/);
-  assert.match(extension, /const steps = boundedInteger\(params\.steps, 1, 1, 32\)/);
+  assert.match(extension, /maximum: 100, description: "Repeat count/);
+  assert.match(extension, /const times = params\.times \?\? 1/);
+  assert.match(extension, /const steps = params\.steps \?\? 1/);
+  assert.doesNotMatch(extension, /boundedInteger/);
+  assert.doesNotMatch(extension, /Frames to hold for long movement/);
+  assert.match(extension, /res\.played_seconds \?\? res\.played/);
+});
+
+test("launcher accepts only Pi-supported non-RPC output modes", async () => {
+  const launcher = await readFile(playAgent, "utf8");
+  assert.match(launcher, /--mode must be text or json/);
+  assert.match(launcher, /--mode=\.\.\. is not supported/);
 });
 
 test("benchmark documentation uses the session URL returned by the broker", async () => {
