@@ -101,10 +101,6 @@ us through the forest, not alternating.
 **A fully black screen is a scene transition.** Call wait for about 1500ms and
 look again. Keys pressed into a fade get eaten by the incoming scene.
 
-**The menu sometimes opens by itself** when every direction is blocked. Press
-esc, wait, look, repeat until it closes, then go the opposite way, because the
-direction that triggered it is a wall.
-
 **An entrance is one specific tile.** Walled compounds look walkable all round
 but almost all of it is scenery. Walk the full perimeter and test each gap
 inward, budgeting six to eight tries before concluding you cannot get in.
