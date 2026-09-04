@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """MCP server exposing 金庸群俠傳 to any LLM agent.
 
-Wraps the QunXia HTTP control API. Every action tool returns the resulting
-screen as an image, so the agent sees what its input did.
-
-Run:  uv run --with mcp mcp-server/server.py
+Run:  uv run --with 'mcp>=2,<3' mcp-server/server.py
 """
 import base64
 import json
@@ -14,15 +11,26 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game_knowledge import GUIDE, INSTRUCTIONS
+from game_knowledge import mcp_guide as build_guide
 
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ImageContent, TextContent
 
-API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765")
-DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "2"))
+API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")
+PROFILE = os.environ.get("QUNXIA_MCP_PROFILE", "standalone")
+if PROFILE not in ("standalone", "benchmark"):
+    raise ValueError("QUNXIA_MCP_PROFILE must be standalone or benchmark")
+BENCHMARK = PROFILE == "benchmark"
+DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "1" if BENCHMARK else "2"))
+BASE = API[:-4] if API.endswith("/api") else API
+GUIDE = build_guide(BASE, os.environ.get("QUNXIA_BENCH_LANG", "en"), BENCHMARK)
 
-mcp = MCPServer("qunxia", instructions=INSTRUCTIONS)
+mcp = MCPServer("qunxia", instructions=GUIDE)
+
+
+def expose(enabled=True):
+    """Register convenience tools only outside scored benchmark mode."""
+    return mcp.tool() if enabled else (lambda function: function)
 
 
 class GameOffline(RuntimeError):
@@ -53,6 +61,12 @@ def _call(method, path, payload=None, timeout=240):
 
 def _result(res, note=""):
     """Turn an API response into MCP content: a short status line plus the screen."""
+    if res.get("ended"):
+        return [TextContent(type="text", text="BENCHMARK ENDED | " + json.dumps({
+            key: res.get(key) for key in (
+                "reason", "why", "actions", "played_seconds",
+                "video_url", "video_pending")
+        }, ensure_ascii=False))]
     out = []
     bits = []
     if not res.get("ok", True):
@@ -78,6 +92,8 @@ def _result(res, note=""):
 
 def _act(path, payload, note="", **params):
     q = {"scale": DEFAULT_SCALE}
+    if BENCHMARK:
+        q["image"] = 0
     q.update({k: v for k, v in params.items() if v is not None})
     qs = "&".join(f"{k}={v}" for k, v in q.items())
     return _result(_call("POST", f"{path}?{qs}", payload), note)
@@ -95,10 +111,9 @@ def look() -> list:
     return _result(_call("GET", "/screen"))
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def guide() -> str:
-    """The full manual: controls, the 注音 name-entry layout, the story and
-    objectives, and the cutscene gotcha. Read this before your first action."""
+    """The canonical game manual plus the MCP tool-name mapping."""
     return GUIDE
 
 
@@ -106,7 +121,7 @@ def guide() -> str:
 
 @mcp.tool()
 def press(key: str, times: int = 1, hold: int = 4, stable: int = None) -> list:
-    """Press one key and return the screen it produced.
+    """Press one key. In benchmark mode, call look after acting.
 
     key: up, down, left, right, enter (or ok), space, esc, y, n, a-z, 0-9,
          f1-f12, tab, backspace, or a combo like "alt+x".
@@ -127,7 +142,7 @@ def press(key: str, times: int = 1, hold: int = 4, stable: int = None) -> list:
 
 @mcp.tool()
 def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
-    """Press several different keys in order, returning only the final screen.
+    """Press several different keys in order.
 
     Use for a known menu path, e.g. ["esc", "down", "down", "enter"]. Prefer
     single presses when you are unsure what a screen will do, because you only
@@ -137,7 +152,7 @@ def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
                 note=" ".join(keys), stable=stable)
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def move(direction: str, steps: int = 1) -> list:
     """Walk. direction is up, down, left, right.
 
@@ -151,14 +166,14 @@ def move(direction: str, steps: int = 1) -> list:
                 note=f"move {direction} x{steps}")
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def interact() -> list:
     """Interact with whatever the character is facing, confirm a menu choice,
     or advance one line of dialogue. This sends enter."""
     return _act("/key", {"key": "enter"}, note="interact")
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def open_menu() -> list:
     """Open the in-game main menu (醫療 / 解毒 / 物品 / 狀態) by sending esc.
 
@@ -180,7 +195,7 @@ def wait(ms: int = 1000) -> list:
 
 # ----------------------------------------------------------------- savestates
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def save_state(name: str = "agent") -> list:
     """Snapshot the whole emulator under this name.
 
@@ -190,7 +205,7 @@ def save_state(name: str = "agent") -> list:
     return _act("/save", {"name": name}, note=f"save {name}")
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def load_state(name: str = "agent") -> list:
     """Restore a snapshot taken by save_state.
 
@@ -200,13 +215,13 @@ def load_state(name: str = "agent") -> list:
     return _act("/load", {"name": name}, note=f"load {name}")
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def list_states() -> str:
     """List the snapshots on disk with their sizes and timestamps."""
     return json.dumps(_call("GET", "/slots"), ensure_ascii=False, indent=2)
 
 
-@mcp.tool()
+@expose(not BENCHMARK)
 def reset_game() -> list:
     """Reboot the emulator back to the title screen. Discards unsaved progress."""
     return _act("/reset", {}, note="reset")
