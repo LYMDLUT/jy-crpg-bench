@@ -202,16 +202,18 @@ The browser runner exposes the same surface under `/api/`.
 
 ## Letting an LLM play
 
-An LLM cannot call an HTTP API on its own, so it needs a harness. There are two
-ways to give it one, and both use the same game knowledge.
+An LLM cannot call an HTTP API on its own, so it needs a harness. The built-in
+Pi harness below exposes the same HTTP surface as typed, allowlisted tools.
 
 ### Bring your own model, use the built-in harness
 
-`pi-agent/` is a complete harness built on [pi](https://pi.dev). Supply an
-OpenAI-compatible endpoint and nothing else.
+`pi-agent/` is a complete harness built on [pi](https://pi.dev). Pi is pinned to
+version 0.84.4 in `package-lock.json`; the supported Node minimum and preferred
+version are recorded in `package.json` and `.node-version`. Install the exact
+dependency set once, then supply an OpenAI-compatible endpoint.
 
 ```sh
-npm i -g @earendil-works/pi-coding-agent
+npm ci
 
 export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
 export QUNXIA_LLM_API_KEY=sk-...
@@ -220,18 +222,49 @@ export QUNXIA_LLM_MODEL=qwen3-vl:32b
 ```
 
 It starts the game if it is not running, waits for the title screen, and drops
-into pi. Add `-p "play the opening"` to run non-interactively.
+into pi. Add `-p "play the opening"` to run non-interactively. The script never
+uses a global `pi` executable.
 
-Everything the agent needs sits in `pi-agent/`, which pi uses as its
-configuration directory, so your own `~/.pi` is untouched. `SYSTEM.md` replaces
-the coding-agent prompt with the game. `extensions/qunxia/` registers nine
-`game_*` tools that apply input, wait for the screen to settle, and return the
-frame as an image. The model also keeps the pi `bash`, `read`, `write` and
-`edit` tools, and pi compacts context automatically on a long session.
+Every invocation gets a fresh directory under `.runs/pi/<run-id>/`, including
+its own Pi configuration, sessions, empty working directory and run manifest.
+The API key stays in the process environment rather than being written to that
+directory. User extensions, skills, prompt templates, context files and Pi's
+built-in `bash`, `read`, `write` and `edit` tools are disabled.
 
-Use a vision model. `QUNXIA_LLM_INPUT='"text"'` drops images for a text-only
-model, `QUNXIA_SCALE` changes screenshot size, and `QUNXIA_LLM_CONTEXT` sets the
-context window.
+Tool exposure is declared in `pi-agent/profiles.json`. The default `strict`
+profile loads only the eight local `game_*` tools. For a timed automation
+session, use `benchmark`: it exposes exactly the four endpoints supported by
+the broker, fetches and snapshots the active session's `/api/help?lang=zh`, and
+fails closed if essential movement guidance is missing. Benchmark actions
+return metadata only; the model calls `game_look` when it needs the next native
+320x200 frame.
+
+```sh
+# Pure visual baseline (the default)
+QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
+
+# Explicitly continue the same run; model, API, profile and tool configuration
+# must still match its recorded manifest.
+QUNXIA_RUN_ID=baseline-01 QUNXIA_RESUME=1 \
+  ./Scripts/play-agent.sh -p "continue playing"
+```
+
+Use a distinct `QUNXIA_RUN_ID` and game API/session URL for each concurrent
+agent. To add an experimental tool set, add a named profile rather than editing
+the launcher; the resolved extensions and tool allowlist are copied into the
+run manifest for later auditing. Profiles may select only tools supplied by the
+isolated game extension, so they cannot accidentally enable host filesystem or
+shell tools. Formal runs also refuse a dirty Git checkout;
+set `QUNXIA_ALLOW_DIRTY=1` only for a deliberately non-reproducible trial.
+
+The built-in Pi harness calls the game HTTP API directly through the `qunxia`
+extension; it does not pass through MCP. `mcp-server/` is the separate adapter
+for clients with native MCP support. Both paths ultimately wrap the same game
+control API, but their published tool catalogs are not currently identical.
+
+Use a vision model. `QUNXIA_LLM_INPUT='["text"]'` drops images for a text-only
+model and `QUNXIA_LLM_CONTEXT` sets the context window. All profiles use the
+native 320x200 frame.
 
 ### Bring your own harness, take the skill
 
