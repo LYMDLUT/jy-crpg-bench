@@ -2,14 +2,20 @@ import importlib.util
 import os
 import pathlib
 import unittest
+import urllib.parse
 from unittest.mock import patch
 
 
 MODULE_PATH = pathlib.Path(__file__).with_name("server.py")
+SESSION_GUIDE = "# guide served by the active benchmark session"
+SESSION_GUIDE_URL = "data:text/plain," + urllib.parse.quote(SESSION_GUIDE)
 
 
 def load_server(profile):
-    with patch.dict(os.environ, {"QUNXIA_MCP_PROFILE": profile}):
+    environment = {"QUNXIA_MCP_PROFILE": profile}
+    if profile == "benchmark":
+        environment["QUNXIA_BENCH_HELP_URL"] = SESSION_GUIDE_URL
+    with patch.dict(os.environ, environment):
         spec = importlib.util.spec_from_file_location(
             f"qunxia_mcp_server_{profile}", MODULE_PATH)
         server = importlib.util.module_from_spec(spec)
@@ -60,6 +66,10 @@ class PressContractTests(unittest.TestCase):
         )
         self.assertNotIn("interact", standalone)
         self.assertNotIn("open_menu", standalone)
+
+    def test_benchmark_uses_the_connected_session_guide(self):
+        benchmark = load_server("benchmark")
+        self.assertTrue(benchmark.GUIDE.endswith(SESSION_GUIDE))
 
 
 if __name__ == "__main__":

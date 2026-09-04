@@ -8,10 +8,11 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game_knowledge import mcp_guide as build_guide
+from game_knowledge import adapt_guide, mcp_guide as build_guide
 
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ImageContent, TextContent
@@ -23,7 +24,25 @@ if PROFILE not in ("standalone", "benchmark"):
 BENCHMARK = PROFILE == "benchmark"
 DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "1" if BENCHMARK else "2"))
 BASE = API[:-4] if API.endswith("/api") else API
-GUIDE = build_guide(BASE, os.environ.get("QUNXIA_BENCH_LANG", "en"), BENCHMARK)
+LANGUAGE = os.environ.get("QUNXIA_BENCH_LANG", "en")
+
+
+def _benchmark_guide():
+    """Snapshot the guide served by the exact benchmark session we control."""
+    url = os.environ.get("QUNXIA_BENCH_HELP_URL")
+    if not url:
+        url = f"{API}/help?{urllib.parse.urlencode({'lang': LANGUAGE})}"
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            canonical = response.read().decode("utf-8")
+    except (urllib.error.URLError, UnicodeError, TimeoutError) as error:
+        raise RuntimeError(f"Cannot load benchmark instructions from {url}: {error}")
+    if not canonical.strip():
+        raise RuntimeError(f"Benchmark instructions from {url} are empty")
+    return adapt_guide(canonical, benchmark=True)
+
+
+GUIDE = _benchmark_guide() if BENCHMARK else build_guide(BASE, LANGUAGE, False)
 
 mcp = MCPServer("qunxia", instructions=GUIDE)
 

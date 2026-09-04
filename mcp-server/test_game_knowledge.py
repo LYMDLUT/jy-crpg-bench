@@ -7,7 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "mcp-server"))
 sys.path.insert(0, str(ROOT / "server"))
 
-from game_knowledge import guide, mcp_guide
+from game_knowledge import adapt_guide, guide, mcp_guide
 from prompt import system_prompt
 
 
@@ -26,6 +26,12 @@ class GameKnowledgeTests(unittest.TestCase):
         self.assertIn("Actions return metadata only", prompt)
         self.assertIn("benchmark session is isolated", prompt)
         self.assertIn("BENCHMARK ENDED", prompt)
+
+    def test_adapter_accepts_a_session_resolved_guide(self):
+        canonical = "session-specific guide at https://session.invalid/api"
+        prompt = adapt_guide(canonical, benchmark=True)
+        self.assertTrue(prompt.endswith(canonical))
+        self.assertIn("Actions return metadata only", prompt)
 
 
 if __name__ == "__main__":

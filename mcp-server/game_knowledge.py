@@ -16,7 +16,8 @@ def guide(base, language="en"):
     return text.replace("{BASE}", base).replace("{{", "{").replace("}}", "}")
 
 
-def mcp_guide(base, language="en", benchmark=False):
+def adapt_guide(canonical, benchmark=False):
+    """Add MCP tool/session semantics to an already resolved game guide."""
     adapter = ADAPTER.read_text(encoding="utf-8")
     if benchmark:
         action = "Actions return metadata only. Call `look` when you need the next visible frame."
@@ -33,4 +34,8 @@ def mcp_guide(base, language="en", benchmark=False):
         session = "Follow the connected game's session rules in the canonical guide."
     adapter = adapter.replace("{ACTION_BEHAVIOR}", action)
     adapter = adapter.replace("{SESSION_BEHAVIOR}", session).rstrip()
-    return adapter + "\n\n" + guide(base, language)
+    return adapter + "\n\n" + canonical
+
+
+def mcp_guide(base, language="en", benchmark=False):
+    return adapt_guide(guide(base, language), benchmark)
