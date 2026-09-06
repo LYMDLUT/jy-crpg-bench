@@ -142,3 +142,73 @@ class RecordingWorkerTests(unittest.TestCase):
         exported=json.loads(workers.request(self.port,'/api/recording')[1])
         self.assertTrue(any('d' in e for e in exported['events']))
         self.assertEqual(healthy()['recording']['cache_bytes'],0)
+
+    def run_storage_pause(self, benchmark=False):
+        import subprocess
+        import sys
+        import test_worker_health as workers
+        launcher=self.server/'storage_pause_probe.py'
+        launcher.write_text('''import json, os, pathlib, time
+import server
+server.KEYFRAME_EVERY = .05
+original_event = server.key_event
+original_write = server.RecordingStore._write
+original_key = server.LIB.core_key
+armed = False
+fail_until = 0.0
+def key_event(name, down):
+    global armed
+    original_event(name, down)
+    if down: armed = True
+def fail_write(self, data):
+    global fail_until
+    if armed and not fail_until and "d" in json.loads(data):
+        fail_until = time.monotonic() + 2.0
+    if time.monotonic() < fail_until:
+        raise OSError("injected recording write failure")
+    return original_write(self, data)
+def core_key(code, down):
+    result = original_key(code, down)
+    with pathlib.Path(os.environ["KEY_LOG"]).open("a") as stream:
+        stream.write(json.dumps([code, bool(down)]) + "\\n")
+    return result
+server.key_event = key_event
+server.RecordingStore._write = fail_write
+server.LIB.core_key = core_key
+server.main()
+''')
+        env=dict(os.environ,PORT=str(self.port),QUNXIA_CORE=str(self.core),QUNXIA_GAME='unused',
+                 QUNXIA_SAVES=str(self.folder/'saves'),QUNXIA_RECORDING_DIR=str(self.folder/'recordings'),
+                 QUNXIA_STALL_SECONDS='15',QUNXIA_BENCH='1' if benchmark else '0',
+                 PROBE_AUTORUN='1',KEY_LOG=str(self.folder/'keys.jsonl'))
+        with (self.folder/'worker.log').open('wb') as log:
+            process=subprocess.Popen([sys.executable,str(launcher)],env=env,cwd=self.server,stdout=log,stderr=log)
+        self.procs.append(process)
+        def healthy():return workers.WorkerIntegrationTests.healthy(self)
+        before=workers.wait_for(healthy)
+        status,body=workers.request(self.port,'/api/key?react=0&stable=1&maxsettle=6',{'key':'right','hold':6})
+        self.assertEqual(status,503,body)
+        self.assertEqual(json.loads(body)['error'],'recording_unavailable')
+        keys=[json.loads(row) for row in (self.folder/'keys.jsonl').read_text().splitlines()]
+        self.assertEqual(keys[-1],[275,False])  # completed real native key-up
+        if benchmark:
+            process.wait(timeout=4)
+            self.assertEqual(process.returncode,75)
+            fault=workers.read_json(self.folder/'saves/.health/failure.json')
+            self.assertEqual(fault['reason'],'recording_failed')
+        else:
+            after=workers.wait_for(healthy,seconds=5)
+            self.assertIsNone(process.poll())
+            self.assertGreater(after['core_ticks'],before['core_ticks'])
+            self.assertEqual(after['recording']['pending_bytes'],0)
+            self.assertFalse((self.folder/'saves/.health/failure.json').exists())
+            status,body=workers.request(self.port,'/api/key?react=0&stable=1&maxsettle=6',{'key':'up','hold':1})
+            self.assertEqual(status,200,body)
+
+    def test_recoverable_recording_pause_does_not_become_core_stall(self):
+        self.run_storage_pause()
+
+    def test_formal_benchmark_recording_failure_remains_invalid(self):
+        if not (self.server/'warden.py').exists():
+            self.skipTest('benchmark worker only')
+        self.run_storage_pause(benchmark=True)
