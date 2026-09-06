@@ -158,4 +158,3 @@ class WorkerIntegrationTests(unittest.TestCase):
         events=json.loads(request(self.port,'/api/recording')[1])['events']
         downs=[e['down'] for e in events if e.get('key')=='right']
         self.assertEqual(downs,[True,False])
-

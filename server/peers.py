@@ -55,5 +55,3 @@ class Peer:
             if self.close_task is None:
                 self.close_task = asyncio.create_task(self.close_socket())
             await self.close_task
-
-
