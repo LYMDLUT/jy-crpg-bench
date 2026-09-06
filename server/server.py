@@ -976,9 +976,13 @@ async def wait_core_frames(frames, allow_finished=False):
     deadline = loop.time() + max(1.0, frames / fps * 5 + 0.5)
     poll = min(0.01, 0.5 / fps)
     while LIB.core_ticks() < target:
+        if recording_blocked:
+            raise RecordingUnavailable(recording_store.error or "recording storage is paused")
         if not allow_finished and warden.ON and warden.run["done"]:
             raise web.HTTPGone(text=json.dumps(warden.ended_payload()), content_type="application/json")
         if loop.time() >= deadline:
+            if recording_blocked:
+                raise RecordingUnavailable(recording_store.error or "recording storage is paused")
             if health:
                 health.fail("core_stalled")
             raise EnvironmentFailure("emulator frame clock stalled during input")
