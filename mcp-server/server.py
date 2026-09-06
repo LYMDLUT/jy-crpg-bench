@@ -117,7 +117,8 @@ def press(key: str, times: int = 1, hold: int = 4, stable: int = None) -> list:
     stable: frames the picture must hold still before the screenshot is taken.
          Raise it if you get a half-written dialogue line.
 
-    Remember: during a cutscene every key just advances the dialogue.
+    Read the current screen: ordinary dialogue, choices, and animations may
+    respond differently. Do not assume a failed movement means a cutscene.
     """
     if times > 1:
         return _act("/keys", {"keys": [key] * times, "hold": hold},
@@ -141,9 +142,10 @@ def press_sequence(keys: list[str], gap: int = 6, stable: int = None) -> list:
 def move(direction: str, steps: int = 1) -> list:
     """Walk. direction is up, down, left, right.
 
-    One step turns the character to face that way and moves one tile if it is
-    not blocked, so walking into a person or object is how you talk to it. If
-    nothing moves, you are either blocked or inside a cutscene.
+    Obstacles may prevent movement. For an ordinary person or container, stand
+    adjacent, face the target, then use interact or press enter/space to
+    investigate. Stepping on a tile can trigger a separate story event. If
+    movement is unclear, inspect the screen rather than assuming its cause.
     """
     if direction not in ("up", "down", "left", "right"):
         raise ValueError("direction must be up, down, left or right")
@@ -162,8 +164,8 @@ def interact() -> list:
 def open_menu() -> list:
     """Open the in-game main menu (醫療 / 解毒 / 物品 / 狀態) by sending esc.
 
-    Also the reliable test for whether a cutscene is still running: if the menu
-    does not appear, you are not free to act yet.
+    Observe the result. If the menu does not appear, that alone does not
+    establish whether a dialogue, animation, or another condition prevented it.
     """
     return _act("/key", {"key": "esc"}, note="esc")
 
