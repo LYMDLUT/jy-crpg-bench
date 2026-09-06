@@ -507,7 +507,11 @@ def stop_worker(proc):
 async def fail_worker(sess, reason):
     # Reap before writing, so a dying worker cannot overwrite this result.
     await asyncio.to_thread(stop_worker, sess['proc'])
-    result = dict(failure(reason), id=sess['id'], agent=sess['agent'], complete=True)
+    result = result_of(sess['id'])
+    if result and result.get('valid') is True:
+        result.update(complete=True, error=(result.get('error') or '') + f' artifact finalization failed: {reason}')
+    else:
+        result = dict(failure(reason), id=sess['id'], agent=sess['agent'], complete=True)
     write_json(RESULT_DIR / f"{sess['id']}.json", result)
 
 
