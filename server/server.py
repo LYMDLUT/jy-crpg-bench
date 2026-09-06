@@ -27,6 +27,9 @@ from PIL import Image
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
 from peers import Peer
+from recording_store import RecordingStore
+from recording import RecordingAPI
+from storage import validate_recording_directory
 
 ROOT = pathlib.Path(__file__).resolve().parent
 LIB = ctypes.CDLL(str(ROOT / "libqunxia.so"))
@@ -59,6 +62,12 @@ LIB.core_load_state.argtypes = [ctypes.c_char_p]
 LIB.core_load_state.restype = ctypes.c_bool
 
 health = None
+recording_store = recording_api = None
+recording_blocked = False
+
+class RecordingUnavailable(RuntimeError):
+    pass
+
 peers = {}
 emulator_stop = threading.Event()
 BUF = ctypes.create_string_buffer(4 << 20)
@@ -109,10 +118,7 @@ stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0, "dropped": 0,
 SEND_TIMEOUT = float(os.environ.get("QUNXIA_SEND_TIMEOUT", "3"))
 # Recording. Tile deltas are what the stream already produces, so a recording is
 # just those kept with timestamps, plus the keys that caused them.
-IDLE_AFTER = 3.0          # no action for this long and the tail is idle
-IDLE_TAIL = 30.0          # of which only the last this much is kept
-KEYFRAME_EVERY = 30.0     # so pruning can always start from a whole picture
-REC_MAX_BYTES = 12 << 20
+KEYFRAME_EVERY = 30.0     # periodic complete frames in the disk recording
 LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 # Four frames can fit inside one slow game-loop redraw, so a short keydown and
 # keyup may be consumed together without producing a map step. Ten frames are
@@ -241,10 +247,11 @@ async def pump():
     while True:
         try:
             await asyncio.sleep(period)
+            if recording_blocked:
+                continue
             stats["pump_ticks"] += 1
             now = time.time()
-            # A whole picture at intervals, so a pruned recording always has
-            # somewhere to start replaying from.
+            # Periodic complete frames preserve standalone replay boundaries.
             force = now - last_key_at >= KEYFRAME_EVERY
             serial = LIB.core_frame_serial()
             if serial == last_serial and not force:
@@ -298,40 +305,37 @@ def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
         ev["down"] = bool(down)
         if rec["actor"]:
             ev["who"] = rec["actor"]
-    rec["events"].append(ev)
-    rec_prune(now)
+    if recording_store:
+        try:
+            ok = recording_store.append(ev)
+        except (OSError, BufferError) as exc:
+            recording_store.error = str(exc)
+            ok = False
+        if not ok:
+            block_recording()
+            raise RecordingUnavailable(recording_store.error)
+        rec["bytes"] = recording_store.committed_size
 
 
-def rec_prune(now):
-    """Two bounds. A long idle tail keeps only its last IDLE_TAIL seconds, so an
-    untouched game does not grow forever while still showing its own animation.
-    And the whole thing is capped, dropping from the front to the oldest
-    keyframe that fits, because deltas cannot be replayed from the middle."""
-    idle_for = now - rec["last_activity"]
-    if idle_for > IDLE_AFTER:
-        cutoff = round(now - rec["started"] - IDLE_TAIL, 3)
-        head, tail = [], []
-        for ev in rec["events"]:
-            (tail if ev["t"] >= cutoff else head).append(ev)
-        # only trailing idle frames are droppable; anything before the idle
-        # stretch began is real history
-        idle_began = round(now - rec["started"] - idle_for, 3)
-        keep = [e for e in head if e["t"] <= idle_began] + tail
-        if len(keep) < len(rec["events"]):
-            rec["events"] = keep
-
-    if rec["bytes"] > REC_MAX_BYTES:
-        for i, ev in enumerate(rec["events"]):
-            if ev.get("k") and i > 0:
-                dropped = rec["events"][:i]
-                rec["bytes"] -= sum(len(e.get("d", "")) * 3 // 4 for e in dropped)
-                rec["events"] = rec["events"][i:]
-                break
+def block_recording():
+    global recording_blocked
+    recording_blocked = True
+    paused.set()
 
 
 def rec_reset():
-    rec.update(started=time.time(), events=[], bytes=0, last_key=0.0,
-               last_activity=time.time())
+    if recording_store:
+        try:
+            recording_store.reset(time.time())
+        except OSError as exc:
+            recording_store.error = str(exc)
+            block_recording()
+            raise RecordingUnavailable(str(exc)) from exc
+        finally:
+            rec.update(started=recording_store.started, events=[], bytes=recording_store.committed_size,
+                       last_key=0.0, last_activity=time.time())
+    else:
+        rec.update(started=time.time(), events=[], bytes=0, last_key=0.0, last_activity=time.time())
 
 
 def session_summary():
@@ -353,9 +357,13 @@ async def reap():
 
 
 async def send_keyframe(ws):
+    # Encoding changes the shared delta baseline. Persist and broadcast that
+    # full frame before any later delta is allowed to use it.
     n = LIB.fb_encode_delta(BUF, len(BUF), 1)
     if n > 0:
-        peers[ws].put(zlib.compress(BUF.raw[:n], 6))
+        payload = zlib.compress(BUF.raw[:n], 6)
+        rec_add("f", payload, keyframe=True)
+        await fanout(payload)
 
 
 async def ws_handler(request):
@@ -363,7 +371,11 @@ async def ws_handler(request):
     await ws.prepare(request)
     clients.add(ws)
     peers[ws] = Peer(ws, SEND_TIMEOUT, drop_peer)
-    await send_keyframe(ws)
+    try:
+        await send_keyframe(ws)
+    except BaseException:
+        peers[ws].drop()
+        raise
     peers[ws].put(json.dumps({"t": "log", "e": list(history)[-80:],
                                   "s": session_summary()}), text=True)
     # code -> (name, core tick at keydown). Browser automation can emit keydown
@@ -382,6 +394,8 @@ async def ws_handler(request):
             if not isinstance(d, dict):
                 continue
             t = d.get("t")
+            if recording_blocked and not (t == "key" and not d.get("down")):
+                continue
             if t == "key":
                 name = str(d.get("k", "")).lower()
                 code = KEYS.get(name)
@@ -428,7 +442,10 @@ async def ws_handler(request):
     finally:
         for code, (name, _) in list(holding.items()):
             LIB.core_key(code, False)
-            key_event(name, False)
+            try:
+                key_event(name, False)
+            except RecordingUnavailable:
+                pass
         holding.clear()
         if lock_held:
             action_lock().release()
@@ -532,6 +549,8 @@ async def pause_emulator():
 
 
 def resume_emulator():
+    if recording_blocked:
+        return
     paused.clear()
     # Do not let a following pause observe the acknowledgement from this one.
     paused_ack.clear()
@@ -601,9 +620,9 @@ def key_event(name, down):
 
 
 async def tap(code, hold_frames, name=None):
-    key_event(name, True)
-    LIB.core_key(code, True)
     try:
+        key_event(name, True)
+        LIB.core_key(code, True)
         await wait_core_frames(hold_frames)
     finally:
         LIB.core_key(code, False)
@@ -1024,11 +1043,7 @@ async def api_reset(request):
         await asyncio.sleep(0.4 if restored else 1.5)
 
     await fanout(json.dumps({"t": "clear"}), text=True)
-    for ws in list(clients):
-        try:
-            await asyncio.wait_for(send_keyframe(ws), timeout=SEND_TIMEOUT)
-        except Exception:
-            clients.discard(ws)
+    await send_keyframe(None)
     log_action("api", "RESET", "restored start state" if restored else "rebooted to title")
     return web.json_response({"ok": True, "reset": True, "restored": restored})
 
@@ -1052,14 +1067,10 @@ async def api_snapshot(request):
     return web.json_response({"ok": ok, "path": START_STATE, "bytes": size})
 
 
-async def api_recording(_request):
-    """The session so far as tile deltas and key presses, for playback."""
-    return web.json_response({
-        "started": rec["started"],
-        "duration": round(time.time() - rec["started"], 2),
-        "events": rec["events"],
-        "bytes": rec["bytes"],
-    })
+async def api_recording(request):
+    if recording_api:
+        return await recording_api.handle(request)
+    return web.json_response({"started": rec["started"], "duration": 0, "events": [], "bytes": 0})
 
 
 async def api_history(request):
@@ -1081,6 +1092,10 @@ async def api_help(request):
                         content_type="text/plain", charset="utf-8")
 
 
+async def recording_script(_request):
+    return web.FileResponse(ROOT / "recording.js")
+
+
 async def index(_request):
     return web.FileResponse(ROOT / "index.html")
 
@@ -1091,15 +1106,21 @@ async def status(_request):
         "fps": round(LIB.core_fps(), 3), "frame": LIB.core_frame_serial(),
         "clients": len(clients), "session": session_summary(), **stats,
         **(health.sample() if health else {}),
+        "recording": {"cache_bytes": 0, "pending_bytes": recording_store.pending_bytes if recording_store else 0,
+                      "error": recording_store.error if recording_store else ""},
     })
 
 
 @web.middleware
 async def json_errors(request, handler):
     try:
+        if recording_blocked and request.method == "POST" and request.path.startswith("/api/"):
+            raise RecordingUnavailable(recording_store.error)
         if health:
             health.check()
         return await handler(request)
+    except RecordingUnavailable as exc:
+        return web.json_response({"ok": False, "error": "recording_unavailable", "message": str(exc)}, status=503)
     except EnvironmentFailure as exc:
         if health:
             health.fail(str(exc))
@@ -1117,8 +1138,13 @@ async def startup(app):
 
 
 async def pulse_health():
+    global recording_blocked
     while True:
         health.pulse()
+        if recording_blocked and recording_store.flush():
+            recording_blocked = False
+            LIB.fb_reset()
+            resume_emulator()
         await asyncio.sleep(.25)
 
 
@@ -1133,10 +1159,20 @@ async def cleanup(app):
     if health:
         LIB.core_shutdown()
         health.stop()
+    if recording_api:
+        recording_api.close()
+        recording_store.close()
 
 
 def main():
-    global health
+    global health, recording_store, recording_api
+    directory = os.environ.get("QUNXIA_RECORDING_DIR", str(ROOT.parent / "recordings"))
+    validate_recording_directory(directory)
+    path = pathlib.Path(os.environ.get("QUNXIA_RECORDING_FILE", str(pathlib.Path(directory) / f"{PORT}.jsonl")))
+    validate_recording_directory(path.parent)
+    recording_store = RecordingStore(path)
+    recording_api = RecordingAPI(recording_store)
+    rec.update(started=recording_store.started, events=[], bytes=recording_store.committed_size)
     health = Health(LIB.core_ticks, paused.is_set, os.environ.get("QUNXIA_HEALTH_DIR", str(pathlib.Path(SAVES) / ".health")))
     health.start()
     os.makedirs(SAVES, exist_ok=True)
@@ -1157,6 +1193,7 @@ def main():
     app = web.Application(middlewares=[json_errors])
     app.add_routes([
         web.get("/", index),
+        web.get("/recording.js", recording_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
         web.get("/api/screen", api_screen),
