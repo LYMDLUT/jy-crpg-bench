@@ -71,8 +71,9 @@ A warning the game itself gives you: 「你們這些人都是這樣的，自以�
 ## Playing well
 
 - Snapshot before anything risky with `game_save`, and restore with `game_load`.
-  These are emulator snapshots, so they restore exactly, including mid-battle,
-  which the game's own save system cannot do.
+  These snapshots can include scene or battle state. Check that saving
+  succeeded, and inspect the restored screen after loading; the game's own
+  save menu is limited to the world map.
 - Keep a compact mental ledger: current objective, evidence, important places,
   failed routes, inventory clues, and the next test. Restate it after meaningful
   discoveries so automatic context compaction can preserve it. If the same idea

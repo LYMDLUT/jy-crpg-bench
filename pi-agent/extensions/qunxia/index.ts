@@ -233,8 +233,9 @@ export default function (pi: ExtensionAPI) {
     name: "game_save",
     label: "Save",
     description:
-      "Snapshot the whole emulator under a name. Unlike the game's own save system this " +
-      "works anywhere, including mid-scene and mid-battle. Take one before anything risky.",
+      "Request an emulator snapshot under a name, including scene or battle state. " +
+      "Check that saving succeeded before relying on it; the game's own save menu " +
+      "is limited to the world map.",
     promptSnippet: "Snapshot the emulator state",
     parameters: Type.Object({ name: Type.String({ minLength: 1, maxLength: 64, description: "Snapshot name" }) }),
     execute: (_id, params, signal) => act("/save", { name: params.name }, `save ${params.name}`, signal),

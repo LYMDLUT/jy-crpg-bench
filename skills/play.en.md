@@ -78,8 +78,8 @@ stretch, checking the actual distance from the screen or compass.
 - Any key can advance ordinary dialogue; answer choices and （Ｙ／Ｎ） prompts
   with the appropriate keys.
 - esc opens the menu. In a building: 醫療 / 解毒 / 物品 / 狀態. On the world map
-  you also get 隊 (party) and 系統 (save, load, quit). Saving is only possible
-  on the world map.
+  you also get 離隊 (dismiss a companion) and 系統 (save, load, quit). The
+  in-game save menu is available on the world map.
 - y and n answer prompts written （Ｙ／Ｎ）.
 
 ## First priority: get the compass
@@ -88,10 +88,9 @@ Many locations remain unavailable until you complete the opening encounter at
 南賢居. On the world map, **follow the small path south to 南賢居**. Once there,
 talk to 南賢, then investigate the cabinet beside him to get the 羅盤 (compass).
 
-With the compass, `esc → 物品 → 羅盤` shows **your current coordinates as
-numbers**. That is the game's own ground truth for position, far better than
-comparing screenshots of trees. Get it early and check coordinates every few
-steps; it is the single best cure for going in circles.
+After obtaining the compass, highlight it in `esc → 物品` to read **your current
+coordinates**. Check actual readings together with visible landmarks, especially
+when the route is unclear or you suspect a loop.
 
 Community coordinates for reference (from the original game, this build may
 differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
@@ -142,8 +141,10 @@ You are 小蝦米, a modern student who buys a VR copy of this very game and wak
 inside the world of Jin Yong's wuxia novels. Getting home means finding the
 fourteen Jin Yong novels scattered across the land. Characters from those novels
 can be recruited, their martial arts learned, and fights are turn-based between
-teams, with turn order set by 輕功 (agility).
+teams. Turn order usually follows 輕功 (agility); commands such as waiting can
+change the order within a round.
 
-Only the protagonist dying ends the game; defeated companions are merely badly
-hurt and return. Poke at anything that looks placed rather than decorative.
-Everything past that is yours to discover.
+A character falling, losing a battle, and ending the game are different events.
+Whether play continues after defeat depends on that encounter. Watch the whole
+party and read the actual battle result. Investigate plausible people and
+objects, and use the game's clues to decide what to explore.

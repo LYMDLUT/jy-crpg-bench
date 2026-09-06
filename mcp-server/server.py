@@ -280,8 +280,9 @@ def wait(ms: int = 1000) -> list:
 def save_state(name: str = "agent") -> list:
     """Snapshot the whole emulator under this name.
 
-    Unlike the game's own save system this works anywhere, including mid-scene
-    and mid-battle. Take one before anything you might want to undo.
+    Emulator snapshots can include scene or battle state. Check that saving
+    succeeded before relying on it; the game's own save menu is limited to the
+    world map.
     """
     _state_name(name)
     return _act("/save", {"name": name}, note=f"save {name}")
@@ -291,8 +292,8 @@ def save_state(name: str = "agent") -> list:
 def load_state(name: str = "agent") -> list:
     """Restore a snapshot taken by save_state.
 
-    Note that a snapshot taken during a cutscene restores into that cutscene,
-    so movement will be ignored until you finish reading it.
+    Inspect the restored screen, including any dialogue, menu, or animation,
+    before choosing the next action.
     """
     _state_name(name)
     return _act("/load", {"name": name}, note=f"load {name}")

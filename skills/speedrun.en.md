@@ -38,34 +38,53 @@ encounter, then use visible entrances and story clues to continue exploring.
 - `y` and `n` answer （Ｙ／Ｎ）. Any key can advance ordinary dialogue; read
   choices and answer them with the appropriate keys.
 
-The menu has **six entries on the world map**: 醫療 heal, 解毒 cure poison,
-物品 items, 狀態 status, 隊 party, 系統 system. **Inside a building only the
-first four appear**, so saving or changing party members means going outside.
+The world-map menu includes 醫療 heal, 解毒 cure poison, 物品 items, 狀態 status,
+離隊 dismiss a companion, and 系統 system. Inside a scene, the first four are
+available. In-game saving, loading, and the dismissal menu require the world
+map; recruitment usually happens through dialogue and story conditions.
 
-- **醫療 / 解毒**: pick the healer, then the patient. The healer needs 體力 of
-  at least 50, and too large a gap in ability makes it fail.
-- **物品**: five kinds. Story items used on a specific person at a specific
-  time; pills that restore or raise attributes; hidden weapons, usable only in
+- **醫療**: choose a healer and patient. Healing needs at least 50 體力 and
+  sufficient medical ability for the patient's injury.
+- **解毒**: choose a person to remove poison and a patient. Its effect depends
+  on the ability and poison severity; do not copy the healing stamina condition
+  to this command. Check selectable characters, available commands, and results.
+- **物品**: for a story item used on a scene person or object, stand adjacent
+  and face the target first. Medicines, equipment, and manuals select their
+  user through the item menu. The five kinds are story items; pills that restore
+  or raise attributes; hidden weapons, usable only in
   combat; weapons and armour, equippable depending on the character; and
   manuals, which a party member can study to gain attributes or learn a skill.
 - **狀態**: health, inner force, stamina, experience, and the combat
   attributes, plus a second page with the portrait, equipment and the skills
-  learned. Ten skills per character at most, each to the tenth level.
+  learned. A character can learn at most ten martial arts, each to level ten,
+  but has only one currently assigned training manual.
 - **系統**: three save slots, load, and quit. Save regularly.
 
 ## Combat
 
-Turn order is set by 輕功 alone, friend and foe interleaved. On your turn:
-move, which costs no stamina and whose range comes from 輕功; attack, choosing
-a skill then a direction with `kp1 kp3 kp7 kp9`; poison or cure, two stamina
-each; heal, two stamina and at least 50 of your own; use an item; wait; rest,
-which restores a little stamina and, above 30, some health and inner force; or
-hand the turn to the computer.
+Combat is turn-based. The order usually follows combat agility; waiting can
+move the current character later in that order. Stamina, inner force, ability,
+and remaining movement affect available commands. Read the current menu and status.
 
-Numbers above a head are red for damage, green for poison, yellow for healing.
+- **Move**: choose a position in the available range. After moving, check which
+  commands remain instead of assuming their menu positions are fixed.
+- **Attack**: choose a martial art, then its target, direction, or area as
+  appropriate. Not every art uses the same targeting method.
+- **Poison / cure / heal**: use the relevant ability, resources, and a suitable
+  target. Injury also affects healing. Do not confuse a command's minimum
+  requirement with its per-use cost, or apply healing requirements to other commands.
+- **Items**: choose the use and target for that item, then check quantity and status.
+- **Wait**: delay the current character's action; this differs from ending it.
+- **Status**: inspect attributes, equipment, and martial arts before choosing an action.
+- **Rest**: end that character's current action and recover some stamina. Other
+  conditions affect whether health or inner force also recovers.
+- **Auto**: the game controls friendly combat actions, not necessarily only the
+  current actor. Watch the whole party and verify any attempt to cancel it.
 
-**Only the protagonist dying ends the game.** Companions who fall are badly
-hurt, not dead, and return once healed.
+A character falling is not necessarily permanent death, and a lost battle is not
+always game over. Encounters have different defeat branches. Do not assume every
+defeat is survivable either; use the story and battle result, and watch party health,
+injury, and poison.
 
 ## Attributes
 
@@ -74,15 +93,16 @@ agility, healing, poison, curing, and the weapon skills. Base attack, defence,
 and 輕功 cap at 100; equipment bonuses are separate. The listed ability and
 weapon attributes also cap at 100, and some skills or items require minimum values.
 
-Hidden, and adjusted by what you do:
+Other attributes not fully listed on the ordinary status screen:
 
-- **體質** decides how much health you gain per level. Fixed at creation.
+- **體質** affects health gained per level and is assigned an initial value at creation.
 - **資質** decides how fast you learn skills. A few skills are reserved for
   characters with poor 資質, so a low value is not a reason to discard someone.
 - **道德** moves with your behaviour, and can be read from the mirror in 南賢居
   with space. Too low and some upright characters refuse to join, but certain
   paths need a specific range, so higher is not simply better.
-- **名望** grows by winning fights and gates some later events.
+- **名望** changes through some story events and battle results and affects
+  later events. Gaining experience does not necessarily also increase reputation.
 
 ## Checking actions against the screen
 
