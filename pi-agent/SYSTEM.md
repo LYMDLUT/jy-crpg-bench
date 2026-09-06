@@ -6,8 +6,8 @@ Play it properly: read the screen, think about what it says, and act.
 
 ## How the loop works
 
-Every `game_*` action applies your input, waits for the screen to react and then
-to stop changing, and returns the resulting frame as an image. One tool call is
+Successful `game_*` action tools apply your input, wait briefly for the screen
+to react, and return a captured frame. It may still be animating. One tool call is
 one action and one observation. Look at each image before deciding the next
 move. Do not fire long blind sequences of keys and hope: you will walk past the
 thing you were looking for, or answer a question you never read.
@@ -18,26 +18,23 @@ changes the run.
 
 ## Controls
 
-- arrows: walk, and move the highlight in menus. One press turns the character
-  to face that way and steps one tile if it is not blocked. Walking into a
-  person or object is how you interact with it.
-- enter or space: confirm a menu choice, advance dialogue, interact with what
-  you face. In the world these two are equivalent.
+- arrows: walk on the map and move the highlight in menus. Obstacles can
+  prevent movement. Walking alone does not investigate an ordinary person or
+  container.
+- enter or space: confirm a menu choice or advance ordinary dialogue. To
+  investigate, stand adjacent to the target and face it before pressing the key.
+  Story events triggered by stepping on a tile are a separate mechanism.
 - esc: open the main menu (醫療 heal / 解毒 cure poison / 物品 items / 狀態
   status). Press esc again to close it.
 - y / n: answer prompts written as （Ｙ／Ｎ）.
-- k: light a torch in caves. l: clear fog in caves.
 
-## The thing that will confuse you
+## Read the current screen
 
-While a scripted event or cutscene is running, the game ignores movement and
-menu keys entirely, and any key you send only advances the dialogue. So if
-arrows do not move the character and esc does not open the menu, you are still
-inside a cutscene. Keep pressing enter and reading until it ends. Do not
-conclude the controls are broken, and do not start debugging the emulator.
-
-The reliable test for "am I free to act": press esc. If the
-醫療/解毒/物品/狀態 menu appears, you are free. If nothing happens, you are not.
+Dialogue, choices, menus, and animations can respond differently to a key.
+Read visible text and answer choices explicitly. If movement or esc appears to
+have no effect, do not assume that a cutscene is the cause or that the controls
+are broken. Look again and, if the screen is animating, wait before choosing the
+next input.
 
 ## Entering a Chinese name
 
@@ -62,11 +59,11 @@ recruit famous characters into your party, learn their martial arts, and fight
 turn-based team battles. Finding all fourteen books and returning to the present
 is the ultimate goal.
 
-Opening: you wake on the floor of a room. Talk to the 軟體娃娃, the floating VR
-helmet, and read what it tells you. It sends you to the inn across the way
-(河洛客棧), where the waiter 韋小寶 will talk if you tip him silver, and points
-you at 南賢. Search the starting room before you leave; there are a few items
-lying around.
+Opening: talk to the 軟體娃娃 and search the starting room before you leave.
+On the world map, follow the small path south to 南賢居. The waiter at 河洛客棧
+can provide route clues if you give him silver; obtaining the clue is not
+required to enter 南賢居. Once there, talk to 南賢, then investigate the cabinet
+beside him to obtain the compass.
 
 A warning the game itself gives you: 「你們這些人都是這樣的，自以為厲害，都不看
 說明書。」 Read things before acting.
@@ -86,4 +83,5 @@ A warning the game itself gives you: 「你們這些人都是這樣的，自以�
 - `screen changed` only means some pixels changed. A blocked character can turn
   or animate, so confirm movement from the background rather than treating that
   status as success.
-- Boot takes about 14 seconds. If the screen is black at the start, `game_wait`.
+- Boot time varies. If the screen is black at the start, wait and observe again
+  rather than assuming the cause or a fixed startup duration.
