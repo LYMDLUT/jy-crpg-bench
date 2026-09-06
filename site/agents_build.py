@@ -23,7 +23,7 @@ ON_SCREEN = [
     "金庸群俠傳", "河洛工作室", "軟體娃娃", "小蝦米",
     "崑崙仙境", "無量山洞", "河洛客棧", "天寧寺", "鐵掌山", "五毒教",
     "衡山派", "閻基居", "北丑居", "南賢居", "主角居", "南賢",
-    "羅盤", "醫療", "解毒", "物品", "狀態",
+    "羅盤", "醫療", "解毒", "物品", "狀態", "離隊",
     "輕功", "體力", "體質", "資質", "道德", "名望", "注音",
     # 隊 and 系統 are menu labels in some places and ordinary words in others.
     # Protecting the bare characters left prose reading "團隊回合制" and
@@ -41,8 +41,7 @@ PRE_ZH = """# jy-crpg-bench
 
 ## 一、先取名，再开局
 
-取个名字，随便什么都行。写你自己的模型名（`claude-opus-5`、`gpt-5.2`、
-`qwen3-max`）最有用，榜单会用它列出你这一局，但不要为这个多想一秒。
+填写能标识本次模型及档位的名字，榜单会用它标识这一局。
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
@@ -58,29 +57,28 @@ PRE_ZH = """# jy-crpg-bench
 
 - 你的**总游玩时长**在开局时就定好了。开局回应里的 `seconds` 就是你有多少秒，
   从连线可以开始动作的那一刻算起。别自己假设是多久。
-- **每十分钟至少动作一次**，否则这一局会提早结束，并记为闲置。一个步骤想十分钟
-  是失败，不是思考。看画面不算动作，按键才算。
-- 全程录像。结束后录像会转成 MP4 公开发布，你的名字、动作速率、结束原因会进入
-  <https://hanxiao.io/jy-crpg-bench/> 的公开榜单。
+- **默认闲置上限为十分钟**；长时间没有游戏动作会提前结束。单纯查看画面不算游戏动作。
+- 会记录用于回放的画面和操作，结束后生成录像。公共服务默认把结果列入
+  <https://hanxiao.io/jy-crpg-bench/>；是否公开取决于本次会话的发布设置。
 - 你会从下一次呼叫得知这局结束了：回应变成 `410`，带着 `"ended": true`、结束原因
   和 `video_url`。看到就停手。没有办法加时，开第二局也不是延长，那是从开场房间
   重新开始的另一局。
 
-没有胜利条件。被衡量的是你拿这段时间做了什么。
+游戏目标仍是收集十四本书并返回现实；本次会话记录限时进展，即使尚未通关也会在预算
+结束时停止。闲置等情况也可能使会话提前结束。
 
 ## 三、开局往哪走
 
 你现在在一个室内小场景里。这个世界分两层：很多这样的小场景，由一张大地图串起来。
 大地图才是主干，小场景挂在上面。
 
-1. 先把这个房间搜一遍。屋里有箱子，走上去撞它就是搜。
+1. 先把这个房间搜一遍。调查普通人物或容器时，站在相邻格朝向目标，再按确认键。
 2. 找到门口出去，你就到大地图了。
-3. 到大地图后往南走，完成南賢居事件并从柜子取得羅盤（下面第「零」节有细节）。
-   在完成这一步之前，许多建筑进不去，所以不要一栋一栋去试门。
+3. 进入大地图后，沿小路往南，前往南賢居；先对话，再调查柜子取得羅盤。
+   许多地点在这段开局事件后开放；仍走不进去时，结合入口位置和游戏文字判断。
 
-**保持前进。** 时间比你想的短，而跑不出东西的局几乎都死在同三件事上：原地不动、
-反复读同一段循环对话、绕着同一栋进不去的建筑打转。一个场景榨不出新东西就走人，
-一条路走不通就换一条。宁可粗略地走过五个场景，也不要把整局时间花在一个房间里。
+根据画面和对话推进当前目标。没有新信息时可以调整计划，但不要只为增加场景数量而
+跳过已经发现的线索，也不要在没有新证据时反复尝试同一操作。
 
 ---
 
@@ -97,9 +95,8 @@ This file is the whole brief. Read it once, then start.
 
 ## 1. Name yourself, and start
 
-Pick a name. Any name works. Your own model name (`claude-opus-5`, `gpt-5.2`,
-`qwen3-max`) is the most useful one because the catalogue lists your run under
-it, but do not spend a second deciding.
+Use a name identifying the model and thinking level for this run; the catalogue
+uses that name to identify the result.
 
     curl -s -X POST {backend}/session \\
          -H 'content-type: application/json' \\
@@ -119,19 +116,20 @@ try to change it, and do not touch the 注音 input method.
 - Your **total playtime** is fixed when the run is created. The `seconds` field
   in the session reply is how long you have, counted from the moment the
   session is playable. Do not assume a number.
-- **Act at least once every ten minutes** or the run is stopped early and
-  listed as idle. Ten minutes on a single step is a failure, not thinking.
-  Reading the screen does not count as acting; pressing a key does.
-- Every frame is recorded. When the run ends the recording is published as an
-  MP4, and your name, action rate and how the run ended go into the public
-  catalogue at <https://hanxiao.io/jy-crpg-bench/>.
+- **The default idle limit is ten minutes.** A long gap without a game action
+  can end the run early. Looking at the screen alone does not count as a game action.
+- Frames and actions used for replay are recorded, and a video is generated
+  after the run. The public service lists results at
+  <https://hanxiao.io/jy-crpg-bench/> by default; publication depends on the
+  session's publishing settings.
 - You find out the run is over from your next call: it comes back `410` with
   `"ended": true`, a reason, and `video_url`. When you see it, stop. There is
   no way to buy more time, and a second session is not a longer run, it is a
   second run from the opening room.
 
-Nothing is scored as a win condition. What is measured is what you did with
-the time you were given.
+The game goal remains to collect fourteen books and return to the present.
+This session records progress within a fixed budget and ends when that budget
+expires even if the game is unfinished. Idleness and other conditions can end it earlier.
 
 ## 3. Where to go first
 
@@ -139,17 +137,16 @@ You are in a small indoor scene. The world has two tiers: many small scenes
 like this one, strung together by a single large outdoor map. The outdoor map
 is the trunk; the scenes hang off it.
 
-1. Search the room you are in. There is a chest. Walking into a thing searches it.
+1. Search the room. To investigate an ordinary person or container, stand
+   adjacent, face the target, and press confirm.
 2. Find the doorway and leave. That puts you on the world map.
-3. Head south, complete the opening encounter at 南賢居, and take the compass
-   from the cabinet (section 0 below has the detail). Until then, many buildings
-   will not open, so do not try doors one by one.
+3. Follow the small path south to 南賢居, talk to 南賢, then investigate the
+   cabinet to obtain the compass. Many locations open after this encounter;
+   if an entrance still resists you, check its position and the game text.
 
-**Keep moving.** The clock is shorter than it looks, and runs that produce nothing nearly
-always die the same three ways: standing still, re-reading the same looping
-dialogue, and circling one building that cannot be entered. When a scene stops
-giving you anything new, leave. When a route does not work, take another one.
-Five scenes seen roughly beats a whole run spent in one room.
+Use the screen and dialogue to advance your current objective. Adjust the plan
+when there is no new information, but do not skip discovered clues merely to
+visit more scenes, or repeat the same action without new evidence.
 
 ---
 

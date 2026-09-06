@@ -64,16 +64,17 @@ cabinet beside him to obtain the compass.
 PACING
 Boot time varies. Wait and observe the screen rather than assuming a fixed delay. From the title,
 重新開始 starts a new game, 載入進度 loads, 離開遊戲 quits. Use save_state before
-anything risky: these are emulator snapshots and restore exactly, which the
-game's own save system cannot do mid-scene.
+anything risky when the tool is available. Emulator snapshots can include
+scene or battle state; check the save result before relying on one, and inspect
+the screen after loading. The game's own save menu is limited to the world map.
 """
 
 GUIDE = INSTRUCTIONS + """
 
 KEY NAMES ACCEPTED BY press / press_sequence
   up down left right
-  enter (aliases: ok, confirm)   space
-  esc (aliases: cancel, back)
+  enter (aliases: ok, return)   space
+  esc (aliases: cancel, escape)
   y n   a-z   0-9   f1-f12
   tab backspace delete home end pageup pagedown
   shift ctrl alt, and combos such as "alt+x"
