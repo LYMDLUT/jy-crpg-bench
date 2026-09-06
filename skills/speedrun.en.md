@@ -1,33 +1,42 @@
-# Field manual: the official handbook, and what playing it taught us
+# Field manual: controls and game knowledge
 
-Two halves. The first is the original game handbook: menus, combat, and what
-the character attributes mean. The second is what actually running this API
-taught us, which the handbook does not cover.
+This manual covers controls, menus, combat, attributes, and suggestions for
+checking keyboard actions against screenshots. Apply those suggestions to the
+current screen and game text; a single observation is not a universal mechanic.
 
 ## First: get the compass
 
-Many locations remain unavailable until you complete the opening encounter at
-南賢居. Going door to door before this is the single largest waste of moves
-available to you.
+Many locations open after the initial encounter with 南賢. Complete that
+encounter, then use visible entrances and story clues to continue exploring.
 
 1. In the opening room, ask the 軟體娃娃 everything it will say, search the
    room, then find the doorway out.
-2. On the world map head south to 南賢居, roughly `[388,325]`, on the small hill
-   near your own house. Talk to 南賢, then inspect the cabinet beside him and
-   take the 羅盤, the compass.
-3. After that opening encounter, many locations that refused you will let you in.
-4. With the compass, `esc → 物品 → 羅盤` shows your current coordinates as
-   numbers. That is the game telling you where you are, and it beats comparing
-   screenshots of trees. Check it every few moves once you have it.
+2. On the world map, **follow the small path south to 南賢居**, roughly
+   `[388,325]`. Talk to 南賢, then investigate the cabinet beside him to get
+   the 羅盤 (compass).
+3. The first conversation opens many locations. Prioritize it if unfinished.
+   If an entrance still resists you, check its position, your facing direction,
+   and game text rather than assuming a prerequisite is missing.
+4. In the original game, giving money to the waiter at 河洛客棧 provides clues
+   to 南賢居, including the small path and a circular landmark near the house.
+   The clue starts from the inn; obtaining it is not required to enter 南賢居.
+5. After obtaining the compass, highlight it in `esc → 物品` to read the person
+   and boat coordinates. Use the actual readings to check your position,
+   especially when you suspect a loop or are unsure of the route.
 
 ## Controls and menus
 
 - Move with `kp1 kp3 kp7 kp9` or the arrows; they are the same four axes.
-  **Holding a key walks continuously** until you release or hit something.
-- Space and enter are identical: confirm, talk, attack.
+  **Holding a key keeps sending the same direction**, without following paths,
+  turning, or avoiding obstacles. Use short actions while the route is unclear
+  and longer holds on confirmed clear stretches.
+- For an ordinary person or container, stand adjacent, face the target, and
+  press space or enter to investigate. Stepping on a tile can trigger a
+  separate story event. In combat, choose commands and targets through its menu.
 - `esc` opens the menu anywhere. Arrows move the highlight, space or enter
   confirms, `esc` backs out.
-- `y` and `n` answer （Ｙ／Ｎ）. Any key advances dialogue.
+- `y` and `n` answer （Ｙ／Ｎ）. Any key can advance ordinary dialogue; read
+  choices and answer them with the appropriate keys.
 
 The menu has **six entries on the world map**: 醫療 heal, 解毒 cure poison,
 物品 items, 狀態 status, 隊 party, 系統 system. **Inside a building only the
@@ -61,8 +70,9 @@ hurt, not dead, and return once healed.
 ## Attributes
 
 Visible: health, inner force, stamina, experience, attack, defence, 輕功
-agility, healing, poison, curing, and the weapon skills. Attack and defence cap
-at 100, 輕功 at 1000.
+agility, healing, poison, curing, and the weapon skills. Base attack, defence,
+and 輕功 cap at 100; equipment bonuses are separate. The listed ability and
+weapon attributes also cap at 100, and some skills or items require minimum values.
 
 Hidden, and adjusted by what you do:
 
@@ -74,52 +84,62 @@ Hidden, and adjusted by what you do:
   paths need a specific range, so higher is not simply better.
 - **名望** grows by winning fights and gates some later events.
 
-## What running this API taught us
+## Checking actions against the screen
 
 **`changed` does not say whether you moved.** It only reports whether a visible
-screen change was observed. Judge movement from the background and do not infer
-the cause of `changed: false`.
+screen change was observed. Compare landmarks or compass readings, and distinguish
+walking from menus or story sequences instead of inferring a cause from the flag.
 
-**Judge movement from the background, never from your sprite.** The camera is
-locked to you. One step shifts the scenery by roughly an eighth of the screen,
-so if four to six presses leave the composition largely unchanged, you were
-blocked.
+**During ordinary walking, the camera follows the character.** Judge movement
+from landmarks or the compass, not just the sprite position. A short tap may cause
+only a small shift; do not assume a fixed fraction of the screen per step or use a
+fixed similarity threshold to decide that movement was blocked.
 
-**Breaking a loop.** Keep a fingerprint of each screen you actually looked at,
-a phrase is enough, and compare against the last several rather than only the
-previous one, because a loop often runs through a few screens before repeating.
-On first suspicion, change axis rather than pressing harder. On the second,
-stop batching and test all four directions one key at a time.
+**Check the route.** Record landmarks you have actually seen and, after obtaining
+the compass, actual coordinates. Compare a new observation with several recent
+ones. Similar screens are not necessarily the same position; animation can change
+parts of a scene. If you suspect a loop, verify the current screen and direction
+before adjusting the route. Shorten actions and look again when the cause is unclear.
 
-**Batch four to six presses, not ten.** If the first is blocked the rest are
-wasted, and a large batch only delays finding that out.
+**Choose action length from the visible route.** Use short actions at junctions,
+entrances, and unfamiliar terrain. Longer holds can help on confirmed clear stretches.
+Decide when to look again from the situation, not a fixed number of keys or a fixed
+screen-similarity rule. Do not blindly increase hold time to break a suspected blockage.
 
-**Alternating two keys is a two-cycle.** If the second key is blocked you
-bounce between two tiles, reporting a change each time. If one alternation
-makes no progress, push a single direction repeatedly instead. That is what got
-us through the forest, not alternating.
+**Alternating keys without progress does not establish a two-tile loop.** Check
+for menus or dialogue, try short movements, and use the observed results to find a
+passable direction. Record entrances and route segments confirmed in this run, and
+verify the starting position before reusing them elsewhere.
+
+**Read the current interface.** Menus show stacked choices, dialogue contains
+sentences and possible choices, inventory shows icons and descriptions, and status
+cards show portraits and attributes. Relative landmark descriptions can help; if
+comparing pixels, distinguish screen coordinates from map coordinates and allow for
+animation or occlusion. A sprite hidden by foreground art does not prove teleportation
+or a fault.
 
 **A fully black screen does not reveal its cause.** Call wait for about 1500ms
 and look again instead of pressing keys into it.
 
-**An entrance is one specific tile.** Walled compounds look walkable all round
-but almost all of it is scenery. Walk the full perimeter and test each gap
-inward, budgeting six to eight tries before concluding you cannot get in.
-Inside is usually a furniture maze, so route around rather than pressing into
-the same obstacle.
+**Entrances are at specific locations, not across the whole wall.** Use visible
+paths, doors, and other clues, and try short movements from different positions when
+needed. A failed attempt alone does not prove a missing prerequisite. Furniture can
+block routes indoors; when near an NPC, check the facing direction and investigate
+with enter or space, routing around obstacles according to the screen.
 
-**Looping chatter is not a quest.** Groups of NPCs sitting together often cycle
-back to their first line. Seeing that line twice means walk away. Characters
-with something to offer trigger once.
+**Repeated dialogue does not establish that an NPC has no function.** If the
+whole exchange has no new information, record that and consider another objective.
+Items or later story conditions may still enable another interaction with that NPC.
 
-**Animals, mist and distant specks are scenery.** Deer, rabbits, foxes, cloud
-tiles and coloured dots triggered nothing. Spend moves on human figures, doors,
-signs and chests.
+**Appearance alone does not establish what is decorative.** Use game text and
+actual interactions rather than dismissing animals, mist, or other shapes solely
+because of their appearance.
 
 ## Coordinates from community guides
 
-From the original release, so this build may differ. Trust your compass over
-this table.
+These are reference coordinates from original-game guides. An entrance and an
+adjacent outside tile may differ by one coordinate. Use actual compass readings
+and the visible entrance, not the table alone, to confirm arrival or entry.
 
 | Place | Coordinates |
 |---|---|
