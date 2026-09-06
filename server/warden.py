@@ -14,6 +14,7 @@ import os
 import pathlib
 import sys
 import time
+from health import write_json
 
 ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "bench"))
@@ -87,6 +88,8 @@ def ended_payload():
     if not run["done"]:
         return None
     res = run["result"] or {}
+    if not res:
+        return {"ok": False, "ended": True, "valid": None, "message": "Run stopped; validating completion."}
     return {"ok": True, "ended": True,
             "message": "This benchmark run has ended. Stop playing.",
             "agent": AGENT, "reason": run["done"], "why": why_text(),
@@ -263,18 +266,18 @@ def append_catalog(entry):
 
 def write_result(res):
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / f"{SID}.json").write_text(json.dumps(res))
+    write_json(RESULTS / f"{SID}.json", res)
 
 
 # ------------------------------------------------------------------ the loop
 
-async def warden(rec):
+async def warden(rec, health, action_lock, wait_frames):
     """Ends the run on whichever comes first - the clock or a long silence -
     then publishes it and takes the process down with it."""
     while run["playable"] is None:
         await asyncio.sleep(1)
-    deadline = run["playable"] + BUDGET + run["credit"]
     while True:
+        deadline = run["playable"] + BUDGET + run["credit"]
         now = time.time()
         if now >= deadline:
             run["done"] = "time"
@@ -282,9 +285,17 @@ async def warden(rec):
         if now - (run["last"] or run["playable"]) >= IDLE:
             run["done"] = "idle" if run["last"] else "never started"
             break
-        await asyncio.sleep(min(5, max(1, deadline - now)))
+        await asyncio.sleep(min(.25, max(.01, deadline - now)))
 
-    res = dict(metrics(), why=why_text(), video_url=None, error=None)
+    async with action_lock:
+        try:
+            await wait_frames(2)
+            health.check()
+        except Exception:
+            health.fail("core_stalled")
+            return
+        health.set_phase("finalizing")
+    res = dict(metrics(), valid=True, complete=False, why=why_text(), video_url=None, error=None)
     run["result"] = res
     write_result(res)                      # answer late callers straight away
     try:
@@ -322,6 +333,7 @@ async def warden(rec):
         await asyncio.get_running_loop().run_in_executor(None, append_catalog, res)
     except Exception as exc:
         res["error"] = (res["error"] or "") + f" catalogue: {exc}"
+    res["complete"] = True
     write_result(res)
     print(f"bench run {SID} finished: {res['reason']} "
           f"{res['actions']} actions -> {res.get('video_url')}", flush=True)

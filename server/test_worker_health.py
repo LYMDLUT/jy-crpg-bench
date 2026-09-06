@@ -1,0 +1,161 @@
+"""Real worker processes and real native calls; no model/provider requests."""
+import asyncio
+import contextlib
+import ctypes
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError, URLError
+
+import aiohttp
+from health import read_json
+
+def stop_process(p, timeout=.5):
+    if p.poll() is None:
+        p.terminate()
+        try: p.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            p.kill(); p.wait(timeout=timeout)
+
+ROOT = Path(__file__).resolve().parent
+
+
+def free_port():
+    with socket.socket() as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
+def request(port, path, body=None, timeout=5):
+    req=Request(f'http://127.0.0.1:{port}{path}', data=json.dumps(body).encode() if body is not None else None,
+                headers={'Content-Type':'application/json'})
+    try:
+        response=urlopen(req,timeout=timeout)
+    except HTTPError as e:
+        response=e
+    with response:
+        return response.status,response.read()
+
+
+def wait_for(fn, seconds=5):
+    deadline=time.monotonic()+seconds
+    last=None
+    while time.monotonic()<deadline:
+        try:
+            last=fn()
+            if last: return last
+        except (OSError, ValueError):
+            pass
+        time.sleep(.03)
+    raise AssertionError(f'timed out, last={last!r}')
+
+
+@unittest.skipUnless(shutil.which('cc'), 'C compiler required')
+class WorkerIntegrationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.build=tempfile.TemporaryDirectory(prefix='qunxia-worker-tests-')
+        cls.addClassCleanup(cls.build.cleanup)
+        cls.core=Path(cls.build.name)/'probe.so'
+        shared='-dynamiclib' if sys.platform=='darwin' else '-shared'
+        subprocess.run(['cc','-std=c11','-O2','-fPIC',shared,'-pthread',
+                        '-I'+str(ROOT.parent/'Sources/CoreHost/include'),
+                        str(ROOT/'test_fixtures/thread_probe_core.c'),'-o',str(cls.core)],check=True)
+        # The production bridge/tiles implementation is exercised in a private
+        # copy so tests never overwrite a library used by another server.
+        cls.server=Path(cls.build.name)/'server'
+        shutil.copytree(ROOT,cls.server,ignore=shutil.ignore_patterns('__pycache__','libqunxia.so*'))
+        sources=Path(cls.build.name)/'Sources'
+        shutil.copytree(ROOT.parent/'Sources/CoreHost',sources/'CoreHost')
+        subprocess.run(['sh',str(cls.server/'build.sh')],stdout=subprocess.DEVNULL,check=True)
+        # Bench warden imports its renderer from the sibling bench directory.
+        if (ROOT.parent/'bench').exists():
+            shutil.copytree(ROOT.parent/'bench',Path(cls.build.name)/'bench')
+
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory(prefix='qunxia-test-session-')
+        self.addCleanup(self.temp.cleanup)
+        self.folder=Path(self.temp.name)
+        self.port=free_port()
+        self.procs=[]
+        self.addCleanup(lambda:[stop_process(p,timeout=.5) for p in self.procs])
+
+    def launch(self, **extra):
+        start=self.folder/'start.state'
+        start.write_bytes(b'{' + bytes(15))
+        env=dict(os.environ,PORT=str(self.port),QUNXIA_CORE=str(self.core),QUNXIA_GAME='unused',
+                 QUNXIA_SAVES=str(self.folder/'saves'),QUNXIA_STATE_DIR=str(self.folder/'slots'),
+                 QUNXIA_START_STATE=str(start),QUNXIA_RESET_TOKEN='test',
+                 QUNXIA_RECORDING_DIR=str(self.folder/'recordings'),QUNXIA_RUN_ID='test-run',
+                 QUNXIA_RUNTIME_CHILD='1',QUNXIA_STALL_SECONDS='1.5',QUNXIA_STARTUP_SECONDS='4',
+                 QUNXIA_BOOT_WAIT='0.1',QUNXIA_CHECKPOINT_SECONDS='0.3',QUNXIA_BENCH='0',
+                 QUNXIA_FINALIZATION_SECONDS='20',QUNXIA_RECOVERY_LIMIT='1',PROBE_AUTORUN='1')
+        env.pop('QUNXIA_SESSION_DIR',None)
+        env.pop('QUNXIA_RUNTIME_DIR',None)
+        env.pop('QUNXIA_PARENT_PID',None)
+        env.update(extra)
+        with (self.folder/'worker.log').open('ab') as log:
+            p=subprocess.Popen([sys.executable,str(self.server/'server.py')],env=env,cwd=self.server,
+                               stdout=log,stderr=log,start_new_session=True)
+        p.qunxia_group=True
+        self.procs.append(p)
+        return p
+
+    def healthy(self):
+        status,body=request(self.port,'/status')
+        value=json.loads(body)
+        return value if status==200 and value.get('healthy') else None
+
+
+    def test_static_pixels_still_report_execution_progress(self):
+        self.launch()
+        before=wait_for(self.healthy)
+        time.sleep(.15)
+        after=self.healthy()
+        self.assertGreater(after['core_ticks'],before['core_ticks'])
+
+    def test_native_key_deadlock_becomes_environment_failure(self):
+        p=self.launch(PROBE_HANG_ON_KEY='1')
+        wait_for(self.healthy)
+        with contextlib.suppress(OSError):
+            request(self.port,'/api/key',{'key':'enter'},timeout=4)
+        p.wait(timeout=5)
+        fault=read_json(self.folder/'saves/.health/failure.json')
+        self.assertEqual(p.returncode,75)
+        self.assertFalse(fault['valid'])
+        self.assertIn(fault['reason'],('core_stalled','event_loop_stalled'))
+
+    def test_native_run_deadlock_without_http_requests_is_detected(self):
+        p=self.launch(PROBE_HANG_AFTER_FRAMES='20')
+        wait_for(self.healthy)
+        p.wait(timeout=5)
+        fault=read_json(self.folder/'saves/.health/failure.json')
+        self.assertEqual(p.returncode,75)
+        self.assertIn(fault['reason'],('core_stalled','pause_stalled'))
+
+
+    def test_websocket_disconnect_releases_input_lease(self):
+        self.launch()
+        wait_for(self.healthy)
+        async def run():
+            async with aiohttp.ClientSession() as http:
+                async with http.ws_connect(f'http://127.0.0.1:{self.port}/ws',compress=15) as ws:
+                    self.assertEqual(ws.compress,0)
+                    await ws.send_json({'t':'key','k':'right','down':True})
+                    await asyncio.sleep(.1)
+                async with http.post(f'http://127.0.0.1:{self.port}/api/key',json={'key':'up'}) as r:
+                    self.assertEqual(r.status,200,await r.text())
+        asyncio.run(run())
+        events=json.loads(request(self.port,'/api/recording')[1])['events']
+        downs=[e['down'] for e in events if e.get('key')=='right']
+        self.assertEqual(downs,[True,False])
+

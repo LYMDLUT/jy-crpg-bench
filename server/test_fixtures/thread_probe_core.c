@@ -2,6 +2,7 @@
 #include "libretro.h"
 #include <stdatomic.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
 
 static retro_environment_t environment;
@@ -14,6 +15,9 @@ static void touch_core(void) {
 static void keyboard(bool down, unsigned key, uint32_t character, uint16_t mods) {
     (void)down; (void)key; (void)character; (void)mods;
     touch_core();
+    if (down && getenv("PROBE_HANG_ON_KEY")) {
+        for (;;) { struct timespec delay = {0, 1000000}; nanosleep(&delay, NULL); }
+    }
 }
 void probe_reset(void) {
     atomic_store(&running, 0); atomic_store(&release_run, 0);
@@ -37,6 +41,7 @@ void retro_set_input_poll(retro_input_poll_t cb) { (void)cb; }
 void retro_set_input_state(retro_input_state_t cb) { (void)cb; }
 void retro_set_controller_port_device(unsigned port, unsigned device) { (void)port; (void)device; }
 void retro_init(void) {
+    if (getenv("PROBE_AUTORUN")) { probe_reset(); probe_release(); }
     struct retro_keyboard_callback cb = { keyboard };
     environment(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
 }
@@ -55,6 +60,9 @@ void retro_get_system_av_info(struct retro_system_av_info *av) {
     av->timing.fps = 60; av->timing.sample_rate = 48000;
 }
 void retro_run(void) {
+    static unsigned frames;
+    const char *limit = getenv("PROBE_HANG_AFTER_FRAMES");
+    if (limit && ++frames > (unsigned)atoi(limit)) atomic_store(&release_run, 0);
     atomic_store(&running, 1);
     while (!atomic_load(&release_run)) {
         struct timespec delay = { 0, 1000000 };
