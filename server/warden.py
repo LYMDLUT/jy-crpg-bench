@@ -220,11 +220,18 @@ def publish_bytes(name, data, mime, max_age=31536000):
         out = pathlib.Path(os.environ.get("QUNXIA_LOCAL_PUBLIC",
                                           "/tmp/qunxia-public")) / name
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_bytes(data)
+        if isinstance(data, pathlib.Path):
+            import shutil
+            shutil.copyfile(data, out)
+        else:
+            out.write_bytes(data)
         return
     blob = b.blob(name)
     blob.cache_control = f"public, max-age={max_age}"
-    blob.upload_from_string(data, content_type=mime)
+    if isinstance(data, pathlib.Path):
+        blob.upload_from_filename(str(data), content_type=mime)
+    else:
+        blob.upload_from_string(data, content_type=mime)
 
 
 def append_catalog(entry):
@@ -271,7 +278,7 @@ def write_result(res):
 
 # ------------------------------------------------------------------ the loop
 
-async def warden(rec, health, action_lock, wait_frames):
+async def warden(rec, health, action_lock, wait_frames, recording_snapshot=None):
     """Ends the run on whichever comes first - the clock or a long silence -
     then publishes it and takes the process down with it."""
     while run["playable"] is None:
@@ -298,15 +305,17 @@ async def warden(rec, health, action_lock, wait_frames):
     res = dict(metrics(), valid=True, complete=False, why=why_text(), video_url=None, error=None)
     run["result"] = res
     write_result(res)                      # answer late callers straight away
+    events = None
     try:
+        events = recording_snapshot() if recording_snapshot else list(rec["events"])
         from render import render
         VIDEOS.mkdir(parents=True, exist_ok=True)
         out = VIDEOS / f"{AGENT}-{SID}.mp4"
         loop = asyncio.get_running_loop()
-        # The pump keeps appending frames after the run is called, so hand the
-        # renderer its own list rather than one being written underneath it.
-        snap = dict(rec, events=list(rec["events"]))
-        info = await loop.run_in_executor(None, lambda: render(snap, out, AGENT))
+        # Read a fixed committed prefix while the producer continues running.
+        snap = dict(rec, events=events, duration=getattr(events, "duration", None))
+        info = await loop.run_in_executor(None, lambda: render(snap, out, AGENT,
+            timeline_extra=dict(agent=AGENT, id=SID, curve=run["curve"][-400:], keys=run["keys"])))
         timeline = info.pop("timeline", None)
         poster = info.pop("poster", None)
         res["video"] = {k: v for k, v in info.items() if k != "path"}
@@ -320,15 +329,14 @@ async def warden(rec, health, action_lock, wait_frames):
         # The scrubbable replay: a few KB describing what happened when, so the
         # page can drive the MP4 rather than ship the whole recording.
         if timeline is not None:
-            timeline.update(agent=AGENT, id=SID, curve=run["curve"][-400:],
-                            keys=dict(sorted(run["keys"].items(),
-                                             key=lambda kv: -kv[1])))
-            await loop.run_in_executor(
-                None, publish_bytes, f"runs/{SID}.json",
-                json.dumps(timeline).encode(), "application/json")
+            await loop.run_in_executor(None, publish_bytes, f"runs/{SID}.json",
+                                       pathlib.Path(timeline), "application/json")
             res["timeline_url"] = f"runs/{SID}.json"
     except Exception as exc:
         res["error"] = f"{type(exc).__name__}: {exc}"
+    finally:
+        if hasattr(events, "close"):
+            events.close()
     try:
         await asyncio.get_running_loop().run_in_executor(None, append_catalog, res)
     except Exception as exc:

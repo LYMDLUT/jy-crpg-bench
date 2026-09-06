@@ -243,6 +243,7 @@
 </aside>
 </div>
 
+<script src="/recording.js"></script>
 <script>
 const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d", { alpha: false });
@@ -343,13 +344,13 @@ saveBtn.onclick = async () => {
   playBtn.disabled = true;
   saveBtn.title = "encodes in real time at 4x, so about a quarter of the session length";
   saveBtn.textContent = "loading";
-  let events;
+  let recording;
   // MediaRecorder samples in real time, so the export takes the recording
   // length divided by the playback speed. Say so rather than appear stuck.
   try {
-    events = (await (await fetch("/api/recording")).json()).events || [];
+    recording = await ReplayRecording.open();
   } catch { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
-  if (!events.length) { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
+  if (!(await recording.peek())) { recording.close(); saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
 
   // 640x400 keeps both game modes at a whole multiple, plus a strip for keys.
   const W = 640, H = 400, BAR = 56;
@@ -411,16 +412,18 @@ saveBtn.onclick = async () => {
   mr.start();
 
   const SPEED = 4;
-  const total = events[events.length - 1].t || 1;
+  const total = recording.duration || 1;
   const t0 = performance.now();
-  let i = 0;
+  let exportError = null;
   let raf = requestAnimationFrame(function loop() { compose(); raf = requestAnimationFrame(loop); });
 
-  while (i < events.length) {
-    const ev = events[i];
+  try {
+  while (true) {
+    const ev = await recording.peek();
+    if (!ev) break;
     const wait = t0 + (ev.t * 1000) / SPEED - performance.now();
     if (wait > 2) { await new Promise(r => setTimeout(r, wait)); continue; }
-    i++;
+    recording.take();
     clock = ev.t;
     if (ev.d) {
       paintDelta(await inflate(b64bytes(ev.d)), work, wctx, cache);
@@ -432,10 +435,20 @@ saveBtn.onclick = async () => {
     saveBtn.textContent = Math.round((ev.t / total) * 100) + "% " + fmt(left);
   }
 
+  } catch (error) { exportError = error; }
+  finally { recording.close(); }
+
   await new Promise(r => setTimeout(r, 300));   // let the tail frames be sampled
   cancelAnimationFrame(raf);
   mr.stop();
   await finished;
+
+  if (exportError) {
+    saveBtn.textContent = "export failed";
+    saveBtn.title = exportError.message;
+    saveBtn.disabled = playBtn.disabled = false;
+    return;
+  }
 
   const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
   const blob = new Blob(chunks, { type: mime });
@@ -454,10 +467,9 @@ playBtn.onclick = async () => {
   playBtn.textContent = "loading";
   let recording;
   try {
-    recording = await (await fetch("/api/recording")).json();
+    recording = await ReplayRecording.open();
   } catch { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
-  const events = recording.events || [];
-  if (!events.length) { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
+  if (!(await recording.peek())) { recording.close(); playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
 
   playBtn.textContent = "playing";
   vcr.classList.add("on");
@@ -466,20 +478,22 @@ playBtn.onclick = async () => {
   vcrKeys.textContent = "";
 
   const SPEED = 4;
-  const total = events[events.length - 1].t;
+  const total = recording.duration || 1;
   const cache = {};
   const down = new Set();
-  let cancelled = false, i = 0;
-  vcrStop = () => { cancelled = true; };
+  let cancelled = false;
+  vcrStop = () => { cancelled = true; recording.close(); };
 
   const t0 = performance.now();
   const step = async () => {
-    while (i < events.length && !cancelled) {
-      const ev = events[i];
+    try {
+    while (!cancelled) {
+      const ev = await recording.peek();
+      if (!ev) break;
       const due = t0 + (ev.t * 1000) / SPEED;
       const wait = due - performance.now();
       if (wait > 4) { setTimeout(step, wait); return; }
-      i++;
+      recording.take();
       if (ev.d) {
         paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, cache);
       } else if (ev.key) {
@@ -502,7 +516,12 @@ playBtn.onclick = async () => {
       document.getElementById("vcrfill").style.width = (ev.t / total) * 100 + "%";
       document.getElementById("vcrtime").textContent = fmt(ev.t);
     }
+    recording.close();
     if (!cancelled) { playBtn.textContent = "▶ 4×"; }
+    } catch (error) {
+      recording.close();
+      if (!cancelled) { playBtn.textContent = "replay unavailable"; playBtn.title = error.message; }
+    }
   };
   step();
 };
