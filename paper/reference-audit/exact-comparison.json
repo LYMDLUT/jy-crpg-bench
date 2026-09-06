@@ -1,0 +1,457 @@
+{
+  "baseline_commit": "b399f2b34d3dab0b069519690def07743c4460a4",
+  "baseline_path": "paper/src/refs.bib",
+  "comparison": "Exact raw-byte equality. Baseline block starts at @ and includes its closing brace and immediately following LF, but not blank lines separating entries. Export is the entire unmodified HTTP response body. No trimming, line-ending conversion, case folding or field/key rewriting is used for exact_match.",
+  "candidates": [
+    {
+      "original_key": "paglieri2025balrog",
+      "baseline_sha256": "8db1bd5f3c0fedde90b4985368c825f149f1c4ddf5c8d96f6cd6bd10abefc593",
+      "baseline_length": 547,
+      "baseline_start": 0,
+      "baseline_end_exclusive": 547,
+      "exports": [
+        {
+          "url": "https://proceedings.iclr.cc/paper_files/paper/1039-/bibtex",
+          "final_url": "https://proceedings.iclr.cc/paper_files/paper/1039-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "b2aa3294f1870d7ec39d24656629cff67e2bbe264890b634186c7347cde45aaf",
+          "export_length": 707,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 15,
+          "baseline_fragment": "paglieri2025balrog,\n  title={{BALROG}: Benchmarking Age",
+          "export_fragment": "ICLR2025_f0b1515b,\n author = {Paglieri, Davide and Cupi",
+          "export_key": "ICLR2025_f0b1515b",
+          "archive": "official-exports.zip",
+          "archive_member": "paglieri2025balrog.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "zhang2025videogamebench",
+      "baseline_sha256": "6c3fd7232b77c7a94dfb61eb3f25a20abbca696b92465e5f792886b07efa4ea8",
+      "baseline_length": 276,
+      "baseline_start": 548,
+      "baseline_end_exclusive": 824,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2505.18134",
+          "final_url": "https://arxiv.org/bibtex/2505.18134",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "71f444b8e8aa5ace609a3e85ee74d22fdecc633faadffd660724fd3ed5f4b49e",
+          "export_length": 394,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{zhang2025videogamebench,\n  title={{VideoGameBen",
+          "export_fragment": "misc{zhang2026videogamebenchvisionlanguagemodelscomplet",
+          "export_key": "zhang2026videogamebenchvisionlanguagemodelscomplete",
+          "archive": "official-exports.zip",
+          "archive_member": "zhang2025videogamebench-arxiv-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "phan2025textquests",
+      "baseline_sha256": "3005ae9962ffb90345b6a28f893885c51490d7d027a5b103095a413d1ba572d6",
+      "baseline_length": 238,
+      "baseline_start": 825,
+      "baseline_end_exclusive": 1063,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2507.23701",
+          "final_url": "https://arxiv.org/bibtex/2507.23701",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "f3d2fb304786edfd611cb3303a395e9cd865204473ba6b456758061ac861451b",
+          "export_length": 343,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{phan2025textquests,\n  title={{TextQuests}: How ",
+          "export_fragment": "misc{phan2025textquestsgoodllmstextbased,\n      title={",
+          "export_key": "phan2025textquestsgoodllmstextbased",
+          "archive": "official-exports.zip",
+          "archive_member": "phan2025textquests-arxiv-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "hu2025lmgame",
+      "baseline_sha256": "f321ae263f25ebc9609dab2ce221d6f411b3f5f4e89c06bce88ce74c0fcb2d21",
+      "baseline_length": 310,
+      "baseline_start": 1064,
+      "baseline_end_exclusive": 1374,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2505.15146",
+          "final_url": "https://arxiv.org/bibtex/2505.15146",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "2cee1e30bba511d76c35991ab369c91fe729db0c8ae8bef67480f625a6db9097",
+          "export_length": 413,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{hu2025lmgame,\n  title={{lmgame-Bench}: How Good",
+          "export_fragment": "misc{hu2025lmgamebenchgoodllmsplaying,\n      title={lmg",
+          "export_key": "hu2025lmgamebenchgoodllmsplaying",
+          "archive": "official-exports.zip",
+          "archive_member": "hu2025lmgame-arxiv-export.bib"
+        },
+        {
+          "url": "https://proceedings.iclr.cc/paper_files/paper/8824-/bibtex",
+          "final_url": "https://proceedings.iclr.cc/paper_files/paper/8824-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "439be1fafe9d0960bb35563cce43f65e098a4239fbf9a1561e13ac3d1a1cb3a9",
+          "export_length": 600,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{hu2025lmgame,\n  title={{lmgame-Bench}: How Good",
+          "export_fragment": "inproceedings{ICLR2026_83a4ea71,\n author = {Hu, Lanxian",
+          "export_key": "ICLR2026_83a4ea71",
+          "archive": "official-exports.zip",
+          "archive_member": "hu2025lmgame.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "park2025orak",
+      "baseline_sha256": "138029bac02a737ce6b547395adc21370d2dc74d29132772d5530d819ef4dc20",
+      "baseline_length": 229,
+      "baseline_start": 1590,
+      "baseline_end_exclusive": 1819,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2506.03610",
+          "final_url": "https://arxiv.org/bibtex/2506.03610",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "e28a2cee5c6e777f59547bae02f2782f83c31d0489da5eaa25ec46b0b4b9c2a9",
+          "export_length": 601,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{park2025orak,\n  title={{Orak}: A Foundational B",
+          "export_fragment": "misc{park2026orakfoundationalbenchmarktraining,\n      t",
+          "export_key": "park2026orakfoundationalbenchmarktraining",
+          "archive": "official-exports.zip",
+          "archive_member": "park2025orak-arxiv-export.bib"
+        },
+        {
+          "url": "https://proceedings.iclr.cc/paper_files/paper/10572-/bibtex",
+          "final_url": "https://proceedings.iclr.cc/paper_files/paper/10572-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "35d31b1b3adfd6d6fec1b3575fb2e5a6c58adc9641b0221972ecefb961b34ca0",
+          "export_length": 783,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{park2025orak,\n  title={{Orak}: A Foundational B",
+          "export_fragment": "inproceedings{ICLR2026_63506d49,\n author = {Park, Dongm",
+          "export_key": "ICLR2026_63506d49",
+          "archive": "official-exports.zip",
+          "archive_member": "park2025orak.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "gioacchini2024agentquest",
+      "baseline_sha256": "94814088e5b1f0b55eb0f55fe2b0ec6e329323766a8d4ddd0425558a68e3529f",
+      "baseline_length": 354,
+      "baseline_start": 2219,
+      "baseline_end_exclusive": 2573,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2404.06411",
+          "final_url": "https://arxiv.org/bibtex/2404.06411",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "765be2f7c92875f3965d5a94639e8ff2052d5daf0a42c001b69866a4c01f724e",
+          "export_length": 464,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{gioacchini2024agentquest,\n  title={{AgentQuest}",
+          "export_fragment": "misc{gioacchini2024agentquestmodularbenchmarkframework,",
+          "export_key": "gioacchini2024agentquestmodularbenchmarkframework",
+          "archive": "official-exports.zip",
+          "archive_member": "gioacchini2024agentquest-arxiv-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "hafner2022crafter",
+      "baseline_sha256": "3abada5448fd9326af3d5284e51333394c546fb38f21e658d088c3d04a3fae9e",
+      "baseline_length": 254,
+      "baseline_start": 2574,
+      "baseline_end_exclusive": 2828,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2109.06780",
+          "final_url": "https://arxiv.org/bibtex/2109.06780",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "314d18f85ca1d1567579f313c7bac5885feb0c3d642f2a8d7cb7d9c91ade4420",
+          "export_length": 301,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "inproceedings{hafner2022crafter,\n  title={Benchmarking ",
+          "export_fragment": "misc{hafner2022benchmarkingspectrumagentcapabilities,\n ",
+          "export_key": "hafner2022benchmarkingspectrumagentcapabilities",
+          "archive": "official-exports.zip",
+          "archive_member": "hafner2022crafter-arxiv-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "kuttler2020nethack",
+      "baseline_sha256": "61bf52665771be5f9655915e3329570c9ba41c289d43786a764ab6ad26433933",
+      "baseline_length": 345,
+      "baseline_start": 2829,
+      "baseline_end_exclusive": 3174,
+      "exports": [
+        {
+          "url": "https://proceedings.neurips.cc/paper_files/paper/10367-/bibtex",
+          "final_url": "https://proceedings.neurips.cc/paper_files/paper/10367-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "c5798a7b1a15499a3535ba1885803c04c5ded91bee60e696f2b64a548db360f6",
+          "export_length": 611,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 15,
+          "baseline_fragment": "kuttler2020nethack,\n  title={The {NetHack} Learning Env",
+          "export_fragment": "NEURIPS2020_569ff987,\n author = {K\\\"{u}ttler, Heinrich ",
+          "export_key": "NEURIPS2020_569ff987",
+          "archive": "official-exports.zip",
+          "archive_member": "kuttler2020nethack.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "zhu2025abc",
+      "baseline_sha256": "d269bc8c599e668063f992f5b89ecd7fcfc1c6dc883137f7ee1e2af4dffb9e4d",
+      "baseline_length": 635,
+      "baseline_start": 3175,
+      "baseline_end_exclusive": 3810,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2507.02825",
+          "final_url": "https://arxiv.org/bibtex/2507.02825",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "6cfe77635b2db0c4157d4f334010b6824f5d3bb8881936b0f9a3b88fa4d7857e",
+          "export_length": 736,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{zhu2025abc,\n  title={Establishing Best Practice",
+          "export_fragment": "misc{zhu2025establishingbestpracticesbuilding,\n      ti",
+          "export_key": "zhu2025establishingbestpracticesbuilding",
+          "archive": "official-exports.zip",
+          "archive_member": "zhu2025abc-arxiv-export.bib"
+        },
+        {
+          "url": "https://proceedings.neurips.cc/paper_files/paper/33049-/bibtex",
+          "final_url": "https://proceedings.neurips.cc/paper_files/paper/33049-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "184eb8db38231fefe5ce375ef9def498c875ce5502d20f547ace3200255e1818",
+          "export_length": 1064,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{zhu2025abc,\n  title={Establishing Best Practice",
+          "export_fragment": "inproceedings{NEURIPS2025_f316275b,\n author = {Zhu, Yux",
+          "export_key": "NEURIPS2025_f316275b",
+          "archive": "official-exports.zip",
+          "archive_member": "zhu2025abc.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "chiang2024chatbot",
+      "baseline_sha256": "cd7496fd49e2941b67d1caa1282d8ddbd7000a1b8b46a21eb070f26c660078d1",
+      "baseline_length": 397,
+      "baseline_start": 4215,
+      "baseline_end_exclusive": 4612,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/2403.04132",
+          "final_url": "https://arxiv.org/bibtex/2403.04132",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "575c2607770544bcfcf8edc640756f3474fdaa6f339c76ce682981532e7097e3",
+          "export_length": 497,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{chiang2024chatbot,\n  title={Chatbot Arena: An O",
+          "export_fragment": "misc{chiang2024chatbotarenaopenplatform,\n      title={C",
+          "export_key": "chiang2024chatbotarenaopenplatform",
+          "archive": "official-exports.zip",
+          "archive_member": "chiang2024chatbot-arxiv-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "wilson1927probable",
+      "baseline_sha256": "6ff597923e4fd04be0638feb59dd2f2d145568667680c1c2f84532d1d58e292e",
+      "baseline_length": 266,
+      "baseline_start": 4613,
+      "baseline_end_exclusive": 4879,
+      "exports": [
+        {
+          "url": "https://doi.org/10.1080/01621459.1927.10502953",
+          "final_url": "https://api.crossref.org/v1/works/10.1080%2F01621459.1927.10502953/transform",
+          "accept": "application/x-bibtex",
+          "kind": "DOI registration agency citation export via documented Crossref content negotiation",
+          "export_sha256": "a63a036462031f76193e5c3b32e273e9e9fe16329596c81a7ca85f1b946855cd",
+          "export_length": 403,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 0,
+          "baseline_fragment": "@article{wilson1927probable,\n  title={Probable Inferenc",
+          "export_fragment": " @article{Wilson_1927, title={Probable Inference, the L",
+          "export_key": "Wilson_1927",
+          "archive": "official-exports.zip",
+          "archive_member": "wilson1927probable-doi-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "chollet2019measure",
+      "baseline_sha256": "37dc50862bc85d1008368b3ea0895a4a60dd32f3ff03766387724180ee90e39a",
+      "baseline_length": 168,
+      "baseline_start": 4880,
+      "baseline_end_exclusive": 5048,
+      "exports": [
+        {
+          "url": "https://arxiv.org/bibtex/1911.01547",
+          "final_url": "https://arxiv.org/bibtex/1911.01547",
+          "accept": null,
+          "kind": "arXiv official export endpoint used by its Cite button",
+          "export_sha256": "e9280705de4b908720ba1ca37c79126c35433a21aba96e5203f8d954ca558f2c",
+          "export_length": 270,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{chollet2019measure,\n  title={On the Measure of ",
+          "export_fragment": "misc{chollet2019measureintelligence,\n      title={On th",
+          "export_key": "chollet2019measureintelligence",
+          "archive": "official-exports.zip",
+          "archive_member": "chollet2019measure-arxiv-export.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "bellemare2013ale",
+      "baseline_sha256": "92d86d1a0d2a62c880be32bca4f8c0633b46cc10968f9b26b8c54a7913d81cc1",
+      "baseline_length": 308,
+      "baseline_start": 5049,
+      "baseline_end_exclusive": 5357,
+      "exports": [],
+      "result": "unverifiable",
+      "unavailable": {
+        "url": "https://doi.org/10.1613/jair.3912",
+        "accept": "application/x-bibtex",
+        "result": "HTTP 429 Too Many Requests; no BibTeX body obtained; metadata/PDF agreement does not qualify as exact-export verification"
+      },
+      "restored": false
+    },
+    {
+      "original_key": "fan2022minedojo",
+      "baseline_sha256": "32745abb1725b5dce8810990cb40d3274cd4aa77d07bb68f625d94321b2e03e5",
+      "baseline_length": 386,
+      "baseline_start": 5544,
+      "baseline_end_exclusive": 5930,
+      "exports": [
+        {
+          "url": "https://proceedings.neurips.cc/paper_files/paper/17813-/bibtex",
+          "final_url": "https://proceedings.neurips.cc/paper_files/paper/17813-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "f60ce36e89fa73f851ec56429758ae1cfacb86c54dff819f2a5234e3a4ba7974",
+          "export_length": 729,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{fan2022minedojo,\n  title={{MineDojo}: Building ",
+          "export_fragment": "inproceedings{NEURIPS2022_74a67268,\n author = {Fan, Lin",
+          "export_key": "NEURIPS2022_74a67268",
+          "archive": "official-exports.zip",
+          "archive_member": "fan2022minedojo.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    },
+    {
+      "original_key": "xie2024osworld",
+      "baseline_sha256": "5dd8369a4d5c89efc42c13b728a272810cfde0f3b7bf6a3e754a8c0295f72090",
+      "baseline_length": 254,
+      "baseline_start": 5931,
+      "baseline_end_exclusive": 6185,
+      "exports": [
+        {
+          "url": "https://proceedings.neurips.cc/paper_files/paper/26355-/bibtex",
+          "final_url": "https://proceedings.neurips.cc/paper_files/paper/26355-/bibtex",
+          "accept": null,
+          "kind": "official proceedings BibTeX",
+          "export_sha256": "bb4d6d3593ba6a32b1c1f9a5c5c7ed1438a1bc18305c13110948a923af6fb56c",
+          "export_length": 890,
+          "exact_match": false,
+          "diagnostic_line_endings_or_outer_whitespace_only": false,
+          "first_difference_offset_zero_based": 1,
+          "baseline_fragment": "article{xie2024osworld,\n  title={{OSWorld}: Benchmarkin",
+          "export_fragment": "inproceedings{NEURIPS2024_5d413e48,\n author = {Xie, Tia",
+          "export_key": "NEURIPS2024_5d413e48",
+          "archive": "official-exports.zip",
+          "archive_member": "xie2024osworld.bib"
+        }
+      ],
+      "result": "different",
+      "restored": false
+    }
+  ],
+  "summary": {
+    "candidates": 15,
+    "candidates_with_exports": 14,
+    "raw_exports_compared": 17,
+    "different_candidates": 14,
+    "unverifiable_candidates": 1,
+    "exact_matches": 0,
+    "restored_entries": []
+  }
+}
