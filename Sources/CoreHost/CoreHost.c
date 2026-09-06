@@ -52,7 +52,7 @@ static pthread_mutex_t g_exec_mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t *g_fb;
 static size_t g_fb_cap;
-static int g_w, g_h, g_pitch;
+static _Atomic int g_w, g_h, g_pitch;
 static _Atomic uint64_t g_serial;
 static _Atomic uint64_t g_ticks;
 static _Atomic uint64_t g_hash;
@@ -68,6 +68,9 @@ static retro_keyboard_event_t g_kbd_cb;
 static uint8_t g_keys[RETROK_LAST];
 static int g_mouse_dx, g_mouse_dy;
 static uint8_t g_mouse_btn[3];
+
+static unsigned char *g_peek;
+static size_t g_peek_cap;
 
 /* ---- misc ---- */
 static char g_err[512];
@@ -429,6 +432,7 @@ void core_shutdown(void) {
     g_run = g_deinit = g_reset = g_unload = NULL;
     g_ser = NULL; g_unser = NULL; g_ser_size = NULL;
     g_mem_data = NULL; g_mem_size = NULL; g_kbd_cb = NULL;
+    free(g_peek); g_peek = NULL; g_peek_cap = 0;
     g_lib = NULL; /* keep the library mapped; unloading code is a separate lifecycle concern */
     pthread_mutex_lock(&g_mu);
     free(g_fb);
@@ -441,8 +445,10 @@ void core_shutdown(void) {
 
 void core_run_frame(void) {
     pthread_mutex_lock(&g_exec_mu);
-    if (g_run) g_run();
-    g_ticks++;
+    if (g_run) {
+        g_run();
+        g_ticks++;
+    }
     pthread_mutex_unlock(&g_exec_mu);
 }
 
@@ -498,13 +504,11 @@ void core_mouse_button(int button, bool down) {
    so the only way to see the game's own variables is to serialise the machine
    and read them out of that. The buffer is kept and reused so this costs one
    serialise and a couple of loads per call, with no allocation and no file. */
-static unsigned char *g_peek;
-static size_t g_peek_cap;
 
 int core_state_peek(const size_t *offs, int n, int16_t *out) {
     int result = -1;
     pthread_mutex_lock(&g_exec_mu);
-    if (!g_ser || !g_ser_size) goto done;
+    if (!g_ser || !g_ser_size || n < 0 || (n && (!offs || !out))) goto done;
     size_t need = g_ser_size();
     if (need == 0) goto done;
     if (need > g_peek_cap) {
@@ -514,7 +518,7 @@ int core_state_peek(const size_t *offs, int n, int16_t *out) {
     }
     if (!g_ser(g_peek, need)) goto done;
     for (int i = 0; i < n; i++) {
-        if (offs[i] + 2 > need) goto done;
+        if (offs[i] > need || need - offs[i] < sizeof(int16_t)) goto done;
         int16_t v;
         memcpy(&v, g_peek + offs[i], 2);
         out[i] = v;
@@ -560,7 +564,10 @@ bool core_mem_read(unsigned id, size_t off, void *dst, size_t n) {
     if (g_mem_data && g_mem_size) {
         size_t sz = g_mem_size(id);
         unsigned char *p = (unsigned char *)g_mem_data(id);
-        if (p && off + n <= sz) { memcpy(dst, p + off, n); ok = true; }
+        if (p && off <= sz && n <= sz - off && (dst || n == 0)) {
+            if (n) memcpy(dst, p + off, n);
+            ok = true;
+        }
     }
     pthread_mutex_unlock(&g_exec_mu);
     return ok;
