@@ -140,8 +140,8 @@ export default function (pi: ExtensionAPI) {
       "Press one key and return the screen it produced. Keys: up, down, left, right, " +
       "enter, space, esc, y, n, a-z, 0-9, f1-f12, tab, backspace, or a combo like 'alt+x'. " +
       "Use times to repeat the same key, for example walking several tiles or advancing " +
-      "several lines of dialogue. Remember that during a cutscene every key only advances " +
-      "the dialogue.",
+      "several lines of dialogue. Read the current screen: ordinary dialogue, choices, " +
+      "and animations may respond differently. Do not assume failed movement means a cutscene.",
     promptSnippet: "Press a key in the game",
     parameters: Type.Object({
       key: Type.String({ minLength: 1, maxLength: 32, description: "Key name, e.g. up, enter, esc, y" }),
@@ -193,9 +193,10 @@ export default function (pi: ExtensionAPI) {
     name: "game_move",
     label: "Move",
     description:
-      "Walk. One step turns the character to face that direction and moves one tile if it " +
-      "is not blocked, so walking into a person or object is how you talk to it. If nothing " +
-      "moves you are either blocked by scenery or still inside a cutscene.",
+      "Walk in one direction; obstacles may prevent movement. For an ordinary person " +
+      "or container, stand adjacent, face the target, then use game_press with enter " +
+      "or space to investigate. Stepping on a tile can trigger a separate story event. " +
+      "If movement is unclear, inspect the screen rather than assuming its cause.",
     promptSnippet: "Walk in the game world",
     parameters: Type.Object({
       direction: Type.String({ description: "up, down, left or right" }),
@@ -232,8 +233,9 @@ export default function (pi: ExtensionAPI) {
     name: "game_save",
     label: "Save",
     description:
-      "Snapshot the whole emulator under a name. Unlike the game's own save system this " +
-      "works anywhere, including mid-scene and mid-battle. Take one before anything risky.",
+      "Request an emulator snapshot under a name, including scene or battle state. " +
+      "Check that saving succeeded before relying on it; the game's own save menu " +
+      "is limited to the world map.",
     promptSnippet: "Snapshot the emulator state",
     parameters: Type.Object({ name: Type.String({ minLength: 1, maxLength: 64, description: "Snapshot name" }) }),
     execute: (_id, params, signal) => act("/save", { name: params.name }, `save ${params.name}`, signal),
@@ -243,8 +245,8 @@ export default function (pi: ExtensionAPI) {
     name: "game_load",
     label: "Load",
     description:
-      "Restore a snapshot taken by game_save. A snapshot taken during a cutscene restores " +
-      "into that cutscene, so movement stays ignored until you finish reading it.",
+      "Restore a snapshot taken by game_save, including its current dialogue, menu, " +
+      "or animation state. Inspect the restored screen before choosing the next action.",
     promptSnippet: "Restore an emulator snapshot",
     parameters: Type.Object({ name: Type.String({ minLength: 1, maxLength: 64, description: "Snapshot name" }) }),
     execute: (_id, params, signal) => act("/load", { name: params.name }, `load ${params.name}`, signal),

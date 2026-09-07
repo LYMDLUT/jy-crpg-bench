@@ -195,7 +195,8 @@ def press(key: str, times: int = 1, hold: int = DEFAULT_TAP_FRAMES,
     stable: frames the picture must hold still before the screenshot is taken.
          Raise it if you get a half-written dialogue line.
 
-    Remember: during a cutscene every key just advances the dialogue.
+    Read the current screen: ordinary dialogue, choices, and animations may
+    respond differently. Do not assume a failed movement means a cutscene.
     """
     _bounded("times", times, 1, MAX_REPEAT)
     _bounded("hold", hold, 1, MAX_HOLD_FRAMES)
@@ -231,9 +232,10 @@ def press_sequence(keys: list[str], gap: int = 6,
 def move(direction: str, steps: int = 1) -> list:
     """Walk. direction is up, down, left, right.
 
-    One step turns the character to face that way and moves one tile if it is
-    not blocked, so walking into a person or object is how you talk to it. If
-    nothing moves, you are either blocked or inside a cutscene.
+    Obstacles may prevent movement. For an ordinary person or container, stand
+    adjacent, face the target, then use interact or press enter/space to
+    investigate. Stepping on a tile can trigger a separate story event. If
+    movement is unclear, inspect the screen rather than assuming its cause.
     """
     direction = direction.lower()
     if direction not in ("up", "down", "left", "right"):
@@ -255,8 +257,8 @@ def interact() -> list:
 def open_menu() -> list:
     """Open the in-game main menu (醫療 / 解毒 / 物品 / 狀態) by sending esc.
 
-    Also the reliable test for whether a cutscene is still running: if the menu
-    does not appear, you are not free to act yet.
+    Observe the result. If the menu does not appear, that alone does not
+    establish whether a dialogue, animation, or another condition prevented it.
     """
     return _act("/key", {"key": "esc"}, note="esc")
 
@@ -278,8 +280,9 @@ def wait(ms: int = 1000) -> list:
 def save_state(name: str = "agent") -> list:
     """Snapshot the whole emulator under this name.
 
-    Unlike the game's own save system this works anywhere, including mid-scene
-    and mid-battle. Take one before anything you might want to undo.
+    Emulator snapshots can include scene or battle state. Check that saving
+    succeeded before relying on it; the game's own save menu is limited to the
+    world map.
     """
     _state_name(name)
     return _act("/save", {"name": name}, note=f"save {name}")
@@ -289,8 +292,8 @@ def save_state(name: str = "agent") -> list:
 def load_state(name: str = "agent") -> list:
     """Restore a snapshot taken by save_state.
 
-    Note that a snapshot taken during a cutscene restores into that cutscene,
-    so movement will be ignored until you finish reading it.
+    Inspect the restored screen, including any dialogue, menu, or animation,
+    before choosing the next action.
     """
     _state_name(name)
     return _act("/load", {"name": name}, note=f"load {name}")

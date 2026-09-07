@@ -1,8 +1,8 @@
 # Skill: play 金庸群俠傳 (The Legend of Jin Yong Heroes)
 
 The original 1996 DOS game by 河洛工作室, running under emulation at {BASE}.
-You send keys, you get back a picture of the screen. It is an open-world RPG:
-how you play it is up to you.
+You send keys and request pictures of the screen when you need them. It is an
+open-world RPG: how you play it is up to you.
 
 ## The loop
 
@@ -42,8 +42,9 @@ history show who did what.
     curl -s -X POST {BASE}/api/key -H 'X-Agent: your-name' \
          -H 'content-type: application/json' -d '{{"key":"kp3"}}'
 
-The game is shared. If the screen changes without you acting, that is someone
-else, not a fault.
+Others may operate the same session. Animation or story events can also change
+the screen without your input; a change alone does not identify another player
+or a fault.
 
 ## Movement: use the numpad names
 
@@ -53,39 +54,43 @@ The numpad names match what you actually see, and are identical to the arrows:
     kp7  ↖ up-left      kp9  ↗ up-right        (kp7 == left, kp9 == up)
     kp1  ↙ down-left    kp3  ↘ down-right      (kp1 == down, kp3 == right)
 
-Prefer `kp7/kp9/kp1/kp3`. Thinking in arrows is the main reason agents get lost
-here. The aliases `upleft`, `upright`, `downleft`, `downright` also work.
+Prefer `kp7/kp9/kp1/kp3` to match the visible diagonal movement.
+The aliases `upleft`, `upright`, `downleft`, `downright` also work.
 
-No single key moves straight across the screen. To do that, alternate two:
+On a clear path, alternating two directions can move horizontally or vertically
+across the screen:
 
     screen-right : kp3, kp9, kp3, kp9, ...      screen-left : kp7, kp1, ...
     screen-down  : kp3, kp1, kp3, kp1, ...      screen-up   : kp7, kp9, ...
 
-**Hold to walk.** A held key walks continuously until it is released or you hit
-something, so one call with `"hold": 120` covers far more ground than eight
-separate presses, and costs one settle instead of eight. Use `hold` for travel
-and short taps for precise positioning.
+**Holding a key keeps sending the same direction.** `hold` counts held frames,
+not tiles travelled. It does not follow paths, turn, or avoid obstacles for you.
+Landmarks may leave the current view as you move. Use short taps and look again
+when the route or a junction is unclear; use longer holds on a confirmed clear
+stretch, checking the actual distance from the screen or compass.
 
 ## Interacting
 
-- enter and space are identical: confirm, advance dialogue, and interact.
-  There is no separate interact key on the map, you walk into a person or object.
-- **Any key advances dialogue**, not just enter.
+- enter and space confirm, advance ordinary dialogue, and investigate. For an
+  ordinary person or container, stand in an adjacent tile, face the target,
+  then press enter or space. Story events triggered by stepping on a tile are
+  a separate mechanism.
+- Any key can advance ordinary dialogue; answer choices and （Ｙ／Ｎ） prompts
+  with the appropriate keys.
 - esc opens the menu. In a building: 醫療 / 解毒 / 物品 / 狀態. On the world map
-  you also get 隊 (party) and 系統 (save, load, quit). Saving is only possible
-  on the world map.
+  you also get 離隊 (dismiss a companion) and 系統 (save, load, quit). The
+  in-game save menu is available on the world map.
 - y and n answer prompts written （Ｙ／Ｎ）.
 
 ## First priority: get the compass
 
-Most buildings cannot be entered at the start. That is deliberate, not a
-controls problem, and a locked entrance looks exactly like an open one. Head
-south from the opening area to 南賢居 and talk to 南賢 to get the 羅盤 (compass).
+Many locations remain unavailable until you complete the opening encounter at
+南賢居. On the world map, **follow the small path south to 南賢居**. Once there,
+talk to 南賢, then investigate the cabinet beside him to get the 羅盤 (compass).
 
-With the compass, `esc → 物品 → 羅盤` shows **your current coordinates as
-numbers**. That is the game's own ground truth for position, far better than
-comparing screenshots of trees. Get it early and check coordinates every few
-steps; it is the single best cure for going in circles.
+After obtaining the compass, highlight it in `esc → 物品` to read **your current
+coordinates**. Check actual readings together with visible landmarks, especially
+when the route is unclear or you suspect a loop.
 
 Community coordinates for reference (from the original game, this build may
 differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
@@ -93,41 +98,42 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
 
 ## Reading a 320x200 screen
 
-- **The camera is locked to you.** Your sprite barely moves; the scenery moves.
-  Judge whether you actually moved by watching the background shift, never by
-  looking at where your character appears.
-- One step shifts the background by roughly an eighth of the screen. If a batch
-  of 4-6 presses leaves the composition mostly unchanged, you were blocked.
+- **During ordinary walking, the camera follows the character.** Compare the
+  background or compass coordinates, not just the sprite position. Story
+  sequences can also change the view.
+- A short tap may cause only a small shift. Do not assume a fixed fraction of
+  the screen per step. If progress is unclear, shorten the input and check the
+  current screen, facing direction, and possible paths.
 - Your character sometimes vanishes behind a tree or building drawn on top of
   it. That is layering, not teleporting.
 - Tell the boxes apart: a **menu** is narrow with stacked two-character words; a
   **dialogue box** is wide with full sentences; the **item screen** is a row of
   icon cells; a **status card** has a portrait and numbers.
-- Do not compute pixel coordinates. Describe positions relatively.
-- Animals, mist and distant colour specks are scenery. Spend your actions on
-  human figures, doors, signs and chests.
+- Relative descriptions can help track landmarks. If comparing pixel shifts,
+  distinguish screen positions from game map coordinates.
+- Some scenery is decorative, but appearance alone does not establish whether
+  animals, mist, or distant specks are interactive. Use game text and actual
+  interaction results.
 
 ## Traps that will cost you the most time
 
-- **`changed: true` does not mean you moved.** Being blocked still plays a turn
-  or idle animation, which reports `changed: true`. Trust `changed: false` as
-  "blocked", but verify any `changed: true` against the background.
-- **You will go in circles.** Nothing on screen says where you are. Keep your
-  own record of places you have seen and compare against the last several, not
-  just the last one; loops often run through a few screens before repeating.
-  How you do that is up to you, but decide early, before you are lost.
-- **If alternating two keys stalls**, you are bouncing between two tiles because
-  the second key is blocked. Do not retry the same pair, push a single direction
-  repeatedly instead.
-- **A fully black screen is a scene transition**, not a crash. Call `/api/wait`
-  about 1500ms and look again rather than pressing keys into the fade.
-- **The menu sometimes opens by itself** when every direction is blocked. Press
-  esc, wait, look, repeat until it closes, then go the opposite way, because the
-  direction that triggered it is a wall.
-- **A building's entrance is one specific tile**, not the whole wall. Walk the
-  full perimeter and test each gap inward before concluding you cannot get in.
-- **Looping ambient chatter is not a quest.** If the same opening line comes
-  round a second time, it is scenery dialogue. Stop and walk away.
+- **`changed` does not say whether you moved.** It only reports whether a visible
+  screen change was observed. Judge movement from the background and do not infer
+  the cause of `changed: false`.
+- **Similar terrain can lead you back to a place you have visited.** Record
+  landmarks and compare new observations with several recent ones. Once you
+  have the compass, use coordinates as well. The recording method is up to you.
+- **No progress while alternating keys does not establish its cause.** Check
+  whether you are on the map, in a menu, or in dialogue, then use short taps and
+  observations to find a passable direction. Do not blindly increase hold time.
+- **A fully black screen does not reveal its cause.** Call `/api/wait` for about
+  1500ms and look again rather than pressing keys into it.
+- **Entrances are at specific locations; the entire wall is not passable.**
+  Use paths, doorways, and story clues. One failed attempt does not establish
+  whether the entrance is wrong or a prerequisite is missing.
+- **Repeated dialogue does not establish that an NPC has no function.** Item
+  interactions or later story conditions may still apply. Distinguish no new
+  information this time from no quest or function at all.
 
 ## The world
 
@@ -135,8 +141,10 @@ You are 小蝦米, a modern student who buys a VR copy of this very game and wak
 inside the world of Jin Yong's wuxia novels. Getting home means finding the
 fourteen Jin Yong novels scattered across the land. Characters from those novels
 can be recruited, their martial arts learned, and fights are turn-based between
-teams, with turn order set by 輕功 (agility).
+teams. Turn order usually follows 輕功 (agility); commands such as waiting can
+change the order within a round.
 
-Only the protagonist dying ends the game; defeated companions are merely badly
-hurt and return. Poke at anything that looks placed rather than decorative.
-Everything past that is yours to discover.
+A character falling, losing a battle, and ending the game are different events.
+Whether play continues after defeat depends on that encounter. Watch the whole
+party and read the actual battle result. Investigate plausible people and
+objects, and use the game's clues to decide what to explore.

@@ -10,8 +10,8 @@ DOS game by 河洛工作室, running under emulation. You drive it with a keyboa
 only. There is no mouse.
 
 HOW TO PLAY WITH THESE TOOLS
-Every action tool returns a PNG of the screen after the action has been applied
-and the picture has stopped changing. Look at that image before choosing the
+Successful action tools return a PNG after applying input and waiting briefly
+for the screen to react. It may still be animating. Look at that image before choosing the
 next action. One tool call is one action and one observation. Do not batch long
 blind sequences: read each screen.
 
@@ -21,22 +21,21 @@ wrong key changes the run.
 
 CONTROLS
 - arrow up/down/left/right: walk on the map, and move the highlight in menus.
-  One press turns the character to face that way and steps one tile if the tile
-  is not blocked. Walking into a person or object is what triggers it.
-- enter (or space): confirm a menu choice, advance dialogue, and interact with
-  whatever you are facing. In the world these two keys are equivalent.
+  Obstacles can prevent movement. Walking alone does not investigate an
+  ordinary person or container.
+- enter (or space): confirm a menu choice or advance ordinary dialogue. To
+  investigate, stand adjacent to the target and face it before pressing the key.
+  Story events triggered by stepping on a tile are a separate mechanism.
 - esc: open the main menu (醫療 heal / 解毒 cure poison / 物品 items / 狀態
   status). Press esc again to close it.
 - y / n: answer 是/否 prompts, which the game writes as （Ｙ／Ｎ）.
-- k: light a torch inside caves. l: clear fog inside caves.
 
-THE ONE THING THAT WILL CONFUSE YOU
-While a scripted event or cutscene is playing, the game ignores movement and
-menu keys completely. Any key you send only advances the dialogue. So if arrows
-do not move the character and esc does not open the menu, you are still inside a
-cutscene: keep pressing enter and reading until it ends. Do not conclude the
-controls are broken. A reliable check for "am I free to move": press esc, and
-see whether the 醫療/解毒/物品/狀態 menu appears. (verified)
+READ THE CURRENT SCREEN
+Dialogue, choices, menus, and animations can respond differently to a key.
+Read visible text and answer choices explicitly. If movement or esc appears to
+have no effect, do not assume that a cutscene is the cause or that the controls
+are broken. Look again and, if the screen is animating, wait before choosing the
+next input.
 
 ENTERING A CHINESE NAME
 Character naming uses the game's own 注音 (bopomofo) IME in the 大千 layout.
@@ -56,30 +55,33 @@ Jin Yong novels scattered across the world. Along the way you recruit famous
 characters into your party, learn their martial arts, and fight turn-based team
 battles.
 
-Opening sequence: you wake on the floor of a room. Talk to the 軟體娃娃 (the
-floating VR helmet). It tells you to leave and ask at the inn across the way
-(河洛客棧). There you find the waiter 韋小寶; tip him some silver and he points
-you to 南賢. Pick up the few items lying in the starting room before you leave.
+Opening sequence: talk to the 軟體娃娃 and search the starting room before
+you leave. On the world map, follow the small path south to 南賢居. The waiter
+at 河洛客棧 can provide route clues if you give him silver; obtaining the clue
+is not required to enter 南賢居. Once there, talk to 南賢, then investigate the
+cabinet beside him to obtain the compass.
 
 PACING
-Booting the emulator to the title screen takes about 14 seconds. From the title,
+Boot time varies. Wait and observe the screen rather than assuming a fixed delay. From the title,
 重新開始 starts a new game, 載入進度 loads, 離開遊戲 quits. Use save_state before
-anything risky: these are emulator snapshots and restore exactly, which the
-game's own save system cannot do mid-scene.
+anything risky when the tool is available. Emulator snapshots can include
+scene or battle state; check the save result before relying on one, and inspect
+the screen after loading. The game's own save menu is limited to the world map.
 """
 
 GUIDE = INSTRUCTIONS + """
 
 KEY NAMES ACCEPTED BY press / press_sequence
   up down left right
-  enter (aliases: ok, confirm)   space
-  esc (aliases: cancel, back)
+  enter (aliases: ok, return)   space
+  esc (aliases: cancel, escape)
   y n   a-z   0-9   f1-f12
   tab backspace delete home end pageup pagedown
   shift ctrl alt, and combos such as "alt+x"
 
 TUNING THE WAIT
-Each action waits for the screen to react and then to hold still. If a tool
-returns a half-drawn dialogue line, raise `stable`. If an action legitimately
-does nothing, the result says changed=false after the react budget expires.
+Each action allows time for the screen to react and attempts to capture a
+settled frame. If a dialogue line is still drawing, wait or adjust `stable`.
+changed=false means no visible change was observed within that wait; it does
+not identify why or prove that the action was a legitimate no-op.
 """
