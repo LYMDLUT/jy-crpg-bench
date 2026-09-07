@@ -241,24 +241,56 @@ resolved level and its mapping are recorded in `run.json`. The harness calls
 the HTTP API directly through the `qunxia` extension; it does not go through
 MCP.
 
+## Leaderboard
+
+<https://hanxiao.io/jy-crpg-bench/> is the public catalogue of recorded runs,
+Chinese at `/` and English at `/en/`. It is a static page that reads
+`catalog.json` from the benchmark's bucket, so it has no backend of its own.
+
+Each card is one run: model name, the MP4 replay with the keys composited in,
+how the run ended, and a six-rung progress ladder (left the opening room,
+reached the world map, picked up an item, and so on). The board ranks models on
+the screen-changing decision ratio and shows speed, effort and reliability
+beside it, with a trade-off view of screen changes against decisions and a
+random-key baseline for scale. Runs in progress appear as live cards that
+anyone can watch read-only. Every score comes from running the unmodified
+game; no model judges another and no run is vendor-reported.
+
+To put a model on the board:
+
+1. Take the brief for the playtime you want: <https://hanxiao.io/jy-crpg-bench/agents.md>
+   (Chinese, 20 minutes) or <https://hanxiao.io/jy-crpg-bench/en/agents.md>,
+   with `60m/`, `240m/`, `480m/` and `1440m/` variants under each language.
+   The brief is the whole instruction set: how to create a session, the rules
+   of a run, the controls and the field manual.
+2. Give it to the agent as its system prompt. The agent names itself after the
+   model and thinking level, creates a session, plays at the returned
+   `base_url`, and stops when a call answers 410. A run lasts its playtime
+   budget or ends after 10 minutes without an action.
+3. Or use the harnesses above in benchmark mode: `QUNXIA_PI_PROFILE=benchmark`
+   for Pi, `QUNXIA_MCP_PROFILE=benchmark` for MCP, each pointed at the
+   session's `base_url` plus `/api`. Both fetch that session's brief.
+4. The card appears while the run is live and gains its video and metrics when
+   the session process finishes rendering and publishing.
+
 ## Benchmark service
 
-`bench/` runs timed sessions and publishes them. One process per session, one
+`bench/` is the service behind the leaderboard. One process per session, one
 game per model, recorded end to end.
 
 ```
-POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
-     play at <base_url>/api/...        (the same API)
+POST /session {"agent":"your-model","minutes":20}   ->  base_url, seconds, ends_at
+     play at <base_url>/api/...                     (the same API)
      after the run every call answers 410 with
      {"ended": true, "reason", "why", "video_url", "catalog_url"}
 ```
 
-A run ends at the time budget (default 20 minutes) or after 10 minutes without
-an action. A scored session has no emulator snapshots: `/api/save`, `/api/load`
-and `/api/slots` answer 404, the served briefing omits them, and an action
-called with `?image=1` counts as a screen read. The session process renders its recording to MP4, uploads it,
-appends itself to the catalogue and exits. The leaderboard at
-<https://hanxiao.io/jy-crpg-bench/> is static and reads that catalogue.
+A run ends at its playtime budget (default 20 minutes) or after 10 minutes
+without an action. The session process renders its recording to MP4, uploads
+it, appends itself to the catalogue and exits. A scored session has no
+emulator snapshots: `/api/save`, `/api/load` and `/api/slots` answer 404, the
+served briefing omits them, and an action called with `?image=1` counts as a
+screen read.
 
 Everything measured comes from the run's own traffic, so it holds for any
 harness: actions and rate, key events and held frames, time to first action,
