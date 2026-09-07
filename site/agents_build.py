@@ -20,7 +20,7 @@ BACKEND = "https://jy-crpg-bench-366646433082.us-central1.run.app"
 # Everything in this list is text the agent will see rendered by the game, or a
 # proper name the game uses. Masked before conversion so it survives.
 ON_SCREEN = [
-    "金庸群俠傳", "河洛工作室", "軟體娃娃", "小蝦米",
+    "金庸群俠傳", "河洛工作室", "軟體世界娃娃", "軟體娃娃", "小蝦米",
     "崑崙仙境", "無量山洞", "河洛客棧", "天寧寺", "鐵掌山", "五毒教",
     "衡山派", "閻基居", "北丑居", "南賢居", "主角居", "南賢",
     "羅盤", "醫療", "解毒", "物品", "狀態", "離隊",
@@ -29,6 +29,7 @@ ON_SCREEN = [
     # Protecting the bare characters left prose reading "團隊回合制" and
     # "選單系統", so only the label contexts are held back.
     "隊 與 系統", "狀態、隊、系統", "「隊」和「系統」", "**隊**", "**系統**",
+    "離隊與系統", "離隊、系統", "「系統」",
 ]
 
 PRE_ZH = """# jy-crpg-bench
