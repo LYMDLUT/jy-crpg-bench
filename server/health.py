@@ -76,7 +76,7 @@ class Health:
             elif not self.paused() and now - self.tick_at > self.timeout:
                 self.fail('core_stalled')
         return {'pid': os.getpid(), 'at': now, 'phase': self.phase, 'phase_at': self.phase_at,
-                'core_ticks': tick, 'healthy': not self.fault and self.phase == 'running' and tick > 0,
+                'core_ticks': tick, 'healthy': not self.fault and self.phase == 'running' and tick > 0 and not self.paused(),
                 'failure': self.fault}
 
     def start(self):

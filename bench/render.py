@@ -67,10 +67,10 @@ def apply_delta(canvas, raw):
 MAX_VIDEO_SECONDS = float(os.environ.get("QUNXIA_MAX_VIDEO_SECONDS", "600"))
 
 
-def render(recording, out_path, agent="", speed=4.0, width=960):
+def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=None):
     events = recording.get("events") or []
-    frames = [e for e in events if "d" in e]
-    if not frames:
+    first_frame = next((e for e in events if "d" in e), None)
+    if first_frame is None:
         raise ValueError("recording has no frames")
 
     # Start when the agent starts playing, not when the machine came up. The
@@ -80,8 +80,10 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
     # game as the agent found it rather than the black an earlier version had.
     acted = next((e["t"] for e in events
                   if e.get("act") is not None or e.get("key")), None)
-    t_start = acted if acted is not None else frames[0]["t"]
-    t_end = events[-1]["t"]
+    t_start = acted if acted is not None else first_frame["t"]
+    t_end = recording.get("duration")
+    if t_end is None:
+        t_end = events[-1]["t"]
     span = t_end - t_start
     speed = max(speed, span / MAX_VIDEO_SECONDS)
     duration = max(0.2, span / speed)
@@ -89,24 +91,32 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
     # A timeline of what happened and when, in video seconds. A few KB beside
     # a 1MB MP4, which is what makes the replay scrubbable without shipping the
     # 100MB+ recording to a browser.
-    marks, held = [], {}
-    for e in events:
-        vt = round((e["t"] - t_start) / speed, 3)
-        if vt < 0:
-            continue
-        if e.get("act") is not None:
-            marks.append({"n": e["act"], "t": vt, "do": e.get("label", ""),
-                          "keys": []})
-        elif e.get("key"):
-            if e.get("down"):
-                held[e["key"]] = e["t"]
-            else:
-                down = held.pop(e["key"], None)
-                if marks:
-                    marks[-1]["keys"].append(
-                        [e["key"], round((e["t"] - down) if down else 0, 3)])
-    timeline = {"speed": round(speed, 3), "seconds": round(duration, 2),
-                "size": [GAME_W, GAME_H + BAR], "bar": BAR, "marks": marks}
+    timeline = Path(out_path).with_suffix('.timeline.json')
+    # Stream completed action marks; long recordings need no growing list.
+    meta = dict(speed=round(speed, 3), seconds=round(duration, 2),
+                size=[GAME_W, GAME_H + BAR], bar=BAR, **(timeline_extra or {}))
+    with timeline.open('w') as stream:
+        stream.write(json.dumps(meta)[:-1] + ',"marks":[')
+        mark, held, first = None, {}, True
+        for e in events:
+            vt = round((e['t'] - t_start) / speed, 3)
+            if vt < 0:
+                continue
+            if e.get('act') is not None:
+                if mark is not None:
+                    stream.write(('' if first else ',') + json.dumps(mark))
+                    first = False
+                mark = {'n': e['act'], 't': vt, 'do': e.get('label', ''), 'keys': []}
+            elif e.get('key'):
+                if e.get('down'):
+                    held[e['key']] = e['t']
+                else:
+                    down = held.pop(e['key'], None)
+                    if mark is not None:
+                        mark['keys'].append([e['key'], round(e['t'] - down if down is not None else 0, 3)])
+        if mark is not None:
+            stream.write(('' if first else ',') + json.dumps(mark))
+        stream.write(']}')
 
     canvas = None
     for e in events:
@@ -162,15 +172,17 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
          "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_path)],
         stdin=subprocess.PIPE)
 
-    down, actor, i, act = [], agent, 0, None
+    down, actor, act = [], agent, None
+    cursor = iter(events)
+    pending = next(cursor, None)
     total_frames = max(1, int(duration * FPS))
     frame = np.zeros((out_h, out_w, 3), np.uint8)
     try:
         for n in range(total_frames):
             now = t_start + (n / FPS) * speed
-            while i < len(events) and events[i]["t"] <= now:
-                e = events[i]
-                i += 1
+            while pending is not None and pending["t"] <= now:
+                e = pending
+                pending = next(cursor, None)
                 if "d" in e:
                     canvas = apply_delta(canvas, base64.b64decode(e["d"]))
                 elif e.get("act") is not None:
@@ -213,7 +225,7 @@ def render(recording, out_path, agent="", speed=4.0, width=960):
 
     return {"path": str(out_path), "seconds": round(duration, 1),
             "frames": total_frames, "size": f"{out_w}x{out_h}",
-            "speed": round(speed, 3), "timeline": timeline,
+            "speed": round(speed, 3), "timeline": str(timeline),
             "poster": str(poster) if poster and poster.exists() else None}
 
 

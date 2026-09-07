@@ -28,6 +28,8 @@ REPO = ROOT.parent
 SERVER = REPO / "server" / "server.py"
 sys.path.insert(0, str(REPO / "server"))
 from health import clock, read_json, write_json, failure
+from storage import validate_recording_directory
+RECORDING_DIR = pathlib.Path(os.environ.get("QUNXIA_RECORDING_DIR", str(REPO / "recordings")))
 PYTHON = os.environ.get("QUNXIA_PYTHON", str(REPO / ".venv" / "bin" / "python"))
 RESULT_DIR = pathlib.Path(os.environ.get("QUNXIA_RESULT_DIR", "/tmp/qunxia-results"))
 LOCAL = pathlib.Path(os.environ.get("QUNXIA_LOCAL_PUBLIC", "/tmp/qunxia-public"))
@@ -209,13 +211,9 @@ async def start_session(agent, budget, publish=True):
                QUNXIA_GAME=str(game),
                QUNXIA_SAVES=str(saves),
                QUNXIA_HEALTH_DIR=str(WORK / sid / "health"),
-               QUNXIA_REC_KEEP_ALL="1",
-               # People do watch bench runs now, so the stream is not throttled
-               # to the old "nobody is looking" rate. Measured at 5.9 MB/min of
-               # recording at the effective 3 fps this yields; the cap below
-               # bounds a long run, and 24 of these have to fit in RAM at once.
+               QUNXIA_RECORDING_DIR=str(RECORDING_DIR),
+               QUNXIA_RECORDING_FILE=str(RECORDING_DIR / sid / "recording.jsonl"),
                QUNXIA_SEND_HZ="15",
-               QUNXIA_REC_MAX_BYTES=str(160 << 20),
                QUNXIA_RESET_TOKEN=token,
                QUNXIA_BENCH="1",
                QUNXIA_PUBLISH="1" if publish else "0",
@@ -376,17 +374,24 @@ async def proxy(request):
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "content-length")}
     headers.setdefault("X-Agent", sess["agent"])
+    out = None
     try:
         async with aiohttp.ClientSession() as http:
             async with http.request(request.method, url, params=request.query,
                                     data=data or None, headers=headers,
                                     timeout=aiohttp.ClientTimeout(total=180)) as r:
-                out = web.Response(body=await r.read(), status=r.status,
-                                   content_type=r.content_type)
-                out.headers["X-Bench-Remaining"] = str(
-                    max(0, int(sess["ends_at"] - time.time())))
+                out = web.StreamResponse(status=r.status, headers={'Content-Type':r.headers.get('Content-Type','application/octet-stream')})
+                out.headers['X-Bench-Remaining'] = str(max(0, int(sess['ends_at'] - time.time())))
+                await out.prepare(request)
+                async for chunk in r.content.iter_chunked(64 << 10):
+                    await out.write(chunk)
+                await out.write_eof()
                 return out
     except Exception as exc:
+        if out is not None and out.prepared:
+            if request.transport:
+                request.transport.close()
+            return out
         # The process may have published and exited between the two checks.
         res = result_of(sid)
         if res:
@@ -733,6 +738,7 @@ async def boot_in_background(app):
 
 
 def main():
+    validate_recording_directory(RECORDING_DIR)
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     if shutil.which("ffmpeg") is None:
         print("warning: ffmpeg not on PATH, runs will not render", flush=True)
