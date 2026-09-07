@@ -104,6 +104,23 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(changed)
         self.assertEqual(waited, 6)
 
+    async def test_request_error_middleware_counts_from_unmeasured(self):
+        async def failing(request):
+            raise RuntimeError("boom")
+
+        request = SimpleNamespace(method="GET", path="/api/screen")
+        for on, expect in ((False, None), (True, 1), (True, 2)):
+            with (patch.object(game_server.warden, "ON", on),
+                  patch.object(game_server, "recording_blocked", False),
+                  patch.object(game_server.traceback, "print_exc")):
+                if expect in (None, 1):
+                    game_server.warden.run["errors"] = None
+                response = await game_server.json_errors(request, failing)
+            self.assertEqual(response.status, 500)
+            self.assertEqual(game_server.warden.run["errors"], expect)
+            self.assertIn("boom", game_server.stats["last_error"])
+        game_server.warden.run["errors"] = None
+
 
 if __name__ == "__main__":
     unittest.main()

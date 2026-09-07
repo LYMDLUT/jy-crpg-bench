@@ -1515,7 +1515,10 @@ async def json_errors(request, handler):
         return web.json_response(health.fault, status=503)
     except Exception as exc:
         traceback.print_exc()
-        warden.run["errors"] += int(warden.ON)
+        if warden.ON:
+            # "errors" starts as None, unmeasured, and becomes a count only
+            # once a request has actually failed under the benchmark.
+            warden.run["errors"] = (warden.run["errors"] or 0) + 1
         stats["last_error"] = f"{type(exc).__name__}: {exc}"
         return web.json_response(
             {"ok": False, "error": f"{type(exc).__name__}: {exc}"},
