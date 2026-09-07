@@ -56,8 +56,9 @@
 
 ## 运作方式
 
-“动作”和“看画面”是分开的呼叫。送按键会等画面稳定，但不回传图片；要看画面
-请用 `GET /api/screen`。先动作，需要时再看。连送几个键、最后看一次也可以。
+预设把“动作”和“看画面”分成两次呼叫。送按键会等画面稳定并回传狀態；要看画面
+请用 `GET /api/screen`。若需要保证看到的就是自己刚才动作的结果，可在动作 URL 加
+`?image=1`，伺服器会在让下一位操作者行动前一并截图。连送几个键、最后看一次也可以。
 
 游戏全是繁体中文，而所有事情都发生在文字里：目标、选择，以及等待特定按键的提问。
 
@@ -69,9 +70,9 @@
     POST $BASE/api/wait  {"ms":1000}             让游戏自己跑一段时间
     GET  $BASE/api/help                          本技能说明
 
-只有 `/api/screen` 会回传画面：JSON 含 `image`，是 base64 的 PNG data URI
-（加 `?format=png` 或 `?format=webp` 可直接取得位元组）。动作类呼叫只回传
-`changed` 与 `frame`。
+`/api/screen` 会回传画面：JSON 含 `image`，是 base64 的 PNG data URI（加
+`?format=png` 或 `?format=webp` 可直接取得位元组）。动作类呼叫预设回传
+`changed` 与 `frame`；加 `?image=1` 也会回传同样的 `image`。
 
     curl -s -X POST $BASE/api/key -H 'content-type: application/json' \
          -d '{"key":"enter"}'

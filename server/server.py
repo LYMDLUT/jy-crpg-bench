@@ -1175,6 +1175,10 @@ async def run_action(request, steps, note, verb="KEY"):
                                       if world["ok"] else None)
             warden.run["curve"] = list(curve)
         if wants_image(request):
+            # A look inside the action is still a look: keep the read count
+            # comparable with agents that call /api/screen separately.
+            if warden.ON:
+                warden.note_read()
             try:
                 image, image_w, image_h, image_mime = snapshot("png")
                 if not image:
@@ -1424,6 +1428,9 @@ async def api_key_names(_request):
 
 
 async def api_slots(_request):
+    if warden.ON:
+        # A scored run has no out-of-band rewind. Hidden, like reset.
+        raise web.HTTPNotFound()
     root = pathlib.Path(STATE_DIR)
     slots = []
     if root.exists():
@@ -1440,6 +1447,9 @@ async def api_slots(_request):
 
 
 async def api_save(request):
+    if warden.ON:
+        # A scored run has no out-of-band rewind. Hidden, like reset.
+        raise web.HTTPNotFound()
     body = await body_of(request)
     if body is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
@@ -1475,6 +1485,9 @@ async def api_save(request):
 
 
 async def api_load(request):
+    if warden.ON:
+        # A scored run has no out-of-band rewind. Hidden, like reset.
+        raise web.HTTPNotFound()
     body = await body_of(request)
     if body is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
@@ -1682,7 +1695,8 @@ async def api_help(request):
     # logging it fills the panel with entries nobody performed.
     lang = request.query.get("lang", "en")
     core_only = request.query.get("part") == "core"
-    return web.Response(text=system_prompt(base_url(request), lang, core_only),
+    return web.Response(text=system_prompt(base_url(request), lang, core_only,
+                                           benchmark=warden.ON),
                         content_type="text/plain", charset="utf-8")
 
 

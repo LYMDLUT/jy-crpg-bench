@@ -179,6 +179,9 @@ def skill(lang: str) -> str:
     # already named and alone on its machine, so that section is noise here
     cuts = [r"\n\*\*Name yourself\.\*\*.*?(?=\n## )",
             r"\n\*\*請幫自己取個名字。\*\*.*?(?=\n## )"]
+    # a scored session answers 404 to emulator snapshots; do not list them
+    text = re.sub(r"^[ \t]*(?:GET|POST)[ \t]+\$BASE/api/(?:slots|save|load)\b.*\n", "",
+                  text, flags=re.M)
     for c in cuts:
         text, n = re.subn(c, "\n", text, flags=re.S)
         if n:

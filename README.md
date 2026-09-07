@@ -215,7 +215,8 @@ Tool exposure is declared in `pi-agent/profiles.json`:
 | `benchmark` | the session's `/api/help` | `game_look`, `game_press`, `game_press_sequence`, `game_wait` | metadata only; call `game_look` |
 
 ```sh
-# timed benchmark session; BASE_URL is the base_url returned by POST /session
+# timed benchmark session: BASE_URL is the base_url returned by POST /session
+BASE_URL=https://benchmark.example/s/replace-with-the-created-session-id
 QUNXIA_PI_PROFILE=benchmark QUNXIA_API="${BASE_URL%/}/api" \
 QUNXIA_THINKING=high QUNXIA_LLM_REASONING=1 QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
 QUNXIA_RUN_ID=benchmark-01 ./Scripts/play-agent.sh -p "play until BENCHMARK ENDED"
@@ -253,7 +254,9 @@ POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
 ```
 
 A run ends at the time budget (default 20 minutes) or after 10 minutes without
-an action. The session process renders its recording to MP4, uploads it,
+an action. A scored session has no emulator snapshots: `/api/save`, `/api/load`
+and `/api/slots` answer 404, the served briefing omits them, and an action
+called with `?image=1` counts as a screen read. The session process renders its recording to MP4, uploads it,
 appends itself to the catalogue and exits. The leaderboard at
 <https://hanxiao.io/jy-crpg-bench/> is static and reads that catalogue.
 

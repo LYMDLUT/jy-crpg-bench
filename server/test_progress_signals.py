@@ -60,6 +60,8 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
         def __init__(self, body, query=None):
             self.body = body
             self.query = query or {}
+            self.headers = {}
+            self.remote = "127.0.0.1"
 
         async def json(self):
             return self.body
@@ -106,6 +108,48 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
                 1, react=30, stable=5, maxframes=1)
         self.assertTrue(changed)
         self.assertEqual(waited, 6)
+
+    async def test_benchmark_hides_snapshots_and_counts_in_action_looks(self):
+        with patch.object(game_server.warden, "ON", True):
+            for handler, body in ((game_server.api_slots, None),
+                                  (game_server.api_save, {"name": "x"}),
+                                  (game_server.api_load, {"name": "x"})):
+                with self.assertRaises(game_server.web.HTTPNotFound):
+                    await handler(self.Request(body))
+            help_text = game_server.system_prompt("http://h", "en", benchmark=True)
+            self.assertNotIn("/api/save", help_text)
+            self.assertNotIn("/api/load", help_text)
+            self.assertNotIn("/api/slots", help_text)
+        self.assertIn("/api/save", game_server.system_prompt("http://h", "en"))
+        self.assertNotIn("/api/save", game_server.system_prompt("http://h", "zh", benchmark=True))
+
+    async def test_in_action_image_counts_as_a_read_in_benchmark(self):
+        fake_lib = SimpleNamespace(
+            core_frame_hash=lambda: 1, core_width=lambda: 320,
+            core_height=lambda: 200, core_frame_serial=lambda: 7,
+            core_fps=lambda: 70.0)
+
+        async def fake_settle(*_a, **_k):
+            return 9, True
+
+        lock = game_server.asyncio.Lock()
+        with (patch.object(game_server, "LIB", fake_lib),
+              patch.object(game_server, "api_lock", lock),
+              patch.object(game_server.warden, "ON", True),
+              patch.object(game_server.warden, "run", {"done": None}),
+              patch.object(game_server.warden, "note_action", lambda *a, **k: None),
+              patch.object(game_server.warden, "note_read") as note_read,
+              patch.object(game_server, "settle", fake_settle),
+              patch.object(game_server, "snapshot", lambda _f: (b"png", 320, 200, "image/png")),
+              patch.object(game_server, "note_move", lambda: None),
+              patch.object(game_server, "note_screen", lambda: None),
+              patch.object(game_server, "read_stats", lambda: None),
+              patch.object(game_server, "log_action", lambda *a, **k: None),
+              patch.object(game_server, "rec_add", lambda *a, **k: None)):
+            response = await game_server.run_action(
+                self.Request({}, {"image": "1"}), [("wait", 0)], "0ms", verb="WAIT")
+        self.assertEqual(response.status, 200)
+        note_read.assert_called_once()
 
     async def test_request_error_middleware_counts_from_unmeasured(self):
         async def failing(request):
