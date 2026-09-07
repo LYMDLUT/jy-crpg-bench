@@ -62,9 +62,14 @@ final class Emulator {
         let done: (Result) -> Void
     }
 
-    private let queue = DispatchQueue(label: "qunxia.emu")
     private let lock = NSCondition()
     private var jobs: [Job] = []
+    private var pendingNativeKeys: [(Int, Bool)] = []
+    // Native-window and API input have separate ownership. Releasing a local
+    // key must not cancel the same key while an API pulse still owns it.
+    private var nativeKeys: Set<Int> = []
+    private var actionKeys: Set<Int> = []
+    private var effectiveKeys: Set<Int> = []
     private var running = true
     private var frameBudget: Double = 1.0 / 60.0
     private(set) var lastError = ""
@@ -112,7 +117,10 @@ final class Emulator {
 
     /// Fire-and-forget, used by the native key handler in the window.
     func setKey(_ retrok: Int, down: Bool) {
-        queue.async { core_key(Int32(retrok), down) }
+        lock.lock()
+        pendingNativeKeys.append((retrok, down))
+        lock.signal()
+        lock.unlock()
     }
 
     func snapshot(scale: Int = 2) -> Shot? {
@@ -148,8 +156,38 @@ final class Emulator {
     }
 
     private func step() {
+        applyPendingNativeKeys()
         core_run_frame()
         onFrame?()
+    }
+
+    private func applyPendingNativeKeys() {
+        lock.lock()
+        let pending = pendingNativeKeys
+        pendingNativeKeys.removeAll(keepingCapacity: true)
+        lock.unlock()
+        for (key, down) in pending {
+            if down { nativeKeys.insert(key) } else { nativeKeys.remove(key) }
+            syncKey(key)
+        }
+    }
+
+    private func setActionKey(_ key: Int, down: Bool) {
+        if down { actionKeys.insert(key) } else { actionKeys.remove(key) }
+        syncKey(key)
+    }
+
+    private func syncKey(_ key: Int) {
+        let down = nativeKeys.contains(key) || actionKeys.contains(key)
+        if down == effectiveKeys.contains(key) { return }
+        if down { effectiveKeys.insert(key) } else { effectiveKeys.remove(key) }
+        core_key(Int32(key), down)
+    }
+
+    private func resyncKeysAfterCoreReset() {
+        effectiveKeys.removeAll()
+        actionKeys.removeAll()
+        for key in nativeKeys { syncKey(key) }
     }
 
     private func run(_ job: Job) {
@@ -160,9 +198,9 @@ final class Emulator {
         for s in job.steps {
             switch s {
             case .press(let combo, let frames):
-                for k in combo { core_key(Int32(k), true) }
+                for k in combo { setActionKey(k, down: true) }
                 pump(max(1, frames))
-                for k in combo.reversed() { core_key(Int32(k), false) }
+                for k in combo.reversed() { setActionKey(k, down: false) }
                 pump(2)
             case .wait(let n):
                 pump(max(0, n))
@@ -179,9 +217,11 @@ final class Emulator {
                 if !ok { detail = String(cString: core_last_error()) }
             case .load(let url):
                 ok = core_load_state(url.path)
+                if ok { resyncKeysAfterCoreReset() }
                 if !ok { detail = String(cString: core_last_error()) }
             case .reset:
                 core_reset()
+                resyncKeysAfterCoreReset()
                 pump(30)
             }
             if !ok { break }

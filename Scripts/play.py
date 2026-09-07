@@ -10,18 +10,32 @@
 
 Every command writes the resulting screen to /tmp/qunxia.png unless a path is given.
 """
-import base64, json, os, subprocess, sys, urllib.request
+import base64
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
 
-API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765")
+API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")
+AGENT = os.environ.get("QUNXIA_AGENT", "play-cli")
 OUT = "/tmp/qunxia.png"
 
 
 def call(method, path, payload=None):
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(API + path, data=data, method=method,
-                                 headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.loads(r.read())
+                                 headers={"Content-Type": "application/json",
+                                          "X-Agent": AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            return json.loads(exc.read())
+        except Exception:
+            raise RuntimeError(f"game API returned HTTP {exc.code}") from exc
 
 
 def save_shot(res, path=OUT):
@@ -44,15 +58,19 @@ def main(argv):
             print(r.read().decode())
             return 0
     elif cmd == "key":
-        res = call("POST", "/key", {"key": args[0]})
+        if not args:
+            raise ValueError("key requires a key name")
+        res = call("POST", "/key?image=1", {"key": args[0]})
     elif cmd == "keys":
-        res = call("POST", "/keys", {"keys": args})
+        if not args:
+            raise ValueError("keys requires at least one key name")
+        res = call("POST", "/keys?image=1", {"keys": args})
     elif cmd == "wait":
-        res = call("POST", "/wait", {"ms": int(args[0]) if args else 1000})
+        res = call("POST", "/wait?image=1", {"ms": int(args[0]) if args else 1000})
     elif cmd in ("save", "load"):
         key = "name" if args and not args[0].isdigit() else "slot"
         val = args[0] if args else 1
-        res = call("POST", "/" + cmd, {key: int(val) if key == "slot" else val})
+        res = call("POST", f"/{cmd}?image=1", {key: int(val) if key == "slot" else val})
     elif cmd == "reset":
         res = call("POST", "/reset")
     elif cmd == "shot":
@@ -61,12 +79,27 @@ def main(argv):
         print(__doc__.strip())
         return 1
 
+    if (cmd in ("key", "keys", "wait", "save", "load", "reset")
+            and res.get("ok", True) and not res.get("image")):
+        observed = call("GET", "/screen")
+        if observed.get("image"):
+            for field in ("image", "image_width", "image_height", "width",
+                          "height", "frame"):
+                if field in observed:
+                    res[field] = observed[field]
+            res["observation"] = "follow-up (not atomic on a shared session)"
+
     path = args[0] if cmd == "shot" and args else OUT
-    print(json.dumps(save_shot(res, path), ensure_ascii=False))
+    result = save_shot(res, path)
+    print(json.dumps(result, ensure_ascii=False))
     if sys.stdout.isatty() and os.path.exists(path):
         subprocess.run(["open", path], check=False)
-    return 0
+    return 0 if result.get("ok", True) else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (IndexError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(2)

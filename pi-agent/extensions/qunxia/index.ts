@@ -5,8 +5,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const API = process.env.QUNXIA_API ?? "http://127.0.0.1:8765";
-const SCALE = Number(process.env.QUNXIA_SCALE ?? "1");
+const API = (process.env.QUNXIA_API ?? "http://127.0.0.1:8765").replace(/\/+$/, "");
+const rawScale = Number(process.env.QUNXIA_SCALE ?? "1");
+const SCALE = Number.isFinite(rawScale) ? Math.min(6, Math.max(1, Math.trunc(rawScale))) : 1;
 const OBSERVE_AFTER_ACTION = process.env.QUNXIA_OBSERVE_AFTER_ACTION !== "0";
 const ACTION_RESULT = OBSERVE_AFTER_ACTION
   ? "The resulting visible frame is returned."
@@ -14,14 +15,36 @@ const ACTION_RESULT = OBSERVE_AFTER_ACTION
 
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
+class GameApiError extends Error {}
+
 async function call(method: string, path: string, body?: unknown, signal?: AbortSignal) {
   const res = await fetch(API + path, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Agent": AGENT },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
-  return (await res.json()) as Record<string, any>;
+  const text = await res.text();
+  let payload: Record<string, any>;
+  try {
+    const parsed = JSON.parse(text);
+    payload = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, any>
+      : { ok: false, error: "game API returned a non-object response" };
+  } catch {
+    payload = {
+      ok: false,
+      error: `game API returned HTTP ${res.status} with a non-JSON response`,
+    };
+  }
+  if (!res.ok) {
+    payload.ok = false;
+    payload.error ??= `game API returned HTTP ${res.status}`;
+  }
+  if (payload.ok === false) {
+    throw new GameApiError(String(payload.error ?? `game API returned HTTP ${res.status}`));
+  }
+  return payload;
 }
 
 function offline(err: unknown) {
@@ -61,13 +84,24 @@ function frame(res: Record<string, any>, note: string) {
     bits.push(res.changed ? "screen changed" : "screen did NOT change (no visible effect)");
   }
   if (res.error) bits.push(String(res.error));
-  bits.push(`${res.width}x${res.height}`);
+  if (res.image_error) bits.push(`image unavailable: ${res.image_error}`);
+  if (res.observation === "follow-up") {
+    bits.push("follow-up screenshot (not atomic on a shared session)");
+  }
+  if (res.width !== undefined && res.height !== undefined) {
+    bits.push(`${res.width}x${res.height}`);
+  }
 
   const content: Content[] = [{ type: "text", text: `${note} | ${bits.join(" | ")}` }];
-  if (typeof res.image === "string") {
-    content.push({ type: "image", data: res.image.split(",", 2)[1], mimeType: "image/png" });
+  if (typeof res.image === "string" && res.image.includes(",")) {
+    const [header, data] = res.image.split(",", 2);
+    const mimeType = header.match(/^data:([^;]+);base64$/)?.[1] ?? "image/png";
+    if (data) content.push({ type: "image", data, mimeType });
   }
-  return { content, details: { ok: res.ok !== false, changed: res.changed, frame: res.frame } };
+  return {
+    content,
+    details: { ok: res.ok !== false, changed: res.changed, frame: res.frame },
+  };
 }
 
 export default function (pi: ExtensionAPI) {
@@ -79,7 +113,10 @@ export default function (pi: ExtensionAPI) {
     query = "",
   ) => {
     try {
-      const image = OBSERVE_AFTER_ACTION ? "" : "&image=0";
+      // The server encodes a frame only when asked. Asking inside the action
+      // keeps action and observation atomic; older servers that ignore the
+      // flag fall back to a separate look below.
+      const image = OBSERVE_AFTER_ACTION ? "&image=1" : "&image=0";
       const action = await call("POST", `${path}?scale=${SCALE}${image}${query}`, body, signal);
       if (action.ended || action.ok === false) {
         return frame(action, note);
@@ -100,7 +137,7 @@ export default function (pi: ExtensionAPI) {
         settled_frames: action.settled_frames,
       }, note);
     } catch (err) {
-      return offline(err);
+      return toolFailure(err, signal);
     }
   };
 
@@ -116,7 +153,7 @@ export default function (pi: ExtensionAPI) {
       try {
         return frame(await call("GET", `/screen?scale=${SCALE}`, undefined, signal), "look");
       } catch (err) {
-        return offline(err);
+        return toolFailure(err, signal);
       }
     },
   });
@@ -127,16 +164,16 @@ export default function (pi: ExtensionAPI) {
     description:
       "Press one key. Movement keys are kp7, kp9, kp1 and kp3 (preferred), with " +
       "left, up, down and right as equivalent aliases. Other keys: " +
-      "enter, space, esc, y, n, a-z, 0-9, f1-f12, tab, backspace, or a combo like 'alt+x'. " +
+      "enter, space, esc, y, n, a-z, 0-9, f1-f12, tab, backspace. " +
       "Use times to repeat the same key, for example walking several tiles or advancing " +
       "several lines of dialogue. Read the current screen: ordinary dialogue, choices, " +
       `and animations may respond differently. Do not assume failed movement means a cutscene. ${ACTION_RESULT}`,
     promptSnippet: "Press a key in the game",
     parameters: Type.Object({
-      key: Type.String({ description: "Key name, e.g. up, enter, esc, y" }),
+      key: Type.String({ minLength: 1, maxLength: 32, description: "Key name, e.g. kp3, enter, esc, y" }),
       times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
-      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 100000,
-        description: "Frames to hold the key. Omit to use the game server's safe tap default.",
+      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 1200,
+        description: "Frames to hold the key. Omit to use the game server's tap default.",
       })),
       stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still before the screenshot. Raise if you get a half-written dialogue line.",
@@ -165,10 +202,10 @@ export default function (pi: ExtensionAPI) {
       `the intermediate frames. ${ACTION_RESULT}`,
     promptSnippet: "Press a sequence of keys in the game",
     parameters: Type.Object({
-      keys: Type.Array(Type.String(), {
-        minItems: 1, description: "Key names in order",
+      keys: Type.Array(Type.String({ minLength: 1, maxLength: 32 }), {
+        minItems: 1, maxItems: 100, description: "Key names in order",
       }),
-      gap: Type.Optional(Type.Integer({ minimum: 0,
+      gap: Type.Optional(Type.Integer({ minimum: 0, maximum: 600,
         description: "Frames between keys, default 6" })),
       stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still after the sequence",
@@ -244,7 +281,7 @@ export default function (pi: ExtensionAPI) {
       "Check that saving succeeded before relying on it; the game's own save menu " +
       "is limited to the world map.",
     promptSnippet: "Snapshot the emulator state",
-    parameters: Type.Object({ name: Type.String({ description: "Snapshot name" }) }),
+    parameters: Type.Object({ name: Type.String({ minLength: 1, maxLength: 64, description: "Snapshot name" }) }),
     execute: (_id, params, signal) => act("/save", { name: params.name }, `save ${params.name}`, signal),
   });
 
@@ -255,7 +292,7 @@ export default function (pi: ExtensionAPI) {
       "Restore a snapshot taken by game_save, including its current dialogue, menu, " +
       "or animation state. Inspect the restored screen before choosing the next action.",
     promptSnippet: "Restore an emulator snapshot",
-    parameters: Type.Object({ name: Type.String({ description: "Snapshot name" }) }),
+    parameters: Type.Object({ name: Type.String({ minLength: 1, maxLength: 64, description: "Snapshot name" }) }),
     execute: (_id, params, signal) => act("/load", { name: params.name }, `load ${params.name}`, signal),
   });
 
@@ -268,9 +305,12 @@ export default function (pi: ExtensionAPI) {
     async execute(_id, _params, signal) {
       try {
         const res = await call("GET", "/slots", undefined, signal);
-        return { content: [{ type: "text" as const, text: JSON.stringify(res, null, 2) }], details: res };
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(res, null, 2) }],
+          details: res,
+        };
       } catch (err) {
-        return offline(err);
+        return toolFailure(err, signal);
       }
     },
   });

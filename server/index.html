@@ -533,9 +533,12 @@ function connect() {
     if (typeof e.data === "string") {
       const m = JSON.parse(e.data);
       if (m.t === "log") {
-        // A process restart resets history ids and session counters. Clear the
-        // old panel before accepting the new backlog, otherwise deduplication
-        // hides every fresh entry until ids catch up.
+        // A process restart resets history ids and session counters. A page
+        // that reconnects without reloading still has the old lastId, so it
+        // would reject every new entry as a duplicate until ids catch up.
+        // Distinguish a restarted session from an ordinary socket reconnect
+        // by identity. Counts and projected uptime are a compatibility
+        // fallback for a page reconnecting to an older server.
         if (m.s && meter) {
           const oldUptime = meter.uptime_s + (Date.now() - meterAt) / 1000;
           const restarted = m.s.started_at !== undefined && meter.started_at !== undefined

@@ -156,8 +156,11 @@ class MCPHTTPContractTests(unittest.TestCase):
                 with self.subTest(profile=profile, tool=name), patch.object(
                         server, "_call", return_value={"ok": True}) as call:
                     self.call_tool(server, name, arguments)
-                    self.assertEqual(call.call_args.args[2], expected_body)
-                    self.assertNotIn("stable=", call.call_args.args[1])
+                    # Standalone mode follows a frameless action with a look;
+                    # the first call is the action itself.
+                    action = call.call_args_list[0]
+                    self.assertEqual(action.args[2], expected_body)
+                    self.assertNotIn("stable=", action.args[1])
 
     def test_standalone_action_preserves_png_image_content(self):
         response = json.dumps({
@@ -168,7 +171,7 @@ class MCPHTTPContractTests(unittest.TestCase):
         with http_fixture([(200, "application/json", response)]) as (origin, requests):
             server = load_server("standalone", QUNXIA_API=origin)
             result = self.call_tool(server, "press", {"key": "esc"})
-        self.assertEqual(requests, [("POST", "/key?scale=2", {"key": "esc"})])
+        self.assertEqual(requests, [("POST", "/key?scale=2&image=1", {"key": "esc"})])
         self.assertEqual([part.type for part in result.content], ["text", "image"])
         self.assertEqual(result.content[1].data, self.PNG)
         self.assertEqual(result.content[1].model_dump(by_alias=True)["mimeType"], "image/png")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """MCP server exposing 金庸群俠傳 to any LLM agent.
 
-Run:  uv run --with 'mcp>=2,<3' mcp-server/server.py
+Run:  uv run --with 'mcp>=1,<3' mcp-server/server.py
 """
 import base64
 import json
@@ -14,21 +14,39 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game_knowledge import adapt_guide, mcp_guide as build_guide
 
+from mcp.types import ImageContent, TextContent
+
 try:  # mcp 2.x
     from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
 except ModuleNotFoundError:  # mcp 1.x
     from mcp.server.fastmcp import FastMCP as MCPServer
-from mcp.types import ImageContent, TextContent
+    from mcp.server.fastmcp.exceptions import ToolError
 
 API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")
 PROFILE = os.environ.get("QUNXIA_MCP_PROFILE", "standalone")
 if PROFILE not in ("standalone", "benchmark"):
     raise ValueError("QUNXIA_MCP_PROFILE must be standalone or benchmark")
 BENCHMARK = PROFILE == "benchmark"
-DEFAULT_SCALE = int(os.environ.get("QUNXIA_SCALE", "1" if BENCHMARK else "2"))
+try:
+    DEFAULT_SCALE = max(1, min(int(os.environ.get("QUNXIA_SCALE", "1" if BENCHMARK else "2")), 6))
+except ValueError:
+    DEFAULT_SCALE = 1 if BENCHMARK else 2
 BASE = API[:-4] if API.endswith("/api") else API
 LANGUAGE = os.environ.get("QUNXIA_BENCH_LANG", "en")
+AGENT = "".join(
+    c for c in os.environ.get("QUNXIA_AGENT", "mcp") if c.isalnum() or c in "-_."
+)[:16] or "mcp"
+
+# Mirrors the game server's own request limits, so a bad argument is rejected
+# here with a readable message instead of a 400 from the API.
+DEFAULT_TAP_FRAMES = 10
 MAX_ARRAY_REPEAT = 100
+MAX_HOLD_FRAMES = 1200
+MAX_GAP_FRAMES = 600
+MAX_STABLE_FRAMES = 600
+MAX_WAIT_MS = 60000
+MAX_ACTION_FRAMES = 2800
 
 
 def _benchmark_guide():
@@ -56,7 +74,11 @@ def expose(enabled=True):
     return mcp.tool() if enabled else (lambda function: function)
 
 
-class GameOffline(RuntimeError):
+class GameOffline(ToolError):
+    pass
+
+
+class GameAPIError(ToolError):
     pass
 
 
@@ -67,18 +89,38 @@ def _bounded_int(name, value, minimum, maximum):
     return value
 
 
+def _action_length(count, hold=DEFAULT_TAP_FRAMES, gap=6):
+    total = count * (hold + 2) + max(0, count - 1) * gap
+    if total > MAX_ACTION_FRAMES:
+        raise ValueError(
+            f"action is too long ({total} frames; maximum {MAX_ACTION_FRAMES})")
+
+
+def _state_name(name):
+    if not isinstance(name, str) or not 1 <= len(name) <= 64:
+        raise ValueError("name must be a string from 1 to 64 characters")
+    return name
+
+
+def _decode_response(raw, path):
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise GameOffline(f"{path} returned a non-object JSON response")
+    return value
+
+
 def _call(method, path, payload=None, timeout=240):
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(
         API + path, data=data, method=method,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Agent": AGENT},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read())
+            return _decode_response(r.read(), path)
     except urllib.error.HTTPError as e:
         try:
-            return json.loads(e.read())
+            return _decode_response(e.read(), path)
         except Exception:
             raise GameOffline(f"{path} failed: HTTP {e.code}")
     except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
@@ -94,19 +136,20 @@ def _result(res, note=""):
         summary["played_seconds"] = res.get("played_seconds", res.get("played"))
         return [TextContent(type="text", text="BENCHMARK ENDED | "
                             + json.dumps(summary, ensure_ascii=False))]
-    out = []
+    if res.get("ok", True) is False:
+        raise GameAPIError(str(res.get("error") or "game API rejected the action"))
     bits = []
-    if not res.get("ok", True):
-        bits.append("FAILED")
     if "changed" in res:
         bits.append("screen changed" if res["changed"] else
                     "screen did NOT change (the action had no visible effect)")
-    if res.get("error"):
-        bits.append(str(res["error"]))
-    bits.append(f'{res.get("width")}x{res.get("height")}')
+    if res.get("image_error"):
+        bits.append(f'image unavailable: {res["image_error"]}')
+    if res.get("observation") == "follow-up":
+        bits.append("follow-up screenshot (not atomic on a shared session)")
+    if res.get("width") is not None and res.get("height") is not None:
+        bits.append(f'{res["width"]}x{res["height"]}')
     line = (note + " | " if note else "") + " | ".join(str(b) for b in bits)
-    out.append(TextContent(type="text", text=line))
-
+    out = [TextContent(type="text", text=line)]
     img = res.get("image")
     if img:
         out.append(ImageContent(
@@ -118,12 +161,29 @@ def _result(res, note=""):
 
 
 def _act(path, payload, note="", **params):
-    q = {"scale": DEFAULT_SCALE}
-    if BENCHMARK:
-        q["image"] = 0
+    # The server encodes a frame only when asked. Standalone mode asks inside
+    # the action so action and observation are atomic; benchmark mode returns
+    # metadata only and the model calls look.
+    q = {"scale": DEFAULT_SCALE, "image": 0 if BENCHMARK else 1}
     q.update({k: v for k, v in params.items() if v is not None})
     qs = "&".join(f"{k}={v}" for k, v in q.items())
-    return _result(_call("POST", f"{path}?{qs}", payload), note)
+    res = _call("POST", f"{path}?{qs}", payload)
+    if not BENCHMARK and res.get("ok", True) and not res.get("ended") and not res.get("image"):
+        # An older server ignores image=1. Look separately and say so, since
+        # another controller may have acted in between.
+        try:
+            observed = _call("GET", "/screen")
+            if observed.get("ok", True) and observed.get("image"):
+                for key in ("image", "image_width", "image_height", "width",
+                            "height", "frame"):
+                    if key in observed:
+                        res[key] = observed[key]
+                res["observation"] = "follow-up"
+            elif observed.get("ok", True) is False:
+                res["image_error"] = str(observed.get("error") or "screen failed")
+        except GameOffline as exc:
+            res["image_error"] = str(exc)
+    return _result(res, note)
 
 
 # ---------------------------------------------------------------- observation
@@ -169,6 +229,11 @@ def press(key: str, times: int = 1, hold: int | None = None,
     respond differently. Do not assume a failed movement means a cutscene.
     """
     times = _bounded_int("times", times, 1, MAX_ARRAY_REPEAT)
+    if hold is not None:
+        _bounded_int("hold", hold, 1, MAX_HOLD_FRAMES)
+    if stable is not None:
+        _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
+    _action_length(times, hold if hold is not None else DEFAULT_TAP_FRAMES)
     payload = {"hold": hold} if hold is not None else {}
     if times > 1:
         return _act("/keys", {"keys": [key] * times, **payload},
@@ -185,22 +250,30 @@ def press_sequence(keys: list[str], gap: int = 6,
     single presses when you are unsure what a screen will do, because you only
     see the result of the last key here.
     """
+    if not isinstance(keys, list) or not 1 <= len(keys) <= MAX_ARRAY_REPEAT:
+        raise ValueError(f"keys must contain between 1 and {MAX_ARRAY_REPEAT} entries")
+    _bounded_int("gap", gap, 0, MAX_GAP_FRAMES)
+    if stable is not None:
+        _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
+    _action_length(len(keys), gap=gap)
     return _act("/keys", {"keys": keys, "gap": gap},
                 note=" ".join(keys), stable=stable)
 
 
 @expose(not BENCHMARK)
 def move(direction: str, steps: int = 1) -> list:
-    """Walk. direction is up, down, left, right.
+    """Walk. direction is kp7, kp9, kp1, kp3, or up, down, left, right.
 
     Obstacles may prevent movement. For an ordinary person or container, stand
     adjacent, face the target, then press enter or space to
     investigate. Stepping on a tile can trigger a separate story event. If
     movement is unclear, inspect the screen rather than assuming its cause.
     """
-    if direction not in ("up", "down", "left", "right"):
-        raise ValueError("direction must be up, down, left or right")
+    direction = str(direction).lower()
+    if direction not in ("up", "down", "left", "right", "kp7", "kp9", "kp1", "kp3"):
+        raise ValueError("direction must be kp7, kp9, kp1, kp3, up, down, left or right")
     steps = _bounded_int("steps", steps, 1, MAX_ARRAY_REPEAT)
+    _action_length(steps)
     return _act("/keys", {"keys": [direction] * steps, "gap": 6},
                 note=f"move {direction} x{steps}")
 
@@ -213,6 +286,7 @@ def wait(ms: int = 1000) -> list:
     world map. Benchmark mode returns metadata only; call look when you need
     the next visible frame.
     """
+    _bounded_int("ms", ms, 0, MAX_WAIT_MS)
     return _act("/wait", {"ms": ms}, note=f"wait {ms}ms")
 
 
@@ -226,6 +300,7 @@ def save_state(name: str = "agent") -> list:
     succeeded before relying on it; the game's own save menu is limited to the
     world map.
     """
+    _state_name(name)
     return _act("/save", {"name": name}, note=f"save {name}")
 
 
@@ -236,13 +311,17 @@ def load_state(name: str = "agent") -> list:
     Inspect the restored screen, including any dialogue, menu, or animation,
     before choosing the next action.
     """
+    _state_name(name)
     return _act("/load", {"name": name}, note=f"load {name}")
 
 
 @expose(not BENCHMARK)
 def list_states() -> str:
     """List the snapshots on disk with their sizes and timestamps."""
-    return json.dumps(_call("GET", "/slots"), ensure_ascii=False, indent=2)
+    res = _call("GET", "/slots")
+    if res.get("ok", True) is False:
+        raise GameAPIError(str(res.get("error") or "listing states failed"))
+    return json.dumps(res, ensure_ascii=False, indent=2)
 
 
 @expose(not BENCHMARK)

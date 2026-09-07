@@ -12,7 +12,7 @@ Runs the game with no display and streams the VGA framebuffer to a browser.
 
 ```sh
 ./build.sh                      # -> libqunxia.so (Linux)
-python3 -m venv .venv && .venv/bin/pip install aiohttp
+python3 -m venv .venv && .venv/bin/pip install aiohttp pillow
 .venv/bin/python server.py      # PORT=8080
 ```
 
@@ -35,10 +35,14 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   the same thing, and no scaling knob: upscaling server-side only made a bigger
   PNG out of the same pixels.
 - `/api/key`, `/api/keys`, `/api/wait` apply input and wait for
-  the screen to react and then settle, but return no picture. Acting and
-  looking are separate calls. Short taps default to ten emulated frames, and
+  the screen to react and then settle. They return metadata by default; add
+  `?image=1` to capture the settled PNG before another controller can act.
+  Short taps default to ten emulated frames, and
   their down, release and inter-tap phases are fenced by the core frame clock,
   so host scheduling cannot silently collapse repeated movement taps.
+- `GET /api/keys`, `GET /api/slots`, `POST /api/save` and `POST /api/load` mirror the native
+  control API. Save and load are paused between emulated frames so libretro is
+  never serialized concurrently with `retro_run`.
 - `POST /api/reset?token=...` hidden. Restores the start state, a character
   already created and standing in the opening room, and wipes the activity log.
   Creating a character means driving the 注音 IME, which tests input-method
@@ -58,7 +62,7 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   that were held and encodes in the browser with MediaRecorder, so the server
   spends nothing on it. MediaRecorder captures in real time, so an export takes
   the length of the recording divided by four.
-- `/api/history` the action log. Every REST call and every key pressed in a
+- `/api/history?limit=100` the bounded action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the
   shared session side by side. Only the calls that explicitly ask to see the
@@ -66,13 +70,14 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   (about 2 KB). Attaching one to every keypress buried the log. Only the
   newest 40 entries keep their image.
 
-PNGs are written by a ~10 line encoder over `zlib` rather than pulling in an
-image library.
+The live canvas uses the small `zlib` tile encoder. Pillow is used only for
+on-demand PNG/WebP observations and activity thumbnails.
 
 ## Several agents on one session
 
-Actions are serialised so the game stays coherent, and the queue is FIFO, so
-agents take strictly fair turns. Measured against the deployed e2-micro, each
+REST actions and browser key holds share one single-player lease, so a browser
+release cannot cancel an API press (or another browser's hold). The queue is
+FIFO. Measured against the deployed e2-micro, each
 agent pressing a key and reading the screen every third action, with a
 spectator attached throughout:
 

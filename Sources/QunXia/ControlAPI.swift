@@ -10,6 +10,10 @@ final class ControlAPI {
     // keyup to be consumed in the same game-loop iteration. Ten remains well
     // below the held-key repeat delay while reliably producing one tap.
     private static let defaultTapFrames = 10
+    private static let maxHoldFrames = 1200
+    private static let maxGapFrames = 600
+    private static let maxKeysPerAction = 100
+    private static let maxActionFrames = 2800
 
     private let listener: NWListener
     private let log: ActionLog
@@ -122,8 +126,11 @@ final class ControlAPI {
             return query[key]
         }
         func int(_ key: String) -> Int? {
+            if json[key] is Bool { return nil }
             if let i = json[key] as? Int { return i }
-            if let d = json[key] as? Double { return Int(d) }
+            if let d = json[key] as? Double,
+               d.isFinite, d.rounded(.towardZero) == d,
+               d >= Double(Int.min), d <= Double(Int.max) { return Int(d) }
             if let s = query[key] { return Int(s) }
             return nil
         }
@@ -164,7 +171,10 @@ final class ControlAPI {
 
         case ("GET", "/history"):
             log.add("GET", "/history")
-            let arr = log.items.suffix(r.int("limit") ?? 100).map { rec -> [String: Any] in
+            guard let limit = bounded(r, "limit", default: 100, min: 0, max: 500) else {
+                return respond(400, "application/json", json(["ok": false, "error": "limit must be an integer from 0 to 500"]))
+            }
+            let arr = log.items.suffix(limit).map { rec -> [String: Any] in
                 ["time": Self.iso.string(from: rec.time), "verb": rec.verb,
                  "target": rec.target, "payload": rec.payload, "ok": rec.ok]
             }
@@ -188,19 +198,45 @@ final class ControlAPI {
                 log.add("KEY", r.string("key") ?? "?", ok: false)
                 return respond(400, "application/json", json(["ok": false, "error": "unknown key", "hint": "GET /keys"]))
             }
-            let hold = max(1, r.int("hold") ?? Self.defaultTapFrames)
+            guard let hold = bounded(r, "hold", default: Self.defaultTapFrames,
+                                     min: 1, max: Self.maxHoldFrames),
+                  let times = bounded(r, "times", default: 1,
+                                      min: 1, max: Self.maxKeysPerAction),
+                  let gap = bounded(r, "gap", default: 6,
+                                    min: 0, max: Self.maxGapFrames) else {
+                return respond(400, "application/json", json(["ok": false, "error": "invalid hold, times, or gap"]))
+            }
+            let total = times * (hold + 2) + max(0, times - 1) * gap
+            guard total <= Self.maxActionFrames else {
+                return respond(400, "application/json", json(["ok": false, "error": "action exceeds \(Self.maxActionFrames) frames"]))
+            }
             // Logged before the keys go in, so the pane shows an action
             // starting rather than reporting one already over.
-            log.add("KEY", name)
-            let res = emu.submitSync([.press(combo, frames: hold)], settle: settle(r), scale: scale, wantShot: r.wantsImage)
-            return reply(r, ok: res.ok, extra: ["key": name], shot: res.shot, changed: res.changed)
+            log.add("KEY", times > 1 ? "\(name) x\(times)" : name)
+            var steps: [Emulator.Step] = []
+            for i in 0..<times {
+                steps.append(.press(combo, frames: hold))
+                if i != times - 1, gap > 0 { steps.append(.wait(gap)) }
+            }
+            let res = emu.submitSync(steps, settle: settle(r), scale: scale,
+                                     wantShot: r.wantsImage, timeout: 60)
+            return reply(r, ok: res.ok, extra: ["key": name, "times": times], shot: res.shot, changed: res.changed)
 
         case ("POST", "/keys"):
-            guard let names = r.strings("keys"), !names.isEmpty else {
-                return respond(400, "application/json", json(["ok": false, "error": "keys required"]))
+            guard let names = r.strings("keys"),
+                  1...Self.maxKeysPerAction ~= names.count else {
+                return respond(400, "application/json", json(["ok": false, "error": "keys must contain 1 to \(Self.maxKeysPerAction) entries"]))
             }
-            let hold = max(1, r.int("hold") ?? Self.defaultTapFrames)
-            let gap = max(0, r.int("gap") ?? 6)
+            guard let hold = bounded(r, "hold", default: Self.defaultTapFrames,
+                                     min: 1, max: Self.maxHoldFrames),
+                  let gap = bounded(r, "gap", default: 6,
+                                    min: 0, max: Self.maxGapFrames) else {
+                return respond(400, "application/json", json(["ok": false, "error": "invalid hold or gap"]))
+            }
+            let total = names.count * (hold + 2) + max(0, names.count - 1) * gap
+            guard total <= Self.maxActionFrames else {
+                return respond(400, "application/json", json(["ok": false, "error": "action exceeds \(Self.maxActionFrames) frames"]))
+            }
             var steps: [Emulator.Step] = []
             var bad: [String] = []
             for (i, n) in names.enumerated() {
@@ -217,9 +253,20 @@ final class ControlAPI {
             return reply(r, ok: res.ok, extra: ["keys": names], shot: res.shot, changed: res.changed)
 
         case ("POST", "/wait"):
-            let frames = r.int("frames") ?? Int(Double(r.int("ms") ?? 500) * core_fps() / 1000.0)
+            let frames: Int
+            if r.value("frames") != nil {
+                guard let parsed = bounded(r, "frames", default: 0, min: 0, max: 4000) else {
+                    return respond(400, "application/json", json(["ok": false, "error": "frames must be an integer from 0 to 4000"]))
+                }
+                frames = parsed
+            } else {
+                guard let ms = bounded(r, "ms", default: 500, min: 0, max: 60000) else {
+                    return respond(400, "application/json", json(["ok": false, "error": "ms must be an integer from 0 to 60000"]))
+                }
+                frames = min(4000, Int(Double(ms) * core_fps() / 1000.0))
+            }
             log.add("WAIT", "\(frames)f")
-            let res = emu.submitSync([.wait(max(0, min(frames, 4000)))], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, timeout: 120)
+            let res = emu.submitSync([.wait(frames)], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, timeout: 120)
             return reply(r, ok: res.ok, extra: ["frames": frames], shot: res.shot, changed: res.changed)
 
         case ("POST", "/save"):
@@ -254,6 +301,13 @@ final class ControlAPI {
     }
 
     // MARK: - helpers
+
+    private func bounded(_ r: Request, _ key: String, default fallback: Int,
+                         min: Int, max: Int) -> Int? {
+        if r.value(key) == nil { return fallback }
+        guard let value = r.int(key), min...max ~= value else { return nil }
+        return value
+    }
 
     private func settle(_ r: Request, fallbackMin: Int? = nil) -> Emulator.Settle {
         if let fixed = r.int("settle") { return .fixed(max(0, min(fixed, 2000))) }
@@ -337,7 +391,7 @@ final class ControlAPI {
     GET  /slots                       savestates on disk
     GET  /help
 
-    POST /key    {"key":"kp3"}        one key; "hold" frames (default 10)
+    POST /key    {"key":"kp3"}        one key; optional "times", "hold", "gap"
     POST /keys   {"keys":["kp9","enter"]}   several in order; "gap" between
     POST /wait   {"ms":1000}          let the game run
     POST /save   {"slot":1} | {"name":"before-boss"}

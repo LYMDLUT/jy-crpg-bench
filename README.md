@@ -93,10 +93,11 @@ For the browser runner, see `server/README.md`.
 
 ## Control loop
 
-Acting and looking are separate calls. A key press applies input and waits for
-the screen to settle; a screen call returns the picture. An agent acts several
-times and looks when it needs to see, which costs one settle per action and one
-encode per look.
+A key press applies input and waits for the screen to settle. The native runner
+includes that settled picture by default. The headless runner returns metadata
+by default to avoid encoding images nobody reads; add `?image=1` to capture the
+picture before the action lock is released, or call `/api/screen` separately.
+The MCP and pi tools request the atomic action image.
 
 ```mermaid
 sequenceDiagram
@@ -107,9 +108,7 @@ sequenceDiagram
     S->>E: key down, hold, key up
     E-->>S: frame hashes, 70 fps
     Note over S,E: wait for the picture to change,<br/>then to hold still
-    S-->>A: {"changed": true}
-    A->>S: GET /api/screen
-    S-->>A: PNG of the settled screen
+    S-->>A: {"changed": true, "image": "..."} when requested
 ```
 
 Waiting for the screen to change before waiting for it to settle is what makes
@@ -192,13 +191,17 @@ POST /load   {"slot":1}
 POST /reset
 ```
 
-`image` comes back as a base64 PNG data URI. `?format=png` gives raw bytes,
-`?image=0` skips the capture, and `?react`, `?stable` and `?maxsettle` tune the
-wait. `"changed": false` means the action had no visible effect. `frame` counts
+`image` is a base64 PNG data URI. Native actions include it unless `?image=0`;
+headless actions include it with `?image=1`. `?format=png` gives raw bytes on a
+screen request, and `?react`, `?stable` and `?maxsettle` tune the wait.
+`"changed": false` means the framebuffer never visibly changed; it is not a
+game-success signal. `frame` counts
 distinct video frames and stalls on a static screen, while `ticks` always rises
 while the emulator runs. Boot takes about 14 seconds.
 
-The browser runner exposes the same surface under `/api/`.
+The browser runner exposes the same key, screen, save/load and history surface
+under `/api/`. Its benchmark reset remains token-protected so a visitor cannot
+wipe a shared run.
 
 ## Letting an LLM play
 
