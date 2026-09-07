@@ -1,7 +1,10 @@
+import pathlib
 import struct
+import sys
 import unittest
 
-from server.state_reader import (
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from state_reader import (
     INVENTORY_BYTES,
     INVENTORY_SLOTS,
     decode_inventory,

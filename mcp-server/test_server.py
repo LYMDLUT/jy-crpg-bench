@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 import base64
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -139,7 +140,10 @@ class MCPHTTPContractTests(unittest.TestCase):
     PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
 
     def call_tool(self, server, name, arguments):
-        return asyncio.run(server.mcp.call_tool(name, arguments))
+        result = asyncio.run(server.mcp.call_tool(name, arguments))
+        if hasattr(result, "content"):  # mcp 2.x returns CallToolResult
+            return result
+        return SimpleNamespace(content=list(result))  # mcp 1.x returns the blocks
 
     def test_null_optional_timing_arguments_use_the_server_defaults(self):
         for profile in ("standalone", "benchmark"):

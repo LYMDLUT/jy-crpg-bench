@@ -14,7 +14,10 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game_knowledge import adapt_guide, mcp_guide as build_guide
 
-from mcp.server.mcpserver import MCPServer
+try:  # mcp 2.x
+    from mcp.server.mcpserver import MCPServer
+except ModuleNotFoundError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as MCPServer
 from mcp.types import ImageContent, TextContent
 
 API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")

@@ -1,8 +1,11 @@
 import copy
+import pathlib
+import sys
 import unittest
 from unittest.mock import patch
 
-from server import warden
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import warden
 
 
 class ActionAccountingTests(unittest.TestCase):

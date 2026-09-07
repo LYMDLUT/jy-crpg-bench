@@ -98,7 +98,7 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
             core_frame_hash=lambda: 2,
         )
         with (patch.object(game_server, "LIB", fake_lib),
-              patch.object(game_server.asyncio, "sleep", AsyncMock())):
+              patch.object(game_server, "wait_core_frames", AsyncMock())):
             waited, changed = await game_server.settle(
                 1, react=30, stable=5, maxframes=1)
         self.assertTrue(changed)
