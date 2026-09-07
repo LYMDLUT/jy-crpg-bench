@@ -162,7 +162,8 @@ def press(key: str, times: int = 1, hold: int | None = None,
          tap default; override it only for an intentional longer press.
     stable: frames the picture must hold still before the action settles.
 
-    Remember: during a cutscene every key just advances the dialogue.
+    Read the current screen: ordinary dialogue, choices, and animations may
+    respond differently. Do not assume a failed movement means a cutscene.
     """
     times = _bounded_int("times", times, 1, MAX_ARRAY_REPEAT)
     payload = {"hold": hold} if hold is not None else {}
@@ -189,9 +190,10 @@ def press_sequence(keys: list[str], gap: int = 6,
 def move(direction: str, steps: int = 1) -> list:
     """Walk. direction is up, down, left, right.
 
-    One step turns the character to face that way and moves one tile if it is
-    not blocked, so walking into a person or object is how you talk to it. If
-    nothing moves, you are either blocked or inside a cutscene.
+    Obstacles may prevent movement. For an ordinary person or container, stand
+    adjacent, face the target, then press enter or space to
+    investigate. Stepping on a tile can trigger a separate story event. If
+    movement is unclear, inspect the screen rather than assuming its cause.
     """
     if direction not in ("up", "down", "left", "right"):
         raise ValueError("direction must be up, down, left or right")
@@ -217,8 +219,9 @@ def wait(ms: int = 1000) -> list:
 def save_state(name: str = "agent") -> list:
     """Snapshot the whole emulator under this name.
 
-    Unlike the game's own save system this works anywhere, including mid-scene
-    and mid-battle. Take one before anything you might want to undo.
+    Emulator snapshots can include scene or battle state. Check that saving
+    succeeded before relying on it; the game's own save menu is limited to the
+    world map.
     """
     return _act("/save", {"name": name}, note=f"save {name}")
 
@@ -227,8 +230,8 @@ def save_state(name: str = "agent") -> list:
 def load_state(name: str = "agent") -> list:
     """Restore a snapshot taken by save_state.
 
-    Note that a snapshot taken during a cutscene restores into that cutscene,
-    so movement will be ignored until you finish reading it.
+    Inspect the restored screen, including any dialogue, menu, or animation,
+    before choosing the next action.
     """
     return _act("/load", {"name": name}, note=f"load {name}")
 
