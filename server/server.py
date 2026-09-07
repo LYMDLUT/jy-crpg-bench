@@ -25,6 +25,8 @@ from aiohttp import WSMsgType, web
 from PIL import Image
 
 from prompt import system_prompt
+from health import Health, EnvironmentFailure
+from peers import Peer
 
 ROOT = pathlib.Path(__file__).resolve().parent
 LIB = ctypes.CDLL(str(ROOT / "libqunxia.so"))
@@ -56,6 +58,9 @@ LIB.core_save_state.restype = ctypes.c_bool
 LIB.core_load_state.argtypes = [ctypes.c_char_p]
 LIB.core_load_state.restype = ctypes.c_bool
 
+health = None
+peers = {}
+emulator_stop = threading.Event()
 BUF = ctypes.create_string_buffer(4 << 20)
 
 # Key name -> RETROK. Same vocabulary as the native runner.
@@ -183,36 +188,19 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False):
     return entry
 
 
-async def _send_one(ws, data, text):
-    """One send, bounded. A peer that vanished without closing the TCP
-    connection blocks forever once its window fills, so every send needs a
-    deadline of its own."""
-    try:
-        send = ws.send_str(data) if text else ws.send_bytes(data)
-        await asyncio.wait_for(send, timeout=SEND_TIMEOUT)
-        return ws, True
-    except Exception:
-        return ws, False
+def drop_peer(ws):
+    clients.discard(ws)
+    if peers.pop(ws, None) is not None:
+        stats["dropped"] += 1
 
 
 async def fanout(data, text=False):
-    """Send to every client at once and drop the ones that fail.
-
-    Sending serially meant a single stuck client stalled the broadcast for
-    everyone, which is how streaming died while the emulator kept running.
-    """
-    targets = []
     for ws in list(clients):
-        if ws.closed:
+        peer = peers.get(ws)
+        if ws.closed or peer is None:
             clients.discard(ws)
         else:
-            targets.append(ws)
-    if not targets:
-        return
-    for ws, ok in await asyncio.gather(*(_send_one(ws, data, text) for ws in targets)):
-        if not ok:
-            clients.discard(ws)
-            stats["dropped"] += 1
+            peer.put(data, text)
 
 
 async def broadcast_log(entry):
@@ -223,7 +211,7 @@ def emulate():
     """Own thread. ctypes drops the GIL for each call, so asyncio keeps running."""
     budget = 1.0 / max(1.0, LIB.core_fps())
     nxt = time.perf_counter()
-    while True:
+    while not emulator_stop.is_set():
         if paused.is_set():
             paused_ack.set()
             time.sleep(0.02)
@@ -367,16 +355,17 @@ async def reap():
 async def send_keyframe(ws):
     n = LIB.fb_encode_delta(BUF, len(BUF), 1)
     if n > 0:
-        await ws.send_bytes(zlib.compress(BUF.raw[:n], 6))
+        peers[ws].put(zlib.compress(BUF.raw[:n], 6))
 
 
 async def ws_handler(request):
-    ws = web.WebSocketResponse(max_msg_size=0, heartbeat=30)
+    ws = web.WebSocketResponse(max_msg_size=4096, heartbeat=30, compress=False)
     await ws.prepare(request)
     clients.add(ws)
+    peers[ws] = Peer(ws, SEND_TIMEOUT, drop_peer)
     await send_keyframe(ws)
-    await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:],
-                                  "s": session_summary()}))
+    peers[ws].put(json.dumps({"t": "log", "e": list(history)[-80:],
+                                  "s": session_summary()}), text=True)
     # code -> (name, core tick at keydown). Browser automation can emit keydown
     # and keyup within one emulated frame, so remember when each press reached
     # the core and fence short pulses on release.
@@ -386,7 +375,12 @@ async def ws_handler(request):
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
                 continue
-            d = msg.json()
+            try:
+                d = msg.json()
+            except ValueError:
+                continue
+            if not isinstance(d, dict):
+                continue
             t = d.get("t")
             if t == "key":
                 name = str(d.get("k", "")).lower()
@@ -438,6 +432,9 @@ async def ws_handler(request):
         holding.clear()
         if lock_held:
             action_lock().release()
+        peer = peers.get(ws)
+        if peer:
+            peer.drop()
         clients.discard(ws)
     return ws
 
@@ -480,7 +477,7 @@ async def settle(baseline, react=30, stable=9, maxframes=120):
     last, runs, n = baseline, 0, 0
     seen: dict[int, int] = {}
     while n < maxframes:
-        await asyncio.sleep(ft)
+        await wait_core_frames(1)
         n += 1
         h = LIB.core_frame_hash()
         if not reacted:
@@ -514,7 +511,9 @@ async def wait_core_frames(frames):
     poll = min(0.01, 0.5 / fps)
     while LIB.core_ticks() < target:
         if loop.time() >= deadline:
-            raise RuntimeError("emulator frame clock stalled during input")
+            if health:
+                health.fail("core_stalled")
+            raise EnvironmentFailure("emulator frame clock stalled during input")
         await asyncio.sleep(poll)
 
 
@@ -526,7 +525,9 @@ async def pause_emulator():
     while not paused_ack.is_set():
         if loop.time() >= deadline:
             paused.clear()
-            raise RuntimeError("emulator did not pause")
+            if health:
+                health.fail("pause_stalled")
+            raise EnvironmentFailure("emulator did not pause")
         await asyncio.sleep(0.005)
 
 
@@ -1089,7 +1090,20 @@ async def status(_request):
         "width": LIB.core_width(), "height": LIB.core_height(),
         "fps": round(LIB.core_fps(), 3), "frame": LIB.core_frame_serial(),
         "clients": len(clients), "session": session_summary(), **stats,
+        **(health.sample() if health else {}),
     })
+
+
+@web.middleware
+async def json_errors(request, handler):
+    try:
+        if health:
+            health.check()
+        return await handler(request)
+    except EnvironmentFailure as exc:
+        if health:
+            health.fail(str(exc))
+        return web.json_response(health.fault, status=503)
 
 
 async def startup(app):
@@ -1097,9 +1111,34 @@ async def startup(app):
     api_lock = asyncio.Lock()
     app["pump"] = asyncio.create_task(pump())
     app["reaper"] = asyncio.create_task(reap())
+    if health:
+        app["heartbeat"] = asyncio.create_task(pulse_health())
+        health.set_phase("running")
+
+
+async def pulse_health():
+    while True:
+        health.pulse()
+        await asyncio.sleep(.25)
+
+
+async def cleanup(app):
+    for task in app.values():
+        if isinstance(task, asyncio.Task):
+            task.cancel()
+    await asyncio.gather(*(t for t in app.values() if isinstance(t, asyncio.Task)), return_exceptions=True)
+    for peer in list(peers.values()):
+        peer.drop()
+    emulator_stop.set()
+    if health:
+        LIB.core_shutdown()
+        health.stop()
 
 
 def main():
+    global health
+    health = Health(LIB.core_ticks, paused.is_set, os.environ.get("QUNXIA_HEALTH_DIR", str(pathlib.Path(SAVES) / ".health")))
+    health.start()
     os.makedirs(SAVES, exist_ok=True)
     # Measured on this class of VM: 77000 cycles leaves only 1.75x headroom over
     # the 70.09 fps the core needs, which a shared-core instance cannot hold once
@@ -1115,7 +1154,7 @@ def main():
         raise SystemExit("core_init failed: " + LIB.core_last_error().decode())
     threading.Thread(target=emulate, daemon=True).start()
 
-    app = web.Application()
+    app = web.Application(middlewares=[json_errors])
     app.add_routes([
         web.get("/", index),
         web.get("/ws", ws_handler),
@@ -1137,6 +1176,7 @@ def main():
     # Startup handlers are awaited, so the workers are detached tasks rather
     # than returned, or startup would block on loops that never end.
     app.on_startup.append(startup)
+    app.on_cleanup.append(cleanup)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
 
