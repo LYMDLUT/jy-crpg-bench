@@ -18,6 +18,7 @@ import socket
 import subprocess
 import time
 import uuid
+import sys
 
 import aiohttp
 from aiohttp import web
@@ -25,6 +26,8 @@ from aiohttp import web
 ROOT = pathlib.Path(__file__).resolve().parent
 REPO = ROOT.parent
 SERVER = REPO / "server" / "server.py"
+sys.path.insert(0, str(REPO / "server"))
+from health import clock, read_json, write_json, failure
 PYTHON = os.environ.get("QUNXIA_PYTHON", str(REPO / ".venv" / "bin" / "python"))
 RESULT_DIR = pathlib.Path(os.environ.get("QUNXIA_RESULT_DIR", "/tmp/qunxia-results"))
 LOCAL = pathlib.Path(os.environ.get("QUNXIA_LOCAL_PUBLIC", "/tmp/qunxia-public"))
@@ -146,13 +149,13 @@ async def wait_published(sid, res):
     """The run writes its summary the moment it ends, then rewrites it once the
     video is up. Wait for the second write so the agent's last reply carries a
     link rather than a null."""
-    if res.get("video_url") or res.get("error"):
+    if res.get("complete") or res.get("valid") is False or res.get("video_url") or res.get("error"):
         return res
     deadline = time.time() + VIDEO_WAIT
     while time.time() < deadline:
         await asyncio.sleep(2)
         later = result_of(sid)
-        if later and (later.get("video_url") or later.get("error")):
+        if later and (later.get("complete") or later.get("valid") is False or later.get("video_url") or later.get("error")):
             return later
     return res
 
@@ -205,6 +208,7 @@ async def start_session(agent, budget, publish=True):
     env.update(PORT=str(port),
                QUNXIA_GAME=str(game),
                QUNXIA_SAVES=str(saves),
+               QUNXIA_HEALTH_DIR=str(WORK / sid / "health"),
                QUNXIA_REC_KEEP_ALL="1",
                # People do watch bench runs now, so the stream is not throttled
                # to the old "nobody is looking" rate. Measured at 5.9 MB/min of
@@ -224,7 +228,7 @@ async def start_session(agent, budget, publish=True):
     proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"))
     sess = {"id": sid, "agent": agent, "port": port, "proc": proc,
             "work": WORK / sid, "budget": budget,
-            "started": time.time(), "ends_at": time.time() + budget}
+            "started": time.time(), "ends_at": time.time() + budget, "started_clock": clock()}
     sessions[sid] = sess
 
     if not await wait_healthy(port):
@@ -279,7 +283,11 @@ async def start_session(agent, budget, publish=True):
 
 def ended_payload(sess, res):
     """The run published its own summary; pass it back rather than guessing."""
-    keep = ("reason", "why", "actions", "played", "aps", "video_url", "error")
+    if not res:
+        res = failure("worker_exited_without_result")
+    if res.get("valid") is False:
+        return dict(res, agent=sess["agent"])
+    keep = ("reason", "why", "actions", "played", "aps", "video_url", "error", "valid")
     return dict({k: res[k] for k in keep if res and k in res},
                 ok=True, ended=True, agent=sess["agent"],
                 message="This benchmark run has ended. Stop playing.",
@@ -399,12 +407,12 @@ async def spectate(request, sess, url):
              "hint": "this run is already being watched by as many sockets as "
                      "it will carry; the published thumbnail still updates"},
             status=503, headers=CORS)
-    ws = web.WebSocketResponse(max_msg_size=0, heartbeat=30)
+    ws = web.WebSocketResponse(max_msg_size=4096, heartbeat=30, compress=False)
     await ws.prepare(request)
     sess["watchers"] = sess.get("watchers", 0) + 1
     try:
         async with aiohttp.ClientSession() as http:
-            async with http.ws_connect(url, max_msg_size=0, heartbeat=30) as up:
+            async with http.ws_connect(url, max_msg_size=2 << 20, heartbeat=30, compress=0) as up:
                 async def downstream():
                     async for m in up:
                         if m.type == aiohttp.WSMsgType.BINARY:
@@ -503,6 +511,69 @@ def live_payload():
                 if s["proc"].poll() is None and not result_of(s["id"])]}
 
 
+def stop_worker(proc):
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=3)
+
+
+async def fail_worker(sess, reason):
+    # Reap before writing, so a dying worker cannot overwrite this result.
+    await asyncio.to_thread(stop_worker, sess['proc'])
+    result = result_of(sess['id'])
+    if result and result.get('valid') is True:
+        result.update(complete=True, error=(result.get('error') or '') + f' artifact finalization failed: {reason}')
+    else:
+        result = dict(failure(reason), id=sess['id'], agent=sess['agent'], complete=True)
+    write_json(RESULT_DIR / f"{sess['id']}.json", result)
+
+
+async def check_workers():
+    jobs = []
+    now = clock()
+    timeout = float(os.environ.get('QUNXIA_STALL_SECONDS', '15'))
+    for sess in list(sessions.values()):
+        proc = sess['proc']
+        result = result_of(sess['id'])
+        if result and result.get('complete'):
+            continue
+        state = read_json(sess['work'] / 'health/heartbeat.json')
+        fault = read_json(sess['work'] / 'health/failure.json')
+        reason = fault.get('reason') if fault else None
+        if not reason and proc.poll() is not None:
+            if result and result.get('valid'):
+                result.update(complete=True, error='artifact generation did not finish')
+                write_json(RESULT_DIR / f"{sess['id']}.json", result)
+                continue
+            reason = 'worker_exited_without_result'
+        if not reason and state and state.get('pid') == proc.pid:
+            if now - state.get('at', 0) > timeout:
+                reason = 'worker_unresponsive'
+            elif state.get('phase') == 'finalizing' and now - state.get('phase_at', 0) > 300:
+                reason = 'finalization_stalled'
+            elif state.get('failure'):
+                reason = state['failure']['reason']
+        elif not reason and now - sess['started_clock'] > 30:
+            reason = 'missing_worker_heartbeat'
+        if reason:
+            jobs.append(fail_worker(sess, reason))
+    if jobs:
+        await asyncio.gather(*jobs)
+
+
+async def monitor_workers():
+    while True:
+        try:
+            await check_workers()
+        except Exception as exc:
+            print(f'worker monitor: {exc}', flush=True)
+        await asyncio.sleep(.5)
+
+
 async def sweep(app):
     """Housekeeping, on the broker's own clock rather than any caller's.
 
@@ -593,6 +664,7 @@ async def spawn_sweep(app):
     except Exception as exc:
         print(f"live reset failed: {exc}", flush=True)
     app["sweep"] = asyncio.create_task(sweep(app))
+    app["monitor"] = asyncio.create_task(monitor_workers())
 
 
 async def ensure_start_state(app):

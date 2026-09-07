@@ -28,6 +28,8 @@ import warden
 from state_reader import decode_inventory, inventory_gained
 
 from prompt import system_prompt
+from health import Health, EnvironmentFailure
+from peers import Peer
 
 ROOT = pathlib.Path(__file__).resolve().parent
 LIB = ctypes.CDLL(str(ROOT / "libqunxia.so"))
@@ -66,6 +68,9 @@ LIB.core_save_state.restype = ctypes.c_bool
 LIB.core_load_state.argtypes = [ctypes.c_char_p]
 LIB.core_load_state.restype = ctypes.c_bool
 
+health = None
+peers = {}
+emulator_stop = threading.Event()
 BUF = ctypes.create_string_buffer(4 << 20)
 
 # Key name -> RETROK. Same vocabulary as the native runner.
@@ -107,7 +112,8 @@ for _alias, _code in {"upright": 273, "ne": 273,      # == up    == kp9
 
 # Native resolution only, so the largest frame the core produces is 640x400.
 SNAP = ctypes.create_string_buffer(640 * 400 * 3 + 4096)
-api_lock = asyncio.Lock()     # one action at a time; the game is single-player
+api_lock = None     # one action at a time; the game is single-player
+paused_ack = threading.Event()
 paused = threading.Event()    # held while the core is rebooted, so retro_reset
                               # is never called underneath a running retro_run
 
@@ -450,39 +456,19 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False,
     return entry
 
 
-async def _send_one(ws, data, text):
-    """One send, bounded. A peer that vanished without closing the TCP
-    connection blocks forever once its window fills, so every send needs a
-    deadline of its own."""
-    try:
-        async with asyncio.timeout(SEND_TIMEOUT):
-            if text:
-                await ws.send_str(data)
-            else:
-                await ws.send_bytes(data)
-        return ws, True
-    except Exception:
-        return ws, False
+def drop_peer(ws):
+    clients.discard(ws)
+    if peers.pop(ws, None) is not None:
+        stats["dropped"] += 1
 
 
 async def fanout(data, text=False):
-    """Send to every client at once and drop the ones that fail.
-
-    Sending serially meant a single stuck client stalled the broadcast for
-    everyone, which is how streaming died while the emulator kept running.
-    """
-    targets = []
     for ws in list(clients):
-        if ws.closed:
+        peer = peers.get(ws)
+        if ws.closed or peer is None:
             clients.discard(ws)
         else:
-            targets.append(ws)
-    if not targets:
-        return
-    for ws, ok in await asyncio.gather(*(_send_one(ws, data, text) for ws in targets)):
-        if not ok:
-            clients.discard(ws)
-            stats["dropped"] += 1
+            peer.put(data, text)
 
 
 async def broadcast_log(entry):
@@ -493,11 +479,13 @@ def emulate():
     """Own thread. ctypes drops the GIL for each call, so asyncio keeps running."""
     budget = 1.0 / max(1.0, LIB.core_fps())
     nxt = time.perf_counter()
-    while True:
+    while not emulator_stop.is_set():
         if paused.is_set():
+            paused_ack.set()
             time.sleep(0.02)
             nxt = time.perf_counter()
             continue
+        paused_ack.clear()
         LIB.core_run_frame()
         stats["frames"] += 1
         nxt += budget
@@ -768,48 +756,88 @@ async def reap():
 async def send_keyframe(ws):
     n = LIB.fb_encode_delta(BUF, len(BUF), 1)
     if n > 0:
-        await ws.send_bytes(zlib.compress(BUF.raw[:n], 6))
+        peers[ws].put(zlib.compress(BUF.raw[:n], 6))
 
 
 async def ws_handler(request):
-    ws = web.WebSocketResponse(max_msg_size=0, heartbeat=30)
+    ws = web.WebSocketResponse(max_msg_size=4096, heartbeat=30, compress=False)
     await ws.prepare(request)
     clients.add(ws)
+    peers[ws] = Peer(ws, SEND_TIMEOUT, drop_peer)
     await send_keyframe(ws)
-    # the progress curve rides along on the first message only: a joining
-    # watcher gets the whole run, and per-action messages stay small
-    await ws.send_str(json.dumps({"t": "log", "e": list(history)[-80:],
-                                  "s": session_summary(), "c": list(curve)}))
+    peers[ws].put(json.dumps({"t": "log", "e": list(history)[-80:],
+                                  "s": session_summary(), "c": list(curve)}), text=True)
+    # code -> (name, core tick at keydown). Browser automation can emit keydown
+    # and keyup within one emulated frame, so remember when each press reached
+    # the core and fence short pulses on release.
+    holding: dict[int, tuple[str, int]] = {}
+    lock_held = False
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
                 continue
-            d = msg.json()
+            try:
+                d = msg.json()
+            except ValueError:
+                continue
+            if not isinstance(d, dict):
+                continue
             t = d.get("t")
+            if warden.ON and t in ("key", "tap"):
+                continue
             if t == "key":
                 name = str(d.get("k", "")).lower()
                 code = KEYS.get(name)
                 if code:
                     down = bool(d.get("down"))
-                    rec["actor"] = "web"
-                    LIB.core_key(code, down)
-                    key_event(name, down)
-                    if down:                      # keyup would just double every line
-                        log_action("web", "KEY", name)
+                    if down and code not in holding:
+                        if not lock_held:
+                            lock_held = await acquire_action_lock()
+                        if not lock_held:
+                            log_action("web", "KEY", name, detail="busy", ok=False)
+                            continue
+                        try:
+                            rec["actor"] = "web"
+                            if await press_web_key(name, code, holding):
+                                log_action("web", "KEY", name)
+                        except BaseException:
+                            if not holding and lock_held:
+                                action_lock().release()
+                                lock_held = False
+                            raise
+                    elif not down:
+                        rec["actor"] = "web"
+                        await release_web_key(name, code, holding)
+                        if not holding and lock_held:
+                            action_lock().release()
+                            lock_held = False
             elif t == "tap":
                 name = str(d.get("k", "")).lower()
                 code = KEYS.get(name)
-                if code:
-                    rec["actor"] = "web"
-                    log_action("web", "KEY", name)
-                    LIB.core_key(code, True)
-                    key_event(name, True)
-                    await asyncio.sleep(0.06)
-                    LIB.core_key(code, False)
-                    key_event(name, False)
+                if code and code not in holding:
+                    borrowed = lock_held
+                    if borrowed or await acquire_action_lock():
+                        try:
+                            rec["actor"] = "web"
+                            log_action("web", "KEY", name)
+                            await tap(code, DEFAULT_TAP_FRAMES, name)
+                        finally:
+                            if not borrowed:
+                                action_lock().release()
+                    else:
+                        log_action("web", "KEY", name, detail="busy", ok=False)
             elif t == "keyframe":
                 await send_keyframe(ws)
     finally:
+        for code, (name, _) in list(holding.items()):
+            LIB.core_key(code, False)
+            key_event(name, False)
+        holding.clear()
+        if lock_held:
+            action_lock().release()
+        peer = peers.get(ws)
+        if peer:
+            peer.drop()
         clients.discard(ws)
     return ws
 
@@ -861,7 +889,7 @@ async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
     last, runs, n = baseline, 0, 0
     seen: dict[int, int] = {}
     while n < maxframes:
-        await asyncio.sleep(ft)
+        await wait_core_frames(1)
         n += 1
         # A fully black frame can be brief and gone by the time this returns, so
         # record only that visible signal here. A luma sample is about a microsecond.
@@ -889,7 +917,81 @@ async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
     return n, reacted
 
 
-async def wait_core_frames(frames):
+async def pause_emulator():
+    """Stop between emulated frames before calling reset/serialize APIs."""
+    paused.set()
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 2.0
+    while not paused_ack.is_set():
+        if loop.time() >= deadline:
+            resume_emulator()
+            if health:
+                health.fail("pause_stalled")
+            raise EnvironmentFailure("emulator did not pause")
+        await asyncio.sleep(0.005)
+
+
+def resume_emulator():
+    paused.clear()
+    # Do not let a following pause observe the acknowledgement from this one.
+    paused_ack.clear()
+
+
+async def acquire_action_lock():
+    """Acquire the one-player lease shared by REST and browser input."""
+    stats["queued"] += 1
+    try:
+        await asyncio.wait_for(action_lock().acquire(), timeout=LOCK_TIMEOUT)
+        return True
+    except asyncio.TimeoutError:
+        return False
+    finally:
+        stats["queued"] -= 1
+
+
+def action_lock():
+    if api_lock is None:
+        raise RuntimeError("action lock is not initialized")
+    return api_lock
+
+
+async def press_web_key(name, code, holding):
+    """Press a browser key once and remember the core tick it reached."""
+    if code in holding:
+        return False
+    LIB.core_key(code, True)
+    holding[code] = (name, LIB.core_ticks())
+    key_event(name, True)
+    return True
+
+
+async def release_web_key(name, code, holding):
+    """Release a browser key after it has spanned enough emulated frames.
+
+    Human holds that already exceed the minimum stop immediately. Very short
+    taps are extended only to ``DEFAULT_TAP_FRAMES`` and followed by the normal
+    release fence, making automated browser keypresses as reliable as the REST
+    API without changing long-hold behaviour.
+    """
+    pressed = holding.get(code)
+    if pressed is None:
+        return False
+    pressed_name, pressed_at = pressed
+    elapsed = max(0, LIB.core_ticks() - pressed_at)
+    remaining = max(0, DEFAULT_TAP_FRAMES - elapsed)
+    try:
+        if remaining:
+            await wait_core_frames(remaining)
+    finally:
+        # Cancellation or a dropped socket must never strand a movement key.
+        LIB.core_key(code, False)
+        holding.pop(code, None)
+        key_event(pressed_name or name, False)
+    await wait_core_frames(KEY_RELEASE_FRAMES)
+    return True
+
+
+async def wait_core_frames(frames, allow_finished=False):
     """Wait until the emulator has actually completed ``frames`` frames."""
     frames = max(1, int(frames))
     fps = max(1.0, LIB.core_fps())
@@ -898,8 +1000,12 @@ async def wait_core_frames(frames):
     deadline = loop.time() + max(1.0, frames / fps * 5 + 0.5)
     poll = min(0.01, 0.5 / fps)
     while LIB.core_ticks() < target:
+        if not allow_finished and warden.ON and warden.run["done"]:
+            raise web.HTTPGone(text=json.dumps(warden.ended_payload()), content_type="application/json")
         if loop.time() >= deadline:
-            raise RuntimeError("emulator frame clock stalled during input")
+            if health:
+                health.fail("core_stalled")
+            raise EnvironmentFailure("emulator frame clock stalled during input")
         await asyncio.sleep(poll)
 
 
@@ -959,6 +1065,8 @@ async def run_action(request, steps, note, verb="KEY",
     try:
         # Logged before the keys are sent, not after: the panel should show an
         # action starting, not report it once it is already over.
+        if warden.ON and warden.run["done"]:
+            return web.json_response(warden.ended_payload(), status=410)
         # Key/frame totals describe the submitted request, including steps
         # that may not finish if execution is interrupted.
         rec["actor"] = actor(request)
@@ -1000,7 +1108,11 @@ async def run_action(request, steps, note, verb="KEY",
         for step in steps:
             kind, val = step[0], step[1]
             if kind == "wait":
-                await asyncio.sleep(val)
+                end = asyncio.get_running_loop().time() + val
+                while asyncio.get_running_loop().time() < end:
+                    if warden.ON and warden.run["done"]:
+                        raise web.HTTPGone(text=json.dumps(warden.ended_payload()), content_type="application/json")
+                    await asyncio.sleep(min(.1, max(0, end - asyncio.get_running_loop().time())))
             elif kind == "frames":
                 await wait_core_frames(val)
             else:
@@ -1190,9 +1302,8 @@ async def api_reset(request):
         raise web.HTTPNotFound()
 
     restored = False
-    async with api_lock:
-        paused.set()
-        await asyncio.sleep(0.1)          # let the in-flight frame finish
+    async with action_lock():
+        await pause_emulator()
         try:
             LIB.core_release_all_keys()
             have_state = os.path.exists(START_STATE)
@@ -1205,7 +1316,7 @@ async def api_reset(request):
                 LIB.core_reset()
             LIB.fb_reset()
         finally:
-            paused.clear()
+            resume_emulator()
         history.clear()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, key_events=0,
@@ -1248,9 +1359,14 @@ async def api_snapshot(request):
     got = request.query.get("token") or request.headers.get("X-Reset-Token")
     if not want or got != want:
         raise web.HTTPNotFound()
-    async with api_lock:
-        os.makedirs(os.path.dirname(START_STATE), exist_ok=True)
-        ok = bool(LIB.core_save_state(START_STATE.encode()))
+    async with action_lock():
+        await pause_emulator()
+        try:
+            os.makedirs(os.path.dirname(START_STATE), exist_ok=True)
+            LIB.core_release_all_keys()
+            ok = bool(LIB.core_save_state(START_STATE.encode()))
+        finally:
+            resume_emulator()
     size = os.path.getsize(START_STATE) if ok and os.path.exists(START_STATE) else 0
     log_action("api", "RESET", "saved start state" if ok else "start state failed", ok=ok)
     return web.json_response({"ok": ok, "path": START_STATE, "bytes": size})
@@ -1355,6 +1471,7 @@ async def status(_request):
         "width": LIB.core_width(), "height": LIB.core_height(),
         "fps": round(LIB.core_fps(), 3), "frame": LIB.core_frame_serial(),
         "clients": len(clients), "session": session_summary(), **stats,
+        **(health.sample() if health else {}),
     })
 
 
@@ -1370,13 +1487,16 @@ async def json_errors(request, handler):
         return await handler(request)
     except web.HTTPException:
         raise
+    except EnvironmentFailure as exc:
+        if health:
+            health.fail(str(exc))
+        return web.json_response(health.fault, status=503)
     except Exception as exc:
         traceback.print_exc()
-        stats["pump_errors"] += 1
+        warden.run["errors"] += int(warden.ON)
         stats["last_error"] = f"{type(exc).__name__}: {exc}"
         return web.json_response(
-            {"ok": False, "error": f"{type(exc).__name__}: {exc}",
-             "hint": "this one call failed; the run is still going, try again"},
+            {"ok": False, "error": f"{type(exc).__name__}: {exc}"},
             status=500)
 
 
@@ -1406,7 +1526,29 @@ async def calibrate_lazily():
     print("no position offsets; exploration will not be reported", flush=True)
 
 
+async def pulse_health():
+    while True:
+        health.pulse()
+        await asyncio.sleep(.25)
+
+
+async def cleanup(app):
+    for task in app.values():
+        if isinstance(task, asyncio.Task):
+            task.cancel()
+    await asyncio.gather(*(t for t in app.values() if isinstance(t, asyncio.Task)), return_exceptions=True)
+    for peer in list(peers.values()):
+        peer.drop()
+    emulator_stop.set()
+    if health:
+        LIB.core_shutdown()
+        health.stop()
+
+
 def main():
+    global health
+    health = Health(LIB.core_ticks, paused.is_set, os.environ.get("QUNXIA_HEALTH_DIR", str(pathlib.Path(SAVES) / ".health")))
+    health.start()
     os.makedirs(SAVES, exist_ok=True)
     # Measured on this class of VM: 77000 cycles leaves only 1.75x headroom over
     # the 70.09 fps the core needs, which a shared-core instance cannot hold once
@@ -1440,11 +1582,16 @@ def main():
     # on_startup handlers are awaited, so the pump has to be detached as a task
     # rather than returned, or startup blocks on a loop that never ends.
     async def _spawn_pump(a):
+        global api_lock
+        api_lock = asyncio.Lock()
+        a["heartbeat"] = asyncio.create_task(pulse_health())
+        health.set_phase("running")
         a["pump"] = asyncio.create_task(pump())
         a["reaper"] = asyncio.create_task(reap())
         if warden.ON:
-            a["warden"] = asyncio.create_task(warden.warden(rec))
+            a["warden"] = asyncio.create_task(warden.warden(rec, health, api_lock, lambda n: wait_core_frames(n, allow_finished=True)))
     app.on_startup.append(_spawn_pump)
+    app.on_cleanup.append(cleanup)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
 
 
