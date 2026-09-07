@@ -35,13 +35,29 @@ class InputWaitTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(fake.ticks(), 10)
                 self.assertLess(fake.now, budget.deadline)
 
+    async def test_stall_after_nominal_progress_is_a_core_stall(self):
+        class LateStall(FakeClock):
+            stop = 0.0
+
+            def ticks(self):
+                return int(min(self.now, self.stop) * self.rate)
+
+        for frames, stop in ((12, .1), (1000, 3.0)):
+            with self.subTest(frames=frames, stop=stop):
+                fake = LateStall(60)
+                fake.stop = stop
+                budget = self.budget(fake, frames=frames)
+                with self.assertRaisesRegex(EnvironmentFailure, 'core_stalled'):
+                    await budget.wait(frames, fake.ticks)
+                self.assertLess(fake.now, budget.deadline)
+
     async def test_zero_ticks_are_a_stall_but_drip_feed_hits_fixed_action_cap(self):
         for rate, reason in ((0, 'core_stalled'), (.1, 'input_frame_timeout')):
             fake = FakeClock(rate)
             budget = self.budget(fake)
             with self.assertRaisesRegex(EnvironmentFailure, reason):
                 await budget.wait(10, fake.ticks)
-            self.assertLess(fake.now, 16)
+            self.assertLess(fake.now, budget.deadline + .05)
 
     async def test_hold_release_gap_and_settle_share_one_deadline(self):
         fake = FakeClock(1)
@@ -52,9 +68,11 @@ class InputWaitTests(unittest.IsolatedAsyncioTestCase):
             await budget.wait(frames, fake.ticks)
             self.assertEqual(budget.deadline, deadline)
         budget.stage('settle')
+        # 14 s of drip-fed progress so far; four more ticks would end at 18 s,
+        # past the 17.7 s deadline this budget was given.
         with self.assertRaisesRegex(EnvironmentFailure, 'input_frame_timeout'):
-            await budget.wait(2, fake.ticks)
-        self.assertLess(fake.now, 16)
+            await budget.wait(4, fake.ticks)
+        self.assertLess(fake.now, deadline + .05)
 
     async def test_target_reached_after_deadline_is_not_success(self):
         fake = FakeClock(jump=20)

@@ -16,11 +16,15 @@ class InputBudget:
         self.fps = max(1.0, fps)
         self.stall_seconds = health.timeout if health else 15.0
         self.started = self.clock()
-        # Allow a transient pause up to the existing no-progress watchdog,
-        # or sustained execution down to 1/5 nominal speed. Neither progress
-        # nor a new key/release/gap/settle phase extends this action deadline.
+        # Allow a transient pause up to the existing no-progress watchdog on
+        # top of the nominal run time, or sustained execution down to 1/5
+        # nominal speed. The stall window is measured from the last tick, so
+        # a core that runs at speed and then stops is always reported as
+        # core_stalled before this deadline. Neither progress nor a new
+        # key/release/gap/settle phase extends the deadline.
+        nominal = frames / self.fps
         self.deadline = self.started + wall_seconds + max(
-            self.stall_seconds + .5, frames / self.fps * 5 + .5)
+            self.stall_seconds + nominal + .5, nominal * 5 + .5)
         self.context = {}
         self.step_index = self.action_seq = None
         self.stages = deque(maxlen=64)
