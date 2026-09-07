@@ -211,6 +211,7 @@ async def start_session(agent, budget, publish=True):
                QUNXIA_GAME=str(game),
                QUNXIA_SAVES=str(saves),
                QUNXIA_HEALTH_DIR=str(WORK / sid / "health"),
+               QUNXIA_DIAGNOSTIC_DIR=str(RESULT_DIR / f"{sid}.diagnostics"),
                QUNXIA_RECORDING_DIR=str(RECORDING_DIR),
                QUNXIA_RECORDING_FILE=str(RECORDING_DIR / sid / "recording.jsonl"),
                QUNXIA_SEND_HZ="15",
@@ -230,7 +231,8 @@ async def start_session(agent, budget, publish=True):
     sessions[sid] = sess
 
     if not await wait_healthy(port):
-        proc.kill()
+        await asyncio.to_thread(stop_worker, proc)
+        await asyncio.to_thread(archive_health, sess, 'startup_failed')
         shutil.rmtree(WORK / sid, ignore_errors=True)
         raise web.HTTPBadGateway(
             text=json.dumps({"ok": False, "error": "session did not start"}),
@@ -260,11 +262,8 @@ async def start_session(agent, budget, publish=True):
     # handing the agent a broken game, which is what happened for an hour when
     # the bootstrap failed and every session silently started at the title.
     if not sess["spawned"]:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except Exception:
-            proc.kill()
+        await asyncio.to_thread(stop_worker, proc)
+        await asyncio.to_thread(archive_health, sess, 'spawn_failed')
         shutil.rmtree(WORK / sid, ignore_errors=True)
         sessions.pop(sid, None)
         print(f"session {sid} refused: start state would not load", flush=True)
@@ -526,9 +525,31 @@ def stop_worker(proc):
             proc.wait(timeout=3)
 
 
+def archive_health(sess, reason=None):
+    """Keep bounded evidence outside the work directory before reclaiming it.
+
+    A killed or unresponsive worker cannot write its own incident. The broker
+    retains the last heartbeat/fault and exit status in that case as well.
+    """
+    work = sess.get('work')
+    if not work or not (work / 'health').exists():
+        return
+    destination = RESULT_DIR / f"{sess['id']}.diagnostics"
+    try:
+        for name in ('heartbeat.json', 'failure.json'):
+            value = read_json(work / 'health' / name)
+            if value is not None:
+                write_json(destination / name, value)
+        write_json(destination / 'worker.json', dict(
+            pid=sess['proc'].pid, exit_code=sess['proc'].poll(), reason=reason))
+    except OSError as exc:
+        print(f"diagnostic archive {sess['id']}: {exc}", flush=True)
+
+
 async def fail_worker(sess, reason):
     # Reap before writing, so a dying worker cannot overwrite this result.
     await asyncio.to_thread(stop_worker, sess['proc'])
+    await asyncio.to_thread(archive_health, sess, reason)
     result = result_of(sess['id'])
     if result and result.get('valid') is True:
         result.update(complete=True, error=(result.get('error') or '') + f' artifact finalization failed: {reason}')
@@ -652,6 +673,7 @@ async def sweep(app):
         for s in list(sessions.values()):
             work = s.get("work")
             if work and s["proc"].poll() is not None and work.exists():
+                await loop.run_in_executor(None, archive_health, s)
                 await loop.run_in_executor(
                     None, lambda w=work: shutil.rmtree(w, ignore_errors=True))
                 # its thumbnail is nothing but storage cost once the run is over

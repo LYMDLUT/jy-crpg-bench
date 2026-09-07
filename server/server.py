@@ -1487,7 +1487,7 @@ async def status(_request):
         "width": LIB.core_width(), "height": LIB.core_height(),
         "fps": round(LIB.core_fps(), 3), "frame": LIB.core_frame_serial(),
         "clients": len(clients), "session": session_summary(), **stats,
-        **(health.sample() if health else {}),
+        **(health.snapshot() if health else {}),
         "recording": {"cache_bytes": 0, "pending_bytes": recording_store.pending_bytes if recording_store else 0,
                       "error": recording_store.error if recording_store else ""},
     })
