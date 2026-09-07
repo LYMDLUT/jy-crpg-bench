@@ -14,6 +14,9 @@ class FakeLib:
         self.tick = 0
         self.events = []
 
+    def core_fps(self):
+        return 60.0
+
     def core_ticks(self):
         return self.tick
 

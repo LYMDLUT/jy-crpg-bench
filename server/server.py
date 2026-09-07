@@ -26,6 +26,7 @@ from PIL import Image
 
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
+from input_wait import InputBudget, current_budget
 from peers import Peer
 from recording_store import RecordingStore
 from recording import RecordingAPI
@@ -43,6 +44,8 @@ LIB.core_set_option.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 LIB.core_init.argtypes = [ctypes.c_char_p] * 3
 LIB.core_init.restype = ctypes.c_bool
 LIB.core_key.argtypes = [ctypes.c_int, ctypes.c_bool]
+LIB.core_key_before_deadline.argtypes = [ctypes.c_int, ctypes.c_bool, ctypes.c_double]
+LIB.core_key_before_deadline.restype = ctypes.c_bool
 LIB.core_fps.restype = ctypes.c_double
 LIB.core_frame_serial.restype = ctypes.c_uint64
 LIB.core_ticks.restype = ctypes.c_uint64
@@ -518,24 +521,41 @@ async def settle(baseline, react=30, stable=9, maxframes=120):
     return n, reacted
 
 
+def check_input_runtime(allow_finished=False):
+    if recording_blocked:
+        raise RecordingUnavailable(recording_store.error or "recording storage is paused")
+
+
+def input_stage(stage, **details):
+    budget = current_budget.get()
+    if budget:
+        budget.stage(stage, **details)
+    elif health:
+        health.set_input(stage=stage, **details)
+
+
+def send_key_down(code):
+    budget = current_budget.get()
+    check_input_runtime()
+    if budget:
+        budget.check()
+    deadline = budget.deadline if budget else 0
+    if deadline:
+        if not LIB.core_key_before_deadline(code, True, deadline):
+            check_input_runtime()
+            if budget:
+                budget.fail("input_frame_timeout")
+            raise EnvironmentFailure("input_frame_timeout")
+    else:
+        LIB.core_key(code, True)
+
+
 async def wait_core_frames(frames):
-    """Wait until the emulator has actually completed ``frames`` frames."""
-    frames = max(1, int(frames))
-    fps = max(1.0, LIB.core_fps())
-    target = LIB.core_ticks() + frames
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + max(1.0, frames / fps * 5 + 0.5)
-    poll = min(0.01, 0.5 / fps)
-    while LIB.core_ticks() < target:
-        if recording_blocked:
-            raise RecordingUnavailable(recording_store.error or "recording storage is paused")
-        if loop.time() >= deadline:
-            if recording_blocked:
-                raise RecordingUnavailable(recording_store.error or "recording storage is paused")
-            if health:
-                health.fail("core_stalled")
-            raise EnvironmentFailure("emulator frame clock stalled during input")
-        await asyncio.sleep(poll)
+    """Keep the same absolute frame target while a slow core makes progress."""
+    budget = current_budget.get() or InputBudget(
+        max(1, int(frames)), LIB.core_fps(), health,
+        check_runtime=check_input_runtime)
+    await budget.wait(frames, LIB.core_ticks)
 
 
 async def pause_emulator():
@@ -582,7 +602,8 @@ async def press_web_key(name, code, holding):
     """Press a browser key once and remember the core tick it reached."""
     if code in holding:
         return False
-    LIB.core_key(code, True)
+    input_stage("keydown", key=name)
+    send_key_down(code)
     holding[code] = (name, LIB.core_ticks())
     key_event(name, True)
     return True
@@ -602,16 +623,27 @@ async def release_web_key(name, code, holding):
     pressed_name, pressed_at = pressed
     elapsed = max(0, LIB.core_ticks() - pressed_at)
     remaining = max(0, DEFAULT_TAP_FRAMES - elapsed)
+    budget = InputBudget(remaining + KEY_RELEASE_FRAMES, LIB.core_fps(), health,
+                         check_runtime=check_input_runtime)
+    token = current_budget.set(budget)
     try:
-        if remaining:
-            await wait_core_frames(remaining)
+        try:
+            if remaining:
+                input_stage("browser_hold", key=pressed_name or name)
+                await wait_core_frames(remaining)
+        finally:
+            # Cancellation or a dropped socket must never strand a movement key.
+            LIB.core_key(code, False)
+            holding.pop(code, None)
+            key_event(pressed_name or name, False)
+        input_stage("release", key=pressed_name or name)
+        await wait_core_frames(KEY_RELEASE_FRAMES)
+        budget.check()
+        return True
     finally:
-        # Cancellation or a dropped socket must never strand a movement key.
-        LIB.core_key(code, False)
-        holding.pop(code, None)
-        key_event(pressed_name or name, False)
-    await wait_core_frames(KEY_RELEASE_FRAMES)
-    return True
+        current_budget.reset(token)
+        if health:
+            health.set_input()
 
 
 def key_event(name, down):
@@ -624,13 +656,19 @@ def key_event(name, down):
 
 
 async def tap(code, hold_frames, name=None):
+    pressed = False
     try:
+        input_stage("keydown", key=name)
+        send_key_down(code)
+        pressed = True
         key_event(name, True)
-        LIB.core_key(code, True)
+        input_stage("hold", key=name)
         await wait_core_frames(hold_frames)
     finally:
-        LIB.core_key(code, False)
-        key_event(name, False)
+        if pressed:
+            LIB.core_key(code, False)
+            key_event(name, False)
+    input_stage("release", key=name)
     await wait_core_frames(KEY_RELEASE_FRAMES)
 
 
@@ -667,20 +705,34 @@ async def run_action(request, steps, note, verb="KEY"):
     image_w = image_h = 0
     image_mime = ""
     image_error = ""
+    budget = InputBudget(
+        sum(step[1] + (KEY_RELEASE_FRAMES if len(step) > 2 else 0)
+            for step in steps if step[0] != "wait") + settle_args["maxframes"],
+        LIB.core_fps(), health,
+        wall_seconds=sum(step[1] for step in steps if step[0] == "wait"),
+        check_runtime=check_input_runtime)
+    token = current_budget.set(budget)
     try:
+        budget.check()
         # Logged before the keys are sent, not after: the panel should show an
         # action starting, not report it once it is already over.
         rec["actor"] = actor(request)
         log_action(rec["actor"], verb, note, detail=held_note(steps))
+        budget.action_seq = session["actions"]
         baseline = LIB.core_frame_hash()
-        for step in steps:
+        for index, step in enumerate(steps):
+            budget.check()
+            input_stage("step", step_index=index)
             kind, val = step[0], step[1]
             if kind == "wait":
-                await asyncio.sleep(val)
+                input_stage("wait")
+                await budget.wait_seconds(val)
             elif kind == "frames":
+                input_stage("gap", step_index=index)
                 await wait_core_frames(val)
             else:
                 await tap(kind, val, step[2] if len(step) > 2 else None)
+        input_stage("settle")
         waited, changed = await settle(baseline, **settle_args)
         if wants_image(request):
             try:
@@ -689,7 +741,11 @@ async def run_action(request, steps, note, verb="KEY"):
                     image_error = "no frame"
             except Exception as exc:
                 image_error = f"{type(exc).__name__}: {exc}"
+        budget.check()
     finally:
+        current_budget.reset(token)
+        if health:
+            health.set_input()
         action_lock().release()
 
     result = {

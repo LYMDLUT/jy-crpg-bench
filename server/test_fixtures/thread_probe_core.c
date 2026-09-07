@@ -8,24 +8,27 @@
 static retro_environment_t environment;
 static retro_video_refresh_t video;
 static atomic_int running, release_run, overlaps, fail_serialize, state_size;
-static atomic_int game_loaded, unloads, premature_deinit;
+static atomic_int game_loaded, unloads, premature_deinit, keydowns;
 static void touch_core(void) {
     if (atomic_load(&running)) atomic_fetch_add(&overlaps, 1);
 }
 static void keyboard(bool down, unsigned key, uint32_t character, uint16_t mods) {
     (void)down; (void)key; (void)character; (void)mods;
     touch_core();
+    if (down) atomic_fetch_add(&keydowns, 1);
     if (down && getenv("PROBE_HANG_ON_KEY")) {
         for (;;) { struct timespec delay = {0, 1000000}; nanosleep(&delay, NULL); }
     }
 }
 void probe_reset(void) {
+    atomic_store(&keydowns, 0);
     atomic_store(&running, 0); atomic_store(&release_run, 0);
     atomic_store(&overlaps, 0); atomic_store(&fail_serialize, 0);
     atomic_store(&state_size, 16);
     atomic_store(&game_loaded, 0); atomic_store(&unloads, 0);
     atomic_store(&premature_deinit, 0);
 }
+int probe_keydowns(void) { return atomic_load(&keydowns); }
 int probe_running(void) { return atomic_load(&running); }
 int probe_overlaps(void) { return atomic_load(&overlaps); }
 void probe_release(void) { atomic_store(&release_run, 1); }
@@ -66,6 +69,12 @@ void retro_run(void) {
     atomic_store(&running, 1);
     while (!atomic_load(&release_run)) {
         struct timespec delay = { 0, 1000000 };
+        nanosleep(&delay, NULL);
+    }
+    const char *frame_delay = getenv("PROBE_FRAME_DELAY_MS");
+    if (frame_delay) {
+        long ms = atol(frame_delay);
+        struct timespec delay = { ms / 1000, (ms % 1000) * 1000000 };
         nanosleep(&delay, NULL);
     }
     uint32_t pixel = 0x00123456;

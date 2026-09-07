@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "libretro.h"
 
@@ -449,14 +450,30 @@ void core_reset(void) {
     pthread_mutex_unlock(&g_exec_mu);
 }
 
-void core_key(int retrok, bool down) {
-    if (retrok < 0 || retrok >= (int)RETROK_LAST) return;
+bool core_key_before_deadline(int retrok, bool down, double deadline) {
+    if (retrok < 0 || retrok >= (int)RETROK_LAST) return false;
     pthread_mutex_lock(&g_exec_mu);
+    /* Check after acquiring the execution gate: a Python pre-check alone
+       can admit a late key after waiting behind retro_run. Key-up must
+       always remain possible, including during cancellation/teardown. */
+    if (down && deadline > 0) {
+        struct timespec now;
+        if (clock_gettime(CLOCK_MONOTONIC, &now) != 0 ||
+            (double)now.tv_sec + now.tv_nsec / 1e9 >= deadline) {
+            pthread_mutex_unlock(&g_exec_mu);
+            return false;
+        }
+    }
     if (g_keys[retrok] != (down ? 1 : 0)) {
         g_keys[retrok] = down ? 1 : 0;
         if (g_kbd_cb) g_kbd_cb(down, (unsigned)retrok, 0, 0);
     }
     pthread_mutex_unlock(&g_exec_mu);
+    return true;
+}
+
+void core_key(int retrok, bool down) {
+    (void)core_key_before_deadline(retrok, down, 0);
 }
 
 static void release_all_keys_unlocked(void) {

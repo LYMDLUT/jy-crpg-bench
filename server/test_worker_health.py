@@ -123,6 +123,17 @@ class WorkerIntegrationTests(unittest.TestCase):
         after=self.healthy()
         self.assertGreater(after['core_ticks'],before['core_ticks'])
 
+    def test_slow_advancing_native_core_completes_one_key_without_retry(self):
+        self.launch(PROBE_FRAME_DELAY_MS='180', QUNXIA_STALL_SECONDS='15')
+        wait_for(self.healthy)
+        status, body = request(self.port, '/api/key?react=0&stable=1&maxsettle=6',
+                               {'key': 'right', 'hold': 10}, timeout=20)
+        self.assertEqual(status, 200, body)
+        events = json.loads(request(self.port, '/api/recording')[1])['events']
+        keys = [e['down'] for e in events if e.get('key') == 'right']
+        self.assertEqual(keys, [True, False])
+        self.assertTrue(self.healthy())
+
     def test_native_key_deadlock_becomes_environment_failure(self):
         p=self.launch(PROBE_HANG_ON_KEY='1')
         wait_for(self.healthy)
