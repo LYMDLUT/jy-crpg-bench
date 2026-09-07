@@ -1144,7 +1144,8 @@ async def run_action(request, steps, note, verb="KEY"):
     budget = InputBudget(
         sum(step[1] + (KEY_RELEASE_FRAMES if len(step) > 2 else 0)
             for step in steps if step[0] != "wait")
-        + max(settle_args["maxframes"], 30 + settle_args["stable"]) + calibration_frames,
+        + max(settle_args["maxframes"], settle_args["react"] + settle_args["stable"])
+        + calibration_frames,
         LIB.core_fps(), health,
         wall_seconds=sum(step[1] for step in steps if step[0] == "wait"),
         check_runtime=check_input_runtime)
