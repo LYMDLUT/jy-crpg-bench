@@ -1010,11 +1010,9 @@ async def api_load(request):
     log_action(actor(request), "LOAD", name, ok=ok)
     if ok:
         await fanout(json.dumps({"t": "clear"}), text=True)
-        for ws in list(clients):
-            try:
-                await asyncio.wait_for(send_keyframe(ws), timeout=SEND_TIMEOUT)
-            except Exception:
-                clients.discard(ws)
+        # One keyframe, recorded once and fanned out to every viewer, as
+        # api_reset does; send_keyframe no longer targets a single socket.
+        await send_keyframe(None)
     return web.json_response(result, status=200 if result.get("ok") else 500)
 
 

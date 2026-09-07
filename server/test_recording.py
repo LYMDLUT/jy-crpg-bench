@@ -35,6 +35,29 @@ class RecordingTests(unittest.TestCase):
         self.assertIn(b'old',archive.read_bytes())
         self.assertEqual(old.header['started'],10)
 
+    def test_reopen_drops_torn_final_line_instead_of_closing_it(self):
+        self.store.append({'t':0,'key':'up','down':True})
+        self.store.append({'t':1,'key':'up','down':False})
+        self.store.close()
+        raw=self.path.read_bytes()
+        torn=raw[:-7]                       # crash mid-append: no trailing newline
+        self.path.write_bytes(torn)
+        self.store=RecordingStore(self.path)
+        self.assertEqual(self.store.started,10)
+        self.assertEqual([e['down'] for e in self.snapshot()],[True])
+        self.assertTrue(self.store.append({'t':2,'key':'esc','down':True}))
+        self.assertEqual([e['key'] for e in self.snapshot()],['up','esc'])
+        self.assertEqual(self.store.committed_size,self.path.stat().st_size)
+
+    def test_reopen_header_only_file_without_newline_is_terminated(self):
+        self.store.close()
+        raw=self.path.read_bytes().rstrip(b'\n')
+        self.path.write_bytes(raw)
+        self.store=RecordingStore(self.path)
+        self.assertEqual(self.path.read_bytes(),raw+b'\n')
+        self.assertTrue(self.store.append({'t':3,'key':'up','down':True}))
+        self.assertEqual([e['key'] for e in self.snapshot()],['up'])
+
     def test_failed_partial_append_and_fsync_retry_exactly_once(self):
         self.store.append({'t':0,'key':'up','down':True})
         before=self.path.read_bytes()

@@ -31,3 +31,6 @@ pi-agent/*
 # captured and one-off scripts. Kept on disk, never committed.
 /*.png
 /*.py
+
+# Recording journals written by server.py (QUNXIA_RECORDING_DIR).
+/recordings/
