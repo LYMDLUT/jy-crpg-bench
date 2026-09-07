@@ -123,7 +123,6 @@ for _alias, _code in {"upright": 273, "ne": 273,      # == up    == kp9
 # Native resolution only, so the largest frame the core produces is 640x400.
 SNAP = ctypes.create_string_buffer(640 * 400 * 3 + 4096)
 api_lock = None     # one action at a time; the game is single-player
-paused_ack = threading.Event()
 paused = threading.Event()    # held while the core is rebooted, so retro_reset
                               # is never called underneath a running retro_run
 paused_ack = threading.Event()
@@ -1037,82 +1036,6 @@ async def wait_core_frames(frames, allow_finished=False):
                 health.fail("core_stalled")
             raise EnvironmentFailure("emulator frame clock stalled during input")
         await asyncio.sleep(poll)
-
-
-async def pause_emulator():
-    """Stop between emulated frames before calling reset/serialize APIs."""
-    paused.set()
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + 2.0
-    while not paused_ack.is_set():
-        if loop.time() >= deadline:
-            paused.clear()
-            if health:
-                health.fail("pause_stalled")
-            raise EnvironmentFailure("emulator did not pause")
-        await asyncio.sleep(0.005)
-
-
-def resume_emulator():
-    if recording_blocked:
-        return
-    paused.clear()
-    # Do not let a following pause observe the acknowledgement from this one.
-    paused_ack.clear()
-
-
-async def acquire_action_lock():
-    """Acquire the one-player lease shared by REST and browser input."""
-    stats["queued"] += 1
-    try:
-        await asyncio.wait_for(action_lock().acquire(), timeout=LOCK_TIMEOUT)
-        return True
-    except asyncio.TimeoutError:
-        return False
-    finally:
-        stats["queued"] -= 1
-
-
-def action_lock():
-    if api_lock is None:
-        raise RuntimeError("action lock is not initialized")
-    return api_lock
-
-
-async def press_web_key(name, code, holding):
-    """Press a browser key once and remember the core tick it reached."""
-    if code in holding:
-        return False
-    LIB.core_key(code, True)
-    holding[code] = (name, LIB.core_ticks())
-    key_event(name, True)
-    return True
-
-
-async def release_web_key(name, code, holding):
-    """Release a browser key after it has spanned enough emulated frames.
-
-    Human holds that already exceed the minimum stop immediately. Very short
-    taps are extended only to ``DEFAULT_TAP_FRAMES`` and followed by the normal
-    release fence, making automated browser keypresses as reliable as the REST
-    API without changing long-hold behaviour.
-    """
-    pressed = holding.get(code)
-    if pressed is None:
-        return False
-    pressed_name, pressed_at = pressed
-    elapsed = max(0, LIB.core_ticks() - pressed_at)
-    remaining = max(0, DEFAULT_TAP_FRAMES - elapsed)
-    try:
-        if remaining:
-            await wait_core_frames(remaining)
-    finally:
-        # Cancellation or a dropped socket must never strand a movement key.
-        LIB.core_key(code, False)
-        holding.pop(code, None)
-        key_event(pressed_name or name, False)
-    await wait_core_frames(KEY_RELEASE_FRAMES)
-    return True
 
 
 def key_event(name, down):

@@ -2,102 +2,274 @@
 
 ![jy-crpg-bench](docs/banner.png)
 
-A long-horizon benchmark for frontier agents, built on an unmodified 1996 wuxia
-CRPG. An agent is given raw 320×200 frames, a key vocabulary, and one page of
-objectives, then left to find fourteen books in an open world it has never seen.
+A long-horizon benchmark for agents, built on the unmodified 1996 DOS CRPG
+金庸群俠傳. The agent gets raw 320x200 frames, a key list and one page of
+objectives, and has to find fourteen books in an open world.
 
 | | |
 |---|---|
-| Environment | 金庸群俠傳 (河洛工作室, 1996), DOS, unmodified binary |
-| Observation | raw VGA frames, 320×200, Traditional Chinese text |
+| Environment | 金庸群俠傳 (河洛工作室, 1996), DOS, unmodified binary under DOSBox Pure |
+| Observation | raw VGA frames, 320x200, Traditional Chinese text |
 | Action | 16 keys, isometric movement on four diagonal axes |
 | Horizon | open world, no fixed episode length |
 | Objective | recover fourteen books and return to the present |
-| Interfaces | HTTP, MCP, built-in pi harness, browser |
-| Runners | native macOS (Metal), headless Linux (browser stream) |
+| Interfaces | HTTP API, MCP server, built-in Pi harness, browser |
+| Runners | native macOS (Metal), headless Linux or macOS (browser stream) |
+| Leaderboard | <https://hanxiao.io/jy-crpg-bench/> |
 
 ![Native macOS runner](docs/native.png)
 
-The macOS runner. Metal presents the framebuffer, CoreAudio plays the Sound
-Blaster output, and the right pane logs every call to the control API with the
-key that was pressed and the screen it returned.
+The macOS runner: Metal presents the framebuffer, CoreAudio plays the Sound
+Blaster output, and the right pane logs every control API call with the key
+pressed and the screen it returned.
 
 ![Browser runner](docs/web.png)
 
-The same game headless on a GCP e2-micro, streamed to a canvas. The activity
-panel shows a human and an agent acting on the same session.
+The headless runner streamed to a browser. The activity panel shows every
+action from every agent and human on the session, with a replay and MP4 export.
 
-## Motivation
+## Why this game
 
-Frontier models score well on coding and mathematics while remaining weak at
-what a twelve-year-old does without thinking: reading a scene, holding a map in
-mind, and pursuing a goal across hours of unfamiliar terrain. Games expose that
-gap directly, which is why BALROG evaluates agentic reasoning on reinforcement
-learning environments, and VideoGameBench asks vision-language models to
-complete 1990s titles from raw pixels alone. Both report frontier models
-failing near the beginning of their games.
+- No level to clear. Progress means recruiting characters, learning martial
+  arts and locating fourteen books across a large map. An episode is hours.
+- Every objective and branch is Traditional Chinese prose at about sixteen
+  pixels a line. Perception and reading cannot be separated.
+- The four movement axes are diagonals on screen and the camera is centred on
+  the player. Agents that reason in screen coordinates walk in circles.
+- No accessibility tree, no state dump, no reward shaping, no walkthrough. The
+  briefing in `skills/` teaches the controls and the mechanics that cannot be
+  discovered by pressing keys, and stops there.
 
-This environment adds four properties those suites do not combine.
+The emulator runs continuously. The environment does not pause while a model
+thinks.
 
-**Long-horizon open world.** A CRPG has no level to clear. Progress comes from
-recruiting characters, learning martial arts, and locating fourteen books spread
-across a large map, so an episode is measured in hours and the reward signal is
-whatever the agent can infer from dialogue.
+## Setup
 
-**Reading is the task.** Every objective, refusal and branch is delivered as
-Traditional Chinese prose rendered at roughly sixteen pixels a line. Perception
-and language comprehension cannot be separated here, and character naming runs
-through the 注音 input method, so even starting the game requires understanding
-a mechanism rather than pressing a key.
-
-**Isometric spatial reasoning.** The four movement axes are diagonals on
-screen, the camera stays centred on the player, and no key moves straight in
-any screen direction. An agent that reasons in screen coordinates walks in
-circles, which is the dominant observed failure.
-
-**Minimal scaffolding.** The agent receives frames and a key list. There is no
-accessibility tree, no game state dump, no reward shaping and no walkthrough.
-The briefing in `skills/` teaches the controls and the mechanics that are not
-discoverable by pressing keys, and stops there.
-
-Two runners share one control API and one key vocabulary. The game binary is
-untouched, DOSBox Pure emulates the PC, and the emulator runs continuously, so
-the environment does not pause while a model thinks.
-
-## Running it
+You supply the game. The 1996 release is copyright its publisher and is not in
+this repository. Put the original files in `./game`, or build the archive that
+`run.sh` unpacks:
 
 ```sh
 git clone https://github.com/hanxiao/jy-crpg-bench.git
 cd jy-crpg-bench
-./Scripts/run.sh
+mkdir -p game && cp -R /path/to/jinyong/* game/     # PLAY.BAT, Z.COM, DOS4GW.EXE, data
+./Scripts/pack-game.sh                              # optional: assets/game-data.tar.gz
 ```
 
-You supply the game. The 1996 release is copyright its publisher, so it is not
-in this repository. Put the original files in `./game`, or build the archive
-`run.sh` unpacks with `./Scripts/pack-game.sh` from a copy you own.
+### Native macOS runner
 
 ```sh
-mkdir -p game && cp -R /path/to/jinyong/* game/
+./Scripts/run.sh                    # swift build -c release, then the app
+./Scripts/run.sh --port 8765        # control API port (default 8765)
 ```
 
-The DOSBox Pure core is prebuilt in `Cores/`. To rebuild it, clone
-`schellingb/dosbox-pure` into `vendor/` and run `make`.
+The DOSBox Pure core is prebuilt in `Cores/`. Window keys: arrows and numpad
+move, enter and space confirm, esc opens the menu, y and n answer prompts, and
+the 注音 name entry works. ⌘1 to ⌘5 set the scale, ⌘I hides the log pane, ⌘S
+and ⌘L quick save and load, ⌘M mutes, ⌃⌘F is fullscreen. The window snaps to
+whole multiples of 320x200.
 
-Window keys: arrows and the numpad move, enter and space confirm, esc opens the
-menu, y and n answer prompts, and the 注音 name entry works. ⌘1 through ⌘5 set
-the scale, ⌘I hides the log pane, ⌘S and ⌘L quick save and load, ⌘M mutes, and
-⌃⌘F is fullscreen. The window snaps to whole multiples of 320×200, so the game
-is never letterboxed.
+### Headless runner (Linux or macOS)
 
-For the browser runner, see `server/README.md`.
+```sh
+./server/build.sh                                   # -> server/libqunxia.so
+python3 -m venv .venv && .venv/bin/pip install aiohttp pillow
+QUNXIA_CORE=$PWD/Cores/dosbox_pure_libretro.dylib PORT=8080 .venv/bin/python server/server.py
+```
+
+On Linux, download `dosbox_pure_libretro.so` from the libretro buildbot into
+`cores/` (the default `QUNXIA_CORE`). Open `http://127.0.0.1:8080/` for the
+browser client. The control API is under `/api/`. Set `QUNXIA_RESET_TOKEN` to
+enable `POST /api/reset?token=...`, which restores the opening save state in
+`saves/start.state`.
+
+Both runners load the same core through the same C host (`Sources/CoreHost`)
+and expose the same key vocabulary and control API.
+
+## Three ways to let a model play
+
+### 1. HTTP API and the served briefing
+
+Any agent loop that can call HTTP can play. `GET /api/help?lang=en|zh` returns
+the whole briefing with this host's URLs substituted in: `skills/play.*.md`
+(controls, API, the isometric axes) followed by `skills/speedrun.*.md` (menus,
+combat, attributes, the compass, the expensive traps). `?part=core` returns the
+first half only. Paste it into a system prompt and the model has everything it
+needs.
+
+```
+GET  /api/screen[?format=png]         look; JSON with a base64 PNG, or raw bytes
+GET  /api/help?lang=en|zh[&part=core] the briefing
+GET  /api/keys  /api/slots  /api/history?limit=100
+POST /api/key    {"key":"kp3"}        one key; "times" repeats, "hold" frames
+POST /api/keys   {"keys":["kp9","enter"]}   several in order, "gap" frames between
+POST /api/wait   {"ms":1000}
+POST /api/save   {"slot":1} | {"name":"before-boss"}
+POST /api/load   {"slot":1}
+```
+
+Actions wait for the screen to react and then hold still, and return
+`changed`, `frame` and `settled_frames`. They return no picture by default; add
+`?image=1` to capture the settled frame before the action lock is released, so
+the observation cannot belong to another controller's action. `?stable`,
+`?react` and `?maxsettle` tune the wait in frames. The native runner uses the
+same paths without the `/api` prefix and includes the image unless `?image=0`.
+
+Requests outside these bounds get a 400 with the reason:
+
+| parameter | range |
+|---|---|
+| `hold` | 1 to 1200 frames, default 10 |
+| `times`, `keys` | 1 to 100 |
+| `gap` | 0 to 600 frames, default 6 |
+| `ms` | 0 to 60000 |
+| `stable` | 1 to 600 frames, default 9 |
+| one action | at most 2800 frames in total |
+
+One action runs at a time. A caller that cannot get the lock within
+`QUNXIA_LOCK_TIMEOUT` (30 s) gets a 503 with `"error": "busy"`. Name your agent
+with an `X-Agent` header or `?agent=` so the activity log stays legible.
+
+The world is isometric. The numpad names match what you see and are
+byte-identical to the arrows:
+
+| key | aliases | screen direction |
+|---|---|---|
+| `kp7` | `left`, `upleft`, `nw` | up-left |
+| `kp9` | `up`, `upright`, `ne` | up-right |
+| `kp1` | `down`, `downleft`, `sw` | down-left |
+| `kp3` | `right`, `downright`, `se` | down-right |
+
+Holding a key walks continuously: one call with `"hold": 120` covers more
+ground than eight taps, at one settle instead of eight. Any key advances
+dialogue. `Scripts/play.py` is a command-line client for the same API.
+
+### 2. MCP server
+
+`mcp-server/server.py` wraps the API for any MCP client (Codex, Claude Code,
+Cursor, and others). It works with both major versions of the Python SDK.
+
+```sh
+QUNXIA_API=http://127.0.0.1:8765 uv run --with 'mcp>=1,<3' mcp-server/server.py
+# headless runner: QUNXIA_API=http://127.0.0.1:8080/api
+```
+
+The server sends the briefing as MCP `instructions` at connection time and
+exposes it again through the `guide` tool. Tools: `look`, `press`,
+`press_sequence`, `move`, `wait`, `guide`, `save_state`, `load_state`,
+`list_states`, `reset_game`. Action tools return a status line and the
+resulting frame as an image. Rejected inputs surface as tool errors.
+
+Register it once:
+
+```sh
+# Codex CLI or app
+QUNXIA_API=http://127.0.0.1:8765 ./Scripts/setup-codex.sh
+
+# Claude Code
+claude mcp add qunxia -e QUNXIA_API=http://127.0.0.1:8765 \
+  -- uv run --with 'mcp>=1,<3' "$PWD/mcp-server/server.py"
+```
+
+| variable | default | |
+|---|---|---|
+| `QUNXIA_API` | `http://127.0.0.1:8765` | game API base |
+| `QUNXIA_MCP_PROFILE` | `standalone` | `benchmark` exposes only `look`, `press`, `press_sequence`, `wait`; actions return metadata and `look` returns the native frame |
+| `QUNXIA_BENCH_LANG` | `en` | briefing language, `en` or `zh` |
+| `QUNXIA_AGENT` | `mcp` | name in the activity log |
+| `QUNXIA_SCALE` | `2` | frame scale for standalone play, 1 to 6 |
+
+For a timed benchmark session, create the session first, then point
+`QUNXIA_API` at the returned `base_url` plus `/api`. The server reads that
+session's `/api/help` at startup. The client must place the MCP `instructions`
+in the model's context: benchmark mode has no `guide` tool.
+
+### 3. Built-in Pi harness
+
+`pi-agent/` is a complete harness on [pi](https://pi.dev), pinned to 0.84.4 in
+`package-lock.json` (Node 22.19 or newer). Supply an OpenAI-compatible or Gemini
+endpoint and a vision model.
+
+```sh
+npm ci
+
+export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
+export QUNXIA_LLM_API_KEY=sk-...
+export QUNXIA_LLM_MODEL=local-openai/qwen3-vl:32b
+./Scripts/play-agent.sh                       # interactive
+./Scripts/play-agent.sh -p "play the opening" # non-interactive
+```
+
+Without `QUNXIA_API` the launcher starts the native game if needed and waits
+for the title screen. Every run gets its own directory under
+`.runs/pi/<run-id>/` with its own Pi configuration, sessions, empty workspace
+and a manifest recording the model, tools and whether the checkout was dirty.
+The API key stays in the environment. Pi's built-in shell and file tools,
+user extensions, skills and context files are not exposed.
+
+Tool exposure is declared in `pi-agent/profiles.json`:
+
+| profile | prompt | tools | actions |
+|---|---|---|---|
+| `strict` (default) | `pi-agent/SYSTEM.md` | eight `game_*` tools including save and load | return the frame |
+| `benchmark` | the session's `/api/help` | `game_look`, `game_press`, `game_press_sequence`, `game_wait` | metadata only; call `game_look` |
+
+```sh
+# timed benchmark session; BASE_URL is the base_url returned by POST /session
+QUNXIA_PI_PROFILE=benchmark QUNXIA_API="${BASE_URL%/}/api" \
+QUNXIA_THINKING=high QUNXIA_LLM_REASONING=1 QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
+QUNXIA_RUN_ID=benchmark-01 ./Scripts/play-agent.sh -p "play until BENCHMARK ENDED"
+
+# continue a run; model, API, profile and tools must match its manifest
+QUNXIA_RUN_ID=benchmark-01 QUNXIA_RESUME=1 ./Scripts/play-agent.sh -p "continue"
+```
+
+| variable | |
+|---|---|
+| `QUNXIA_LLM_MODEL` | required, `provider/model` |
+| `QUNXIA_LLM_API` | `openai-completions` (default), `openai-responses`, `google-generative-ai` |
+| `QUNXIA_THINKING` | required for benchmark runs; must be a level the model supports |
+| `QUNXIA_LLM_REASONING`, `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT` | set to `1` for reasoning on Chat endpoints |
+| `QUNXIA_LLM_INPUT`, `QUNXIA_LLM_CONTEXT`, `QUNXIA_LLM_MAX_TOKENS` | override model capabilities |
+| `QUNXIA_MODEL_CONFIG` | absolute path to a JSON model definition (`id`, `api`, `reasoning`, `input`, `contextWindow`, `maxTokens`, `thinkingLevelMap`) |
+| `QUNXIA_BENCH_LANG` | briefing language for benchmark runs, default `zh` |
+| `QUNXIA_RUN_ID`, `QUNXIA_RESUME`, `QUNXIA_RUNS_DIR` | run identity and location |
+
+Unsupported thinking levels are rejected before play rather than clamped. The
+resolved level and its mapping are recorded in `run.json`. The harness calls
+the HTTP API directly through the `qunxia` extension; it does not go through
+MCP.
+
+## Benchmark service
+
+`bench/` runs timed sessions and publishes them. One process per session, one
+game per model, recorded end to end.
+
+```
+POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
+     play at <base_url>/api/...        (the same API)
+     after the run every call answers 410 with
+     {"ended": true, "reason", "why", "video_url", "catalog_url"}
+```
+
+A run ends at the time budget (default 20 minutes) or after 10 minutes without
+an action. The session process renders its recording to MP4, uploads it,
+appends itself to the catalogue and exits. The leaderboard at
+<https://hanxiao.io/jy-crpg-bench/> is static and reads that catalogue.
+
+Everything measured comes from the run's own traffic, so it holds for any
+harness: actions and rate, key events and held frames, time to first action,
+think-time gaps, distinct keys, screen reads, screen-changing decisions,
+oscillation, black-screen transitions, the character record (level, HP,
+skills) and shared-inventory growth read from the emulator's memory.
+`bench/README.md` covers deployment and the variables.
 
 ## Control loop
 
-A key press applies input and waits for the screen to settle. The native runner
-includes that settled picture by default. The headless runner returns metadata
-by default to avoid encoding images nobody reads; add `?image=1` to capture the
-picture before the action lock is released, or call `/api/screen` separately.
-The MCP and pi tools request the atomic action image.
+A key press applies input, waits for the picture to change, then waits for it
+to hold still. Waiting only for stillness returns the frame from before the
+game reacted, and dialogue draws with a typewriter effect, so the settle
+threshold is generous.
 
 ```mermaid
 sequenceDiagram
@@ -111,16 +283,12 @@ sequenceDiagram
     S-->>A: {"changed": true, "image": "..."} when requested
 ```
 
-Waiting for the screen to change before waiting for it to settle is what makes
-the returned picture the result of the action. Waiting only for stillness
-returns the frame from before the game reacted, and dialogue is drawn with a
-typewriter effect that pauses between glyphs, so the settle threshold has to be
-generous or lines come back half written.
+Key down, release and inter-tap phases are fenced by the core frame clock, so
+host scheduling cannot collapse repeated taps. Short taps default to 10
+emulated frames, long enough for a slow DOS redraw and short of the game's
+held-key repeat delay.
 
 ## Architecture
-
-Both runners load the same libretro core through the same C host. `CoreHost.c`
-compiles unchanged on macOS and Linux, so the split is only in presentation.
 
 ```mermaid
 flowchart LR
@@ -137,7 +305,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph web["Headless Linux"]
+    subgraph web["Headless"]
         direction TB
         BR[Browser canvas] <-->|WebSocket| WS[aiohttp server]
         WS --> TD[tiles.c<br/>16x10 tile differ]
@@ -148,224 +316,20 @@ flowchart LR
     end
 ```
 
-The browser never receives a video stream. `tiles.c` compares each frame against
-the last one sent and emits only the 16×10 tiles that changed, deflated, over
-the socket that also carries input. A dialogue update is about 60 tiles and 5 KB,
-and an idle screen sends nothing at all.
+The browser receives no video stream. `tiles.c` compares each frame with the
+last one sent and emits only the changed 16x10 tiles, deflated, over the socket
+that also carries input. A dialogue update is about 60 tiles and 5 KB; an idle
+screen sends nothing.
 
-## Two runners, one key vocabulary
-
-The world is isometric, so the four movement axes are diagonals on screen. The
-numpad names match what you see, and are byte-identical to the arrows.
-
-| key | aliases | screen direction |
-|---|---|---|
-| `kp7` | `left`, `upleft`, `nw` | up-left |
-| `kp9` | `up`, `upright`, `ne` | up-right |
-| `kp1` | `down`, `downleft`, `sw` | down-left |
-| `kp3` | `right`, `downright`, `se` | down-right |
-
-Holding a key walks continuously, so one call with `"hold": 120` covers more
-ground than eight taps, at one settle rather than eight. Any key advances
-dialogue, not only enter. A script written against one runner works against the
-other.
-
-Short taps default to 10 emulated frames. This is long enough to cross a slow
-DOS redraw without reaching the game's held-key repeat delay. Callers that need
-an exact pulse length can still set `"hold"` explicitly.
-
-## Agent API
-
-The game reads key presses and nothing else. It has no text entry and no mouse,
-so every interaction is a key.
-
-```
-GET  /screen[?format=png]          look at the screen
-GET  /history?limit=100            action log
-GET  /keys  /slots  /help
-POST /key    {"key":"kp3"}         one key; "times" repeats, "hold" frames
-POST /keys   {"keys":["kp9","enter"]}   several in order, "gap" between
-POST /wait   {"ms":1000}
-POST /save   {"slot":1} | {"name":"before-boss"}
-POST /load   {"slot":1}
-POST /reset
-```
-
-`image` is a base64 PNG data URI. Native actions include it unless `?image=0`;
-headless actions include it with `?image=1`. `?format=png` gives raw bytes on a
-screen request, and `?react`, `?stable` and `?maxsettle` tune the wait.
-`"changed": false` means the framebuffer never visibly changed; it is not a
-game-success signal. `frame` counts
-distinct video frames and stalls on a static screen, while `ticks` always rises
-while the emulator runs. Boot takes about 14 seconds.
-
-The browser runner exposes the same key, screen, save/load and history surface
-under `/api/`. Its benchmark reset remains token-protected so a visitor cannot
-wipe a shared run.
-
-## Letting an LLM play
-
-An LLM cannot call an HTTP API on its own, so it needs a harness. The built-in
-Pi harness below exposes the selected game operations as typed tools.
-
-### Bring your own model, use the built-in harness
-
-`pi-agent/` is a complete harness built on [pi](https://pi.dev). Pi is pinned to
-version 0.84.4 in `package-lock.json`; the supported Node minimum and preferred
-version are recorded in `package.json` and `.node-version`. Install the exact
-dependency set once, then supply an OpenAI-compatible or Gemini API endpoint.
-
-```sh
-npm ci
-
-export QUNXIA_LLM_BASE_URL=http://localhost:11434/v1
-export QUNXIA_LLM_API_KEY=sk-...
-export QUNXIA_LLM_MODEL=local-openai/qwen3-vl:32b
-./Scripts/play-agent.sh
-```
-
-When no external game API is supplied, it starts the local game if needed and
-waits for the title screen. It then drops into pi. Add `-p "play the opening"`
-to run non-interactively. The script never uses a global `pi` executable.
-
-Every new run gets a fresh directory under `.runs/pi/<run-id>/`, including
-its own Pi configuration, sessions, empty working directory and run manifest.
-The API key stays in the process environment rather than being written to that
-directory. User extensions, skills, context files and Pi's built-in `bash`,
-`read`, `write` and `edit` tools are not exposed.
-
-Tool exposure is declared in `pi-agent/profiles.json`. The default `strict`
-profile loads only the eight local `game_*` tools. For a timed automation
-session, use `benchmark`: it exposes the canonical four game tools, fetches and
-snapshots the active session's `/api/help?lang=zh`, and verifies that the four
-documented API operations are present. Benchmark actions
-return metadata only; the model calls `game_look` when it needs the next native
-320x200 frame.
-
-```sh
-# Isolated standalone play (the default)
-QUNXIA_RUN_ID=baseline-01 ./Scripts/play-agent.sh -p "play"
-
-# Timed benchmark session (use that session's isolated API URL)
-# Set BASE_URL to the base_url returned by POST /session.
-BASE_URL=https://benchmark.example/s/replace-with-the-created-session-id
-QUNXIA_PI_PROFILE=benchmark \
-QUNXIA_API="${BASE_URL%/}/api" \
-QUNXIA_THINKING=high \
-QUNXIA_LLM_REASONING=1 \
-QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
-QUNXIA_RUN_ID=benchmark-01 \
-  ./Scripts/play-agent.sh -p "play until BENCHMARK ENDED"
-
-# Explicitly continue the same run; model, API, profile and tool configuration
-# must still match its recorded manifest.
-QUNXIA_RUN_ID=baseline-01 QUNXIA_RESUME=1 \
-  ./Scripts/play-agent.sh -p "continue playing"
-```
-
-Use a distinct `QUNXIA_RUN_ID` and game API/session URL for each concurrent
-agent. A named profile can select a different subset of the registered game
-tools without changing the launcher; the resolved extensions and tool allowlist
-are copied into the run manifest for later auditing. The manifest also records
-whether the harness checkout had uncommitted changes.
-
-Formal benchmark runs require an explicit `QUNXIA_THINKING` supported by the
-model. `QUNXIA_LLM_API` accepts `openai-completions` (default),
-`openai-responses`, or `google-generative-ai`. OpenAI-compatible Chat endpoints
-also need `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1` when reasoning is enabled.
-
-Set `QUNXIA_MODEL_CONFIG` to an absolute path to a JSON model definition using
-Pi's `id`, `api`, `reasoning`, `input`, `contextWindow`, `maxTokens`, and
-`thinkingLevelMap` fields. For example, Gemini 3.8 Flash's highest level is High
-([Google's supported levels](https://ai.google.dev/gemini-api/docs/thinking)):
-
-```json
-{
-  "id": "gemini-3.8-flash",
-  "api": "google-generative-ai",
-  "reasoning": true,
-  "input": ["text", "image"],
-  "contextWindow": 1048576,
-  "maxTokens": 65536,
-  "thinkingLevelMap": {
-    "off": null, "minimal": null,
-    "low": "low", "medium": "medium", "high": "high",
-    "xhigh": null, "max": null
-  }
-}
-```
-
-Use it with `QUNXIA_MODEL_CONFIG=/absolute/path/gemini.json`,
-`QUNXIA_LLM_MODEL=your-provider/gemini-3.8-flash`, and `QUNXIA_THINKING=high`.
-`QUNXIA_LLM_BASE_URL` still supplies the endpoint (including `/v1beta` for a
-native Gemini endpoint), and `QUNXIA_LLM_API_KEY` supplies authentication.
-The definition contains model capabilities only; shared Pi account settings
-are not imported. Nonempty `QUNXIA_LLM_*` environment values override the
-definition's API, input, context, output, and reasoning settings.
-
-For a model supporting Max, declare its actual mapping, for example
-`"thinkingLevelMap": {"max": "max"}`; Chat endpoints can also declare
-`"supportsReasoningEffort": true`. Merely requesting Max does not enable it.
-Unsupported levels are reported before play, rather than silently clamped.
-The resolved Pi level and its configured mapping (`mappedThinkingLevel`) are
-recorded in `run.json` together with the model definition. The mapping is not
-a capture of the final HTTP parameter: Pi's provider adapter may translate it
-further (for example, Gemini Pro maps Medium to High). Resume reuses the recorded definition by default
-and rejects incompatible explicit overrides. Set thinking with
-`QUNXIA_THINKING`; the launcher rejects a separate `--thinking` override.
-
-The built-in Pi harness calls the game HTTP API directly through the `qunxia`
-extension; it does not pass through MCP. `mcp-server/` is the separate adapter
-for clients with native MCP support. Both paths ultimately wrap the same game
-control API, but their published tool catalogs are not currently identical.
-
-Use a vision model. `QUNXIA_LLM_INPUT='["text"]'` drops images for a text-only
-model and `QUNXIA_LLM_CONTEXT` sets the context window. All profiles use the
-native 320x200 frame.
-
-### Bring your own harness, take the skill
-
-For an agent that already has a tool loop, `/api/help` returns the whole
-briefing as one block of text: `skills/play.{en,zh}.md` for driving the game,
-followed by `skills/speedrun.{en,zh}.md`, the field manual covering menus,
-combat, attributes, the compass and the traps that cost the most time.
-`?part=core` returns only the first half. The browser
-runner serves them at `/api/help?lang=en|zh` with its own URL substituted in,
-and the page offers them in a copy box. Paste one into a system prompt and the
-model has the API, the controls, the isometric axes and the traps.
-
-`skills/jyxzz-speedrun-tips/SKILL.md` is the original research the field manual
-came from. Edit that first, then fold anything durable into the served files.
-
-`mcp-server/` wraps the same surface over MCP 2.x for clients that speak it.
-Standalone mode loads guidance from the same `skills/` files as `/api/help`. Set
-`QUNXIA_MCP_PROFILE=benchmark` to expose only `look`, `press`,
-`press_sequence`, and `wait`; benchmark actions return metadata and `look`
-returns the native 320x200 frame. Standalone mode keeps the convenience tools.
-For benchmark mode, first create a session, then set `QUNXIA_API` to the returned
-`base_url` plus `/api`. MCP reads that session's `/api/help` at startup;
-`QUNXIA_BENCH_LANG=en|zh` selects the guide language. The client must include the
-MCP initialization `instructions` in the model's context: benchmark mode has no
-`guide` tool fallback.
-
-## Session recording
-
-Every game is recorded from the moment it starts. A recording is the same tile
-deltas the browser stream uses, kept with timestamps and with the key presses
-that caused them, so it costs little to keep and nothing extra to produce.
-While anyone is acting every frame is kept; once the game has been idle for a
-few seconds only the last thirty seconds are retained, which captures the
-animation an untouched game plays without growing without end.
-
-The activity panel has a button to replay at 4x, and another to export the
-recording as a video with the keys composited into the frame. Encoding happens
-in the browser, so a shared instance spends nothing on it.
+Every session is recorded as those tile deltas plus the keys that caused them,
+appended to a JSONL journal on disk. The activity panel replays at 4x and
+exports an MP4 in the browser; the benchmark renders the same journal with
+ffmpeg.
 
 ## Emulated CPU speed
 
-The x86 code is JIT compiled to ARM64 or x86-64 by the DOSBox Pure recompiler,
-so there is no interpreter in the hot path. What costs CPU is the cycle budget.
-Measured on an M3 Ultra, 10 seconds at the title screen with audio on:
+The x86 code is JIT compiled by the DOSBox Pure recompiler. CPU cost is the
+cycle budget. Measured on an M3 Ultra, 10 seconds at the title screen:
 
 | `dosbox_pure_cycles` | CPU (one core = 100%) | emulated fps | boot to title |
 |---|---:|---:|---:|
@@ -374,41 +338,53 @@ Measured on an M3 Ultra, 10 seconds at the title screen with audio on:
 | fixed 77000 | 31.3% | 70.17 | 15.9s |
 | fixed 26800 | 15.6% | 70.04 | |
 
-The game targets a 486 or Pentium, so anything above a Pentium-100 budget is
-spent on its own idle loops. The macOS runner defaults to 77000, and the server
-to 26800, which is what lets a shared-core VM hold a full 70.09 fps. Override
-with `QUNXIA_SET="dosbox_pure_cycles=max"` or `--set dosbox_pure_cycles=200000`.
+The macOS runner defaults to 77000 and the server to 26800 (`QUNXIA_CYCLES`),
+which holds 70 fps on a shared-core VM. Override with
+`QUNXIA_SET="dosbox_pure_cycles=max"` or `--set dosbox_pure_cycles=200000`.
+
+## Tests
+
+```sh
+./server/build.sh
+python -m unittest discover -s server -p 'test_*.py'      # needs aiohttp, pillow
+python -m unittest discover -s mcp-server -p 'test_*.py'  # run with mcp<2 and mcp>=2
+python -m unittest discover -s bench -p 'test_*.py'       # needs numpy
+python -m unittest discover -s site -p 'test_*.py'        # needs zhconv
+python -m unittest Scripts/test_agent_launchers.py
+node --test Scripts/test-pi-run.mjs Scripts/test-pi-launch.mjs   # after npm ci
+swift build
+```
+
+`site/build.py` and `site/agents_build.py` regenerate the leaderboard pages
+and the published briefs; the committed output must not drift.
 
 ## Layout
 
 ```
 Sources/CoreHost/    libretro host: dlopen, env callbacks, video, audio, input
-Sources/QunXia/      Emulator, MetalView, AudioOut, ControlAPI, HistoryView
-server/              headless runner: tile differ, aiohttp server, browser client
-skills/              play.*.md and speedrun.*.md, served together at /api/help,
-                     plus the research they came from
-pi-agent/            built-in harness: system prompt and game_* tools
-mcp-server/          MCP wrapper
-assets/              where your own game-data.tar.gz goes, untracked
+Sources/QunXia/      macOS app: Emulator, MetalView, AudioOut, ControlAPI, HistoryView
+server/              headless runner: tile differ, aiohttp server, browser client,
+                     recording journal, watchdog, benchmark warden
+bench/               benchmark broker, MP4 renderer, Dockerfile
+site/                leaderboard and published briefs
+skills/              play.*.md and speedrun.*.md, served at /api/help
+pi-agent/            built-in harness: prompts, profiles, game_* extension
+mcp-server/          MCP server
+Scripts/             run.sh, play-agent.sh, play.py, setup-codex.sh, packaging
+paper/               paper source and reference audit
 Cores/               dosbox_pure_libretro.dylib
-saves/               emulator snapshots
+saves/               emulator snapshots, untracked
 ```
 
 ## Licensing
 
-Three different things live in this repository and they are not under one
-licence.
+Code written here (`Sources/`, `server/`, `bench/`, `site/`, `mcp-server/`,
+`pi-agent/`, `Scripts/`, `skills/`) is MIT, in `LICENSE`.
 
-**The code written here** (`Sources/`, `server/`, `mcp-server/`, `pi-agent/`,
-`Scripts/`, `skills/`) is MIT, in `LICENSE`.
+DOSBox Pure (`Cores/dosbox_pure_libretro.dylib`) is GPLv2, built from
+`schellingb/dosbox-pure` at `7f6e8fb`, loaded at runtime through the libretro
+C API and redistributed unmodified.
 
-**DOSBox Pure** (`Cores/dosbox_pure_libretro.dylib`) is GPLv2, built from
-`schellingb/dosbox-pure` at `7f6e8fb`. It is loaded at runtime through the
-libretro C API and is redistributed here unmodified. Source is available from
-upstream.
-
-**The game data** is the 1996 commercial release, copyright 智冠科技 and
-河洛工作室. It is not licensed for redistribution and it is not ours to
-relicense, so it is not tracked here and you have to supply your own copy.
-Earlier commits did carry the archive, so it remains reachable in history;
-publishing this repository would require rewriting that history as well.
+The game data is the 1996 commercial release, copyright 智冠科技 and
+河洛工作室. It is not redistributable and is not tracked here; supply your own
+copy.
