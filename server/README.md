@@ -103,3 +103,34 @@ Measured on the target VM: at 77000 cycles the core runs 1.75x faster than the
 run out. At 26800 (486DX2-66, period-correct for a 1996 game) it runs 6.7x
 faster than needed, about 15% of a core, and an e2-micro holds a full 70.1 fps
 indefinitely. Override with `QUNXIA_CYCLES`.
+
+
+## Frame waits and failure evidence
+
+An input action keeps its original core-tick targets across hold, release, gap
+and settle phases. Its deadline is fixed at entry: requested wall-clock waits
+plus the larger of `QUNXIA_STALL_SECONDS + 0.5` (15.5 seconds by default) and
+`5 * total_requested_frames / nominal_fps + 0.5`. The frame total includes
+release fences and the maximum settle window. Progress never renews the
+deadline, and a key or sequence is never replayed to recover from a slow wait.
+
+A progressing core that exhausts this deadline reports `input_frame_timeout`.
+A core with no progress for the watchdog interval reports `core_stalled`;
+event-loop and finalization watchdog failures have separate sources. Pending
+keys are released on exceptions/cancellation when native calls can return. A
+native deadlock is terminated by the independent watchdog.
+
+The first fault freezes the current key, stage, target/actual ticks, elapsed
+times, up to 64 completed stages and up to 64 watchdog samples. The watchdog
+writes `incident.json` and Python thread stacks to `QUNXIA_DIAGNOSTIC_DIR`, or
+by default to a unique directory under `QUNXIA_HEALTH_DIR/incidents`. These
+records distinguish timeout paths; they do not establish why DOSBox slowed.
+
+Benchmark runs use a fixed monotonic deadline from the moment the opening
+state is playable. All waiting (including optional calibration) consumes that
+budget without credit. Deadline checks run before each key, while waiting and
+before reporting success; the native key gate checks again after acquiring its
+execution lock. A time-limit ending still validates core health before it can
+be scored as valid. Input/environment failures remain invalid. The broker
+stores diagnostics under `<result-dir>/<session-id>.diagnostics` and archives
+the last heartbeat, fault and exit status before reclaiming worker scratch.

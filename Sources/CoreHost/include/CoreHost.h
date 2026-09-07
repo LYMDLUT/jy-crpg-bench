@@ -20,6 +20,8 @@ void core_reset(void);
 
 /* Keyboard: retrok is a RETROK_* value. Routed to the core's keyboard callback. */
 void core_key(int retrok, bool down);
+/* CLOCK_MONOTONIC absolute seconds; zero disables the key-down deadline. */
+bool core_key_before_deadline(int retrok, bool down, double deadline);
 void core_release_all_keys(void);
 
 /* Mouse: relative motion in core pixels, buttons 0=left 1=right 2=middle. */

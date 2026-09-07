@@ -37,6 +37,25 @@ class WorkerFailureTests(unittest.IsolatedAsyncioTestCase):
                     if proc.poll() is None:proc.kill()
                     proc.wait()
 
+    async def test_diagnostics_survive_work_directory_reclamation(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proc = mock.Mock(pid=12345)
+            proc.poll.return_value = 75
+            work = root / 'scratch'
+            sess = dict(id='run', agent='test', proc=proc, work=work)
+            fault = dict(broker.failure('input_frame_timeout'), source='input_wait')
+            broker.write_json(work / 'health/failure.json', fault)
+            broker.write_json(work / 'health/heartbeat.json', dict(pid=12345, core_ticks=42))
+            with mock.patch.object(broker, 'RESULT_DIR', root / 'results'):
+                await broker.fail_worker(sess, 'input_frame_timeout')
+                shutil.rmtree(work)
+            retained = root / 'results/run.diagnostics'
+            self.assertEqual(broker.read_json(retained / 'failure.json'), fault)
+            self.assertEqual(broker.read_json(retained / 'heartbeat.json')['core_ticks'], 42)
+            self.assertEqual(broker.read_json(retained / 'worker.json')['exit_code'], 75)
+
     async def test_missing_result_is_not_reported_as_success(self):
         result=broker.ended_payload({'id':'missing','agent':'test'},None)
         self.assertFalse(result['ok'])
@@ -49,11 +68,11 @@ class WorkerFailureTests(unittest.IsolatedAsyncioTestCase):
         async def stalled(_frames):
             raise RuntimeError('frame clock stalled')
         try:
-            warden.run.update(playable=__import__('time').time()-warden.BUDGET-1,done=None,credit=0)
+            warden.run.update(playable=__import__('time').time()-warden.BUDGET-1,done=None,credit=0,deadline=warden.clock()-1,last_clock=warden.clock())
             with mock.patch.object(warden,'write_result') as write:
                 await warden.warden({'events':[]},health,asyncio.Lock(),stalled)
                 write.assert_not_called()
-                health.fail.assert_called_once_with('core_stalled')
+                health.fail.assert_called_once_with('finalization_wait_failed', source='finalization', exception_type='RuntimeError')
         finally:
             warden.run.clear();warden.run.update(old)
 
