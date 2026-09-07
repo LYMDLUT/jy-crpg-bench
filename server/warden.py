@@ -14,7 +14,7 @@ import os
 import pathlib
 import sys
 import time
-from health import write_json
+from health import clock, write_json
 
 ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "bench"))
@@ -46,6 +46,7 @@ CATALOG_OBJECT = "catalog.json"
 ALIAS = {"esc": "escape", "cancel": "escape", "return": "enter", "ok": "enter"}
 
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
+       "deadline": None, "last_clock": None,
        # Request errors have no counter; the historical zero was a placeholder.
        "reads": 0, "errors": None, "actions": 0, "key_events": 0,
        "input_frames": 0, "wait_calls": 0,
@@ -56,8 +57,7 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "level": None, "exp": None, "hp": None, "maxhp": None, "skills": None,
        "items": None, "reputation": None, "potential": None,
        "inventory_distinct": None, "picked_item": None,
-       # seconds spent on the benchmark's own housekeeping rather than by the
-       # agent, handed back at the end of the run
+       # Retained for metrics compatibility; the fixed deadline grants no credit.
        "credit": 0.0,
        "done": None, "result": None}
 
@@ -65,6 +65,14 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
 def playable_now():
     """Called once the savestate is in and the agent may act."""
     run["playable"] = time.time()
+    run["deadline"] = clock() + BUDGET
+    run["last_clock"] = clock()
+
+
+def check_time():
+    """End at the fixed monotonic deadline, also from inside an input action."""
+    if run["deadline"] is not None and clock() >= run["deadline"] and not run["done"]:
+        run["done"] = "time"
 
 
 def note_action(keys, label="", input_frames=0):
@@ -81,6 +89,7 @@ def note_action(keys, label="", input_frames=0):
     else:
         run["first"] = now
     run["last"] = now
+    run["last_clock"] = clock()
     run["actions"] += 1
     if not keys:
         run["wait_calls"] += 1
@@ -305,23 +314,23 @@ async def warden(rec, health, action_lock, wait_frames, recording_snapshot=None)
     then publishes it and takes the process down with it."""
     while run["playable"] is None:
         await asyncio.sleep(1)
-    while True:
-        deadline = run["playable"] + BUDGET + run["credit"]
-        now = time.time()
-        if now >= deadline:
-            run["done"] = "time"
+    while not run["done"]:
+        check_time()
+        if run["done"]:
             break
-        if now - (run["last"] or run["playable"]) >= IDLE:
+        now = clock()
+        if now - run["last_clock"] >= IDLE:
             run["done"] = "idle" if run["last"] else "never started"
             break
-        await asyncio.sleep(min(.25, max(.01, deadline - now)))
+        await asyncio.sleep(min(.25, max(.01, run["deadline"] - now)))
 
     async with action_lock:
         try:
             await wait_frames(2)
             health.check()
-        except Exception:
-            health.fail("core_stalled")
+        except Exception as exc:
+            health.fail("finalization_wait_failed", source="finalization",
+                        exception_type=type(exc).__name__)
             return
         health.set_phase("finalizing")
     res = dict(metrics(), valid=True, complete=False, why=why_text(), video_url=None, error=None)

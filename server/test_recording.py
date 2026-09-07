@@ -177,6 +177,7 @@ server.KEYFRAME_EVERY = .05
 original_event = server.key_event
 original_write = server.RecordingStore._write
 original_key = server.LIB.core_key
+original_guarded_key = server.LIB.core_key_before_deadline
 armed = False
 fail_until = 0.0
 def key_event(name, down):
@@ -195,6 +196,13 @@ def core_key(code, down):
     with pathlib.Path(os.environ["KEY_LOG"]).open("a") as stream:
         stream.write(json.dumps([code, bool(down)]) + "\\n")
     return result
+def guarded_key(code, down, deadline):
+    result = original_guarded_key(code, down, deadline)
+    if result:
+        with pathlib.Path(os.environ["KEY_LOG"]).open("a") as stream:
+            stream.write(json.dumps([code, bool(down)]) + "\\n")
+    return result
+server.LIB.core_key_before_deadline = guarded_key
 server.key_event = key_event
 server.RecordingStore._write = fail_write
 server.LIB.core_key = core_key

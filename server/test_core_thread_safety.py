@@ -40,6 +40,8 @@ class CoreThreadSafetyTests(unittest.TestCase):
             cls.lib.core_state_peek.argtypes = [ctypes.POINTER(ctypes.c_size_t), ctypes.c_int,
                                               ctypes.POINTER(ctypes.c_int16)]
         cls.lib.core_key.argtypes = [ctypes.c_int, ctypes.c_bool]
+        cls.lib.core_key_before_deadline.argtypes = [ctypes.c_int, ctypes.c_bool, ctypes.c_double]
+        cls.lib.core_key_before_deadline.restype = ctypes.c_bool
         cls.lib.core_ticks.restype = ctypes.c_uint64
         cls.lib.core_last_error.restype = ctypes.c_char_p
         if cls.has_state_access:
@@ -82,6 +84,18 @@ class CoreThreadSafetyTests(unittest.TestCase):
         self.assertFalse(reader.is_alive(), "core operation failed to release its lock")
         self.assertEqual(self.probe.probe_overlaps(), 0)
         return result[0]
+
+    def test_key_deadline_is_checked_after_native_lock_and_never_blocks_keyup(self):
+        from health import clock
+        accepted = self.assert_serialized(
+            lambda: self.lib.core_key_before_deadline(13, True, clock() + .02))
+        self.assertFalse(accepted)
+        self.assertEqual(self.probe.probe_keydowns(), 0)
+        self.assertTrue(self.lib.core_key_before_deadline(13, True, clock() + 1))
+        self.assertEqual(self.probe.probe_keydowns(), 1)
+        self.assertTrue(self.lib.core_key_before_deadline(13, False, clock() - 1))
+        self.assertTrue(self.lib.core_key_before_deadline(13, True, clock() + 1))
+        self.assertEqual(self.probe.probe_keydowns(), 2)
 
     def test_state_size_waits_for_frame(self):
         if not self.has_state_access:

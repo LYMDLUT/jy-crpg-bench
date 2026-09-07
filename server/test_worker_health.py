@@ -123,6 +123,37 @@ class WorkerIntegrationTests(unittest.TestCase):
         after=self.healthy()
         self.assertGreater(after['core_ticks'],before['core_ticks'])
 
+    def test_slow_advancing_native_core_completes_one_key_without_retry(self):
+        self.launch(PROBE_FRAME_DELAY_MS='180', QUNXIA_STALL_SECONDS='15')
+        wait_for(self.healthy)
+        status, body = request(self.port, '/api/key?react=0&stable=1&maxsettle=6',
+                               {'key': 'right', 'hold': 10}, timeout=20)
+        self.assertEqual(status, 200, body)
+        events = json.loads(request(self.port, '/api/recording')[1])['events']
+        keys = [e['down'] for e in events if e.get('key') == 'right']
+        self.assertEqual(keys, [True, False])
+        self.assertTrue(self.healthy())
+
+    def test_benchmark_time_limit_releases_partial_key_and_validates_result(self):
+        result_dir = self.folder / 'results'
+        self.launch(PROBE_FRAME_DELAY_MS='180', QUNXIA_STALL_SECONDS='15',
+                    QUNXIA_BENCH='1', QUNXIA_BENCH_BUDGET='2',
+                    QUNXIA_BENCH_SID='deadline', QUNXIA_RESULT_DIR=str(result_dir),
+                    QUNXIA_RECORDING_FILE=str(self.folder / 'deadline.jsonl'),
+                    QUNXIA_VIDEO_DIR=str(self.folder / 'videos'), QUNXIA_PUBLISH='0')
+        wait_for(self.healthy)
+        status, body = request(self.port, '/api/reset?token=test', {}, timeout=10)
+        self.assertEqual(status, 200, body)
+        status, body = request(self.port, '/api/key', {'key': 'right', 'hold': 100}, timeout=8)
+        self.assertEqual(status, 410, body)
+        result = wait_for(lambda: read_json(result_dir / 'deadline.json'))
+        self.assertTrue(result['valid'])
+        self.assertEqual(result['reason'], 'time')
+        journal = self.folder / 'deadline.jsonl'
+        records = [json.loads(line) for line in journal.read_text().splitlines()]
+        downs = [e['down'] for e in records if e.get('key') == 'right']
+        self.assertEqual(downs, [True, False])
+
     def test_native_key_deadlock_becomes_environment_failure(self):
         p=self.launch(PROBE_HANG_ON_KEY='1')
         wait_for(self.healthy)
