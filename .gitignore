@@ -39,3 +39,6 @@ ref-hojy/
 ref-kys-pascal/
 vendor/
 _cat.json
+
+# Recording journals written by server.py (QUNXIA_RECORDING_DIR).
+/recordings/

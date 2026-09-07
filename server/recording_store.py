@@ -77,7 +77,16 @@ class RecordingStore:
             self.fd = os.open(self.path, os.O_RDWR | os.O_APPEND)
             size = os.fstat(self.fd).st_size
             if size and os.pread(self.fd, 1, size - 1) != b'\n':
-                os.write(self.fd, b'\n')
+                # A crash mid-append leaves a torn final line. Closing it with
+                # a newline would hand every reader one unparseable line until
+                # the next reset, so drop it back to the last complete line.
+                # The header parsed above, so a file with no newline at all is
+                # a complete header that only lacks its terminator.
+                end = self._last_line_end(size)
+                if end:
+                    os.ftruncate(self.fd, end)
+                else:
+                    os.write(self.fd, b'\n')
                 os.fsync(self.fd)
             self.committed_size = os.fstat(self.fd).st_size
         except BaseException:
@@ -86,6 +95,18 @@ class RecordingStore:
                     os.close(descriptor)
             self.fd = self.lease_fd = None
             raise
+
+    def _last_line_end(self, size):
+        """Offset just past the last newline in the file, or 0 if none."""
+        pos = size
+        while pos > 0:
+            start = max(0, pos - (64 << 10))
+            chunk = os.pread(self.fd, pos - start, start)
+            index = chunk.rfind(b'\n')
+            if index >= 0:
+                return start + index + 1
+            pos = start
+        return 0
 
     def _prepare_file(self, started):
         data = (json.dumps({'version': 1, 'started': started}) + '\n').encode()
