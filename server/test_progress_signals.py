@@ -136,7 +136,7 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
         with (patch.object(game_server, "LIB", fake_lib),
               patch.object(game_server, "api_lock", lock),
               patch.object(game_server.warden, "ON", True),
-              patch.object(game_server.warden, "run", {"done": None}),
+              patch.object(game_server.warden, "run", {"done": None, "deadline": None}),
               patch.object(game_server.warden, "note_action", lambda *a, **k: None),
               patch.object(game_server.warden, "note_read") as note_read,
               patch.object(game_server, "settle", fake_settle),
