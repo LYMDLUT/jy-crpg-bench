@@ -248,8 +248,10 @@ Chinese at `/` and English at `/en/`. It is a static page that reads
 `catalog.json` from the benchmark's bucket, so it has no backend of its own.
 
 Each card is one run: model name, the MP4 replay with the keys composited in,
-how the run ended, and a six-rung progress ladder (left the opening room,
-reached the world map, picked up an item, and so on). The board ranks models on
+how the run ended, and a six-rung progress ladder: acted, screen responded,
+picked something up, reached the world map, gained experience, reached level
+2. Each rung comes from the request log, the frames or the emulator's memory,
+never from a model's own report. The board ranks models on
 the screen-changing decision ratio and shows speed, effort and reliability
 beside it, with a trade-off view of screen changes against decisions and a
 random-key baseline for scale. Runs in progress appear as live cards that
