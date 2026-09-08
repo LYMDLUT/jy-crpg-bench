@@ -1,0 +1,36 @@
+% Three states an agent meets in the first minutes, at native resolution.
+% Grid: 1 unit = 1 cm; each frame is 4.8 wide (320x200 upscaled 3x, no
+% interpolation), gap 0.35.
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+\usetikzlibrary{calc}
+\graphicspath{{.}{figures/}}
+
+\definecolor{ink}{HTML}{1C1C1E}
+\definecolor{soft}{HTML}{9C9C9F}
+\definecolor{rule}{HTML}{DCDDE0}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\sffamily,
+  panel/.style={font=\sffamily\small\bfseries,text=ink},
+  note/.style={font=\sffamily\scriptsize,text=soft,align=left},
+]
+\def\W{4.8}
+\foreach \i/\file/\cap in {%
+  0/dialogue-x3/{dialogue, 16-pixel glyphs},
+  1/menu-x3/{the menu, four words},
+  2/sheet-x3/{the character the benchmark reads}}
+{
+  \pgfmathsetmacro{\x}{\i*(\W+0.35)}
+  \begin{scope}[shift={(\x,0)}]
+    \node[inner sep=0,anchor=north west] (f) at (0,0) {\includegraphics[width=\W cm]{\file}};
+    \draw[rule,line width=0.4pt] (f.north west) rectangle (f.south east);
+    \node[panel,anchor=north west] at ($(f.south west)+(0,-0.06)$)
+      {(\ifcase\i a\or b\or c\fi)};
+    \node[note,anchor=north west] at ($(f.south west)+(0.52,-0.04)$) {\cap};
+  \end{scope}
+}
+\end{tikzpicture}
+\end{document}

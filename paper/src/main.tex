@@ -119,8 +119,8 @@ human playthrough takes tens of hours. The agent receives the framebuffer and
 a key vocabulary, and nothing else.
 
 Three properties make the environment adversarial for current models in ways
-a modern title would not be, and \cref{fig:opening} shows the first two of
-them in the frame every session starts from. Perception is out of
+a modern title would not be, and \cref{fig:opening} shows the world they apply
+to. Perception is out of
 distribution on several axes at once: native-resolution studies report that
 the usual downsampling path costs vision-language models accuracy
 \citep{niu2025resolution}, corruption studies measure systematic sensitivity
@@ -151,11 +151,11 @@ as progress, so no amount of visual churn can move a progress metric.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/isometric.pdf}
-\caption{The observation and the control geometry. Panel (a) is the opening
-scene, with the protagonist centre-left and the first speaking character to
-the right. Panel (b) shows why screen-space reasoning fails: the four movement
-keys run along the diagonals of the projection.}
+\includegraphics[width=\linewidth]{figures/teaser.pdf}
+\caption{The native runner on the two tiers of the world, and the geometry
+that connects them to the keyboard. The right pane of the window logs every
+control call with the key it sent and the frame it returned; a session sees
+only the frame.}
 \label{fig:opening}
 \end{figure}
 
@@ -302,6 +302,20 @@ must be completed before much of the map becomes reachable at all. The
 opening compound is a single scene containing a searchable chest, furniture,
 one speaking character, and exactly one exit tile.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/screens.pdf}
+\caption{Three states an agent meets in its first minutes, at the resolution
+it receives them. Every objective, choice and statistic in the game is stated
+this way and nowhere else.}
+\label{fig:screens}
+\end{figure}
+
+\Cref{fig:screens} shows what that state looks like from the outside. Every
+objective, prompt and statistic reaches the agent as Traditional Chinese
+rendered at sixteen pixels a line, and the character sheet it would have to
+read is the same record the benchmark reads from memory.
+
 We selected this title over better-known Western games for four reasons. Its
 text is Traditional Chinese throughout, which makes cross-lingual grounding a
 first-class obstacle. It is menu-driven, not
@@ -325,6 +339,19 @@ responds to a small subset that the agent must discover. Movement runs along
 the four numpad diagonals, with the arrow keys aliased onto the same four
 axes, so an agent that presses \texttt{up} expecting to walk up the screen
 moves up and to the right instead.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/keymap.pdf}
+\caption{The action space. The API accepts \MkeyNames{} key names over
+\MkeyCodes{} distinct keys; the game answers the nine picked out here, and an
+agent has to find them.}
+\label{fig:keymap}
+\end{figure}
+
+\Cref{fig:keymap} lays the action space out. Almost every key the API accepts
+does nothing in the game, and which ones do is not stated anywhere the agent
+can read.
 
 The control surface is nine calls, and one way to do each thing:
 
@@ -655,7 +682,7 @@ The stack is open source at \url{https://github.com/hanxiao/jy-crpg-bench}.
 Every number typeset in this paper is generated, never typed: the frozen
 inputs are \texttt{figures/catalog\_snapshot.json} and
 \texttt{figures/start.state}, the savestate every session boots into and the
-state shown in \cref{fig:opening}. Generator scripts turn those into the
+state panel (a) of \cref{fig:opening} shows. Generator scripts turn those into the
 macros used throughout, and a consistency check fails the build if a latched
 claim or floor drifts from the snapshot. Re-executing the game needs a
 self-supplied copy of the 1996 release, described in
