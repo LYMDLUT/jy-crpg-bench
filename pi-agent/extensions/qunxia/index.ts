@@ -63,7 +63,7 @@ async function call(method: string, path: string, body?: unknown, signal?: Abort
   return payload;
 }
 
-function toolFailure(err: unknown, _signal?: AbortSignal) {
+function toolFailure(err: unknown) {
   if (err instanceof GameApiError) {
     const status = err.status !== undefined ? ` (HTTP ${err.status})` : "";
     const hint = err.hint ? ` ${err.hint}` : "";
@@ -166,7 +166,7 @@ export default function (pi: ExtensionAPI) {
         settled_frames: action.settled_frames,
       }, note);
     } catch (err) {
-      return toolFailure(err, signal);
+      return toolFailure(err);
     }
   };
 
@@ -182,7 +182,7 @@ export default function (pi: ExtensionAPI) {
       try {
         return frame(await call("GET", `/screen?scale=${SCALE}`, undefined, signal), "look");
       } catch (err) {
-        return toolFailure(err, signal);
+        return toolFailure(err);
       }
     },
   });
@@ -339,7 +339,7 @@ export default function (pi: ExtensionAPI) {
           details: res,
         };
       } catch (err) {
-        return toolFailure(err, signal);
+        return toolFailure(err);
       }
     },
   });

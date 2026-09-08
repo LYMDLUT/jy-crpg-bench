@@ -1069,9 +1069,10 @@ def input_stage(stage, **details):
 
 def send_key_down(code):
     budget = current_budget.get()
-    check_input_runtime()
     if budget:
         budget.check()
+    else:
+        check_input_runtime()
     deadline = budget.deadline if budget else 0
     if warden.ON and warden.run["deadline"] is not None:
         deadline = min(deadline, warden.run["deadline"]) if deadline else warden.run["deadline"]
