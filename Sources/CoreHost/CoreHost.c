@@ -397,7 +397,10 @@ bool core_init(const char *core_path, const char *game_path, const char *save_di
     g_mem_data = (fn_mem_data)sym("retro_get_memory_data", false);
     g_mem_size = (fn_mem_size)sym("retro_get_memory_size", false);
     g_set_controller = (fn_set_controller)sym("retro_set_controller_port_device", false);
-    if (!set_env || !g_init || !g_load || !g_run) return false;
+    if (!set_env || !g_init || !g_load || !g_run) {
+        g_run = NULL;                  /* nothing was initialized; allow a retry */
+        return false;
+    }
 
     set_env(env_cb);
     set_video(video_cb);
@@ -413,6 +416,8 @@ bool core_init(const char *core_path, const char *game_path, const char *save_di
     g_game_loaded = false;
     if (!g_load(&info)) {
         set_err("retro_load_game failed");
+        if (g_deinit) g_deinit();
+        g_run = NULL;                  /* no live core; the next init may try again */
         return false;
     }
     g_game_loaded = true;
