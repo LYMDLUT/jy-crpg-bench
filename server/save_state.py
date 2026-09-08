@@ -81,10 +81,17 @@ def decode_team(base_block):
 
 
 def decode_position(base_block):
-    """Where the party stands: which submap, and the world-map square."""
+    """Where the party stands: which submap, and the world-map square.
+
+    ``submap`` is the scene's id plus one, so zero means the party is on the
+    world map itself and nothing else. That is what the game writes when it
+    saves, and it is why the shipped R1-R3 slots start a loaded game outdoors
+    while a new game starts in a room.
+    """
     on_ship, submap, main_x, main_y, sub_x, sub_y = struct.unpack_from(
         "<6h", base_block, 0)
-    return {"submap": submap, "x": main_x, "y": main_y,
+    return {"submap": submap, "on_world_map": submap == 0,
+            "x": main_x, "y": main_y,
             "sub_x": sub_x, "sub_y": sub_y, "on_ship": bool(on_ship)}
 
 

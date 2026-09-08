@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var api: ControlAPI!
     var emu: Emulator!
     var audio: AudioOut!
+    var saver: GameSave!
     let log = ActionLog()
 
     static func main() {
@@ -49,9 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         let port = UInt16(Self.flagValue("--port").flatMap(UInt16.init) ?? 8765)
+        saver = GameSave(emu: emu, gameDir: game.deletingLastPathComponent())
         do {
             api = try ControlAPI(port: port, log: log, saveDir: saves,
-                                 skillsDir: root.appendingPathComponent("skills"), emu: emu)
+                                 skillsDir: root.appendingPathComponent("skills"), emu: emu,
+                                 saver: saver)
         } catch {
             log.add("LISTEN", ":\(port)", payload: "\(error)", ok: false)
         }
@@ -68,6 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let pane = ContentView()
         pane.metal = view
         pane.history = HistoryView(log: log, port: port)
+        pane.progress = ProgressView(saver: saver)
+        pane.progress.start()
         content = pane
 
         window = NSWindow(
@@ -307,7 +312,14 @@ final class ContentView: NSView {
 
     var metal: MetalView! { didSet { swap(old: oldValue, new: metal) } }
     var history: HistoryView! { didSet { swap(old: oldValue, new: history) } }
-    var showLog = true { didSet { history?.isHidden = !showLog; needsLayout = true } }
+    var progress: ProgressView! { didSet { swap(old: oldValue, new: progress) } }
+    var showLog = true {
+        didSet {
+            history?.isHidden = !showLog
+            progress?.isHidden = !showLog
+            needsLayout = true
+        }
+    }
 
     private func swap(old: NSView?, new: NSView?) {
         old?.removeFromSuperview()
@@ -334,8 +346,14 @@ final class ContentView: NSView {
         super.layout()
         let w = bounds.width, h = bounds.height
         let side = min(sidebar, max(0, w - Self.baseWidth))
-        metal?.frame = NSRect(x: 0, y: 0, width: (w - side).rounded(), height: h)
-        history?.frame = NSRect(x: (w - side).rounded(), y: 0, width: side, height: h)
+        let x = (w - side).rounded()
+        // The progress panel is a fixed strip at the top of the sidebar; the
+        // log takes whatever is left, which is what grows with the window.
+        let panel = side <= 1 ? 0 : min(h, progress?.intrinsicContentSize.height ?? 0)
+        metal?.frame = NSRect(x: 0, y: 0, width: x, height: h)
+        progress?.frame = NSRect(x: x, y: h - panel, width: side, height: panel)
+        history?.frame = NSRect(x: x, y: 0, width: side, height: h - panel)
         history?.isHidden = !showLog || side <= 1
+        progress?.isHidden = !showLog || side <= 1
     }
 }

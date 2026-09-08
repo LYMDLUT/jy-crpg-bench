@@ -74,6 +74,25 @@ class ArchiveTests(unittest.TestCase):
         self.assertIsNone(S.from_archive(grp, idx[:8]))
 
 
+class PositionTests(unittest.TestCase):
+    def test_the_shipped_slots_are_saved_on_the_world_map(self):
+        # submap is the scene id plus one, so the game writes zero for the
+        # world map. The three slots the release ships were saved there, which
+        # is why loading one from the title lands outdoors.
+        grp, idx = shipped()
+        for name in ("R1", "R2", "R3"):
+            path = GAME / f"{name}.GRP"
+            index = GAME / f"{name}.IDX"
+            if not path.is_file():
+                continue
+            s = S.from_archive(path.read_bytes(), index.read_bytes())
+            self.assertIsNotNone(s, name)
+            self.assertTrue(s["position"]["on_world_map"], name)
+        # RANGER carries the same zero: the title screen decides where a new
+        # game starts, so the template's square is never used as written.
+        self.assertTrue(S.from_archive(grp, idx)["position"]["on_world_map"])
+
+
 class MemoryTests(unittest.TestCase):
     """The working copy: the bag in front of the character records."""
 

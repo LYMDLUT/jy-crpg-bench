@@ -34,6 +34,12 @@ void core_mouse_button(int button, bool down);
 bool core_save_state(const char *path);
 bool core_load_state(const char *path);
 
+/* Serialise the machine without writing a file, so a caller can read the
+   game's own data out of it. core_state_copy returns the bytes written, or
+   a negative value; it never loads state back. */
+size_t core_state_size(void);
+int core_state_copy(unsigned char *dst, size_t cap);
+
 int core_width(void);
 int core_height(void);
 int core_pitch(void);

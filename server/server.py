@@ -275,6 +275,227 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "books": None, "book_ids": None, "items_total": None}
 
 
+# --------------------------------------------------- the game's own save slot
+#
+# The game writes its save slots as `R<n>.GRP` into the directory it was
+# mounted from, so a save the game performs itself is readable from here. That
+# archive is the only place the party roster and the world square are true:
+# the copies of those in a machine image are the ones the game loaded when the
+# run began, and they do not follow the player.
+#
+# The game only offers 存檔 from the world map, and it says so itself: the menu
+# has six rows there and four inside a scene. The attempt below opens the menu,
+# counts its rows, and backs out again when saving is not on offer, so it never
+# guesses from pixels what the game will accept.
+#
+# None of this is reachable from the Control API. An agent that could save
+# could also load, and a run that can rewind is not a measurement.
+GAME_DIR = pathlib.Path(GAME).parent
+SNAPSHOT_SLOT = min(3, max(1, int(os.environ.get("QUNXIA_SNAPSHOT_SLOT", "3"))))
+# How often to try, in seconds. A try that finds a scene costs two taps.
+SNAPSHOT_EVERY = float(os.environ.get("QUNXIA_SNAPSHOT_EVERY", "120"))
+# Idle before trying, so the macro never lands between an agent's own keys.
+SNAPSHOT_IDLE = 2.0
+WORLD_MENU_ROWS = 6         # 醫療 解毒 物品 狀態 離隊 系統
+SYSTEM_ROW = 5              # 系統 is the sixth
+SAVE_ROW = 1                # 讀檔 存檔 離開: 存檔 is the second
+
+# How much budget is left when a scored run gets its last save. The agent is
+# still playing then, which is the point: after this there is no more chance
+# to catch the party on the world map.
+SNAPSHOT_LAST_CALL = float(os.environ.get("QUNXIA_SNAPSHOT_LAST_CALL", "25"))
+
+snap = {"at": None, "tries": 0, "saves": 0, "why": "not tried yet",
+        "archive": None, "last_action": time.time(), "last_call": False}
+
+
+def archive_paths(slot=None):
+    n = SNAPSHOT_SLOT if slot is None else slot
+    return GAME_DIR / f"R{n}.GRP", GAME_DIR / f"R{n}.IDX"
+
+
+def archive_stamp():
+    """Enough of the slot file to tell a fresh write from the old one."""
+    grp, _ = archive_paths()
+    try:
+        st = grp.stat()
+        return (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+
+
+def read_archive():
+    """The slot the game last wrote, decoded, or None."""
+    grp, idx = archive_paths()
+    try:
+        return save_state.from_archive(grp.read_bytes(), idx.read_bytes())
+    except OSError:
+        return None
+
+
+# The menu panel's left border is a column of white pixels at a fixed x, and
+# the panel grows by exactly one row height per entry: measured at 122 pixels
+# for the six-row world-map menu and 82 for the four-row one a scene offers,
+# both starting at y 23. Its width follows its contents and its right border
+# moves with it, so the left border is the one thing that stays put.
+MENU_X = 21
+MENU_TOP = (15, 30)
+MENU_ROW_H = 20
+MENU_PAD = 2
+
+
+def menu_rows():
+    """How many rows the game's menu panel has, or 0 when none is open."""
+    w = ctypes.c_int(0)
+    h = ctypes.c_int(0)
+    n = LIB.fb_snapshot(SNAP, len(SNAP), 1, ctypes.byref(w), ctypes.byref(h))
+    if n <= 0 or w.value <= MENU_X:
+        return 0
+    px = Image.frombytes("RGB", (w.value, h.value), SNAP.raw[:n]).load()
+    best = top = run = start = 0
+    for y in range(h.value):
+        if min(px[MENU_X, y]) >= 250:
+            if run == 0:
+                start = y
+            run += 1
+            if run > best:
+                best, top = run, start
+        else:
+            run = 0
+    if best < MENU_ROW_H * 2 or not MENU_TOP[0] <= top <= MENU_TOP[1]:
+        return 0
+    return round((best - MENU_PAD) / MENU_ROW_H)
+
+
+async def meta_tap(code, times=1):
+    """A key the benchmark presses for itself.
+
+    Deliberately outside the session accounting: these are not the agent's
+    actions and must not appear in its action count, its key histogram, or its
+    behavioural ratios.
+    """
+    for _ in range(times):
+        try:
+            LIB.core_key(code, True)
+            await wait_core_frames(DEFAULT_TAP_FRAMES)
+        finally:
+            LIB.core_key(code, False)
+        await wait_core_frames(24)      # let the panel redraw before reading it
+
+
+async def close_menus(limit=4):
+    """Escape until nothing is open. One escape too many reopens the menu, so
+    this asks the screen rather than pressing a fixed number of times."""
+    for _ in range(limit):
+        if menu_rows() == 0:
+            return True
+        await meta_tap(KEYS["escape"])
+    return menu_rows() == 0
+
+
+async def game_snapshot(reason=""):
+    """Have the game save itself, then read what it wrote.
+
+    Returns (summary, why). The summary is None whenever the game did not
+    write, which is the usual outcome inside a scene.
+    """
+    if not await acquire_action_lock("snapshot", timeout=0.05):
+        return None, "busy"
+    snap["tries"] += 1
+    try:
+        await meta_tap(KEYS["escape"])
+        rows = menu_rows()
+        if rows != WORLD_MENU_ROWS:
+            await close_menus()
+            return None, (f"the menu offered {rows} rows, not {WORLD_MENU_ROWS}"
+                          "; the game only saves from the world map")
+        if stats["queued"]:
+            # Somebody wants to play. The save is worth a few of the run's
+            # seconds, but never seconds an agent is waiting on.
+            await close_menus()
+            return None, "yielded to a waiting caller"
+        await meta_tap(KEYS["down"], SYSTEM_ROW)
+        await meta_tap(KEYS["enter"])
+        await meta_tap(KEYS["down"], SAVE_ROW)
+        await meta_tap(KEYS["enter"])
+        await meta_tap(KEYS["down"], SNAPSHOT_SLOT - 1)
+        before = archive_stamp()
+        await meta_tap(KEYS["enter"])
+        # The game writes the file a moment after it says 請稍候; wait for the
+        # file itself rather than for a number of frames.
+        written = False
+        for _ in range(40):
+            await wait_core_frames(20)
+            if archive_stamp() not in (None, before):
+                written = True
+                break
+        await close_menus()
+        if not written:
+            return None, "the slot file did not change"
+        summary = read_archive()
+        if summary is None:
+            return None, "the slot the game wrote would not decode"
+        summary["saved_at"] = time.time()
+        summary["reason"] = reason
+        snap["archive"] = summary
+        snap["at"] = summary["saved_at"]
+        snap["saves"] += 1
+        if warden.ON:
+            warden.run["team_size"] = summary["team_size"]
+            warden.run["team_level"] = summary["team_level"]
+            warden.run["saved_at"] = snap["at"]
+        return summary, ""
+    finally:
+        action_lock().release()
+        stats["holder"] = ""
+
+
+async def snapshotter():
+    """Have the game save itself now and then, and once before time is up.
+
+    Every attempt waits for a gap: nobody queued for the lock, and the agent
+    idle since its last action, so a key of ours never lands inside one of
+    its own. An attempt that finds a scene costs two taps and puts the screen
+    back exactly as it was; one that finds the world map costs a few seconds
+    and leaves a save behind.
+    """
+    while True:
+        await asyncio.sleep(5)
+        if paused.is_set():
+            continue
+        if warden.ON and (warden.run["playable"] is None or warden.run["done"]):
+            continue
+        if not session["actions"]:
+            # Nothing has played yet, so there is nothing to record and the
+            # opening is the one moment a stray key would be most confusing.
+            continue
+        left = warden.timing().get("remaining") if warden.ON else None
+        # The run's last save: near the end of the budget, whether or not one
+        # is due, because after this there is no more world map to catch.
+        last_call = left is not None and left <= SNAPSHOT_LAST_CALL
+        if last_call:
+            if snap["last_call"]:
+                continue
+        elif snap["at"] and time.time() - snap["at"] < SNAPSHOT_EVERY:
+            continue
+        if time.time() - snap["last_action"] < SNAPSHOT_IDLE:
+            continue
+        if stats["queued"]:                # somebody is waiting to play
+            continue
+        try:
+            summary, why = await game_snapshot("last call" if last_call
+                                              else "periodic")
+        except Exception as exc:                       # never kill the task
+            summary, why = None, f"{type(exc).__name__}: {exc}"
+        snap["why"] = why or "saved"
+        if last_call and why != "busy":
+            snap["last_call"] = True
+        if summary is None:
+            # Nothing was written, so back off the same interval rather than
+            # retrying every five seconds from inside a scene.
+            snap["at"] = time.time()
+
+
 def _state_bytes():
     if hero["buf"] is None:
         cap = LIB.core_state_size()
@@ -503,6 +724,7 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False,
     if verb in ("KEY", "KEYS", "TEXT", "WAIT"):
         rec_note_activity()
         session["actions"] += 1
+        snap["last_action"] = time.time()   # the save macro waits for a gap
         if key_events is None:
             key_events = 1 if verb in ("KEY", "TEXT") else 0
         session["key_events"] += key_events
@@ -795,6 +1017,13 @@ def session_summary():
             "picked_item": hero["picked_item"],
             "items_total": hero["items_total"],
             "books": hero["books"],
+            # From the game's own save slot: the party and the world square are
+            # true only there. Books and items stay on the live reading above,
+            # which is fresher than the last save.
+            "team_size": (snap["archive"] or {}).get("team_size"),
+            "team_level": (snap["archive"] or {}).get("team_level"),
+            "team": (snap["archive"] or {}).get("team"),
+            "saved_at": snap["at"], "saved_why": snap["why"],
             "reputation": hero["reputation"], "potential": hero["potential"],
             "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
             # the key histogram, so a card can draw its bars while the run is
@@ -1014,11 +1243,17 @@ def resume_emulator():
     paused_ack.clear()
 
 
-async def acquire_action_lock(holder=""):
-    """Acquire the one-player lease shared by REST and browser input."""
+async def acquire_action_lock(holder="", timeout=None):
+    """Acquire the one-player lease shared by REST and browser input.
+
+    `timeout` is for callers that would rather not take a turn at all than
+    wait for one: the save macro gives up instantly so an agent never queues
+    behind the benchmark's own housekeeping.
+    """
     stats["queued"] += 1
     try:
-        await asyncio.wait_for(action_lock().acquire(), timeout=LOCK_TIMEOUT)
+        await asyncio.wait_for(action_lock().acquire(),
+                               timeout=LOCK_TIMEOUT if timeout is None else timeout)
         stats["holder"] = holder
         return True
     except asyncio.TimeoutError:
@@ -1914,7 +2149,8 @@ async def index(_request):
 SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
                  "potential", "inventory_distinct", "picked_item",
                  "items_total", "books", "meaningful", "oscillation",
-                 "scenes", "frontier", "bigmap", "exit_acts", "exit_secs")
+                 "scenes", "frontier", "bigmap", "exit_acts", "exit_secs",
+                 "team_size", "team_level", "team", "saved_at", "saved_why")
 
 
 def operator(request):
@@ -1979,6 +2215,7 @@ async def startup(app):
     api_lock = asyncio.Lock()
     app["pump"] = asyncio.create_task(pump())
     app["reaper"] = asyncio.create_task(reap())
+    app["snapshotter"] = asyncio.create_task(snapshotter())
     if health:
         app["heartbeat"] = asyncio.create_task(pulse_health())
         health.set_phase("running")

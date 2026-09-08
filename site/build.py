@@ -70,7 +70,9 @@ ZH = {
     "b_inputs": "决策 · 提交键数 · 请求按住帧",
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
     "m_exp": "拿到经验", "m_level": "升到 2 级",
-    "b_n_ladder": "六个可验证里程碑来自请求记录、游戏画面和机器状态。"
+    "m_party": "有人入队", "m_book": "拿到秘笈",
+    "b_books": "秘笈", "b_party": "队伍",
+    "b_n_ladder": "七个可验证里程碑，除了第一个之外全部读自游戏自己的存档与角色数值。"
                   "它们展示取得的成果，不假定所有里程碑都必须按同一顺序发生。"
                   "空心的一格表示那一局跑的时候还没开始统计这项，不是没做到。",
     "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
@@ -162,11 +164,14 @@ EN = {
     "b_inputs": "decisions · submitted keys · requested held frames",
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
     "m_exp": "gained experience", "m_level": "reached level 2",
-    "b_n_ladder": "Six verifiable milestones come from request logs, game "
-                  "frames, and machine state. They show what a run achieved "
-                  "without assuming every milestone must occur in one order. A "
-                  "hollow rung means that run predates the measurement, not "
-                  "that it failed.",
+    "m_party": "recruited a companion", "m_book": "holds one of the fourteen",
+    "b_books": "books", "b_party": "party",
+    "b_n_ladder": "Seven verifiable milestones. All but the first are the "
+                  "game's own numbers, read from its save and its character "
+                  "records rather than inferred from the picture. They show "
+                  "what a run achieved without assuming every milestone must "
+                  "occur in one order. A hollow rung means that run predates "
+                  "the measurement, not that it failed.",
     "b_progress": "character", "b_level": "level", "b_char": "level · skills · items", "b_exp": "exp",
     "b_skills": "skills", "b_items": "item types",
     "b_n_progress": "The game's own character and shared-inventory values, read "
@@ -964,15 +969,24 @@ function spark(keys) {{
 // A rung is reached, not reached, or unknown. Unknown matters: most runs here
 // predate the character and scene reads, and drawing those as failures would
 // be the same lie as showing an unmeasured distance as nought.
+// The rungs a run can reach. All but the first are the game's own numbers:
+// its bag, its save, its character records. The screen-responded rung that
+// used to sit second is gone from the ladder - it measured the harness, not
+// the game - and remains a diagnostic column.
 const RUNGS = [
   {{k: "m_act",   at: r => r.key_events == null
       ? (r.actions ?? 0) > 0 : r.key_events > 0}},
-  {{k: "m_move",  at: r => (r.meaningful_count ?? r.meaningful) == null ? null
-      : (r.meaningful_count ?? r.meaningful) > 0}},
   {{k: "m_item",  at: r => r.picked_item == null ? null : !!r.picked_item}},
-  {{k: "m_map",   at: r => r.bigmap == null ? null : !!r.bigmap}},
+  // The game only offers to save from the world map, so a save it wrote is
+  // its own record of having stood there. Runs from before the benchmark
+  // could ask the game carry no saved_at at all, and keep the fingerprint
+  // flag they were scored with.
+  {{k: "m_map",   at: r => r.saved_at !== undefined ? r.saved_at != null
+      : (r.bigmap == null ? null : !!r.bigmap)}},
   {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
   {{k: "m_level", at: r => r.level == null ? null : r.level > 1}},
+  {{k: "m_party", at: r => r.team_size == null ? null : r.team_size > 1}},
+  {{k: "m_book",  at: r => r.books == null ? null : r.books > 0}},
 ]; 
 
 function fexit(r) {{
@@ -1133,6 +1147,20 @@ function boardRows() {{
         ? Math.max(...rs.map(r => r.inventory_distinct ?? 0)) : null,
       picked_item: rs.some(r => r.picked_item != null)
         ? rs.some(r => r.picked_item === true) : null,
+      // From the game's own save slot. A run that never crossed the world map
+      // never had one written, which is why these are null and not nought.
+      books: rs.some(r => r.books != null)
+        ? Math.max(...rs.map(r => r.books ?? 0)) : null,
+      team_size: rs.some(r => r.team_size != null)
+        ? Math.max(...rs.map(r => r.team_size ?? 0)) : null,
+      team_level: rs.some(r => r.team_level != null)
+        ? Math.max(...rs.map(r => r.team_level ?? 0)) : null,
+      // Present only when some run carried it. A pooled null would say "no
+      // save", which for a run recorded before saves existed is a claim the
+      // data cannot make; the rung reads a missing field as unmeasured.
+      ...(rs.some(r => "saved_at" in r)
+        ? {{saved_at: rs.some(r => r.saved_at != null)
+            ? Math.max(...rs.map(r => r.saved_at ?? 0)) : null}} : {{}}),
       bigmap: rs.some(r => r.bigmap != null)
         ? rs.some(r => r.bigmap === true) : null,
       exit_acts: rs.some(r => r.exit_acts != null)
@@ -1174,11 +1202,15 @@ const BOARDS = {{
   }},
   progress: {{
     label: () => T.b_level, note: () => T.b_n_progress + " " + T.b_pre,
-    key: m => m.level == null ? -1 : m.level * 1e6 + Math.min(999999, m.exp || 0),
+    // Books first: fourteen of them end the game, so one held outranks any
+    // amount of levelling. Level and experience order everything below that.
+    key: m => m.level == null && m.books == null ? -1
+            : (m.books || 0) * 1e10
+              + (m.level || 0) * 1e6 + Math.min(999999, m.exp || 0),
     val: m => `<b>${{m.level == null ? "-" : m.level}}</b>`
             + (m.exp ? `<i>${{m.exp}} ${{T.b_exp}}</i>` : ""),
-    cols: [[() => T.b_skills, m => m.skills == null ? "-" : m.skills],
-           [() => T.b_items, m => m.inventory == null ? "-" : m.inventory]],
+    cols: [[() => T.b_books, m => m.books == null ? "-" : m.books + "/14"],
+           [() => T.b_party, m => m.team_size == null ? "-" : m.team_size]],
   }},
   overview: {{
     label: () => T.b_score, ci: true,
@@ -2198,7 +2230,8 @@ async function openReplay(run, push) {{
     wl.innerHTML = ladder(run, true)
       + `<div class="wchar">`
       + [[T.b_level, run.level], [T.b_exp, run.exp], [T.b_skills, run.skills],
-         [T.b_items, run.inventory_distinct], [T.b_scenes, run.scenes]]
+         [T.b_items, run.inventory_distinct], [T.b_books, run.books],
+         [T.b_party, run.team_size], [T.b_scenes, run.scenes]]
           .map(([k, v]) => `<span><u>${{k}}</u><b>${{v == null ? "-" : v}}</b></span>`)
           .join("")
       + `</div>`;

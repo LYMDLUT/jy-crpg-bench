@@ -80,6 +80,22 @@
     color: #6c6c78; letter-spacing: .03em;
   }
   #meter b { color: #b9b9c2; font-weight: 600; }
+  #progress {
+    display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px 9px;
+    font-size: 10.5px; color: #6c6c78; letter-spacing: .03em;
+    border-bottom: 1px solid #1e1e24;
+  }
+  #progress b { color: #b9b9c2; font-weight: 600; }
+  #progress i { color: #55555f; font-style: normal; }
+  #progress b.won { color: #74d99f; }
+  #roster {
+    display: flex; flex-wrap: wrap; gap: 3px 12px; padding: 0 12px 9px;
+    font-size: 10.5px; color: #6c6c78; letter-spacing: .03em;
+    border-bottom: 1px solid #1e1e24;
+  }
+  #roster:empty { display: none; }
+  #roster b { color: #b9b9c2; font-weight: 600; }
+  #roster i { color: #55555f; font-style: normal; }
   #bars { padding: 0 12px 9px; border-bottom: 1px solid #1e1e24; }
   .bar { display: flex; align-items: center; gap: 6px; font-size: 10.5px; padding: 1px 0; }
   .bar .who {
@@ -227,6 +243,17 @@
 </div>
 
 <aside id="side">
+  <h2>PROGRESS <span class="right"><em>from the game state</em></span></h2>
+  <div id="progress">
+    <span>books <b id="p-books">-</b><i>/14</i></span>
+    <span>level <b id="p-level">-</b></span>
+    <span>exp <b id="p-exp">-</b></span>
+    <span>skills <b id="p-skills">-</b></span>
+    <span>items <b id="p-items">-</b></span>
+    <span>hp <b id="p-hp">-</b></span>
+    <span>party <b id="p-team">-</b></span>
+  </div>
+  <div id="roster"></div>
   <h2>ACTIVITY
     <span class="right"><em id="logcount"></em>
       <button id="play">▶ 4×</button><button id="save">⤓ mp4</button></span>
@@ -677,7 +704,48 @@ function colorOf(name) {
   return `hsl(${hue} 65% ${light}%)`;
 }
 
+// The game's own semantics, read out of the machine rather than off the
+// screen. A scored run does not receive these: the worker withholds them from
+// anyone without the operator token, so a model cannot watch its own score.
+function setProgress(s) {
+  const put = (id, v, suffix) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = (v === null || v === undefined) ? "-"
+                   : (suffix ? v + suffix : v);
+  };
+  put("p-books", s.books);
+  put("p-level", s.level);
+  put("p-exp", s.exp);
+  put("p-skills", s.skills);
+  put("p-items", s.items_total);
+  put("p-hp", s.hp == null ? null : s.hp + "/" + s.maxhp);
+  put("p-team", s.team_size);
+  const books = document.getElementById("p-books");
+  if (books) books.classList.toggle("won", s.books >= 14);
+  // The party and the world square are only true in a save the game itself
+  // wrote, so the roster appears once the run has crossed the world map and
+  // the benchmark has had the game save there.
+  const roster = document.getElementById("roster");
+  if (roster) {
+    roster.replaceChildren(...(s.team || []).map(m => {
+      const row = document.createElement("span");
+      row.append(m.name + " ");
+      const lv = document.createElement("b");
+      lv.textContent = m.level;
+      const unit = document.createElement("i");
+      unit.textContent = "lv";
+      row.append(lv, unit);
+      return row;
+    }));
+    roster.title = s.saved_at
+      ? "from the game's own save, " + new Date(s.saved_at * 1000).toLocaleTimeString()
+      : (s.saved_why || "");
+  }
+}
+
 function setMeter(s) {
+  setProgress(s);
   meter = s; meterAt = Date.now();
   document.getElementById("m-acts").textContent = s.actions;
   document.getElementById("m-api").textContent = s.by_api;

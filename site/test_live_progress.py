@@ -65,12 +65,59 @@ class ScoringBehaviorTests(unittest.TestCase):
         self.assertFalse(result[0][0])
         self.assertEqual(result[0], result[1])
 
+    def test_the_ladder_is_the_game_own_numbers(self):
+        # Everything but "acted" is read from the game: its bag, its save, its
+        # character records. A run that only made the screen move reaches one
+        # rung, not two.
+        result = self.evaluate("[rungs(runs[0]), reached(runs[0])]", [
+            {"agent": "busy", "actions": 40, "key_events": 40,
+             "meaningful": 1, "meaningful_count": 40},
+        ])
+        self.assertEqual(result[1], 1)
+        self.assertEqual(result[0][0], True)
+
+    def test_a_save_the_game_wrote_is_the_world_map_rung(self):
+        # The game only offers to save from the world map, so the save it
+        # wrote is its own record of standing there.
+        saved, unsaved, legacy = self.evaluate(
+            "runs.map(r => rungs(r)[2])", [
+                {"agent": "a", "saved_at": 1788909476, "team_size": 1,
+                 "books": 0, "bigmap": False},
+                {"agent": "b", "saved_at": None, "team_size": None,
+                 "books": None, "bigmap": True},
+                {"agent": "c", "bigmap": True},
+            ])
+        self.assertTrue(saved)
+        self.assertFalse(unsaved)
+        self.assertTrue(legacy)          # recorded before saves existed
+
+    def test_the_party_and_the_books_are_rungs(self):
+        party, books = self.evaluate(
+            "[rungs(runs[0]).slice(5), rungs(runs[1]).slice(5)]", [
+                {"agent": "a", "team_size": 3, "books": 0},
+                {"agent": "b", "team_size": 1, "books": 2},
+            ])
+        self.assertEqual(party, [True, False])
+        self.assertEqual(books, [False, True])
+
+    def test_the_character_board_puts_a_book_above_a_level(self):
+        keys = self.evaluate(
+            "boardRows().map(m => [m.agent, BOARDS.progress.key(m)])", [
+                {"agent": "leveller", "level": 9, "exp": 900, "books": 0,
+                 "team_size": 1},
+                {"agent": "reader", "level": 1, "exp": 0, "books": 1,
+                 "team_size": 1},
+            ])
+        by = dict(keys)
+        self.assertGreater(by["reader"], by["leveller"])
+
     def test_exact_count_survives_rounded_ratio_on_card_and_board(self):
         result = self.evaluate("[rungs(runs[0]), boardRows()[0]]", [
             {"agent": "sparse", "actions": 4000, "key_events": 4000,
              "meaningful": 0, "meaningful_count": 1},
         ])
-        self.assertTrue(result[0][1])
+        # "acted" is the only rung a key count alone can reach now.
+        self.assertTrue(result[0][0])
         self.assertEqual(result[1]["mact"], 1)
         self.assertEqual(result[1]["meaningful"], 1 / 4000)
 
@@ -101,7 +148,8 @@ class ScoringBehaviorTests(unittest.TestCase):
         ])
         self.assertEqual(result[0]["meaningful_count"], 1)
         self.assertEqual(result[0]["inventory_distinct"], 4)
-        self.assertEqual(result[1][:3], [False, True, True])
+        # never acted, but the bag grew: no key events, an item picked up
+        self.assertEqual(result[1][:2], [False, True])
 
     def test_publication_error_does_not_replace_stop_reason(self):
         result = self.evaluate("why(runs[0])", [
@@ -153,9 +201,9 @@ class ScoringBehaviorTests(unittest.TestCase):
                 html: nodes.btable.innerHTML
             };
         })()""", [
-            {"agent": "Beta", "actions": 20, "key_events": 20, "meaningful": 0.5},
-            {"agent": "Alpha", "actions": 10, "key_events": 10, "meaningful": 0.5},
-            {"agent": "Gamma", "actions": 10, "key_events": 10, "meaningful": 0},
+            {"agent": "Beta", "actions": 20, "key_events": 20, "picked_item": True},
+            {"agent": "Alpha", "actions": 10, "key_events": 10, "picked_item": True},
+            {"agent": "Gamma", "actions": 10, "key_events": 10, "picked_item": False},
         ])
         self.assertEqual(result["ranks"], ["1", "1", "3"])
         self.assertLess(result["html"].index("<b>Alpha</b>"),
@@ -171,9 +219,10 @@ class ScoringBehaviorTests(unittest.TestCase):
             {"id": "live", "actions": 1, "key_events": 2, "input_frames": 20,
              "meaningful": 1, "level": 2, "skills": 3,
              "inventory_distinct": 4, "picked_item": True, "scenes": 2,
-             "bigmap": True, "exp": 5},
+             "bigmap": True, "exp": 5, "saved_at": 1788909476,
+             "team_size": 1, "books": 0},
         ])
-        self.assertIn("<b>6/6</b>", result[0]["outerHTML"])
+        self.assertIn("<b>5/7</b>", result[0]["outerHTML"])
         self.assertEqual([cell["textContent"] for cell in result[1:]],
                          ["2 · 3 · 4", "1 · 2 · 20", "2 · ✓"])
 

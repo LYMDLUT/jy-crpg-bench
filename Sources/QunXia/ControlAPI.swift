@@ -26,14 +26,20 @@ final class ControlAPI {
     private let saveDir: URL
     private let skillsDir: URL
     private let emu: Emulator
+    /// The benchmark's own save. It runs between an agent's decisions, in the
+    /// connection thread that has just finished one, so it never lands beside
+    /// an action rather than after it.
+    private let saver: GameSave?
     let port: UInt16
 
-    init(port: UInt16, log: ActionLog, saveDir: URL, skillsDir: URL, emu: Emulator) throws {
+    init(port: UInt16, log: ActionLog, saveDir: URL, skillsDir: URL, emu: Emulator,
+         saver: GameSave? = nil) throws {
         self.port = port
         self.log = log
         self.saveDir = saveDir
         self.skillsDir = skillsDir
         self.emu = emu
+        self.saver = saver
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
@@ -268,9 +274,11 @@ final class ControlAPI {
             }
             let res = emu.submitSync(steps, settle: settle(r), scale: scale,
                                      wantShot: r.wantsImage, atLeast: 60)
-            return reply(r, ok: res.ok,
-                         extra: ["action": note],
-                         shot: res.shot, changed: res.changed, settled: res.waited)
+            let out = reply(r, ok: res.ok,
+                            extra: ["action": note],
+                            shot: res.shot, changed: res.changed, settled: res.waited)
+            saver?.maybeSnapshot()
+            return out
 
         case ("POST", "/keys"):
             if let bad = unknownFields(r, ["keys", "hold", "gap"]) {

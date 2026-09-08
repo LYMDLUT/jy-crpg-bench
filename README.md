@@ -304,15 +304,18 @@ Chinese at `/` and English at `/en/`. It is a static page that reads
 The board: the totals, the brief, and one card per recorded run.
 
 Each card is one run: model name, the MP4 replay with the keys composited in,
-how the run ended, and a six-rung progress ladder: acted, screen responded,
-picked something up, reached the world map, gained experience, reached level
-2. Each rung comes from the request log, the frames or the emulator's memory,
-never from a model's own report. The board ranks models on
-the screen-changing decision ratio and shows speed, effort and reliability
-beside it, with a trade-off view of screen changes against decisions and a
-random-key baseline for scale. Runs in progress appear as live cards that
-anyone can watch read-only. Every score comes from running the unmodified
-game; no model judges another and no run is vendor-reported.
+how the run ended, and a seven-rung progress ladder: acted, picked something
+up, reached the world map, gained experience, reached level 2, recruited a
+companion, holds one of the fourteen books. Only the first rung is about the
+harness. The other six are the game's own numbers, read out of its character
+records and out of a save the game itself wrote - not inferred from the
+picture and never from a model's own report. The character board ranks by
+those numbers, books first, since fourteen of them end the game. The board
+also shows speed, effort and reliability, with a trade-off view of screen
+changes against decisions and a random-key baseline for scale. Runs in
+progress appear as live cards that anyone can watch read-only. Every score
+comes from running the unmodified game; no model judges another and no run is
+vendor-reported.
 
 To put a model on the board:
 
@@ -356,6 +359,42 @@ think-time gaps, distinct keys, screen reads, screen-changing decisions,
 oscillation, black-screen transitions, the character record (level, HP,
 skills) and shared-inventory growth read from the emulator's memory.
 `bench/README.md` covers deployment and the variables.
+
+## Reading the game's own progress
+
+What a run achieved is read from the game, not from the picture and not from
+the agent. Two sources, and they answer different questions.
+
+**The machine image.** `server/save_state.py` decodes the save layout out of a
+serialised machine: 320 character records of 182 bytes, and the shared bag in
+the 800 bytes in front of them. That bag is the working copy and moves the
+moment something is picked up, so level, experience, hit points, skills, the
+item count and how many of the fourteen books are held are all live. Every
+offset is checked against the game's own shipped `game/RANGER.GRP` by
+`server/test_save_state.py`. Only serialisation is used; a machine is never
+loaded back, which is the operation that crashes DOS mid-run.
+
+**A save the game wrote itself.** The party roster and the world square are
+*not* live in memory: the copies of them there are the ones the game loaded
+when the run began, and they do not follow the player. So the benchmark has
+the game save for itself, into slot 3 of the game directory, and decodes the
+archive. The game only offers 存檔 from the world map and says so by how tall
+its menu is - six rows there, four inside a scene - so an attempt opens the
+menu, counts its rows, and backs out when saving is not on offer. An attempt
+that finds a scene costs two taps and leaves the screen byte-identical; one
+that finds the world map costs a few seconds. Attempts wait for a gap between
+the agent's own actions, yield to anyone queued for the emulator, and happen
+every couple of minutes plus once near the end of a scored run's budget.
+
+None of this is in the Control API. An agent can move these numbers only by
+playing: it cannot read them (a scored session withholds them from anyone
+without the operator token) and it cannot save or load its way to them. All
+three runners show them live in a panel beside the game.
+
+Note that the game writes its save slots into the game directory it was
+mounted from, so slot 3 belongs to the benchmark on any machine that runs it.
+A benchmark session gets its own private copy of that directory; a local
+runner writes into yours.
 
 ## Control loop
 
@@ -475,9 +514,10 @@ committed output must not drift.
 
 ```
 Sources/CoreHost/    libretro host: dlopen, env callbacks, video, audio, input
-Sources/QunXia/      macOS app: Emulator, MetalView, AudioOut, ControlAPI, HistoryView
+Sources/QunXia/      macOS app: Emulator, MetalView, AudioOut, ControlAPI,
+                     HistoryView, GameState/GameSave/ProgressView
 server/              headless runner: tile differ, aiohttp server, browser client,
-                     recording journal, watchdog, benchmark warden
+                     recording journal, watchdog, benchmark warden, save decoder
 bench/               benchmark broker, MP4 renderer, Dockerfile
 site/                leaderboard and published briefs
 skills/              play.*.md and speedrun.*.md, served at /api/help;
