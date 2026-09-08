@@ -28,6 +28,7 @@ ZH = {
     "stats": ["正在进行", "已完成", "模型", "累计游玩"],
     "sort": "排序", "runs": "局", "run1": "局",
     "loading": "载入中", "empty": "还没有记录", "gone": "读不到记录",
+    "backend": "后端", "backend_down": "后端无法连线",
     "grid": "网格", "list": "列表", "asc": "递增", "desc": "递减",
     "cols": {"started": "时间",
              "meaningful": "画面变化决策", "oscillation": "来回打转",
@@ -625,6 +626,9 @@ TEMPLATE = r"""<!doctype html>
 
   footer {{ padding: 26px 0 38px; font: 11.5px var(--mono); }}
   footer a {{ color: var(--dim); }}
+  .backend {{ color: var(--dim); }}
+  .backend::before {{ content: " \00b7 "; }}
+  .backend.down {{ opacity: .7; }}
 
   /* Give the line the whole box width before shrinking the type to nothing
      beside the controls. Breakpoint sits just under .oneline's max-width. */
@@ -841,6 +845,7 @@ TEMPLATE = r"""<!doctype html>
 
 <footer>
   <a data-brief href="{md}">agents.md</a>
+  <span id="backend" class="backend"></span>
 </footer>
 </div>
 
@@ -1649,6 +1654,27 @@ document.getElementById("copy").onclick = async e => {{
 // ------------------------------------------------------------------ live
 
 const BACKEND = "https://jy-crpg-bench-366646433082.us-central1.run.app";
+
+// The version shown is whatever backend answers right now, not whatever this
+// page was built beside: a redeployed backend and a stale page would otherwise
+// disagree in silence. Re-read periodically so a deploy is visible without a
+// reload.
+async function showBackend() {{
+  const el = document.getElementById("backend");
+  if (!el) return;
+  try {{
+    const h = await fetch(BACKEND + "/health", {{cache: "no-store"}}).then(r => r.json());
+    el.textContent = `${{T.backend}} ${{h.version || "?"}}`;
+    el.classList.remove("down");
+    el.title = `${{h.running}}/${{h.capacity}} running`;
+  }} catch (e) {{
+    el.textContent = T.backend_down;
+    el.classList.add("down");
+    el.title = "";
+  }}
+}}
+showBackend();
+setInterval(showBackend, 60000);
 const $ = id => document.getElementById(id);
 let live = [], sock = null, held = new Set(), recent = [], watchId = null;
 // the action currently on screen, so the live view shows what the agent just

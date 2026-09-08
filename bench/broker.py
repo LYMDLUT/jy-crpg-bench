@@ -38,6 +38,10 @@ VIDEO_DIR = pathlib.Path(os.environ.get("QUNXIA_VIDEO_DIR", "/tmp/qunxia-videos"
 GCS_BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 PUBLIC_BASE = os.environ.get("QUNXIA_PUBLIC_BASE", "")
 SITE = os.environ.get("QUNXIA_SITE", "https://hanxiao.io/jy-crpg-bench/")
+# Stamped into the image at build time. The leaderboard reads it from
+# /health, so the version it shows is the backend actually answering, not
+# whatever the site was built beside.
+VERSION = os.environ.get("QUNXIA_VERSION", "dev")
 RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "1200"))     # 20 minutes
 # A caller may ask for a longer game. Bounded at a day: past that the recording
 # hits its own size cap and the early history is dropped anyway.
@@ -888,7 +892,7 @@ async def health(_request):
         "booting": bool(_request.app.get("booting")),
         "running": running_count(), "capacity": MAX_SESSIONS,
         "budget": RUN_SECONDS, "max_minutes": MAX_MINUTES,
-        "idle_limit": IDLE_LIMIT, "site": SITE},
+        "idle_limit": IDLE_LIMIT, "site": SITE, "version": VERSION},
         headers=CORS)
 
 

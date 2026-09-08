@@ -1,12 +1,14 @@
 steps:
   - name: gcr.io/cloud-builders/docker
     args: ["build", "-f", "bench/Dockerfile",
+           "--build-arg", "QUNXIA_VERSION=$_VERSION",
            "-t", "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/jy-crpg-bench:$_TAG",
            "."]
 images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/jy-crpg-bench:$_TAG"
 substitutions:
   _TAG: v1
+  _VERSION: dev
 options:
   machineType: E2_HIGHCPU_8
 timeout: 1800s

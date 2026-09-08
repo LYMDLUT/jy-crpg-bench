@@ -24,7 +24,11 @@ RUN tar xzf /app/assets/game-data.tar.gz -C /app && rm /app/assets/game-data.tar
 
 RUN pip install --no-cache-dir aiohttp pillow numpy google-cloud-storage
 
-ENV QUNXIA_PYTHON=/usr/local/bin/python \
+# Stamped at build time so the running backend can say which build it is, and
+# the leaderboard can show it. Defaults to "dev" for a local image.
+ARG QUNXIA_VERSION=dev
+ENV QUNXIA_VERSION=$QUNXIA_VERSION \
+    QUNXIA_PYTHON=/usr/local/bin/python \
     QUNXIA_CORE=/app/cores/dosbox_pure_libretro.so \
     QUNXIA_GAME=/app/game/PLAY.BAT \
     QUNXIA_START_STATE=/app/saves/start.state \
