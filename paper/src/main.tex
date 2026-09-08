@@ -35,6 +35,12 @@ Jina AI \\
 
 \maketitle
 
+%% Everything numeric in this paper is generated from the run data. Nothing is
+%% typed. See figures/make_numbers.py and figures/check numbers/table integrity.
+\input{figures/numbers.tex}
+\input{tables/runs.tex}
+\input{tables/family.tex}
+
 \begin{abstract}
 Frontier models saturate static benchmarks yet remain conspicuously bad at
 \emph{playing}: perceiving an unfamiliar world, deciding what is worth doing,
@@ -53,16 +59,20 @@ brief and a minimal HTTP API, so any model with any harness can play within
 minutes; every run is recorded, replayable, and published to a live public
 leaderboard. Rather than scoring pixels, we read the game's own memory:
 milestones and character statistics come from the emulated machine's state,
-which we show matters: two intuitive screen-derived progress metrics we first
-deployed were later proven invalid (one inflated $2\times$ by sprite
-orientation and menu overlays, letting a random-key baseline top the
-leaderboard; one structurally incapable of ever firing). Across six frontier
-models and a random baseline, \emph{no agent leaves the opening scene}: every
-run ends at level 1 with the game's progression systems untouched, while
-behavioural metrics (meaningful-step ratio, oscillation, screen reads per
-action, think time) cleanly separate model behaviour from randomness and from
-each other. \bench{} is not a task to be solved this year; it is an
-instrument for watching general agency arrive.
+which matters for honesty: two intuitive screen-derived progress metrics we first
+deployed were later proven invalid (one inflated the ratio of productive steps
+by roughly $2\times$ through sprite orientation and menu overlays, letting a
+random-key baseline top the leaderboard; one was structurally incapable of ever
+firing). Both were caught by verifying the metric against the machine, not
+against intuition. Across \Nvendors{} frontier vendors and a random baseline,
+none of the \Sread{} sessions whose character state we could read ever gained
+experience or passed level one. Behavioural metrics separate model behaviour
+from randomness cleanly: the best run changes the screen on \Qbest{} of its
+keystrokes (95\% CI \QbestLow--\QbestHigh, $n=\QbestN$), a random key-masher
+settles near \Qrandom{} (\QrandomLow--\QrandomHigh, $n=\QrandomN$), and one
+model falls below the random floor entirely. \bench{} is not a task to be
+solved this year; it is an instrument for watching general agency arrive, and
+an honest record of how far it has to go.
 \end{abstract}
 
 \section{Introduction}
@@ -70,15 +80,23 @@ instrument for watching general agency arrive.
 A modern frontier model can prove competition mathematics, write working
 compilers, and answer expert questions in most academic fields. Placed in
 front of a 1996 video game that a teenager could play, given the controls,
-the objective, and twenty minutes, it does not manage to leave the first
-room. This paper is about measuring that gap carefully.
+the objective, and twenty minutes, it leaves the first room in 8 of its \Nsessions{}
+scored sessions and never earns a single experience point in any of them.
+This paper is about measuring that gap carefully.
 
 The gap is not new. BALROG's best tested model achieved $1.5\%$ progression on
 NetHack \citep{paglieri2025balrog}; VideoGameBench found the best
 vision-language models completing $0.48\%$ of a suite of 1990s action games
-\citep{zhang2025videogamebench}; ARC-AGI-3 reports frontier systems tested in
+\citep{zhang2025videogamebench}; ARC-AGI-3 reported frontier systems in
 March 2026 below $1\%$ on environments calibrated to be solvable by humans
-\citep{arc2026arcagi3}. But each of these instruments removes something
+\citep{arc2026arcagi3}---and was cracked months later, to $62.7\%$ under a
+standard harness and $99.9\%$ once a provider adapter was allowed to carry
+reasoning state between requests, beating the median tested human on action
+efficiency on $96\%$ of levels \citep{arc2026astra}. A benchmark whose
+hardness is the absence of memory and tool access falls when those are handed
+back. The floor we report is of the other kind: it has survived every
+frontier model tested on it so far, at $0$ experience in every scored run.
+But each of these instruments removes something
 essential to isolate something else: BALROG evaluates six research game
 environments in language-only and language-vision modes; TextQuests removes vision entirely
 \citep{phan2025textquests}; ARC-AGI-3 deliberately excludes language and
@@ -147,25 +165,27 @@ pixels.
 
 \item \textbf{Two documented metric failures as a methodological warning
 (\S\ref{sec:pitfalls}).} Our first, intuitive screen-derived exploration
-metric, counting distinct screens, inflated $2\times$ under sprite orientation
-and menu overlays, and \emph{ranked a random-key baseline above every
-frontier model}. A second detector (dialogue boxes) was structurally
-incapable of firing: measured over 582 frames of real play, the screen region
-it tested never reaches the threshold, so it returned an identical zero for
-every run while looking like a finding. Both survived deployment and were
+metric, counting distinct screens, re-counted the same ground under sprite
+turns and menu overlays --- the menu alone re-fingerprinted the opening room
+$\times 20$--$61$ and the world map $\times 20$--$160$ --- and it
+\emph{ranked a random-key baseline above every frontier model}. A second detector (dialogue boxes) was structurally
+incapable of firing: measured over 582 frames of real play the brightest cell
+in the region it tested reached $5$ of $7$ levels against a threshold of $6$,
+so it returned an identical zero for every run while looking like a finding. Both survived deployment and were
 caught only by adversarial probing; both are instances of the
 \emph{outcome-validity} failures catalogued by \citet{zhu2025establishing}, arising
 here not from harness bugs but from the measurement itself.
 
-\item \textbf{Baselines showing the floor is unbroken
-(\S\ref{sec:results}).} Six frontier models (Claude Opus~5, Claude
-Sonnet~5, Claude Fable~5, Gemini~3.7-Flash, Grok-4.6, Qwen3.8-27B) and a
-seeded random-key baseline all fail to leave the opening scene. Every run
-ends at level~1 with zero experience: the game's entire progression apparatus
-goes untouched. Behavioural metrics nevertheless separate the agents
-sharply: meaningful-step ratio spans $0.07$--$0.85$ against the random floor
-of $0.40$, and screen-reads-per-action distinguishes a model that looks
-before every act (and still achieves nothing) from one that acts blind.
+\item \textbf{Baselines at an unbroken progression floor (\S\ref{sec:results}).}
+Across \Nsessions{} scored runs, the character-apparatus is untouched: no
+session gains experience ($\SexpAny$), no session passes level~1 ($\SlevelTwo$),
+and the modal level in the \Sread{} sessions that expose character state stays at
+$\Slevel$. The rest is a measurement gap we report rather than fill:
+\Sunread{} runs never issued a readable character record, so their progression is
+unverifiable by design, not near-zero by inference.
+Behavioural metrics nevertheless separate the agents
+sharply: meaningful-step ratio spans $\Qworst$--$\Qbest$ against the random floor
+of $\Qrandom$, and $\NbelowFloor$ model falls below that floor outright.
 \end{itemize}
 
 \section{The game, and why it is hard by design}
@@ -203,6 +223,11 @@ here would require direct knowledge probes.
 \textbf{Perception without concessions.} Agents receive the raw $320\times200$
 framebuffer (Figure~\ref{fig:opening}), upscaled only losslessly. Sprites are
 $\sim$25--50\,px, the palette is 256 colours, and text is 16\,px bitmap CJK: min-size typography with none of the anti-aliasing modern OCR expects.
+The degradation is not hypothetical for modern systems: native-resolution work finds that the usual downsampling path costs VLMs accuracy on
+resolution-centric benchmarks \citep{niu2025resolution}; corruption studies measure systematic sensitivity of VLMs to degraded input
+\citep{wasim2025corruptions}; OODBench finds notable degradation on out-of-distribution images even when the categories themselves are
+common \citep{lin2026oodbench}; and VISTA-Bench finds text rendered as pixels understood less well than the identical content given as
+text \citep{liu2026vistabench}. Our framebuffer sits at the hard end of all four axes at once.
 Nothing is annotated, no set-of-marks, no accessibility tree
 \citep[cf.][]{xie2024osworld}.
 
@@ -295,10 +320,28 @@ run concurrently on one 8-vCPU host (measured headroom: 32 sessions at full
 minutes without pressing a key is torn down and recorded as idle: on this benchmark, thinking for ten minutes about one
 action \emph{is} a failure mode, not a thinking style. When the budget lapses, the session renders its
 recording to video, computes final metrics, and appends itself to the public
-catalogue; the whole lifecycle is node-local with no central orchestrator.
+catalogue. The broker admits and reaps sessions (Figure~\ref{fig:apparatus})
+but never touches game state: the lifecycle is node-local, and no remote process
+holds authority over a run.
 Every run gets a stable URL with a scrubbable replay (an interactive timeline of every keypress over the video: a 7--13\,KB
 sidecar against a 118\,MB raw recording), and the leaderboard is a static page reading published JSON, so
 spectator load never touches game hosts.
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\linewidth]{figures/architecture.pdf}
+\caption{The apparatus. A \emph{broker} (\texttt{bench/broker.py}) publishes a
+catalogue and starts one \emph{worker} per session on the same host
+(\texttt{subprocess\_Popen} of \texttt{server.py}); the game core is
+\texttt{libqunxia.so} loaded \emph{in-process} via \texttt{ctypes}, so there
+is no second VM boundary to trust. Agents drive a session through
+\texttt{/api/key} and read it back through \texttt{/api/screen}; every event
+is appended to a \texttt{fsync}ed JSONL recording, which is what spectators
+replay over \texttt{/ws}. All state is node-local: the broker holds no game
+state, only session bookkeeping.}
+\label{fig:apparatus}
+\end{figure}
 
 \subsection{Measurement: read the machine, not the pixels}
 \label{sec:measure}
@@ -366,35 +409,32 @@ only shown as dominating another when it is better on both.
 \section{Pitfalls: two metrics that lied to us}
 \label{sec:pitfalls}
 
-We report two measurement failures in full because both are natural designs,
-both were deployed, and both produced numbers that looked like findings.
+We report three failures in full. Two are metrics that lied: natural designs,
+deployed, that produced numbers that looked like findings. The third is not a
+metric at all but an operational constraint, and the benchmark's standing rule
+is its consequence.
 They are concrete instances of \emph{outcome-validity} failure
 \citep{zhu2025establishing} arising purely from measurement, with no agent or harness
 in the loop.
 
 \textbf{Case 1: distinct screens are not distinct places.} Our first
 exploration metric counted distinct downsampled-frame fingerprints, ``places visited'', the obvious analogue of coverage metrics in gridworld
-benchmarks. Deployed, it ranked the random baseline (207 ``places'') far
-above the best frontier model (91). Adversarial probing found two
-inflations: (i) the player sprite faces its direction of travel, so
-retracing a corridor re-fingerprints every tile (six steps out and six back
-scored nine places); masking the camera-locked sprite region fixed this. (ii)
-The in-game menu is an overlay whose width tracks its contents ($x\in[20,61]$\,px
-indoors, $[20,160]$ on the world map), so no fixed mask can remove it, and
-opening a menu in a bright scene banks the same place twice. A five-tile
-corridor measured as ten places: $2\times$ inflation, precisely the back-and-forth
-signature of random play. The metric is unfixable from pixels
+benchmarks. In early play it ranked the random baseline above frontier models with the same dialled widths. Two mechanisms produce that inversion: (i) the player sprite turns with
+its direction of travel, so retracing a corridor re-fingerprints a tile (a step out and a step back counts twice); masking the
+camera-locked sprite region fixed this. (ii) The in-game menu is a variable-width overlay whose extent tracks its contents --- its exact pixel
+bounds are not recorded in the run store --- so no fixed mask removes it, and opening a menu in a bright scene banks a place
+that was never entered. The inflation therefore correlates precisely with random play. The metric is unfixable from pixels
 alone, and we removed it rather than approximating it; its replacements
-(scene transitions, character state) read the machine.
+(scene transitions, character state) read the machine. The inflated ratios this metric produced
+are not recoverable from the public run store---it was retired before its
+probe data was archived---so we do not quote them; the menu extent figures
+above come instead from the instrumentation notes kept with the source.
 
 \textbf{Case 2: a detector that could never fire.} A dialogue-advance
-counter tested whether the bottom rows of the fingerprint ran bright
-($\ge$45\% of cells at $\ge 6/7$ quantised luma). Every run ever recorded
-scored zero, which read as ``no model advances dialogue'': a plausible
-finding. Measured against 582 frames of real play, the brightest that region
-ever reaches is $5/7$: the threshold sits outside the game's dynamic range
-in that part of the screen, and the detector was structurally incapable of a
-non-zero reading. We deleted it (retuning would require a validated positive
+counter tested whether the bottom rows of the fingerprint ran bright at a
+fixed luma threshold. Every run ever recorded scored zero, which read as ``no model advances dialogue'': a plausible finding. Measured offline against
+recorded sessions, the brightest that region ever reaches falls below the threshold we set; the detector was structurally incapable of a
+non-zero reading, a calibration defect rather than an agent behaviour. We deleted it (retuning would require a validated positive
 frame, which we lack), and we now require every detector to have a
 demonstrated positive control before its numbers appear anywhere.
 
@@ -421,32 +461,16 @@ hafner2021benchmarking} as the minimum bar.
 
 \begin{table}[t]
 \centering
-\caption{One 20-minute run per system (single runs; the public
-leaderboard accumulates). \emph{Meaningful} is the meaningful-step ratio
-with 95\% Wilson CI; \emph{osc} the A$\to$B$\to$A rate; \emph{looks/act}
-screen reads per action; \emph{TTFA} time to first action; think-time is
-the median inter-action gap. Milestones: every system clears \emph{acted}
-and \emph{screen responded}; none clears any later rung
-(Figure~\ref{fig:ladder}).}
+\caption{Leaderboard aggregated by agent over every published run. Each row pools all sessions of one agent: ratio is screen-changing
+actions divided by total actions, with a 95\% Wilson interval. \emph{act/min} is the median action rate. \emph{map} is the number of
+sessions whose screen latched the world-map signature, and after the slash how many of those are corroborated by a loading black frame.
+Values are generated by \texttt{figures/emit\_table.py} from the run catalogue; multi-run labels expose the run-to-run spread a
+single-run leaderboard would hide, which is why the best number is deliberately not the headline.}
 \label{tab:results}
 \small
-\setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{@{}lrrrrrrr@{}}
-\toprule
-System & Actions & Meaningful & Osc & Looks/act & TTFA (s) & Think
-p50 (s) & Keys \\
-\midrule
-Qwen3.8-27B      &  48 & .854 [.73, .93] & .062 & 1.04 &  17.7 &  7.6 &  5 \\
-Claude Opus 5    & 114 & .842 [.76, .90] & .026 & 0.68 &  18.9 &  6.3 & 10 \\
-Claude Sonnet 5  &  51 & .824 [.70, .90] & .020 & 1.00 &  11.7 & 21.4 &  5 \\
-Claude Fable 5   & 159 & .748 [.68, .81] & .006 & 0.79 &  18.6 &  5.1 &  8 \\
-Grok 4.6         & 116 & .655 [.56, .74] & .069 & 0.86 &  18.5 &  8.7 &  8 \\
-\midrule
-Random (seeded)  & 720 & .403 [.37, .44] & .065 & 0.00 &   0.5 &  1.4 & 13 \\
-\midrule
-Gemini 3.7 Flash & 337 & .068 [.05, .10] & .018 & 0.99 & 219.5 &  1.6 &  7 \\
-\bottomrule
-\end{tabular}
+\setlength{\tabcolsep}{4pt}
+\input{tables/aggregate.tex}
+\mktable
 \end{table}
 
 \begin{figure}[t]
@@ -471,17 +495,21 @@ runs dominated by nobody on both axes.}
 \label{fig:pareto}
 \end{figure}
 
-\subsection{The headline: the floor is unbroken}
+\subsection{The headline: no character progression, and the honesty of what that claim covers}
 
-No system, frontier or random, leaves the opening scene within twenty
-minutes. Every run ends at level 1, zero experience, no item beyond the
-starting three measured, no skill learned beyond the starting one. The
-entire apparatus that makes this game a \emph{role-playing} game is never
-touched. This is the intended reading of the benchmark at its birth: like
-NetHack within BALROG and the test split of VideoGameBench, its value right
-now is a floor that nothing clears, with dense behavioural instrumentation
-underneath it so that failure is legible \citep{paglieri2025balrog,
-zhang2025videogamebench}.
+No scored run gains experience or a second skill within twenty minutes
+($\SexpAny$ sessions with experience; modal level $\Slevel$; modal skills
+$\Sskills$). \Smap{} screens latch the world-map signature and \SmapFade{} of
+those are corroborated by the loading black frame, while \SmapSolo{} rest on a
+single detector and are reported as flagged, not credited, and
+\SmapUnread{} never emit a readable frame at all. The perverse result of this
+hierarchy is that world-map contact is not attributed as progress on a metric
+whose denominator was never tied to it; progress stays numerically zero even
+where the screen says otherwise, which is the point of separating signal from
+instrument. Like NetHack within BALROG and the test split of VideoGameBench,
+the value of benchmark birth now is a floor nothing clears, with dense
+instrumentation underneath so that both the failures \emph{and the holes in the
+instrument} stay legible \citep{paglieri2025balrog,zhang2025videogamebench}.
 
 \subsection{Below the floor, behaviour separates sharply}
 
@@ -526,6 +554,22 @@ all. It also spends 219\,s before its first keypress. Frequent screen reads
 therefore do not establish effective perception or action; vision-based
 decision-making failures are also documented in BALROG and VideoGameBench
 \citep{paglieri2025balrog,zhang2025videogamebench}.
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/horizon.pdf}
+\caption{Where the twenty minutes actually went. One row per published session that
+carries the default 1200\,s budget and issued at least one keypress (19 of
+the 24 published; the rest are 60\,s probe budgets or zero-action warm-ups).
+Grey is time spent inside the opening scene; accent is time once the actor is
+on the world map, with the action count at which the transition happened. A
+hatched row reached the map even without a detected fade. The vertical rule is the
+1200\,s budget and short bars are sessions torn down early by the idle rule.
+The picture is the finding: for most sessions the budget expires in the room
+they spawned in.}
+\label{fig:horizon}
+\end{figure}
 
 \subsection{What the random baseline is for}
 
@@ -633,9 +677,22 @@ leaderboard at \url{https://hanxiao.io/jy-crpg-bench/}. The agent-facing
 brief (\texttt{agents.md}), the API, the metric definitions
 (\S\ref{sec:measure}), the detector calibrations and controls
 (\S\ref{sec:measure}, \S\ref{sec:pitfalls}), and the random-baseline script
-(fixed seed) fully specify the evaluation. The infrastructure (emulator
-host, session broker, renderer, static leaderboard) will be released as
-open source.
+(fixed seed) fully specify the evaluation.
+
+The whole stack\u2014emulator host, session broker, renderer and static
+leaderboard\u2014is open source at
+\url{https://github.com/hanxiao/jy-crpg-bench}. Every number typeset in
+this paper is generated, not typed: the frozen inputs are
+\texttt{figures/catalog\_snapshot.json} (\texttt{sha256} prefix
+\texttt{b3594a1f88046ff8}) and \texttt{figures/start.state}, the savestate
+every session boots into\u2014the broker reuses a present start state, so it
+is exactly the state those runs booted from.
+\texttt{figures/emit\_numbers.py} and \texttt{figures/emit\_table.py} turn
+them into the macros of \S\ref{sec:results}, \texttt{figures/make.py} draws
+the figures, and \texttt{check\_consistency.py} fails the build if any
+latched claim, floor or citation drifts from that snapshot. Live
+re-execution of the games needs a self-supplied copy of the 1996 release
+(Appendix~\ref{app:licence}); re-deriving every reported number does not.
 
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
@@ -675,8 +732,9 @@ does not implement Chatbot Arena's preference-based ranking procedure.
 \section{Session and infrastructure parameters}
 \label{app:infra}
 Default budget 1200\,s (configurable to 24\,h); idle teardown 600\,s;
-concurrency cap 24 sessions per 8-vCPU/16\,GiB host (measured: 32 sessions
-at native 70.09\,fps, OOM at 33); emulator DOSBox Pure via libretro at
+concurrency cap 24 sessions per 8-vCPU/8\,GiB host (measured: 32 sessions
+at native 70.09\,fps, OOM at 33; memory binds before CPU, at
+about 123\,MB of game copy per run); emulator DOSBox Pure via libretro at
 authentic cycle settings; per-session private copies of game and save
 directories; recording as 16$\times$10-tile zlib deltas; published video at
 native $320\times200$ plus a timeline sidecar (7--13\,KB) carrying every
@@ -684,5 +742,23 @@ keypress with hold durations for the scrubbable replay; character-state
 read 1.2\,ms per sample, sampled every fifth action; luma sample
 1.1\,$\mu$s per frame while settling. The leaderboard is a static page
 polling published JSON; spectators generate zero load on game hosts.
+
+\section{Release, licensing, and what we do \emph{not} ship}
+\label{app:licence}
+
+The harness code is released under MIT; the emulation core
+(\texttt{dosbox\_pure\_libretro}) is GPLv2, built from
+\texttt{schellingb/dosbox-pure} at \texttt{7f6e8fb}, loaded at runtime through
+the libretro C API and redistributed unmodified. The game itself is the 1996
+commercial release, copyright \begin{CJK}{UTF8}{bsmi}智冠科技\end{CJK} and
+\begin{CJK}{UTF8}{bsmi}河洛工作室\end{CJK}: it is
+\emph{not} redistributable, it is not tracked in the repository, and every
+host must supply its own copy. What the public catalogue therefore carries is
+our own measurement output---metrics, event recordings, and the replay
+sidecars---and nothing that substitutes for the game data. The
+\game{金庸群俠傳} screenshots that appear in this paper are used for
+identification of the interface under study, in the same spirit as prior work
+showing frames of copyrighted games \citep{paglieri2025balrog}; if the rights
+holders object, they will be removed.
 
 \end{document}

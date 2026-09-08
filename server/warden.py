@@ -43,7 +43,18 @@ CATALOG_OBJECT = "catalog.json"
 # The one table both counters use: the warden's own, and the server's live
 # histogram through warden.ALIAS. Importing the other way round would drag the
 # emulator in.
-ALIAS = {"esc": "escape", "cancel": "escape", "return": "enter", "ok": "enter"}
+# Spelling -> the key it names. Two spellings are one key only when they
+# drive the same scancode: lshift and shift are both 304, but rshift is its
+# own 303 (as in the native table), so it keeps its own row.
+ALIAS = {
+    "esc": "escape", "cancel": "escape", "back": "escape",
+    "return": "enter", "ok": "enter", "confirm": "enter",
+    "yes": "y", "no": "n",
+    "lshift": "shift", "lctrl": "ctrl", "lalt": "alt",
+    "quote": "'", "comma": ",", "minus": "-", "period": ".", "slash": "/",
+    "semicolon": ";", "equals": "=", "leftbracket": "[", "backslash": "\\",
+    "rightbracket": "]", "backquote": "`",
+}
 
 run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "deadline": None, "last_clock": None,
@@ -164,6 +175,10 @@ def timing():
     gaps = run["gaps"]
     return {
         "ttfa": round(run["first"] - run["playable"], 2) if run["first"] else None,
+        # the deadline is on this process's monotonic clock, so only this
+        # process can say how much of it is left
+        "remaining": round(max(0.0, run["deadline"] - clock()), 2)
+                     if run["deadline"] is not None else None,
         "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
         "reads": run["reads"], "errors": run["errors"],
     }
@@ -239,9 +254,11 @@ def publish(path: pathlib.Path):
     blob = b.blob(path.name)
     kind = {".mp4": "video/mp4", ".jpg": "image/jpeg",
             ".json": "application/json"}.get(path.suffix, "application/octet-stream")
-    blob.upload_from_filename(str(path), content_type=kind)
+    # Carry the hint into the upload instead of patching it after: one API
+    # call, and no window in which the object is public under default cache
+    # hints. publish_bytes does the same.
     blob.cache_control = "public, max-age=31536000, immutable"
-    blob.patch()
+    blob.upload_from_filename(str(path), content_type=kind)
     return f"https://storage.googleapis.com/{BUCKET}/{path.name}"
 
 
@@ -273,7 +290,10 @@ def append_catalog(entry):
         local = pathlib.Path(os.environ.get("QUNXIA_CATALOG",
                                             "/tmp/qunxia-catalog.json"))
         runs = json.loads(local.read_text()) if local.exists() else []
-        local.write_text(json.dumps([entry] + runs, indent=1))
+        # Same upsert-by-id and 500 cap as the shared object, so the dev
+        # catalogue cannot drift from what the board actually serves.
+        runs = [entry] + [r for r in runs if r.get("id") != entry["id"]]
+        local.write_text(json.dumps(runs[:500], indent=1))
         return
     from google.api_core.exceptions import PreconditionFailed
     for attempt in range(12):
@@ -368,11 +388,13 @@ async def warden(rec, health, action_lock, wait_frames, recording_snapshot=None)
     finally:
         if hasattr(events, "close"):
             events.close()
+    # The entry only exists once finalization is done, so it must carry the
+    # same complete flag the result file ends with.
+    res["complete"] = True
     try:
         await asyncio.get_running_loop().run_in_executor(None, append_catalog, res)
     except Exception as exc:
         res["error"] = (res["error"] or "") + f" catalogue: {exc}"
-    res["complete"] = True
     write_result(res)
     print(f"bench run {SID} finished: {res['reason']} "
           f"{res['actions']} actions -> {res.get('video_url')}", flush=True)

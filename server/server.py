@@ -10,12 +10,14 @@ import base64
 import collections
 import ctypes
 import hashlib
+import hmac
 import io
 import json
 import math
 import struct
 import os
 import pathlib
+import re
 import sys
 import threading
 import time
@@ -86,21 +88,27 @@ peers = {}
 emulator_stop = threading.Event()
 BUF = ctypes.create_string_buffer(4 << 20)
 
-# Key name -> RETROK. Same vocabulary as the native runner.
+# Key name -> RETROK. The same vocabulary as the native runner's Control
+# API (Sources/QunXia/Keys.swift, RetroKey.table) - the README's "the API
+# accepts the full DOS keyboard" line is that table, so a name it accepts
+# is a name the headless one accepts too. test_api pins the two together.
 # One key, several accepted spellings. Counted under whatever the agent
 # happened to type, a single key split across two entries in the histogram,
 # and since both spellings draw the same icon it read as a duplicated row.
-# The table lives in warden so the two counters cannot disagree.
+# The spelling table lives in warden so the two counters cannot disagree.
 def canon(name):
     return warden.ALIAS.get(name, name)
 
 
 KEYS = {
     "up": 273, "down": 274, "right": 275, "left": 276,
-    "enter": 13, "return": 13, "ok": 13, "space": 32,
-    "esc": 27, "escape": 27, "cancel": 27,
-    "tab": 9, "backspace": 8, "delete": 127,
-    "shift": 304, "ctrl": 306, "alt": 308,
+    "enter": 13, "return": 13, "ok": 13, "confirm": 13, "space": 32,
+    "esc": 27, "escape": 27, "cancel": 27, "back": 27, "pause": 19,
+    "tab": 9, "backspace": 8, "delete": 127, "insert": 277,
+    "shift": 304, "lshift": 304, "rshift": 303,
+    "ctrl": 306, "lctrl": 306, "rctrl": 305,
+    "alt": 308, "lalt": 308, "ralt": 307,
+    "numlock": 300, "capslock": 301, "scrolllock": 302,
     "home": 278, "end": 279, "pageup": 280, "pagedown": 281,
 }
 for _i, _c in enumerate("abcdefghijklmnopqrstuvwxyz"):
@@ -112,9 +120,20 @@ for _f in range(1, 13):
 for _k, _v in {";": 59, "'": 39, ",": 44, ".": 46, "/": 47, "-": 45, "=": 61,
                "[": 91, "]": 93, "\\": 92, "`": 96}.items():
     KEYS[_k] = _v
+# The native Control API spells the same eleven keys by word; accept both.
+for _k, _v in {"semicolon": 59, "quote": 39, "comma": 44, "period": 46,
+               "slash": 47, "minus": 45, "equals": 61, "leftbracket": 91,
+               "backslash": 92, "rightbracket": 93, "backquote": 96}.items():
+    KEYS[_k] = _v
 for _n in range(10):                      # numpad; the game accepts these for movement
     KEYS[f"kp{_n}"] = 256 + _n
 KEYS["kpenter"] = 271
+# Numpad operators, under the names the native Control API gives them.
+KEYS.update({"kpplus": 270, "kpminus": 269, "kpmultiply": 268,
+             "kpdivide": 267, "kpperiod": 266})
+# The game answers yes/no prompts by letter; the native API also names
+# them by word.
+KEYS["yes"], KEYS["no"] = 121, 110
 # The four movement axes are screen diagonals. Verified byte-identical to the
 # arrows, so these are aliases that say what actually happens on screen.
 for _alias, _code in {"upright": 273, "ne": 273,      # == up    == kp9
@@ -1362,13 +1381,17 @@ def anon_name(seed: str) -> str:
 def actor(request):
     """Who is acting.
 
-    An agent should name itself with an X-Agent header. When it does not, fall
-    back to a short stable id derived from its address and client string, so
-    two anonymous agents are still told apart instead of both showing as "api".
+    An agent should name itself with an X-Agent header. The name is held to
+    the broker's canonical rule - 40 ASCII letters, digits and -_. - so that
+    what the record, the catalogue and the video show all agree on who
+    played. When no name is given, fall back to a short stable id derived
+    from the address and client string, so two anonymous agents are still
+    told apart instead of both showing as "api".
     """
     given = request.headers.get("X-Agent") or request.query.get("agent")
     if given:
-        clean = "".join(c for c in given if c.isalnum() or c in "-_.")[:16]
+        clean = "".join(c for c in given
+                        if c.isascii() and (c.isalnum() or c in "-_."))[:40]
         if clean:
             return clean
     peer = request.remote or "?"
@@ -1453,6 +1476,12 @@ async def api_screen(request):
     fmt = request.query.get("format", "")
     watching = request.query.get("spectate") == "1"
     if warden.ON and not watching:
+        ended = warden.ended_payload()
+        if ended:
+            # A look after the run is over is answered the way an action is:
+            # the end signal rides on every tool the agent can still call, not
+            # only the ones that send keys.
+            return web.json_response(ended, status=410)
         warden.note_read()
     if not watching:
         log_action(actor(request), "GET", "screen", thumb=True)
@@ -1468,10 +1497,39 @@ async def api_screen(request):
     })
 
 
+# A host this server will put in a URL: a name, a name with a port, and
+# nothing else. It keeps a malformed or hostile X-Forwarded-Host from
+# rewriting the help page's URLs into a scheme or a path of someone's
+# choosing.
+_TRUSTED_HOST = re.compile(r"[A-Za-z0-9._-]+(:[0-9]{1,5})?")
+
+
 def base_url(request):
-    forwarded = request.headers.get("X-Forwarded-Proto")
-    scheme = forwarded or request.scheme
-    return f"{scheme}://{request.host}"
+    """The origin this server is reached at, for the URLs in the help page.
+
+    The benchmark proxy fronts each session server on the loopback interface
+    and reports the public origin in X-Forwarded-Host and X-Forwarded-Proto.
+    It is the only path to the server and it overwrites whatever the client
+    sent, so those values are trusted here; a direct caller - local
+    development - falls back to its own host. In benchmark mode the origin
+    gains the session's own address, because the API is only reachable under
+    /s/<session>: the help page must name an address the reader can reach.
+    """
+    host = request.host
+    forwarded = request.headers.get("X-Forwarded-Host", "").split(",")[0]
+    if _TRUSTED_HOST.fullmatch(forwarded):
+        host = forwarded
+    scheme = request.scheme
+    for value in request.headers.get("X-Forwarded-Proto", "").split(","):
+        value = value.strip().lower()
+        if value in ("http", "https"):
+            scheme = value
+            break
+    base = f"{scheme}://{host}"
+    sid = os.environ.get("QUNXIA_BENCH_SID", "")
+    if os.environ.get("QUNXIA_BENCH") == "1" and sid:
+        base = f"{base.rstrip('/')}/s/{sid}"
+    return base
 
 
 async def api_key_names(_request):
@@ -1589,7 +1647,13 @@ async def api_reset(request):
     so a visitor who stumbles on the path cannot wipe someone's game."""
     want = os.environ.get("QUNXIA_RESET_TOKEN")
     got = request.query.get("token") or request.headers.get("X-Reset-Token")
-    if not want or got != want:
+    # Constant time, for the same reason a password is never compared with ==:
+    # a short-circuiting comparison leaks how much of a guessed token was
+    # right. Both sides are byte-encoded first: compare_digest rejects
+    # non-ASCII strings outright, and a 500 is not the answer this endpoint
+    # gives a wrong token.
+    if not want or not hmac.compare_digest(
+            (got or "").encode("utf-8"), want.encode("utf-8")):
         raise web.HTTPNotFound()
 
     restored = False
@@ -1643,7 +1707,8 @@ async def api_snapshot(request):
     """Hidden. Writes the current position as the state /api/reset restores."""
     want = os.environ.get("QUNXIA_RESET_TOKEN")
     got = request.query.get("token") or request.headers.get("X-Reset-Token")
-    if not want or got != want:
+    if not want or not hmac.compare_digest(
+            (got or "").encode("utf-8"), want.encode("utf-8")):
         raise web.HTTPNotFound()
     async with action_lock():
         await pause_emulator()

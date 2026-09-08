@@ -10,6 +10,7 @@ There is no catalogue here and no web page. The published catalogue is a JSON
 object in the bucket, read directly by a static site.
 """
 import asyncio
+import hmac
 import json
 import os
 import pathlib
@@ -44,11 +45,25 @@ MAX_MINUTES = int(os.environ.get("QUNXIA_MAX_MINUTES", "1440"))
 # An agent that has not acted in this long is wedged, not thinking.
 IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "600"))        # 10 minutes
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
+# Authoring is bursty: a few straight attempts, then a pause, then again -
+# until the state exists. A host that is slow today is not a host that is
+# refused for its whole life; the loop is what keeps the "being rebuilt"
+# promises this service makes callers.
+AUTHOR_BURST = 3
+AUTHOR_RETRY = float(os.environ.get("QUNXIA_AUTHOR_RETRY", "120"))
 # Measured on 8 vCPU / 8Gi: 32 concurrent runs all held a full 70.09 fps with
 # flat 1.13s action latency, and the container then OOMed at 33, killing every
 # live run with it. CPU was never the limit; memory was, at roughly 123MB of
 # game copy per run. This refuses the extra run instead of losing the others.
 MAX_SESSIONS = int(os.environ.get("QUNXIA_MAX_SESSIONS", "24"))
+# A finished run's entry is kept only for its last callers: the agent's 410,
+# the one-shot usage report that lands shortly after the run, and the sweep
+# that merges it. None of those outlives this, so the entry - a dict, a Popen
+# handle and a cached result - can go. Without it both grow for the life of
+# the container. (The heavier per-run residue - the published run's staging
+# copies - is dropped separately, as soon as the result names the video:
+# drop_published_artifacts.)
+REAP_GRACE = float(os.environ.get("QUNXIA_REAP_GRACE", "600"))
 # Every session gets its own copy of the game directory and its own libretro
 # save directory. DOSBox Pure mounts the directory holding the content as a
 # writable C:, and the skill tells agents to use the in-game save menu, so a
@@ -83,6 +98,10 @@ LIVE_TIMING_FIELDS = (
 )
 
 sessions: dict[str, dict] = {}
+# Slots held by starts that passed the capacity check but are not running yet.
+# Counted at the check (see start_session), not kept on the session, because
+# the session does not exist until the start is done.
+_reservations = 0
 
 
 def live_hero(summary):
@@ -136,15 +155,174 @@ def drop(name):
         pass
 
 
+def drop_published_artifacts(sess):
+    """The staging copies of what the bucket already holds.
+
+    The run rendered its video, poster and timeline into the instance's
+    video directory, and journaled its input stream beside its game copy.
+    Once the result names the published video, the bucket is the copy of
+    record and these local files are only bytes the instance keeps paying
+    for - on a memory-backed container, against the very limit that bounds
+    the pool. A publish that never succeeds leaves video_url unset and the
+    files standing: they are the only copy of a run that did not reach the
+    bucket.
+    """
+    for name in (f"{sess['agent']}-{sess['id']}.mp4",
+                 f"{sess['agent']}-{sess['id']}.timeline.json",
+                 f"{sess['agent']}-{sess['id']}.jpg"):
+        (VIDEO_DIR / name).unlink(missing_ok=True)
+    shutil.rmtree(RECORDING_DIR / sess["id"], ignore_errors=True)
+
+
+CATALOG_OBJECT = "catalog.json"
+
+# The catalogue's blob generation at the moment a report's entry was
+# confirmed absent. The catalogue only gains entries when it is written, so
+# a run whose entry was not in generation G cannot have arrived since; a
+# re-check at the same generation is answered from this table without a
+# download. The sweep checks a pending report every second and most ticks
+# find the entry still absent - without the table each of them would
+# re-download and re-parse the whole catalogue (up to its 500-run cap) for
+# nothing.
+_catalog_seen_generation: dict[str, int] = {}
+
+
+def merge_usage_into_catalog(sid, usage):
+    """Attach an agent's usage to the run's catalogue entry.
+
+    The entry is written by the session process (server/warden.py); this runs
+    in the broker, so like the warden's append it is a generation-conditioned
+    read-modify-write with retries rather than last-write-wins. Returns True
+    when the entry was found and updated, False when the run is not in the
+    catalogue yet (or has rolled off its cap) - the caller decides what a
+    False means in context.
+    """
+    b = bucket()
+    if b is None:
+        local = pathlib.Path(os.environ.get("QUNXIA_CATALOG",
+                                            "/tmp/qunxia-catalog.json"))
+        runs = json.loads(local.read_text()) if local.exists() else []
+        entry = next((r for r in runs if r.get("id") == sid), None)
+        if entry is None:
+            return False
+        entry["usage"] = usage
+        local.write_text(json.dumps(runs, indent=1))
+        return True
+    try:
+        from google.api_core.exceptions import PreconditionFailed
+    except ImportError:
+        # Only a real GCS bucket raises the conflict - and it cannot exist
+        # without the SDK - so a stand-in class is all a fake bucket (tests)
+        # needs for the catch below.
+        class PreconditionFailed(Exception):
+            pass
+    for attempt in range(12):
+        blob = b.get_blob(CATALOG_OBJECT)
+        if blob is None:
+            return False
+        gen = blob.generation
+        if _catalog_seen_generation.get(sid) == gen:
+            # unchanged since the entry was last confirmed absent, so the
+            # entry is still absent: the download cannot change the answer
+            return False
+        try:
+            runs = json.loads(blob.download_as_bytes())
+        except Exception:
+            # a transient download failure is not "the entry is absent":
+            # plant no verdict, the next check retries the download
+            return False
+        entry = next((r for r in runs if r.get("id") == sid), None)
+        if entry is None:
+            _catalog_seen_generation[sid] = gen
+            return False
+        entry["usage"] = usage
+        # a re-upload resets the object's cache hint (unlike the warden's
+        # append, which patches it back out of band), so carry it into the
+        # write: the board would otherwise lose its 15s freshness bound
+        blob.cache_control = "public, max-age=15"
+        try:
+            blob.upload_from_string(
+                json.dumps(runs), content_type="application/json",
+                if_generation_match=gen)
+        except PreconditionFailed:
+            time.sleep(0.3 * (attempt + 1))
+            continue
+        # the entry now exists: a later duplicate report must re-check
+        # reality, not inherit the "absent" verdict from an earlier tick
+        _catalog_seen_generation.pop(sid, None)
+        return True
+    raise RuntimeError("catalogue is too contended to update")
+
+
+_results: dict[str, dict] = {}
+
+
 def result_of(sid):
-    """The session process writes this the moment it calls its own run over."""
+    """The session process writes this the moment it calls its own run over.
+
+    The file is written twice: once with the summary while the video renders,
+    and again with the video up. The second write is complete, and it is the
+    process's last - it exits on the same tick - so a result seen complete is
+    remembered. The hot loops ask for it several times a second for as long as
+    the container lives, and a finished run's file will not change under them,
+    so re-reading and re-parsing it on every ask would be pure waste."""
+    cached = _results.get(sid)
+    if cached is not None:
+        return cached
     f = RESULT_DIR / f"{sid}.json"
     if not f.exists():
         return None
     try:
-        return json.loads(f.read_text())
+        result = json.loads(f.read_text())
     except Exception:
         return None
+    if result.get("complete"):
+        _results[sid] = result
+    return result
+
+
+def reap_decision(sess, now, grace):
+    """What the sweep does with one entry: "reap", "mark", or "keep".
+
+    An entry reaps only when the process is gone, the result is final, no
+    usage report is held, and the grace has run. "mark" starts the grace on
+    the first sight of a finished run. The grace is the point: the agent's
+    410 and the one-shot usage report both land within minutes of the end,
+    and the proxy's late-call fallback re-reads the result file, which stays
+    on disk. Only the entry itself - dict, Popen handle, cached result - is
+    reaped, and only once every one of those callers has had its time.
+    """
+    if sess["proc"].poll() is None:
+        return "keep"
+    res = result_of(sess["id"])
+    if not (res and res.get("complete")):
+        return "keep"
+    if sess.get("usage") is not None:
+        return "keep"
+    since = sess.get("eligible_at")
+    if since is None:
+        return "mark"
+    return "reap" if now - since >= grace else "keep"
+
+
+def reap_finished(now):
+    """One sweep over the finished entries.
+
+    Each gets its grace clock started once, and is popped - entry, Popen
+    handle and cached result - once the grace has run. The on-disk result
+    file stays: it is the bounded evidence, and it is what a proxy call that
+    loses its race with a dying worker re-reads to answer 410 instead of 502.
+    """
+    reaped = []
+    for s in list(sessions.values()):
+        decision = reap_decision(s, now, REAP_GRACE)
+        if decision == "mark":
+            s["eligible_at"] = now
+        elif decision == "reap":
+            sessions.pop(s["id"], None)
+            _results.pop(s["id"], None)
+            reaped.append(s["id"])
+    return reaped
 
 
 async def wait_published(sid, res):
@@ -162,9 +340,14 @@ async def wait_published(sid, res):
     return res
 
 
-async def wait_healthy(port, timeout=90):
+async def wait_healthy(port, timeout=90, proc=None):
     async with aiohttp.ClientSession() as http:
         for _ in range(int(timeout * 2)):
+            # A game process that has already exited will not bind; polling a
+            # dead port until the deadline would burn a minute of wall time
+            # (and the caller's slot) on a failure that is decided.
+            if proc is not None and proc.poll() is not None:
+                return False
             try:
                 async with http.get(f"http://127.0.0.1:{port}/status",
                                     timeout=aiohttp.ClientTimeout(total=3)) as r:
@@ -191,19 +374,42 @@ def running_count():
                if s["proc"].poll() is None and not result_of(s["id"]))
 
 
-async def start_session(agent, budget, publish=True):
+async def start_session(app, agent, budget, publish=True):
+    global _reservations
+    # The check and the hold run on this loop with no await between them, so
+    # they are atomic: a burst of concurrent /session calls cannot all read
+    # "one under capacity" and all start. That burst is how the pool once
+    # overshot 33 runs and OOMed the container, taking every live run down
+    # with the memory it did not have.
     live = running_count()
-    if live >= MAX_SESSIONS:
+    if live + _reservations >= MAX_SESSIONS:
         raise web.HTTPServiceUnavailable(
             text=json.dumps({
                 "ok": False, "error": "at capacity",
-                "running": live, "capacity": MAX_SESSIONS,
+                "running": live + _reservations, "capacity": MAX_SESSIONS,
                 "hint": "every machine is busy. Wait and POST /session again; "
                         "nothing is queued, so retry rather than hold."}),
             content_type="application/json", headers=CORS)
+    _reservations += 1
+    try:
+        sess = await _start_session(app, agent, budget, publish)
+    except BaseException:
+        _reservations -= 1
+        raise
+    # The run is now alive in running_count(); the reservation is spent.
+    _reservations -= 1
+    return sess
+
+
+async def _start_session(app, agent, budget, publish=True):
     sid = uuid.uuid4().hex[:12]
     port = free_port()
+    # Two secrets, two readers. The URL token travels in the session's
+    # base_url, so the agent that plays the run holds it; the reset token
+    # stays inside the broker - for its own bootstrap and the operator's
+    # backdoor - and is never in an address an agent can be seen holding.
     token = uuid.uuid4().hex
+    reset_token = uuid.uuid4().hex
     loop = asyncio.get_running_loop()
     game, saves = await loop.run_in_executor(None, make_workdir, sid)
     env = dict(os.environ)
@@ -215,7 +421,7 @@ async def start_session(agent, budget, publish=True):
                QUNXIA_RECORDING_DIR=str(RECORDING_DIR),
                QUNXIA_RECORDING_FILE=str(RECORDING_DIR / sid / "recording.jsonl"),
                QUNXIA_SEND_HZ="15",
-               QUNXIA_RESET_TOKEN=token,
+               QUNXIA_RESET_TOKEN=reset_token,
                QUNXIA_BENCH="1",
                QUNXIA_PUBLISH="1" if publish else "0",
                QUNXIA_BENCH_AGENT=agent,
@@ -225,15 +431,16 @@ async def start_session(agent, budget, publish=True):
                QUNXIA_RESULT_DIR=str(RESULT_DIR),
                QUNXIA_BENCH_SITE=SITE)
     proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"))
-    sess = {"id": sid, "agent": agent, "port": port, "proc": proc,
-            "work": WORK / sid, "budget": budget,
+    sess = {"id": sid, "agent": agent, "port": port, "token": token,
+            "proc": proc, "work": WORK / sid, "budget": budget,
             "started": time.time(), "ends_at": time.time() + budget, "started_clock": clock()}
     sessions[sid] = sess
 
-    if not await wait_healthy(port):
+    if not await wait_healthy(port, proc=proc):
         await asyncio.to_thread(stop_worker, proc)
         await asyncio.to_thread(archive_health, sess, 'startup_failed')
         shutil.rmtree(WORK / sid, ignore_errors=True)
+        sessions.pop(sid, None)
         raise web.HTTPBadGateway(
             text=json.dumps({"ok": False, "error": "session did not start"}),
             content_type="application/json")
@@ -248,7 +455,7 @@ async def start_session(agent, budget, publish=True):
         for _ in range(20):
             try:
                 async with http.post(f"http://127.0.0.1:{port}/api/reset",
-                                     params={"token": token},
+                                     params={"token": reset_token},
                                      timeout=aiohttp.ClientTimeout(total=120)) as r:
                     if (await r.json()).get("restored"):
                         sess["spawned"] = True
@@ -262,6 +469,7 @@ async def start_session(agent, budget, publish=True):
     # handing the agent a broken game, which is what happened for an hour when
     # the bootstrap failed and every session silently started at the title.
     if not sess["spawned"]:
+        reauthor_start_state(app)
         await asyncio.to_thread(stop_worker, proc)
         await asyncio.to_thread(archive_health, sess, 'spawn_failed')
         shutil.rmtree(WORK / sid, ignore_errors=True)
@@ -293,13 +501,46 @@ def ended_payload(sess, res):
 
 # ------------------------------------------------------------------ http
 
+def public_scheme(request):
+    """The scheme the front door reached this service on.
+
+    Cloud Run terminates TLS in front of us, so request.url.scheme is http;
+    the front door reports the public one in X-Forwarded-Proto. Every proxy
+    on the path appends its own observation, so the innermost - the last -
+    value is the front door's, and a value a client prepends cannot rewrite
+    the URLs this service issues into http, where a redirect turns a POST
+    into a GET."""
+    for value in reversed(request.headers.get("X-Forwarded-Proto", "").split(",")):
+        value = value.strip().lower()
+        if value in ("http", "https"):
+            return value
+    return request.url.scheme
+
+
 def public_origin(request):
-    """Cloud Run terminates TLS in front of us, so request.url.scheme is http.
-    Handing that back made agents POST to http, get 302'd to https, and have
-    the redirect turn their POST into a GET."""
-    proto = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
-    host = request.headers.get("X-Forwarded-Host", "").split(",")[0].strip()
-    return f"{proto or request.url.scheme}://{host or request.host}"
+    """The origin the client reached this service at.
+
+    The host is the one the front door presented the request under; Cloud
+    Run rejects hosts the service does not serve, so it names an address
+    this service owns. A client-supplied X-Forwarded-Host is ignored: this
+    service hands out play addresses that carry the run's token in their
+    path, and a caller must not be able to point that credential at a host
+    of their own choosing."""
+    return f"{public_scheme(request)}://{request.host}"
+
+
+def canonical_agent_name(name):
+    """The one rule for the names runs are listed under.
+
+    The name round-trips through the usage report's X-Agent header and
+    header values are latin-1, so a name that cannot survive that
+    round-trip could never be reported; it must not be accepted in the
+    first place. The pi launcher applies this same transform to
+    QUNXIA_BENCH_AGENT, so a report always carries the name the session
+    was created under, whatever the operator pasted in."""
+    return "".join(
+        c for c in str(name).strip()
+        if c.isascii() and (c.isalnum() or c in "-_."))[:40]
 
 
 async def api_new(request):
@@ -308,12 +549,13 @@ async def api_new(request):
         body = await request.json()
     except Exception:
         pass
-    agent = (body.get("agent") or request.query.get("agent") or "").strip()
-    agent = "".join(c for c in agent if c.isalnum() or c in "-_.")[:40]
-    if request.app.get("booting"):
+    agent = canonical_agent_name(
+        body.get("agent") or request.query.get("agent") or "")
+    if request.app.get("booting") or request.app.get("bootstrap_failed"):
         return web.json_response(
-            {"ok": False, "error": "still authoring the opening savestate",
-             "hint": "this happens once per cold start; retry in a minute"},
+            {"ok": False, "error": "the opening savestate is not ready",
+             "hint": "the opening scene is played out on this machine to make "
+                     "it, and retried while it fails; retry in a minute"},
             status=503, headers=CORS)
     if not agent:
         return web.json_response(
@@ -330,8 +572,12 @@ async def api_new(request):
     # on the public board, one of them at the top of it.
     publish = body.get("publish", request.query.get("publish")) not in (
         False, "false", "0", 0)
-    sess = await start_session(agent, minutes * 60, publish)
-    base = public_origin(request) + f"/s/{sess['id']}"
+    sess = await start_session(request.app, agent, minutes * 60, publish)
+    # The URL is the credential: the session's token rides in its path, so
+    # this is the only address that can send input to the run. The address
+    # without it is what the board links to its viewers, and there only
+    # watching is possible.
+    base = public_origin(request) + f"/s/{sess['id']}/t/{sess['token']}"
     return web.json_response({
         "ok": True, "session": sess["id"], "agent": agent,
         "base_url": base, "help_url": base + "/api/help",
@@ -357,13 +603,48 @@ async def proxy(request):
                              "hint": "POST /session to start one"}),
             content_type="application/json")
 
+    # The URL is the credential. The session's own address carries its token
+    # in the path, and that is full access. An address without it is a
+    # spectator address - the board links its viewers there - and it may
+    # watch, not play.
+    tail = request.match_info.get("tail", "")
+    parts = tail.split("/")
+    # The token gates play access; compare it in constant time, for the same
+    # reason a password is never compared with ==.
+    authenticated = (len(parts) >= 3 and parts[0] == "t"
+                     and hmac.compare_digest(parts[1],
+                                             sess.get("token") or ""))
+    if authenticated:
+        tail = "/".join(parts[2:])
+
+    # Usage is a broker endpoint, not a session one: it lands on the
+    # catalogue, which the session process does not own. It is answered
+    # before the 410 below on purpose - the report arrives after the run is
+    # over - and only through the session's own address, since the run's
+    # agent name is public and a name check alone would not keep a
+    # stranger's report out.
+    if request.method == "POST" and tail == "usage":
+        if not authenticated:
+            return web.json_response(
+                {"ok": False, "error": "usage reports are filed through "
+                                       "the session's own address",
+                 "hint": "the base_url from POST /session carries it"},
+                status=403, headers=CORS)
+        return await api_usage(request)
+
+    if not authenticated and request.method not in ("GET", "HEAD"):
+        return web.json_response(
+            {"ok": False, "error": "this address watches; it does not play",
+             "hint": "the base_url from POST /session carries play access "
+                     "in its path"},
+            status=403, headers=CORS)
+
     res = result_of(sid)
     if res or sess["proc"].poll() is not None:
         if res:
             res = await wait_published(sid, res)
         return web.json_response(ended_payload(sess, res), status=410)
 
-    tail = request.match_info.get("tail", "")
     url = f"http://127.0.0.1:{sess['port']}/{tail}"
 
     if request.headers.get("Upgrade", "").lower() == "websocket":
@@ -372,20 +653,30 @@ async def proxy(request):
     data = await request.read()
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "content-length")}
-    headers.setdefault("X-Agent", sess["agent"])
+    # The record attributes every action to the session's own agent, not to
+    # whatever the client claims: the catalogue, the video and the replay
+    # must name the same model, and no stranger may write a name into the
+    # run's record.
+    headers["X-Agent"] = sess["agent"]
+    # The session server builds the public URLs of its own help page from
+    # these two headers. This proxy is the only path to the server, so it
+    # states what it knows - replacing anything the client sent - and the
+    # server can trust what arrives.
+    headers["X-Forwarded-Host"] = request.host
+    headers["X-Forwarded-Proto"] = public_scheme(request)
     out = None
     try:
-        async with aiohttp.ClientSession() as http:
-            async with http.request(request.method, url, params=request.query,
-                                    data=data or None, headers=headers,
-                                    timeout=aiohttp.ClientTimeout(total=180)) as r:
-                out = web.StreamResponse(status=r.status, headers={'Content-Type':r.headers.get('Content-Type','application/octet-stream')})
-                out.headers['X-Bench-Remaining'] = str(max(0, int(sess['ends_at'] - time.time())))
-                await out.prepare(request)
-                async for chunk in r.content.iter_chunked(64 << 10):
-                    await out.write(chunk)
-                await out.write_eof()
-                return out
+        http = request.app["http"]
+        async with http.request(request.method, url, params=request.query,
+                                data=data or None, headers=headers,
+                                timeout=aiohttp.ClientTimeout(total=180)) as r:
+            out = web.StreamResponse(status=r.status, headers={'Content-Type':r.headers.get('Content-Type','application/octet-stream')})
+            out.headers['X-Bench-Remaining'] = str(max(0, int(sess['ends_at'] - time.time())))
+            await out.prepare(request)
+            async for chunk in r.content.iter_chunked(64 << 10):
+                await out.write(chunk)
+            await out.write_eof()
+            return out
     except Exception as exc:
         if out is not None and out.prepared:
             if request.transport:
@@ -401,6 +692,17 @@ async def proxy(request):
             content_type="application/json")
 
 
+async def open_http(app):
+    """One connector for the life of the broker. The proxy hands every agent
+    action and every spectator's page through it; a fresh ClientSession per
+    request would build and tear down a pool of sockets for each one."""
+    app["http"] = aiohttp.ClientSession()
+
+
+async def close_http(app):
+    await app["http"].close()
+
+
 async def spectate(request, sess, url):
     """Watch a run in progress. Anything the viewer sends is dropped rather
     than forwarded, so a spectator cannot touch the game even with a hand
@@ -411,30 +713,146 @@ async def spectate(request, sess, url):
              "hint": "this run is already being watched by as many sockets as "
                      "it will carry; the published thumbnail still updates"},
             status=503, headers=CORS)
-    ws = web.WebSocketResponse(max_msg_size=4096, heartbeat=30, compress=False)
-    await ws.prepare(request)
+    # Take the slot before the handshake: prepare() awaits, and a check and
+    # an increment on either side of an await are not atomic.
     sess["watchers"] = sess.get("watchers", 0) + 1
+    ws = web.WebSocketResponse(max_msg_size=4096, heartbeat=30, compress=False)
     try:
-        async with aiohttp.ClientSession() as http:
-            async with http.ws_connect(url, max_msg_size=2 << 20, heartbeat=30, compress=0) as up:
-                async def downstream():
+        await ws.prepare(request)
+    except Exception:
+        sess["watchers"] = max(0, sess["watchers"] - 1)
+        raise
+    try:
+        http = request.app["http"]
+        async with http.ws_connect(url, max_msg_size=2 << 20, heartbeat=30, compress=0) as up:
+            async def downstream():
+                try:
                     async for m in up:
                         if m.type == aiohttp.WSMsgType.BINARY:
                             await ws.send_bytes(m.data)
                         elif m.type == aiohttp.WSMsgType.TEXT:
                             await ws.send_str(m.data)
-                pump = asyncio.create_task(downstream())
-                try:
-                    async for _ in ws:
-                        pass                      # deliberately ignored
-                finally:
-                    pump.cancel()
+                except Exception:
+                    pass
+                # The upstream is gone - the run ended or the game died - so
+                # end the view with it. A socket left open on a dead game
+                # shows its last frame forever.
+                await ws.close()
+
+            pump = asyncio.create_task(downstream())
+            try:
+                async for _ in ws:
+                    pass                      # deliberately ignored
+            finally:
+                pump.cancel()
     except Exception:
         pass
     finally:
-        sess["watchers"] = max(0, sess.get("watchers", 1) - 1)
+        sess["watchers"] = max(0, sess["watchers"] - 1)
         await ws.close()
     return ws
+
+
+# A usage report is a handful of numbers. Anything bigger is not a report.
+USAGE_LIMIT = 64 << 10
+
+
+def _validate_usage(body):
+    """The report is published verbatim onto the public board, so keep it to
+    what a usage actually is, and nothing else. None when it is not one."""
+    if not isinstance(body, dict):
+        return None
+
+    def tokens(key):
+        value = body.get(key)
+        if isinstance(value, bool) or not isinstance(value, int):
+            return None
+        if value < 0 or value > 10**9:
+            return None
+        return value
+
+    usage = {k: tokens(k) for k in
+             ("input", "output", "cacheRead", "cacheWrite", "totalTokens")}
+    if any(v is None for v in usage.values()):
+        return None
+    cost = body.get("cost", 0)
+    if isinstance(cost, bool) or not isinstance(cost, (int, float)) \
+            or not 0 <= cost <= 10**6:
+        return None
+    turns = body.get("turns", 0)
+    if isinstance(turns, bool) or not isinstance(turns, int) \
+            or not 0 <= turns <= 100000:
+        return None
+    usage.update(cost=round(float(cost), 6), turns=turns)
+    model = body.get("model")
+    if isinstance(model, str) and model:
+        usage["model"] = "".join(c for c in model if c.isprintable())[:200]
+    return usage
+
+
+async def api_usage(request):
+    """Report the run's model usage, measured by the agent's harness.
+
+    This is the provider's meter relayed by the harness that ran the model -
+    not a claim by the model, which is why the board may publish it at all.
+    It is filed through the session's own token address, so the proxy's
+    check lands it here, on the broker's catalogue, and no stranger's
+    address can file one. The report lands on the run's catalogue entry:
+    immediately if the entry is there, otherwise on the next sweep tick that
+    finds it (the session process appends the entry while it finalizes, which
+    can outlive the agent's last reply by minutes).
+    """
+    sid = request.match_info["sid"]
+    sess = sessions.get(sid)
+    if not sess:
+        raise web.HTTPNotFound(
+            text=json.dumps({"ok": False, "error": "no such session",
+                             "hint": "usage reports land on a run while it "
+                                     "is finishing or just after it"}),
+            content_type="application/json", headers=CORS)
+    if request.headers.get("X-Agent") != sess["agent"]:
+        return web.json_response({
+            "ok": False, "error": "X-Agent must name this run's agent",
+            "hint": "send the same name the session was created under"},
+            status=403, headers=CORS)
+    raw = await request.read()
+    if len(raw) > USAGE_LIMIT:
+        # Not web.HTTPPayloadTooLarge: aiohttp.web does not re-export that
+        # class, so the raise itself would crash into a 500 - the one
+        # failure shape a size limit exists to prevent.
+        return web.json_response(
+            {"ok": False, "error": "a usage report is at most 64KB"},
+            status=413, headers=CORS)
+    try:
+        usage = _validate_usage(json.loads(raw or b"{}"))
+    except (ValueError, TypeError):
+        usage = None
+    if usage is None:
+        return web.json_response({
+            "ok": False, "error": "a usage report needs input, output, "
+                                  "cacheRead, cacheWrite and totalTokens "
+                                  "as non-negative integers",
+            "hint": "the harness's meter, not the model's estimate"},
+            status=400, headers=CORS)
+    try:
+        merged = await asyncio.get_running_loop().run_in_executor(
+            None, merge_usage_into_catalog, sid, usage)
+    except Exception as exc:
+        print(f"usage merge for {sid}: {exc}", flush=True)
+        merged = False
+    if merged:
+        sess.pop("usage", None)
+        return web.json_response({"ok": True, "merged": True}, headers=CORS)
+    # The entry is not in the catalogue yet. Keep the report on the session
+    # and let the sweep attach it once the entry lands; the deadline below
+    # bounds a run whose entry never will.
+    sess["usage"] = usage
+    sess["usage_since"] = time.time()
+    return web.json_response({
+        "ok": True, "merged": False,
+        "note": "the run's entry is not in the catalogue yet; the report "
+                "will be attached when it lands"},
+        status=202, headers=CORS)
 
 
 async def api_sessions(_request):
@@ -612,73 +1030,132 @@ async def sweep(app):
     """
     loop = asyncio.get_running_loop()
     tick, last_live, last_shot, last_sig = 0, 0.0, 0.0, None
-    while True:
-        await asyncio.sleep(1)
-        tick += 1
-        now = time.time()
-        running = [s for s in sessions.values()
-                   if s["proc"].poll() is None and not result_of(s["id"])]
+    # One session for the life of the sweep, not a new one per tick: a
+    # fresh session and its connector would otherwise be built and torn
+    # down every second even when no run is active.
+    http = aiohttp.ClientSession()
 
-        async with aiohttp.ClientSession() as http:
-            for s in running:
-                try:
-                    async with http.get(f"http://127.0.0.1:{s['port']}/status",
-                                        timeout=aiohttp.ClientTimeout(total=3)) as r:
-                        d = (await r.json()).get("session", {})
-                        s["live_actions"] = d.get("actions", 0)
-                        s["live_uptime"] = d.get("uptime_s", 0)
-                        s["live_meaningful"] = d.get("meaningful", 0)
-                        s["live_scenes"] = d.get("scenes", 1)
-                        s["live_world"] = {k: d.get(k) for k in
-                                           ("bigmap", "exit_acts", "exit_secs")}
-                        s["live_hero"] = live_hero(d)
-                        s["live_frontier"] = d.get("frontier")
-                        s["live_keys"] = d.get("keys", {})
-                        s["live_timing"] = live_timing(d)
-                except Exception:
-                    pass
+    async def live_status(port):
+        try:
+            async with http.get(f"http://127.0.0.1:{port}/status",
+                                timeout=aiohttp.ClientTimeout(total=3)) as r:
+                return (await r.json()).get("session", {})
+        except Exception:
+            return None
+
+    async def thumbnail(s, now):
+        try:
+            async with http.get(
+                    f"http://127.0.0.1:{s['port']}/api/screen",
+                    params={"format": "jpeg", "spectate": "1"},
+                    timeout=aiohttp.ClientTimeout(total=8)) as r:
+                if r.status == 200:
+                    img = await r.read()
+                    await loop.run_in_executor(
+                        None, put, f"live/{s['id']}.jpg", img, "image/jpeg", 4)
+                    s["shot_at"] = round(now)
+        except Exception as exc:
+            if not s.get("shot_warned"):
+                s["shot_warned"] = True
+                print(f"thumbnail failed for {s['id']}: {exc}", flush=True)
+
+    try:
+        while True:
+            await asyncio.sleep(1)
+            tick += 1
+            now = time.time()
+            running = [s for s in sessions.values()
+                       if s["proc"].poll() is None and not result_of(s["id"])]
+
+            # Poll every running worker concurrently: one hung worker must not
+            # stall the counts, the publish, or the reclaim below for all the
+            # others in the pool (24 by default, 3s + 8s per stalled fetch).
+            for s, d in zip(running, await asyncio.gather(
+                    *(live_status(s["port"]) for s in running))):
+                if d is None:
+                    continue
+                s["live_actions"] = d.get("actions", 0)
+                s["live_uptime"] = d.get("uptime_s", 0)
+                s["live_meaningful"] = d.get("meaningful", 0)
+                s["live_scenes"] = d.get("scenes", 1)
+                s["live_world"] = {k: d.get(k) for k in
+                                   ("bigmap", "exit_acts", "exit_secs")}
+                s["live_hero"] = live_hero(d)
+                s["live_frontier"] = d.get("frontier")
+                s["live_keys"] = d.get("keys", {})
+                s["live_timing"] = live_timing(d)
 
             if running and now - last_shot >= SHOT_EVERY:
                 last_shot = now
-                for s in running:
-                    try:
-                        async with http.get(
-                                f"http://127.0.0.1:{s['port']}/api/screen",
-                                params={"format": "jpeg", "spectate": "1"},
-                                timeout=aiohttp.ClientTimeout(total=8)) as r:
-                            if r.status == 200:
-                                img = await r.read()
-                                await loop.run_in_executor(
-                                    None, put, f"live/{s['id']}.jpg", img,
-                                    "image/jpeg", 4)
-                                s["shot_at"] = round(now)
-                    except Exception as exc:
-                        if not s.get("shot_warned"):
-                            s["shot_warned"] = True
-                            print(f"thumbnail failed for {s['id']}: {exc}", flush=True)
+                await asyncio.gather(*(thumbnail(s, now) for s in running))
 
-        # written while anything runs, and once more after the last one stops
-        sig = tuple(sorted(s["id"] for s in running))
-        if running and now - last_live >= LIVE_EVERY or sig != last_sig:
-            last_live, last_sig = now, sig
-            try:
-                await loop.run_in_executor(
-                    None, put, "live.json",
-                    json.dumps(live_payload()).encode(), "application/json", 3)
-            except Exception as exc:
-                print(f"live publish failed: {exc}", flush=True)
+            # written while anything runs, and once more after the last one stops
+            sig = tuple(sorted(s["id"] for s in running))
+            if running and now - last_live >= LIVE_EVERY or sig != last_sig:
+                last_live, last_sig = now, sig
+                try:
+                    await loop.run_in_executor(
+                        None, put, "live.json",
+                        json.dumps(live_payload()).encode(), "application/json", 3)
+                except Exception as exc:
+                    print(f"live publish failed: {exc}", flush=True)
 
-        if tick % 30:
-            continue
-        for s in list(sessions.values()):
-            work = s.get("work")
-            if work and s["proc"].poll() is not None and work.exists():
-                await loop.run_in_executor(None, archive_health, s)
-                await loop.run_in_executor(
-                    None, lambda w=work: shutil.rmtree(w, ignore_errors=True))
-                # its thumbnail is nothing but storage cost once the run is over
-                await loop.run_in_executor(None, drop, f"live/{s['id']}.jpg")
-                print(f"reclaimed {work}", flush=True)
+            # A usage report waits here while the session process finalizes:
+            # the warden writes its result before it appends the catalogue
+            # entry, so a missing result guarantees the entry is missing too
+            # and the tick is skipped. Only once the result exists is the
+            # catalogue round-trip worth paying, once a second per pending
+            # run - and an unchanged catalogue answers it without a download.
+            for s in list(sessions.values()):
+                if s.get("usage") is None or result_of(s["id"]) is None:
+                    continue
+                if now - s.get("usage_since", 0) > 600:
+                    # The entry never landed; stop paying for a run the
+                    # catalogue does not have.
+                    s.pop("usage", None)
+                    s.pop("usage_since", None)
+                    _catalog_seen_generation.pop(s["id"], None)
+                    continue
+                try:
+                    merged = await loop.run_in_executor(
+                        None, merge_usage_into_catalog, s["id"], s["usage"])
+                except Exception as exc:
+                    merged = False
+                    print(f"usage merge for {s['id']}: {exc}", flush=True)
+                if merged:
+                    s.pop("usage", None)
+                    s.pop("usage_since", None)
+
+            if tick % 30:
+                continue
+            for s in list(sessions.values()):
+                if s["proc"].poll() is None:
+                    continue
+                work = s.get("work")
+                if work and work.exists():
+                    await loop.run_in_executor(None, archive_health, s)
+                    await loop.run_in_executor(
+                        None, lambda w=work: shutil.rmtree(w, ignore_errors=True))
+                    # its thumbnail is nothing but storage cost once the run is over
+                    await loop.run_in_executor(None, drop, f"live/{s['id']}.jpg")
+                    print(f"reclaimed {work}", flush=True)
+                # The run's disk footprint does not end with the game copy:
+                # the video, poster, timeline and journal that made it are
+                # staging copies of what the bucket holds now
+                if not s.get("artifacts_dropped"):
+                    res = result_of(s["id"])
+                    if res and res.get("complete") and res.get("video_url"):
+                        await loop.run_in_executor(
+                            None, drop_published_artifacts, s)
+                        s["artifacts_dropped"] = True
+                        print(f"dropped published artifacts of {s['id']}",
+                              flush=True)
+            # The work dir is gone; now the entry itself, once its last
+            # callers have had their time.
+            for sid in reap_finished(now):
+                print(f"reaped session {sid}", flush=True)
+    finally:
+        await http.close()
 
 
 async def spawn_sweep(app):
@@ -694,41 +1171,83 @@ async def spawn_sweep(app):
     app["monitor"] = asyncio.create_task(monitor_workers())
 
 
+def start_state_path():
+    return pathlib.Path(os.environ.get(
+        "QUNXIA_START_STATE", str(REPO / "saves" / "start.state")))
+
+
+def start_state_usable(state):
+    # A partial write - an attempt that died mid-save - leaves a file that
+    # exists and loads into nothing. Existence is only half the test.
+    return state.exists() and state.stat().st_size > 0
+
+
 async def ensure_start_state(app):
     """The savestate is tied to the core build, so it cannot be shipped in the
-    image. Author it here, once, on whatever machine this is.
+    image. Author it here, on whatever machine this is.
 
     Deliberately not awaited from on_startup. Authoring means playing the
     opening through, which takes minutes, and an aiohttp startup handler runs
     before the socket is listening: Cloud Run's startup probe gives four
     minutes, saw nothing on the port, and killed the instance mid-bootstrap,
     over and over. So the port opens first and this runs behind it, with
-    /session refusing until it lands."""
-    state = pathlib.Path(os.environ.get(
-        "QUNXIA_START_STATE", str(REPO / "saves" / "start.state")))
-    if state.exists():
+    /session refusing until it lands.
+
+    The loop does not stop at a failed burst. The opening is played by a
+    script that can lose its way: a slower machine burns its opening-scene
+    budget and gives up. One failure used to mean the container refused every
+    session for as long as it lived, which is how this went down. So it keeps
+    offering bursts until the state lands, and /session refuses the whole
+    while."""
+    state = start_state_path()
+    if start_state_usable(state):
         print(f"start state present: {state}", flush=True)
         app["booting"] = False
+        app.pop("bootstrap_failed", None)
         return
     print("no start state, playing the opening once to make one", flush=True)
     app["booting"] = True
-    # The opening is played by a script that can lose its way: a slower machine
-    # burns its budget mid-scene and gives up. One failure used to mean the
-    # container refused every session for as long as it lived, which is how
-    # this went down. Try again instead.
-    for attempt in range(1, 4):
-        try:
-            await author_start_state(state, attempt)
-        except Exception as exc:
-            print(f"bootstrap attempt {attempt} failed: {exc}", flush=True)
-        if state.exists():
-            break
-        await asyncio.sleep(2)
-    app["booting"] = False
-    ok = state.exists()
-    print(f"start state ready: {ok}", flush=True)
-    app["bootstrap_failed"] = not ok
-    return
+    app["bootstrap_failed"] = True
+    while True:
+        for attempt in range(1, AUTHOR_BURST + 1):
+            try:
+                await author_start_state(state, attempt)
+            except Exception as exc:
+                print(f"bootstrap attempt {attempt} failed: {exc}", flush=True)
+            if start_state_usable(state):
+                app["booting"] = False
+                app.pop("bootstrap_failed", None)
+                print("start state ready: True", flush=True)
+                return
+            await asyncio.sleep(2)
+        # Between bursts the authoring is paused, not failed: the state is
+        # still not there, so sessions still refuse, and the pause is what a
+        # wedged host gets between tries.
+        app["booting"] = False
+        print(f"start state not ready; next burst in {AUTHOR_RETRY:.0f}s",
+              flush=True)
+        await asyncio.sleep(AUTHOR_RETRY)
+        app["booting"] = True
+
+
+def reauthor_start_state(app):
+    """A session reached the game's reset and could not restore the start
+    state: the file on disk is not loading into this core, and no amount of
+    retrying the load will fix it - it is corrupt, or it was written by a
+    different build. Delete it and author a fresh one. Until it lands,
+    sessions refuse fast instead of each burning a booted worker on the same
+    dead load."""
+    task = app.get("bootstrap")
+    if task is not None and not task.done():
+        return                      # a burst is already in flight
+    state = start_state_path()
+    try:
+        state.unlink(missing_ok=True)
+    except OSError as exc:
+        print(f"could not remove the bad start state: {exc}", flush=True)
+    app["booting"] = True
+    app["bootstrap_failed"] = True
+    app["bootstrap"] = asyncio.create_task(ensure_start_state(app))
 
 
 async def author_start_state(state, attempt):
@@ -764,6 +1283,11 @@ def main():
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     if shutil.which("ffmpeg") is None:
         print("warning: ffmpeg not on PATH, runs will not render", flush=True)
+    web.run_app(build_app(), host="0.0.0.0",
+                port=int(os.environ.get("PORT", "8080")), access_log=None)
+
+
+def build_app():
     app = web.Application(client_max_size=64 << 20)
     app.add_routes([
         web.get("/", index),
@@ -772,12 +1296,15 @@ def main():
         web.get("/api/sessions", api_sessions),
         web.get("/api/catalog", api_catalog),
         web.get("/videos/{name}", video_file),
+        # Usage has no route of its own: the catch-all answers it after the
+        # token check, so only the session's own address can file a report.
         web.route("*", "/s/{sid}/{tail:.*}", proxy),
     ])
     app.on_startup.append(boot_in_background)
     app.on_startup.append(spawn_sweep)
-    web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8080")),
-                access_log=None)
+    app.on_startup.append(open_http)
+    app.on_cleanup.append(close_http)
+    return app
 
 
 if __name__ == "__main__":

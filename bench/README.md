@@ -9,6 +9,10 @@ POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
      {"ended": true, "reason", "why", "video_url", "catalog_url"}
 ```
 
+`base_url` is the run's play credential: it carries the session's token in
+its path (`/s/<id>/t/<token>`), and an address without it can watch the run
+but not send input to it.
+
 Backend: <https://jy-crpg-bench-366646433082.us-central1.run.app>
 Catalogue: <https://hanxiao.io/jy-crpg-bench/> (static, see `site/`)
 
@@ -30,7 +34,10 @@ that played the game is the one that decides it is over, renders it, publishes
 it, and takes itself down. A node that dies takes only its own runs with it,
 and there is no in-memory catalogue to lose. Concurrent sessions default to a
 limit of 24, configurable with `QUNXIA_MAX_SESSIONS`; there is no waiting queue.
-Raise the limit when the host has sufficient CPU and memory.
+Raise the limit when the host has sufficient CPU and memory. A create request
+is not the run: the session lives in the broker's table, so a client that
+gives up mid-boot leaves a run that keeps playing, holds its slot, and ends
+on its budget like any other.
 
 ## What a run looks like
 
@@ -45,6 +52,11 @@ Raise the limit when the host has sufficient CPU and memory.
 4. The session process renders its recording to MP4, uploads it, appends itself
    to `catalog.json`, and exits. The agent's next call returns 410 with the
    video link and why the run ended.
+
+The create call takes one more option, for operators: `"publish": false`. The
+run plays and records exactly like any other but leaves no catalogue entry and
+no video in the bucket, so smoke tests stay off the board; it still counts
+against the session limit and shows as a live row while it runs.
 
 ## What is measured
 
@@ -67,6 +79,15 @@ Key and held-frame totals are recorded before a decision executes. They include
 submitted steps that may not finish if the call or run is interrupted; they do
 not measure actual executed keyboard input. The separate `error` field reports
 recording or publication failures after the run, without changing its stop reason.
+
+Token usage is not in the table because it is not taken from the run's traffic:
+a model does not know its own cost, but the harness does. The pi harness reads
+its session log after the benchmark ends and reports the run's turns, total
+tokens, and cost - metered against the USD-per-million-token rates declared
+for the model - to the broker, which attaches the report to the catalogue
+entry. A harness that does not report leaves the entry without usage; a run
+whose model has no declared rates carries no cost; the site shows a dash,
+never a zero.
 
 What the screen itself is read for, none of it a model judging another model:
 
@@ -128,18 +149,42 @@ image and is made wherever the service runs.
 ## Deploying
 
 ```sh
-gcloud builds submit --config cloudbuild.yaml .
+./Scripts/pack-game.sh   # assets/game-data.tar.gz from your game/ copy (not in git)
+gcloud builds submit --config cloudbuild.yaml . --substitutions _TAG=v31
 gcloud run deploy jy-crpg-bench --region us-central1 \
-  --image .../jy-crpg-bench:v1 --allow-unauthenticated \
-  --cpu 8 --memory 8Gi --no-cpu-throttling \
+  --image .../jy-crpg-bench:v31 --allow-unauthenticated \
+  --cpu 8 --memory 16Gi --no-cpu-throttling \
   --min-instances 1 --max-instances 1 --concurrency 80 --timeout 3600 \
-  --set-env-vars QUNXIA_GCS_BUCKET=jy-crpg-bench-runs,QUNXIA_RUN_SECONDS=1200
+  --set-env-vars QUNXIA_GCS_BUCKET=jy-crpg-bench-runs,QUNXIA_RUN_SECONDS=1200, \
+    QUNXIA_OPENING_SECONDS=900,QUNXIA_RECORDING_ALLOW_EPHEMERAL=1
 ```
+
+The image tag tracks the code version, so the build and the deploy name the
+same artifact. The game data is your own copy of the game (see the top-level
+README), archived into `assets/` by the pack step; the archive is kept out of
+git, so a checkout without `game/` cannot build the image.
 
 The site deploys separately by copying `site/` into the GitHub Pages repo. The
 bucket needs CORS for the site's origin, and the catalogue object is written
 with a generation precondition so simultaneous finishers do not overwrite each
 other.
+
+Recordings are written to `QUNXIA_RECORDING_DIR`, which inside a container is
+instance memory: startup rejects that unless the deployment either mounts a
+persistent volume there or sets `QUNXIA_RECORDING_ALLOW_EPHEMERAL=1`. A run
+cannot outlive its instance, so opting in loses only the journal read back
+after the instance stops, and the broker says so in a warning at every start.
+See `server/RECORDING.md`.
+
+Journals grow with the play, not with the clock: the opening room's ambient
+animation commits about 0.8 KB/s whether or not the agent acts (a run of
+space presses added nothing measurable on top), and continuous walking -
+the camera is locked to the character, so the whole tile grid changes -
+commits about 12 KB/s. A full-budget 24-hour run that keeps walking therefore
+lands around 1 GB of journal in instance memory: 24 simultaneous such runs
+would exceed the 16 Gi limit, so the 24-session capacity holds while runs are
+short or the play is light, and a run that outgrows the memory takes the
+instance down with it, the way every other memory failure does.
 
 `--max-instances 1` is still deliberate, and is the one thing left in the way
 of horizontal scale. A session is an emulator process in one instance's memory,
@@ -148,11 +193,20 @@ spreading sessions across instances would break them. Teardown is already node
 local, so the remaining work is addressing: give each session its own service
 or its own host, rather than raising this number.
 
+A create holds its request while the game boots and the opening state loads -
+tens of seconds - so a burst of many simultaneous `POST /session` calls can
+outrun the platform's per-instance request placement: some answer 429 before
+reaching the broker. Nothing is queued and nothing is half-created, so a 429
+is retried like the 503 "at capacity"; the in-flight creates' reservations
+keep their slots. 24 simultaneous creates lose up to half to 429s on this
+service; 24 simultaneous short requests lose none.
+
 | variable | default | |
 |---|---|---|
 | `QUNXIA_RUN_SECONDS` | 1200 | length of a run |
 | `QUNXIA_IDLE_LIMIT` | 600 | seconds without an action before a run is torn down |
 | `QUNXIA_MAX_SESSIONS` | 24 | concurrent sessions; configurable for host capacity |
+| `QUNXIA_REAP_GRACE` | 600 | seconds a finished run's entry outlives its process, so late calls - the agent's final 410, a usage report - still find it; a held usage report holds it further until merged or dropped |
 | `QUNXIA_VIDEO_WAIT` | 300 | how long the final reply waits for the video |
 | `QUNXIA_GCS_BUCKET` | | publish videos and the catalogue here |
 | `QUNXIA_SITE` | hanxiao.io/jy-crpg-bench/ | where agents are pointed for results |
@@ -160,3 +214,5 @@ or its own host, rather than raising this number.
 | `QUNXIA_PUBLISH` | 1 | set to 0 and the run is not listed or uploaded |
 | `QUNXIA_CALIBRATE` | 0 | read the character's position; see the warning below |
 | `QUNXIA_OPENING_SECONDS` | 420 | budget for playing the opening once |
+| `QUNXIA_RECORDING_DIR` | `<repo>/recordings` | where the recording journals are written |
+| `QUNXIA_RECORDING_ALLOW_EPHEMERAL` | | `1` lets a container deployment accept instance-memory recordings; without it (or a persistent volume) startup is rejected |

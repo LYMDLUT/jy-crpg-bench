@@ -35,8 +35,8 @@ except ValueError:
 BASE = API[:-4] if API.endswith("/api") else API
 LANGUAGE = os.environ.get("QUNXIA_BENCH_LANG", "en")
 AGENT = "".join(
-    c for c in os.environ.get("QUNXIA_AGENT", "mcp") if c.isalnum() or c in "-_."
-)[:16] or "mcp"
+    c for c in os.environ.get("QUNXIA_AGENT", "mcp")
+    if c.isascii() and (c.isalnum() or c in "-_."))[:40] or "mcp"
 
 # Mirrors the game server's own request limits, so a bad argument is rejected
 # here with a readable message instead of a 400 from the API.
@@ -132,7 +132,8 @@ def _result(res, note=""):
     """Turn an API response into MCP content: a short status line plus the screen."""
     if res.get("ended"):
         summary = {key: res.get(key) for key in
-                   ("reason", "why", "actions", "video_url", "video_pending")}
+                   ("reason", "why", "message", "actions", "video_url",
+                    "video_pending")}
         summary["played_seconds"] = res.get("played_seconds", res.get("played"))
         return [TextContent(type="text", text="BENCHMARK ENDED | "
                             + json.dumps(summary, ensure_ascii=False))]

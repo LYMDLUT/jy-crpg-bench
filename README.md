@@ -10,7 +10,7 @@ objectives, and has to find fourteen books in an open world.
 |---|---|
 | Environment | 金庸群俠傳 (河洛工作室, 1996), DOS, unmodified binary under DOSBox Pure |
 | Observation | raw VGA frames, 320x200, Traditional Chinese text |
-| Action | 16 keys, isometric movement on four diagonal axes |
+| Action | 4 diagonal movement keys and 5 interaction keys; the API accepts the full DOS keyboard (119 named keys) |
 | Horizon | open world, no fixed episode length |
 | Objective | recover fourteen books and return to the present |
 | Interfaces | HTTP API, MCP server, built-in Pi harness, browser |
@@ -66,7 +66,8 @@ mkdir -p game && cp -R /path/to/jinyong/* game/     # PLAY.BAT, Z.COM, DOS4GW.EX
 The DOSBox Pure core is prebuilt in `Cores/`. Window keys: arrows and numpad
 move, enter and space confirm, esc opens the menu, y and n answer prompts, and
 the 注音 name entry works. ⌘1 to ⌘5 set the scale, ⌘I hides the log pane, ⌘S
-and ⌘L quick save and load, ⌘M mutes, ⌃⌘F is fullscreen. The window snaps to
+and ⌘L quick save and load, ⌘M mutes, ⌃⌘F is fullscreen, ⌘0 toggles 4:3 aspect and ⌘R
+restarts the emulator. The window snaps to
 whole multiples of 320x200.
 
 ### Headless runner (Linux or macOS)
@@ -177,7 +178,7 @@ claude mcp add qunxia -e QUNXIA_API=http://127.0.0.1:8765 \
 | `QUNXIA_MCP_PROFILE` | `standalone` | `benchmark` exposes only `look`, `press`, `press_sequence`, `wait`; actions return metadata and `look` returns the native frame |
 | `QUNXIA_BENCH_LANG` | `en` | briefing language, `en` or `zh` |
 | `QUNXIA_AGENT` | `mcp` | name in the activity log |
-| `QUNXIA_SCALE` | `2` | frame scale for standalone play, 1 to 6 |
+| `QUNXIA_SCALE` | `2` | action-frame scale, 1 to 6; native runner only (the headless runner returns native-resolution frames) |
 
 For a timed benchmark session, create the session first, then point
 `QUNXIA_API` at the returned `base_url` plus `/api`. The server reads that
@@ -216,8 +217,13 @@ Tool exposure is declared in `pi-agent/profiles.json`:
 
 ```sh
 # timed benchmark session: BASE_URL is the base_url returned by POST /session
-BASE_URL=https://benchmark.example/s/replace-with-the-created-session-id
+# and AGENT is the agent field of that same response. base_url carries the
+# session's token in its path, so it is the run's play credential: only its
+# bearer can send input to the run, and a bare /s/<id> address only watches.
+BASE_URL=https://benchmark.example/s/replace-with-the-created-session-id/t/replace-with-the-token-from-that-same-response
+AGENT=gpt-5
 QUNXIA_PI_PROFILE=benchmark QUNXIA_API="${BASE_URL%/}/api" \
+QUNXIA_BENCH_AGENT="$AGENT" \
 QUNXIA_THINKING=high QUNXIA_LLM_REASONING=1 QUNXIA_LLM_SUPPORTS_REASONING_EFFORT=1 \
 QUNXIA_RUN_ID=benchmark-01 ./Scripts/play-agent.sh -p "play until BENCHMARK ENDED"
 
@@ -232,8 +238,9 @@ QUNXIA_RUN_ID=benchmark-01 QUNXIA_RESUME=1 ./Scripts/play-agent.sh -p "continue"
 | `QUNXIA_THINKING` | required for benchmark runs; must be a level the model supports |
 | `QUNXIA_LLM_REASONING`, `QUNXIA_LLM_SUPPORTS_REASONING_EFFORT` | set to `1` for reasoning on Chat endpoints |
 | `QUNXIA_LLM_INPUT`, `QUNXIA_LLM_CONTEXT`, `QUNXIA_LLM_MAX_TOKENS` | override model capabilities |
-| `QUNXIA_MODEL_CONFIG` | absolute path to a JSON model definition (`id`, `api`, `reasoning`, `input`, `contextWindow`, `maxTokens`, `thinkingLevelMap`) |
+| `QUNXIA_MODEL_CONFIG` | absolute path to a JSON model definition (`id`, `api`, `reasoning`, `input`, `contextWindow`, `maxTokens`, `thinkingLevelMap`, and optionally `cost`, USD per 1M tokens, metered onto the run's usage) |
 | `QUNXIA_BENCH_LANG` | briefing language for benchmark runs, default `zh` |
+| `QUNXIA_BENCH_AGENT` | the name the run was created under (the `agent` field of the POST /session response); the run's token usage is published to the catalogue under this name after the run ends |
 | `QUNXIA_RUN_ID`, `QUNXIA_RESUME`, `QUNXIA_RUNS_DIR` | run identity and location |
 
 Unsupported thinking levels are rejected before play rather than clamped. The
@@ -246,6 +253,10 @@ MCP.
 <https://hanxiao.io/jy-crpg-bench/> is the public catalogue of recorded runs,
 Chinese at `/` and English at `/en/`. It is a static page that reads
 `catalog.json` from the benchmark's bucket, so it has no backend of its own.
+
+![The public benchmark board](docs/board.png)
+
+The board: the totals, the brief, and one card per recorded run.
 
 Each card is one run: model name, the MP4 replay with the keys composited in,
 how the run ended, and a six-rung progress ladder: acted, screen responded,
@@ -375,25 +386,45 @@ cycle budget. Measured on an M3 Ultra, 10 seconds at the title screen:
 | fixed 77000 | 31.3% | 70.17 | 15.9s |
 | fixed 26800 | 15.6% | 70.04 | |
 
-The macOS runner defaults to 77000 and the server to 26800 (`QUNXIA_CYCLES`),
-which holds 70 fps on a shared-core VM. Override with
-`QUNXIA_SET="dosbox_pure_cycles=max"` or `--set dosbox_pure_cycles=200000`.
+The macOS runner defaults to 77000, and the server to 26800, which holds
+70 fps on a shared-core VM. Override the server with `QUNXIA_CYCLES`, and the
+macOS runner with `QUNXIA_SET="dosbox_pure_cycles=max"` or
+`--set dosbox_pure_cycles=200000`.
 
 ## Tests
 
 ```sh
 ./server/build.sh
+# Tests must run in the repo's Python 3.14 venv. Bare `python` on macOS is
+# usually the Homebrew interpreter without aiohttp/pillow/numpy, and the
+# suite then dies with 8 module-level ImportError 'modules' - an environment
+# gap, not broken code. Verified on this working copy: system python -> 52
+# tests / 8 errors; .venv (Python 3.14.7) -> 101 tests / 0 failures.
+# Recreate it with:  uv venv --python 3.14 && uv pip install aiohttp pillow numpy zhconv
 python -m unittest discover -s server -p 'test_*.py'      # needs aiohttp, pillow
 python -m unittest discover -s mcp-server -p 'test_*.py'  # run with mcp<2 and mcp>=2
 python -m unittest discover -s bench -p 'test_*.py'       # needs numpy
 python -m unittest discover -s site -p 'test_*.py'        # needs zhconv
 python -m unittest Scripts/test_agent_launchers.py
-node --test Scripts/test-pi-run.mjs Scripts/test-pi-launch.mjs   # after npm ci
+node --test Scripts/test-pi-run.mjs Scripts/test-pi-launch.mjs Scripts/test-pi-usage.mjs   # after npm ci
 swift build
+# the paper's numbers pipeline is pure stdlib: its claims must match the
+# committed catalogue snapshot, and the generated .tex the paper \input's
+# must be what the pipeline emits (CI checks this on every push and PR)
+cd paper/src && python3 check_consistency.py && \
+  python3 figures/emit_numbers.py > figures/numbers.tex && \
+  python3 figures/emit_table.py >/dev/null && \
+  python3 figures/make_metrics.py >/dev/null && \
+  git diff --exit-code figures/numbers.tex tables/aggregate.tex tables/family.tex tables/runs.tex
+# the leaderboard pages and the agents.md briefs are generated too; the page
+# stamp is a hash of its own content, so a regen-and-diff needs no bucket
+python site/build.py && python site/agents_build.py && git diff --exit-code
 ```
 
 `site/build.py` and `site/agents_build.py` regenerate the leaderboard pages
-and the published briefs; the committed output must not drift.
+and the published briefs; the paper's `paper/src/figures/` pipeline regenerates
+the numbers, tables and figures from the committed catalogue snapshot; the
+committed output must not drift.
 
 ## Layout
 
@@ -404,7 +435,8 @@ server/              headless runner: tile differ, aiohttp server, browser clien
                      recording journal, watchdog, benchmark warden
 bench/               benchmark broker, MP4 renderer, Dockerfile
 site/                leaderboard and published briefs
-skills/              play.*.md and speedrun.*.md, served at /api/help
+skills/              play.*.md and speedrun.*.md, served at /api/help;
+                     jyxzz-speedrun-tips/ repackages the zh manual as a pi skill
 pi-agent/            built-in harness: prompts, profiles, game_* extension
 mcp-server/          MCP server
 Scripts/             run.sh, play-agent.sh, play.py, setup-codex.sh, packaging

@@ -18,8 +18,9 @@ uses that name to identify the result.
 
 `minutes` is the total playtime for this run; this copy of the brief is the
 480 minute one. The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
-from here on. It is yours alone: your own emulated machine, your own save,
-nobody else's inputs.
+from here on. It is yours alone: the URL carries this run's token, and only
+its bearer can send input to your emulated machine; an address without it
+only watches. Your own machine, your own save, nobody else's inputs.
 
 You start already inside the game, standing in the opening room. The character
 is made and already has a name. Whatever that name is does not matter, do not
@@ -69,6 +70,20 @@ visit more scenes, or repeat the same action without new evidence.
 The original 1996 DOS game by 河洛工作室, running under emulation at $BASE.
 You send keys and request pictures of the screen when you need them. It is an
 open-world RPG: how you play it is up to you.
+
+## The session address
+
+Every call in this skill is relative to a session address. A benchmark
+session has two of them:
+
+- **public** — watch-only. Reads (`GET`) work; writes (`POST`) answer 403.
+- **play** — the public address with the session's token in its path. The
+  only address that accepts play requests. It is the `base_url` that
+  `POST /session` returns, and the address your harness runs you on.
+
+If a call answers 403, "this address watches; it does not play", you are
+on the public address: use the play address instead. In a standalone game
+there is one address, and it is the play address.
 
 ## The loop
 

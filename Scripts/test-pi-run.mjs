@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 // Exercise the exact compatibility code bundled with the pinned Pi package.
 import {
   clampThinkingLevel,
@@ -310,6 +310,60 @@ test("Gemini definition survives isolation and produces native HIGH thinking", a
   assert.equal(resumed.status, 0, resumed.stderr);
 });
 
+test("declared cost rates meter the run, survive the manifest, and resume", async () => {
+  const definition = {
+    ...geminiDefinition,
+    cost: { input: 1.25, output: 5, cacheRead: 0.125, cacheWrite: 1.875 },
+  };
+  const { runsDir, runId, result, overrides } =
+    await prepareDefinedModel(definition, "high", "cost-run");
+  assert.equal(result.status, 0, result.stderr);
+  const runDir = join(runsDir, runId);
+  const manifest = JSON.parse(await readFile(join(runDir, "run.json"), "utf8"));
+  const model = JSON.parse(
+    await readFile(join(runDir, "config", "models.json"), "utf8"))
+    .providers["test-route"].models[0];
+  assert.deepEqual(manifest.model.cost, definition.cost);
+  assert.deepEqual(model.cost, definition.cost);
+  const resumed = invoke(runsDir, runId, "benchmark", true, {
+    ...overrides, QUNXIA_MODEL_CONFIG: "", QUNXIA_THINKING: "",
+  });
+  assert.equal(resumed.status, 0, resumed.stderr);
+});
+
+test("an all-zero cost declaration is indistinguishable from none", async () => {
+  const definition = {
+    ...geminiDefinition,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  };
+  const { runsDir, runId, result } =
+    await prepareDefinedModel(definition, "high", "zero-cost");
+  assert.equal(result.status, 0, result.stderr);
+  const manifest = JSON.parse(
+    await readFile(join(runsDir, runId, "run.json"), "utf8"));
+  assert.equal(manifest.model.cost, undefined);
+  const model = JSON.parse(
+    await readFile(join(runsDir, runId, "config", "models.json"), "utf8"))
+    .providers["test-route"].models[0];
+  assert.deepEqual(model.cost, { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+});
+
+test("a malformed cost declaration fails before play", async () => {
+  const badDeclarations = [
+    { input: -1 },
+    { input: "cheap" },
+    "free",
+    { tiers: [{ input: 1 }] },
+    { tiers: [] },
+  ];
+  let i = 0;
+  for (const cost of badDeclarations) {
+    const { runsDir, runId, result } = await prepareDefinedModel(
+      { ...geminiDefinition, cost }, "high", `bad-cost-${i++}`);
+    assert.notEqual(result.status, 0, JSON.stringify(cost));
+  }
+});
+
 test("unsupported Max is rejected rather than manufactured or silently reduced", async () => {
   const gemini = await prepareDefinedModel(geminiDefinition, "max");
   assert.notEqual(gemini.result.status, 0);
@@ -349,4 +403,67 @@ test("the manifest preserves an explicit off mapping without claiming a wire cap
   assert.equal(manifest.model.thinkingLevel, "off");
   assert.equal(manifest.model.mappedThinkingLevel, "none");
   assert.equal("providerThinkingLevel" in manifest.model, false);
+});
+
+test("a benchmark end is an answer on every tool, not a tool failure", async () => {
+  // Load the real extension source verbatim under Node's type stripping and
+  // drive the registered tools against a fake game server, so the error
+  // handling is tested as code instead of as a regex over the file.
+  const stage = await mkdtemp(join(tmpdir(), "qunxia-pi-ext-"));
+  await mkdir(join(stage, "node_modules"), { recursive: true });
+  await writeFile(join(stage, "package.json"), JSON.stringify({ type: "module" }));
+  await writeFile(
+    join(stage, "index.ts"),
+    await readFile(join(root, "pi-agent", "extensions", "qunxia", "index.ts"), "utf8"),
+  );
+  await symlink(
+    join(root, "node_modules", "@earendil-works", "pi-coding-agent",
+         "node_modules", "typebox"),
+    join(stage, "node_modules", "typebox"),
+  );
+
+  const tools = {};
+  const mod = await import(pathToFileURL(join(stage, "index.ts")).href);
+  mod.default({ registerTool: (tool) => { tools[tool.name] = tool; } });
+  assert.ok(tools.game_look, "game_look is registered");
+  assert.ok(tools.game_press, "game_press is registered");
+
+  const realFetch = globalThis.fetch;
+  try {
+    // A 410 with the end payload is the run summary. It must reach the model
+    // as the answer the brief promised, not as "game is not reachable".
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({
+        ok: true, ended: true, reason: "time",
+        why: "benchmark deadline reached", actions: 3, played: 42,
+        video_url: "http://broker.invalid/videos/a.mp4",
+      }),
+      { status: 410, headers: { "content-type": "application/json" } },
+    );
+    const ended = await tools.game_look.execute("call-1", {}, undefined);
+    assert.equal(ended.isError, undefined);
+    assert.match(ended.content[0].text, /^BENCHMARK ENDED \| /);
+    assert.match(ended.content[0].text, /"actions":3/);
+    assert.match(ended.content[0].text, /"played_seconds":42/);
+    assert.match(ended.content[0].text, /"video_url":"http:\/\/broker\.invalid\/videos\/a\.mp4"/);
+
+    // A server rejection is a rejection, reported with its status code and
+    // not disguised as a network problem.
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({ ok: false, error: "unknown key" }),
+      { status: 400, headers: { "content-type": "application/json" } },
+    );
+    const rejected = await tools.game_press.execute("call-2", { key: "nope" }, undefined);
+    assert.equal(rejected.isError, true);
+    assert.match(rejected.content[0].text, /The game rejected the request: unknown key \(HTTP 400\)/);
+    assert.doesNotMatch(rejected.content[0].text, /not reachable/);
+
+    // A dead server is still reported as unreachable.
+    globalThis.fetch = async () => { throw new Error("ECONNREFUSED"); };
+    const down = await tools.game_look.execute("call-3", {}, undefined);
+    assert.equal(down.isError, true);
+    assert.match(down.content[0].text, /not reachable/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

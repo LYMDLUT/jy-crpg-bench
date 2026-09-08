@@ -1,9 +1,12 @@
 import asyncio
 import base64
 import json
+import os
 import pathlib
+import re
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -76,6 +79,56 @@ class InputValidationTest(unittest.IsolatedAsyncioTestCase):
     async def test_non_object_json_is_rejected(self):
         response = await server.api_wait(FakeRequest([1000]))
         self.assertEqual(response.status, 400)
+
+
+def _native_key_table():
+    """RetroKey.table from Sources/QunXia/Keys.swift, rebuilt from the Swift
+    source.
+
+    The table is a literal dict, four loops, and a set of overrides; this
+    mirrors that construction in file order, so the test fails if the native
+    vocabulary grows or drifts, rather than the next agent finding out by
+    typing a name the headless API rejects.
+    """
+    swift = (pathlib.Path(__file__).resolve().parent.parent
+             / "Sources" / "QunXia" / "Keys.swift").read_text()
+    block = swift[swift.index("static let table"): swift.index("static func parse")]
+    table = dict(re.findall(r'"([A-Za-z0-9_]+)":\s*(\d+)', block))
+    for i, c in enumerate("abcdefghijklmnopqrstuvwxyz"):   # letter loop
+        table[c] = str(97 + i)
+    for d in range(10):                                  # digit loop
+        table[str(d)] = str(48 + d)
+    for f in range(1, 13):                               # f-key loop
+        table[f"f{f}"] = str(281 + f)
+    for k in range(10):                                  # numpad loop
+        table[f"kp{k}"] = str(256 + k)
+    for name, code in re.findall(r'\["([A-Za-z0-9_]+)"\]\s*=\s*(\d+)', block):  # overrides
+        table[name] = code
+    return {name: int(code) for name, code in table.items()}
+
+
+class KeyVocabularyTest(unittest.TestCase):
+    # The one documented divergence: the native table remaps the four
+    # numpad movement keys to the arrow codes (Keys.swift: "the game uses
+    # numpad 1/3/7/9 for movement; these scancodes are the same as the arrow
+    # keys"), while the headless table keeps the true numpad codes, which the
+    # game also accepts. Same names, different codes, by design.
+    NUMPAD_REMAP = {"kp1": 257, "kp3": 259, "kp7": 263, "kp9": 265}
+
+    def test_the_headless_table_covers_the_native_vocabulary(self):
+        native = _native_key_table()
+        # The guard, not the assertion: if the Swift source ever stops
+        # parsing, the assertion below passes vacuously.
+        self.assertGreaterEqual(len(native), 100)
+        missing = {name: code for name, code in native.items()
+                   if name not in server.KEYS}
+        self.assertEqual(missing, {},
+                         "names the native Control API accepts and the "
+                         "headless API would reject")
+        for name, code in native.items():
+            expected = self.NUMPAD_REMAP.get(name, code)
+            self.assertEqual(server.KEYS[name], expected,
+                             f"{name} resolves to a different code")
 
 
 class HistoryTest(unittest.IsolatedAsyncioTestCase):
@@ -169,6 +222,93 @@ class AtomicObservationTest(unittest.IsolatedAsyncioTestCase):
         result = response_json(response)
         self.assertFalse(test_lock.locked())
         self.assertEqual(base64.b64decode(result["image"].split(",", 1)[1]), b"png")
+
+
+class ScreenWardenTest(unittest.IsolatedAsyncioTestCase):
+    """The end of a benchmark run must be visible on /api/screen.
+
+    The agent's brief is "wait for a tool to report BENCHMARK ENDED", and look
+    is the tool it calls most often. If only key-sending tools answered with
+    410, an agent that finishes by watching would stare at a finished run
+    until its own deadline.
+    """
+
+    def setUp(self):
+        import warden
+        self._warden = warden
+        self.old_on = warden.ON
+        self.addCleanup(setattr, warden, "ON", self.old_on)
+        warden.ON = True
+
+    async def test_ended_run_answers_looks_with_410(self):
+        payload = {"ended": True, "reason": "time", "actions": 3}
+        with mock.patch.object(self._warden, "ended_payload", return_value=payload):
+            response = await server.api_screen(FakeRequest())
+        self.assertEqual(response.status, 410)
+        self.assertEqual(response_json(response), payload)
+
+    async def test_spectating_looks_are_not_wardened(self):
+        payload = {"ended": True, "reason": "time"}
+        with mock.patch.object(self._warden, "ended_payload", return_value=payload), \
+                mock.patch.object(server, "snapshot",
+                                  lambda _fmt: (b"x", 2, 2, "image/png")):
+            response = await server.api_screen(
+                FakeRequest(query={"format": "png", "spectate": "1"}))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.body, b"x")
+
+    async def test_live_run_still_serves_frames_and_counts_the_read(self):
+        reads = []
+        with mock.patch.object(self._warden, "ended_payload", return_value=None), \
+                mock.patch.object(self._warden, "note_read",
+                                  lambda: reads.append(1)), \
+                mock.patch.object(server, "snapshot",
+                                  lambda _fmt: (b"x", 2, 2, "image/png")), \
+                mock.patch.object(server, "log_action", lambda *_a, **_k: None):
+            response = await server.api_screen(
+                FakeRequest(query={"format": "png"}))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.body, b"x")
+        self.assertEqual(reads, [1])
+
+
+class BaseUrlTest(unittest.TestCase):
+    """The help page must name an address the reader can actually reach:
+    the origin the proxy reports, and - in a benchmark session - the
+    session's own address under it, never the loopback address the
+    session server sits on."""
+
+    @staticmethod
+    def request(host="127.0.0.1:8765", scheme="http", headers=None):
+        return SimpleNamespace(host=host, scheme=scheme,
+                               url=SimpleNamespace(scheme=scheme),
+                               headers=headers or {})
+
+    def test_a_direct_caller_uses_its_own_host(self):
+        self.assertEqual(server.base_url(self.request()),
+                         "http://127.0.0.1:8765")
+
+    def test_the_proxy_reports_the_public_origin(self):
+        request = self.request(headers={
+            "X-Forwarded-Host": "bench.example.com",
+            "X-Forwarded-Proto": "https"})
+        self.assertEqual(server.base_url(request),
+                         "https://bench.example.com")
+
+    def test_a_benchmark_session_is_named_under_its_own_address(self):
+        request = self.request(headers={
+            "X-Forwarded-Host": "bench.example.com",
+            "X-Forwarded-Proto": "https"})
+        with mock.patch.dict(os.environ, {"QUNXIA_BENCH": "1",
+                                         "QUNXIA_BENCH_SID": "abc123"}):
+            self.assertEqual(server.base_url(request),
+                             "https://bench.example.com/s/abc123")
+
+    def test_a_malformed_forwarded_host_is_ignored(self):
+        for evil in ("", "\t", "\\nEvil", "http://evil", "..?.."):
+            request = self.request(headers={"X-Forwarded-Host": evil})
+            self.assertEqual(server.base_url(request),
+                             "http://127.0.0.1:8765")
 
 
 if __name__ == "__main__":

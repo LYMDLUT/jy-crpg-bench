@@ -1,0 +1,361 @@
+import json
+import os
+import pathlib
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+import aiohttp.test_utils
+from aiohttp import web
+
+BENCH_DIR = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(BENCH_DIR))
+import broker
+
+
+def make_app():
+    # The production registration, minus the process spawn: usage has no
+    # route of its own; it reaches the broker through the proxy's token
+    # check, which is also what keeps a stranger's address from filing a
+    # report. A test that routes straight to the handler proves the handler,
+    # not the door.
+    app = web.Application()
+    app.add_routes([
+        web.route("*", "/s/{sid}/{tail:.*}", broker.proxy),
+    ])
+    app.on_startup.append(broker.open_http)
+    app.on_cleanup.append(broker.close_http)
+    return app
+
+
+class CanonicalAgentNameTests(unittest.TestCase):
+    # The name travels back through the usage report's X-Agent header, so
+    # only what a latin-1 header can carry may be accepted at creation.
+
+    def test_the_header_carryable_charset_survives(self):
+        self.assertEqual(broker.canonical_agent_name("gpt-5.2 high"),
+                         "gpt-5.2high")
+
+    def test_non_ascii_names_cannot_round_trip_the_header(self):
+        self.assertEqual(broker.canonical_agent_name("\u6a21\u578b GPT5"),
+                         "GPT5")
+        self.assertEqual(broker.canonical_agent_name("\u6a21\u578b"), "")
+
+    def test_the_name_is_capped_at_forty_characters(self):
+        self.assertEqual(broker.canonical_agent_name("a" * 40 + "bcde"),
+                         "a" * 40)
+
+    def test_case_is_preserved_and_surrounding_space_goes(self):
+        self.assertEqual(broker.canonical_agent_name("  GPT-5 "), "GPT-5")
+
+
+class ValidateUsageTests(unittest.TestCase):
+    def test_minimal_report(self):
+        usage = broker._validate_usage(
+            {"input": 1, "output": 2, "cacheRead": 3, "cacheWrite": 4,
+             "totalTokens": 10})
+        self.assertEqual(usage, {"input": 1, "output": 2, "cacheRead": 3,
+                                 "cacheWrite": 4, "totalTokens": 10,
+                                 "cost": 0.0, "turns": 0})
+
+    def test_optional_fields_are_kept_and_capped(self):
+        usage = broker._validate_usage(
+            {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0,
+             "totalTokens": 0, "cost": 1.5, "turns": 9,
+             "model": "provider/model-with-newline\n", "capturedAt": "junk"})
+        self.assertEqual(usage["cost"], 1.5)
+        self.assertEqual(usage["turns"], 9)
+        self.assertEqual(usage["model"], "provider/model-with-newline")
+        self.assertNotIn("capturedAt", usage)  # unknown fields never publish
+
+    def test_each_token_field_is_required_and_whole(self):
+        for key in ("input", "output", "cacheRead", "cacheWrite", "totalTokens"):
+            body = {"input": 1, "output": 2, "cacheRead": 3, "cacheWrite": 4,
+                    "totalTokens": 10}
+            del body[key]
+            self.assertIsNone(broker._validate_usage(body))
+            bad = dict(body, **{key: "1"})
+            self.assertIsNone(broker._validate_usage(bad))
+            bad = dict(body, **{key: 1.5})
+            self.assertIsNone(broker._validate_usage(bad))
+
+    def test_booleans_are_not_tokens(self):
+        body = {"input": True, "output": 0, "cacheRead": 0, "cacheWrite": 0,
+                "totalTokens": 0}
+        self.assertIsNone(broker._validate_usage(body))
+
+    def test_negative_or_huge_numbers_are_refused(self):
+        for value in (-1, 10**9 + 1):
+            body = {"input": value, "output": 0, "cacheRead": 0,
+                    "cacheWrite": 0, "totalTokens": 0}
+            self.assertIsNone(broker._validate_usage(body))
+
+    def test_cost_and_turns_bounds(self):
+        base = {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0,
+                "totalTokens": 0}
+        self.assertIsNone(broker._validate_usage(dict(base, cost=-0.1)))
+        self.assertIsNone(broker._validate_usage(dict(base, cost=10**6 + 1)))
+        self.assertIsNone(broker._validate_usage(dict(base, cost="cheap")))
+        self.assertIsNone(broker._validate_usage(dict(base, turns=-1)))
+        self.assertIsNone(broker._validate_usage(dict(base, turns=100001)))
+        self.assertIsNone(broker._validate_usage(dict(base, turns=True)))
+
+    def test_non_object_bodies_are_refused(self):
+        for body in ([], "a report", 42, None):
+            self.assertIsNone(broker._validate_usage(body))
+
+
+class MergeUsageTests(unittest.TestCase):
+    def test_local_catalogue_entry_gains_the_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalogue = pathlib.Path(directory) / "catalog.json"
+            catalogue.write_text(json.dumps(
+                [{"id": "other", "agent": "x"}, {"id": "run1", "agent": "y"}]))
+            with mock.patch.object(broker, "bucket", return_value=None), \
+                    mock.patch.dict(os.environ,
+                                    {"QUNXIA_CATALOG": str(catalogue)}):
+                self.assertTrue(broker.merge_usage_into_catalog(
+                    "run1", {"input": 7}))
+            runs = json.loads(catalogue.read_text())
+            self.assertEqual(runs[1]["usage"], {"input": 7})
+            self.assertEqual(runs[0], {"id": "other", "agent": "x"})
+
+    def test_missing_entry_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalogue = pathlib.Path(directory) / "catalog.json"
+            catalogue.write_text(json.dumps([{"id": "other"}]))
+            with mock.patch.object(broker, "bucket", return_value=None), \
+                    mock.patch.dict(os.environ,
+                                    {"QUNXIA_CATALOG": str(catalogue)}):
+                self.assertFalse(broker.merge_usage_into_catalog(
+                    "run1", {"input": 7}))
+            self.assertEqual(json.loads(catalogue.read_text()),
+                             [{"id": "other"}])
+
+    def test_no_catalogue_file_yet_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalogue = pathlib.Path(directory) / "catalog.json"
+            with mock.patch.object(broker, "bucket", return_value=None), \
+                    mock.patch.dict(os.environ,
+                                    {"QUNXIA_CATALOG": str(catalogue)}):
+                self.assertFalse(broker.merge_usage_into_catalog(
+                    "run1", {"input": 7}))
+            self.assertFalse(catalogue.exists())
+
+    def test_the_gcs_merge_keeps_the_public_cache_hint(self):
+        blob = mock.Mock()
+        blob.generation = 7
+        blob.download_as_bytes.return_value = \
+            json.dumps([{"id": "run1", "agent": "y"}]).encode()
+        bucket = mock.Mock()
+        bucket.get_blob.return_value = blob
+        with mock.patch.object(broker, "bucket", return_value=bucket):
+            self.assertTrue(broker.merge_usage_into_catalog(
+                "run1", {"input": 7}))
+        # set on the blob before the upload lands, so the hint is part of
+        # the very generation the merged content goes into
+        self.assertEqual(blob.cache_control, "public, max-age=15")
+        blob.upload_from_string.assert_called_once()
+
+
+class MergeUsageNegativeCacheTests(unittest.TestCase):
+    """A pending report's per-second re-check must not re-download the catalogue.
+
+    The sweep asks merge_usage_into_catalog every second while a report waits
+    for the warden's entry to land, and the entry is absent for most of that
+    window. The absent verdict is good for exactly as long as the catalogue's
+    blob generation is unchanged, so re-checks at the same generation must be
+    answered without a download.
+    """
+
+    def setUp(self):
+        broker._catalog_seen_generation.clear()
+
+    def tearDown(self):
+        broker._catalog_seen_generation.clear()
+
+    def test_unchanged_catalogue_is_answered_without_a_download(self):
+        blob = mock.Mock()
+        blob.generation = 5
+        blob.download_as_bytes.return_value = \
+            json.dumps([{"id": "other"}]).encode()
+        bucket = mock.Mock()
+        bucket.get_blob.return_value = blob
+        with mock.patch.object(broker, "bucket", return_value=bucket):
+            self.assertFalse(broker.merge_usage_into_catalog(
+                "runA", {"input": 1}))
+            # the sweep's next tick: same generation, entry still absent
+            self.assertFalse(broker.merge_usage_into_catalog(
+                "runA", {"input": 1}))
+        self.assertEqual(blob.download_as_bytes.call_count, 1)
+        self.assertEqual(bucket.get_blob.call_count, 2)
+        blob.upload_from_string.assert_not_called()
+
+    def test_a_new_generation_reopens_the_download(self):
+        blob1 = mock.Mock()
+        blob1.generation = 5
+        blob1.download_as_bytes.return_value = \
+            json.dumps([{"id": "other"}]).encode()
+        blob2 = mock.Mock()
+        blob2.generation = 6
+        blob2.download_as_bytes.return_value = \
+            json.dumps([{"id": "other"}, {"id": "runB", "agent": "m"}]).encode()
+        bucket = mock.Mock()
+        bucket.get_blob.side_effect = [blob1, blob2]
+        with mock.patch.object(broker, "bucket", return_value=bucket):
+            self.assertFalse(broker.merge_usage_into_catalog(
+                "runB", {"input": 1}))
+            # the warden's append bumped the generation: the entry can now
+            # be there, so this check downloads and merges
+            self.assertTrue(broker.merge_usage_into_catalog(
+                "runB", {"input": 1}))
+        uploaded = json.loads(blob2.upload_from_string.call_args[0][0])
+        self.assertEqual(uploaded[1]["usage"], {"input": 1})
+
+    def test_a_failed_download_plants_no_verdict(self):
+        # A transient download failure must not cache "absent": while the
+        # catalogue is unchanged, the next check must try the download again.
+        blob = mock.Mock()
+        blob.generation = 11
+        blob.download_as_bytes.side_effect = [
+            OSError("network"),
+            json.dumps([{"id": "runD", "agent": "m"}]).encode()]
+        bucket = mock.Mock()
+        bucket.get_blob.return_value = blob
+        with mock.patch.object(broker, "bucket", return_value=bucket):
+            self.assertFalse(broker.merge_usage_into_catalog(
+                "runD", {"input": 1}))
+            self.assertTrue(broker.merge_usage_into_catalog(
+                "runD", {"input": 1}))
+        self.assertEqual(blob.download_as_bytes.call_count, 2)
+
+    def test_a_merged_run_does_not_inherit_the_absent_verdict(self):
+        # A duplicate report for the same run must re-check reality, not
+        # skip the download on a verdict planted before the entry existed.
+        blob = mock.Mock()
+        blob.generation = 9
+        blob.download_as_bytes.return_value = \
+            json.dumps([{"id": "runC", "agent": "m"}]).encode()
+        bucket = mock.Mock()
+        bucket.get_blob.return_value = blob
+        with mock.patch.object(broker, "bucket", return_value=bucket):
+            self.assertTrue(broker.merge_usage_into_catalog(
+                "runC", {"input": 1}))
+            self.assertTrue(broker.merge_usage_into_catalog(
+                "runC", {"input": 2}))
+        self.assertEqual(blob.download_as_bytes.call_count, 2)
+        uploaded = json.loads(blob.upload_from_string.call_args[0][0])
+        self.assertEqual(uploaded[0]["usage"], {"input": 2})
+
+
+class ApiUsageTests(aiohttp.test_utils.AioHTTPTestCase):
+    def get_app(self):
+        return make_app()
+
+    def session(self, sid="abc123def456", agent="gpt-5", token="tok"):
+        proc = mock.Mock()
+        proc.poll.return_value = None  # alive, so the proxy cannot answer 410
+        return mock.patch.object(broker, "sessions",
+                                 {sid: {"id": sid, "agent": agent,
+                                        "token": token, "proc": proc,
+                                        "port": 1, "ends_at": 0}})
+
+    async def post(self, sid="abc123def456", agent="gpt-5", body=None,
+                   x_agent="gpt-5", token="tok"):
+        payload = json.dumps(
+            body if body is not None else
+            {"input": 1, "output": 2, "cacheRead": 3, "cacheWrite": 4,
+             "totalTokens": 10, "turns": 3})
+        return await self.client.post(
+            f"/s/{sid}/t/{token}/usage", data=payload,
+            headers={"Content-Type": "application/json",
+                     "X-Agent": x_agent})
+
+    async def test_unknown_session_is_not_a_run(self):
+        with self.session(sid="someone-else"):
+            response = await self.post(sid="missing000")
+        self.assertEqual(response.status, 404)
+
+    async def test_wrong_agent_name_is_refused(self):
+        with self.session():
+            response = await self.post(x_agent="impostor")
+        self.assertEqual(response.status, 403)
+        self.assertIn("X-Agent", (await response.json())["error"])
+
+    async def test_an_invalid_report_is_refused(self):
+        with self.session():
+            response = await self.post(body={"input": -1})
+            self.assertEqual(response.status, 400)
+            response = await self.post(body="[1, 2]")
+            self.assertEqual(response.status, 400)
+
+    async def test_a_report_over_the_64kb_limit_is_refused(self):
+        # The limit is on the raw body and is checked before parsing, so
+        # an oversized report must answer 413 - never a 500 from the
+        # refusal itself.
+        with self.session():
+            payload = json.dumps({"input": 0, "output": 0, "cacheRead": 0,
+                                  "cacheWrite": 0, "totalTokens": 0,
+                                  "pad": "x" * 66_000})
+            self.assertGreater(len(payload), broker.USAGE_LIMIT)
+            response = await self.client.post(
+                "/s/abc123def456/t/tok/usage", data=payload,
+                headers={"Content-Type": "application/json",
+                         "X-Agent": "gpt-5"})
+            self.assertEqual(response.status, 413)
+            self.assertFalse((await response.json())["ok"])
+
+    async def test_a_report_lands_on_the_catalogue_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalogue = pathlib.Path(directory) / "catalog.json"
+            catalogue.write_text(json.dumps(
+                [{"id": "abc123def456", "agent": "gpt-5", "actions": 12}]))
+            with self.session(), mock.patch.object(
+                    broker, "bucket", return_value=None), \
+                    mock.patch.dict(os.environ,
+                                    {"QUNXIA_CATALOG": str(catalogue)}):
+                response = await self.post()
+            self.assertEqual(response.status, 200)
+            self.assertTrue((await response.json())["merged"])
+            entry = json.loads(catalogue.read_text())[0]
+            self.assertEqual(entry["actions"], 12)
+            self.assertEqual(entry["usage"]["totalTokens"], 10)
+            self.assertEqual(entry["usage"]["turns"], 3)
+
+    async def test_a_report_before_the_entry_waits_on_the_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalogue = pathlib.Path(directory) / "catalog.json"
+            catalogue.write_text(json.dumps([{"id": "other"}]))
+            sessions = {"abc123def456": {"id": "abc123def456",
+                                         "agent": "gpt-5", "token": "tok"}}
+            with mock.patch.object(broker, "sessions", sessions), \
+                    mock.patch.object(broker, "bucket", return_value=None), \
+                    mock.patch.dict(os.environ,
+                                    {"QUNXIA_CATALOG": str(catalogue)}):
+                response = await self.post()
+            self.assertEqual(response.status, 202)
+            self.assertFalse((await response.json())["merged"])
+            self.assertIn("usage", sessions["abc123def456"])
+            self.assertIn("usage_since", sessions["abc123def456"])
+
+    async def test_the_bare_address_cannot_file_a_report(self):
+        # The session's agent name is public in the catalogue, so a name
+        # check alone would not keep a stranger's report out: reports are
+        # answered only through the session's own token address.
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(broker, "sessions",
+                               {"abc123def456": {"id": "abc123def456",
+                                                  "agent": "gpt-5",
+                                                  "token": "tok",
+                                                  "proc": proc, "port": 1}}):
+            response = await self.client.post(
+                "/s/abc123def456/usage", data=b"{}",
+                headers={"Content-Type": "application/json",
+                         "X-Agent": "gpt-5"})
+        self.assertEqual(response.status, 403)
+
+
+if __name__ == "__main__":
+    unittest.main()
