@@ -45,8 +45,9 @@ def main():
 
     # progression claims must not use totals that include unread sessions
     prog = sum(1 for r in read if (r.get("exp") or 0) > 0)
-    ok &= claim("progression floor", "character-apparatus is untouched" in main_tex and prog == 0,
-               "sessions with exp>0 = %d" % prog)
+    asserts_floor = "No session gains experience and none passes level" in main_tex
+    ok &= claim("progression floor", asserts_floor and prog == 0,
+               "sessions with exp>0 = %d, floor asserted = %s" % (prog, asserts_floor))
 
     # no hardcoded run ratios in prose (they must come from macros)
     stray = re.findall(r"\b0\.\d{3}\b", main_tex)
@@ -69,7 +70,7 @@ def main():
     ghost = sorted(cited - keys)
     ok &= claim("citations resolve", not ghost, "missing: %s" % ghost)
 
-    print("\n%d runs scored, %d sessions with readable state, %d maps latched"
+    print("\n%d runs scored, %d sessions with a map verdict, %d maps latched"
           % (len(scored), len(read), latched))
     return 0 if ok else 1
 

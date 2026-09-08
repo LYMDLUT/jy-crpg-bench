@@ -108,6 +108,18 @@ def rungs_of(row):
     return [(g if k else None) for g, k in zip(got, known)]
 
 
+def bar_box(ax, x, lo, hi, pad=1.5):
+    """Display-unit box for the vertical error bar between `lo` and `hi`.
+
+    A label that clears every marker can still sit on a neighbouring interval,
+    which reads as text drawn over data.
+    """
+    from matplotlib.transforms import Bbox
+    cx, ylo = ax.transData.transform((x, lo))
+    _cx, yhi = ax.transData.transform((x, hi))
+    return Bbox.from_bounds(cx - pad, ylo - pad, 2 * pad, (yhi - ylo) + 2 * pad)
+
+
 def box_at(ax, x, y, size_pt, pad=1.5):
     """Display-unit box for a marker of `size_pt` points centred on data (x, y).
 
@@ -129,11 +141,27 @@ def _ext(obj, rend, pad=1.5):
     return bb.expanded(1 + 2 * pad / bb.width, 1 + 2 * pad / bb.height)
 
 
-def check_overlaps(fig, ax, texts, points=(), name=""):
-    """Fail if any two texts overlap, or a text overlaps a data marker."""
+def _own_box(box, anchor, tol=16.0):
+    """True when `box` is the marker or interval the label at `anchor` names.
+
+    Proximity rather than containment, because a point contributes both a
+    marker box and a taller, narrower interval box, and a label that names two
+    runs at almost the same coordinates names both of them.
+    """
+    cx, cy = (box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2
+    return abs(cx - anchor[0]) <= tol and (box.y0 - tol) <= anchor[1] <= (box.y1 + tol)
+
+
+def check_overlaps(fig, ax, texts, points=(), name="", anchors=()):
+    """Fail if any two texts overlap, or a text overlaps a data marker.
+
+    A label is allowed to touch the marker it names, which is what `anchors`
+    records; every other marker it must clear.
+    """
     fig.canvas.draw()
     rend = fig.canvas.get_renderer()
     boxes = [(t.get_text(), _ext(t, rend)) for t in texts]
+    own = {label: ax.transData.transform(xy) for label, xy in anchors}
     bad = []
     for i in range(len(boxes)):
         for j in range(i + 1, len(boxes)):
@@ -141,6 +169,8 @@ def check_overlaps(fig, ax, texts, points=(), name=""):
                 bad.append(f"{boxes[i][0]!r} vs {boxes[j][0]!r}")
     for label, bb in boxes:
         for p in points:
+            if label in own and _own_box(p, own[label]):
+                continue
             if bb.overlaps(p):
                 bad.append(f"{label!r} overlaps a marker")
     if bad:
@@ -217,9 +247,13 @@ def place_labels(fig, ax, anchors, obstacles=(), fontsize=6.8, name="labels"):
     rend = fig.canvas.get_renderer()
     boxes = [b for b in obstacles if b.width > 0 and b.height > 0]
     placed = []
-    offs = [(x, y) for r in range(1, 11) for x in (5 * r, -5 * r)
+    offs = [(x, y) for r in range(1, 17) for x in (5 * r, -5 * r)
             for y in (0, 4 * r, -4 * r, 8 * r, -8 * r)]
     for label, (x, y) in anchors:
+        # A label names its own point, so the marker and interval it belongs to
+        # are not obstacles for it; every other one is.
+        own = ax.transData.transform((x, y))
+        near = [b for b in boxes if not _own_box(b, own)]
         for dx, dy in offs:
             txt = ax.annotate(label, (x, y), xytext=(dx, dy),
                               textcoords="offset points",
@@ -227,7 +261,7 @@ def place_labels(fig, ax, anchors, obstacles=(), fontsize=6.8, name="labels"):
                               fontsize=fontsize, color="#3f3f43", zorder=5,
                               annotation_clip=False)
             bb = _ext(txt, rend, pad=1.0)
-            clash = any(bb.overlaps(b) for b in boxes) or any(
+            clash = any(bb.overlaps(b) for b in near) or any(
                 bb.overlaps(_ext(o, rend)) for o in placed)
             if clash:
                 txt.remove()
@@ -251,9 +285,7 @@ def place_labels(fig, ax, anchors, obstacles=(), fontsize=6.8, name="labels"):
 LABELLED = {
     "gpt-5.6-sol (pi)": ["d1468967"],
     "claude-fable-5-1": ["468e2872"],
-    "Qwen3.8-27B": ["fda3f4f3"],
     "gemini-3.7-flash": ["f22647a1"],
-    "claude-sonnet-5": ["5c1dbe3b"],
     "random": ["72cd8319", "09a2c7a9"],
 }
 
@@ -294,8 +326,13 @@ def figure_pareto():
     leg = ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1.005),
                    fontsize=6.8, frameon=False, handletextpad=0.15, ncol=4,
                    columnspacing=0.9, labelspacing=0.3)
+    # Obstacle boxes are display units, so they are only valid once the axes
+    # have been laid out; building them before the draw pins them to a stale
+    # transform and the placer then reads collisions that are not there.
+    fig.canvas.draw()
     marker_boxes = [box_at(ax, k, p, FAMILY[r["family"]][2])
                     for r, k, p, _lo, _hi in pts]
+    marker_boxes += [bar_box(ax, k, lo, hi) for _r, k, _p, lo, hi in pts]
     labels = place_labels(fig, ax, anchors, obstacles=marker_boxes, name="pareto")
     ax.set_xlabel("meaningful actions in the run")
     ax.set_ylabel("meaningful-step ratio")
@@ -305,7 +342,8 @@ def figure_pareto():
     ax.grid(axis="y", color=GRID, lw=0.6)
     ax.set_axisbelow(True)
     fig.tight_layout(pad=0.3)
-    check_overlaps(fig, ax, list(leg.get_texts()) + labels, marker_boxes, name="pareto")
+    check_overlaps(fig, ax, list(leg.get_texts()) + labels, marker_boxes,
+                   name="pareto", anchors=anchors)
     fig.savefig(os.path.join(HERE, "pareto.pdf"), bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 

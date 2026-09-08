@@ -29,7 +29,15 @@ def main():
         groups.setdefault(r["agent"], []).append(r)
 
     body = []
-    for agent in sorted(groups, reverse=False):
+    # Ordered by the metric the table is read for, best first, with the random
+    # baseline last: it is a floor rather than an entry.
+    def rank(agent):
+        g = groups[agent]
+        num = sum(round(r["meaningful"] * r["actions"]) for r in g)
+        den = sum(r["actions"] for r in g)
+        return (agent.startswith("random"), -num / den)
+
+    for agent in sorted(groups, key=rank):
         g = groups[agent]
         # aggregate count of screen-changing actions and actions
         num = sum(round(r["meaningful"] * r["actions"]) for r in g)
@@ -57,10 +65,15 @@ def main():
         r"act/min & map \\",
         r"\midrule",
     ]
+    best = max(r[4] for r in body if not r[0].startswith("random"))
     for agent, n, den, num, p, lo, hi, aps, ttfa, g50, g95, osc, reads, maps, maps_c in body:
+        if agent.startswith("random"):
+            lines.append(r"\midrule")
+        ratio = ("\\textbf{%.3f}" if p == best else "%.3f") % p
         lines.append(
-            "%s & %d & %d & %.3f [%.3f, %.3f] & %.1f & %d/%d \\\\"
-            % (agent, n, den, p, lo, hi, aps, maps_c, maps)
+            "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %d/%d \\\\"
+            % (agent.replace("_", "\\_").replace("--", "-{-}"),
+               n, den, ratio, lo, hi, aps, maps_c, maps)
         )
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines)
