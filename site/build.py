@@ -111,6 +111,7 @@ EN = {
     "stats": ["live", "runs", "models", "played"],
     "sort": "sort", "runs": "runs", "run1": "run",
     "loading": "loading", "empty": "no runs yet", "gone": "catalogue unavailable",
+    "backend": "backend", "backend_down": "backend unreachable",
     "grid": "grid", "list": "list", "asc": "ascending", "desc": "descending",
     "cols": {"started": "when",
              "meaningful": "screen-changing decisions", "oscillation": "oscillation",
@@ -2421,6 +2422,14 @@ def check(html):
 
 def main():
     import hashlib
+    # The page reads every string off one table per language. A key present in
+    # one and missing in the other renders as a literal "undefined" in the
+    # other language, which is how the backend stamp shipped broken once.
+    only_zh, only_en = set(ZH) - set(EN), set(EN) - set(ZH)
+    if only_zh or only_en:
+        raise SystemExit(
+            f"string tables disagree: only in ZH {sorted(only_zh)}, "
+            f"only in EN {sorted(only_en)}")
     # stamped so a page already open can notice a new build and reload itself
     raw = build(ZH, "0") + build(EN, "0")
     stamp = hashlib.sha256(raw.encode()).hexdigest()[:12]
