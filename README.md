@@ -410,7 +410,7 @@ node --test Scripts/test-pi-run.mjs Scripts/test-pi-launch.mjs Scripts/test-pi-u
 swift build
 # the paper's numbers pipeline is pure stdlib: its claims must match the
 # committed catalogue snapshot, and the generated .tex the paper \input's
-# must be what the pipeline emits (CI checks this on every push and PR)
+# must be what the pipeline emits
 cd paper/src && python3 check_consistency.py && \
   python3 figures/emit_numbers.py > figures/numbers.tex && \
   python3 figures/emit_table.py >/dev/null && \
