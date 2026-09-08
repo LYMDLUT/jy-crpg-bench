@@ -105,6 +105,55 @@ faster than needed, about 15% of a core, and an e2-micro holds a full 70.1 fps
 indefinitely. Override with `QUNXIA_CYCLES`.
 
 
+## One API, two runners
+
+The native runner (`Sources/QunXia`) and this one answer the same paths under
+the same names, with and without the `/api` prefix, and return the same reply
+fields: `ok`, `action`, `changed`, `settled_frames`, `width`, `height`, `frame`
+and `screen` (the frame hash). `GET /keys` returns one vocabulary -
+`server/test_api.py::KeyVocabularyTest` parses `Keys.swift` and fails if a name
+resolves to a different scancode in either direction. `GET /help?lang=&part=`
+serves the same `skills/` briefing from both, with each host's own URLs
+substituted in.
+
+There is one way to do each thing. A wait is `ms`; there is no frame-counted
+spelling of it. A settle is `?react`, `?stable` and `?maxsettle`; there is no
+fourth knob that replaces them. A saved state has a `name`; `slot` was that
+same name spelled a second way. A repeat of one key is `/key` with `times`;
+`/keys` is for a sequence of different keys. A reply says what the action was,
+not what the request said, so the request fields are not echoed back.
+
+A body field a call does not read is a 400 naming it. Ignoring it silently is
+the failure this API exists to avoid: the caller is told 200 and the game does
+something else, and the agent has no way to find that out.
+
+Three things still differ, and each is a property of the runner rather than of
+the API. The native runner honours `?scale` and defaults to including the
+image; this one returns native-resolution frames and omits the image unless
+`?image=1`, because a benchmark session should not pay for pixels nobody read.
+A scored session also hides `/slots`, `/save`, `/load` and `/reset`: a run with
+an out-of-band rewind is not a run.
+
+
+## Control API and meta API
+
+The nine calls above are the control API: what an agent uses, and all the
+briefing in `skills/` teaches. `/status`, `/api/history`, `/api/recording` and
+`/ws` are the meta API - what the browser client and the leaderboard read.
+They report on a run rather than playing one, and a scored session's own
+numbers (`meaningful`, `scenes`, `frontier`, `remaining`) are in `/status`, so
+nothing tells an agent they exist. Keep new endpoints on the side of that line
+they belong to.
+
+`hold` is in emulated frames and starts at `MIN_HOLD_FRAMES` (5). The game
+reads its keyboard once per game-loop iteration, so a keydown and keyup inside
+one of them are consumed together and the press never happens. Measured over 24
+taps a point against a key whose effect is certain: 1 frame lands 0-29% of the
+time, 2 frames 33-67%, 3 frames 79-88%, 4 frames 96-100%, 5 and up 100%. The
+default of 10 leaves twice the margin, and every phase is counted in emulated
+frames rather than wall clock so host scheduling cannot shorten a pulse.
+
+
 ## Frame waits and failure evidence
 
 An input action keeps its original core-tick targets across hold, release, gap

@@ -32,6 +32,26 @@ def response_json(response):
 
 
 class InputValidationTest(unittest.IsolatedAsyncioTestCase):
+    async def test_key_rejects_a_hold_the_game_can_miss(self):
+        """Below MIN_HOLD_FRAMES a keydown and keyup can be consumed inside
+        one game-loop iteration and the press never reaches the game. Measured
+        over 24 taps a point: 1 frame lands 0-29% of the time, 4 frames
+        96-100%, 5 and up 100%. Silently unreliable input is worse for an
+        agent than a refusal it can read."""
+        for hold in range(1, server.MIN_HOLD_FRAMES):
+            response = await server.api_key(
+                FakeRequest({"key": "right", "hold": hold}))
+            self.assertEqual(response.status, 400, f"hold={hold}")
+            self.assertIn(str(server.MIN_HOLD_FRAMES),
+                          response_json(response)["error"])
+
+    async def test_keys_rejects_a_hold_the_game_can_miss(self):
+        response = await server.api_keys(
+            FakeRequest({"keys": ["right"], "hold": 1}))
+        self.assertEqual(response.status, 400)
+        self.assertIn(str(server.MIN_HOLD_FRAMES),
+                      response_json(response)["error"])
+
     async def test_key_rejects_fractional_hold(self):
         response = await server.api_key(FakeRequest({"key": "right", "hold": 1.5}))
         self.assertEqual(response.status, 400)
@@ -102,20 +122,124 @@ def _native_key_table():
         table[f"f{f}"] = str(281 + f)
     for k in range(10):                                  # numpad loop
         table[f"kp{k}"] = str(256 + k)
-    for name, code in re.findall(r'\["([A-Za-z0-9_]+)"\]\s*=\s*(\d+)', block):  # overrides
-        table[name] = code
+    # Overrides, including the punctuation keys, whose name is the glyph.
+    # The loops above are written the same way, so skip interpolated names.
+    for name, code in re.findall(r'\["((?:[^"\\]|\\.)+)"\]\s*=\s*(\d+)', block):
+        if "\\(" in name:
+            continue
+        table[name.replace("\\\\", "\\")] = code
     return {name: int(code) for name, code in table.items()}
 
 
-class KeyVocabularyTest(unittest.TestCase):
-    # The one documented divergence: the native table remaps the four
-    # numpad movement keys to the arrow codes (Keys.swift: "the game uses
-    # numpad 1/3/7/9 for movement; these scancodes are the same as the arrow
-    # keys"), while the headless table keeps the true numpad codes, which the
-    # game also accepts. Same names, different codes, by design.
-    NUMPAD_REMAP = {"kp1": 257, "kp3": 259, "kp7": 263, "kp9": 265}
+class UnknownFieldTest(unittest.IsolatedAsyncioTestCase):
+    """A body field a call does not read is a bad request, not a no-op.
 
-    def test_the_headless_table_covers_the_native_vocabulary(self):
+    Accepting it silently answers 200 while the game does something other than
+    what was asked, and the caller has no way to find that out.
+    """
+
+    async def test_each_call_names_the_field_it_cannot_use(self):
+        for handler, body, unknown in (
+                (server.api_key, {"key": "right", "frames": 70}, "frames"),
+                (server.api_keys, {"keys": ["right"], "times": 3}, "times"),
+                (server.api_wait, {"ms": 100, "frames": 70}, "frames"),
+                (server.api_save, {"name": "x", "slot": 1}, "slot"),
+                (server.api_load, {"name": "x", "slot": 1}, "slot"),
+        ):
+            response = await handler(FakeRequest(body))
+            self.assertEqual(response.status, 400, unknown)
+            self.assertIn(unknown, response_json(response)["error"])
+
+    async def test_the_fields_a_call_does_read_are_accepted(self):
+        seen = {}
+
+        async def fake_run(_request, steps, note, verb="KEY"):
+            seen.update(steps=steps)
+            return object()
+
+        with mock.patch.object(server, "run_action", fake_run):
+            await server.api_key(
+                FakeRequest({"key": "right", "hold": 12, "times": 2, "gap": 3}))
+        self.assertEqual(len(seen["steps"]), 3)   # tap, gap, tap
+
+
+class StateNameTest(unittest.TestCase):
+    """A saved state has one name. "slot" was that same name spelled twice."""
+
+    def test_a_state_is_named(self):
+        path, name = server.state_path({"name": "before-boss"})
+        self.assertEqual(name, "before-boss")
+        self.assertTrue(str(path).endswith("before-boss.state"))
+
+    def test_a_nameless_save_lands_on_the_quick_slot(self):
+        _, name = server.state_path({})
+        self.assertEqual(name, server.QUICK_STATE)
+
+    def test_a_state_name_cannot_escape_its_directory(self):
+        for raw in ("../../etc/passwd", "a/b", "..", ""):
+            try:
+                _, name = server.state_path({"name": raw})
+            except ValueError:
+                continue
+            self.assertNotIn("/", name)
+            self.assertNotIn("..", name)
+
+
+class SettleOptionsTest(unittest.TestCase):
+    """One way to size the settle: the three phases, bounded, on both runners.
+
+    ``Sources/QunXia/ControlAPI.swift`` takes the same three and nothing else.
+    """
+
+    def test_the_reaction_window_fits_inside_the_wait(self):
+        options = server.settle_options(
+            FakeRequest(query={"react": "300", "maxsettle": "10"}))
+        self.assertEqual(options["maxframes"], 300)
+
+    def test_settle_phases_are_bounded(self):
+        for query in ({"react": "9999"}, {"maxsettle": "9999"},
+                      {"stable": "9999"}, {"stable": "0"}):
+            with self.assertRaises(ValueError):
+                server.settle_options(FakeRequest(query=query))
+
+    def test_settle_phases_have_defaults(self):
+        options = server.settle_options(FakeRequest())
+        self.assertEqual(options, {"react": 30,
+                                   "stable": server.DEFAULT_STABLE_FRAMES,
+                                   "maxframes": server.DEFAULT_SETTLE_MAX_FRAMES})
+
+
+class WaitTest(unittest.IsolatedAsyncioTestCase):
+    """A wait is milliseconds. There is no second spelling of it."""
+
+    async def test_milliseconds_become_a_wall_clock_step(self):
+        seen = {}
+
+        async def fake_run(_request, steps, note, verb="KEY"):
+            seen.update(steps=steps, note=note, verb=verb)
+            return object()
+
+        with mock.patch.object(server, "run_action", fake_run):
+            await server.api_wait(FakeRequest({"ms": 500}))
+        self.assertEqual(seen, {"steps": [("wait", 0.5)], "note": "500ms",
+                                "verb": "WAIT"})
+
+    async def test_wait_is_bounded(self):
+        response = await server.api_wait(FakeRequest({"ms": 999999}))
+        self.assertEqual(response.status, 400)
+
+
+class KeyVocabularyTest(unittest.TestCase):
+    """The two tables are one vocabulary: same names, same codes, both ways.
+
+    They used to diverge on kp1/kp3/kp7/kp9, which the native table remapped
+    to the arrow codes. The game accepts either, so nothing was visibly wrong,
+    but the same key name reached the emulated keyboard as a different
+    scancode depending on which runner an agent had - and as a third one when
+    the same key was pressed on the window's own numpad.
+    """
+
+    def test_the_two_tables_are_the_same_vocabulary(self):
         native = _native_key_table()
         # The guard, not the assertion: if the Swift source ever stops
         # parsing, the assertion below passes vacuously.
@@ -125,9 +249,12 @@ class KeyVocabularyTest(unittest.TestCase):
         self.assertEqual(missing, {},
                          "names the native Control API accepts and the "
                          "headless API would reject")
+        extra = {name for name in server.KEYS if name not in native}
+        self.assertEqual(extra, set(),
+                         "names the headless API accepts and the native "
+                         "Control API would reject")
         for name, code in native.items():
-            expected = self.NUMPAD_REMAP.get(name, code)
-            self.assertEqual(server.KEYS[name], expected,
+            self.assertEqual(server.KEYS[name], code,
                              f"{name} resolves to a different code")
 
 
@@ -187,6 +314,7 @@ class AtomicObservationTest(unittest.IsolatedAsyncioTestCase):
         fake_lib.core_width.return_value = 320
         fake_lib.core_height.return_value = 200
         fake_lib.core_frame_serial.return_value = 42
+        fake_lib.core_ticks.return_value = 42
         fake_lib.core_fps.return_value = 70.0
 
         async def fake_tap(*_args):

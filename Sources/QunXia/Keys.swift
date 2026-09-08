@@ -25,12 +25,16 @@ enum RetroKey {
         for f in 1...12 { t["f\(f)"] = 281 + f }
         for k in 0...9 { t["kp\(k)"] = 256 + k }
         // The four movement axes are screen diagonals in this isometric game,
-        // and the numpad names match what you see. Verified identical to the
-        // arrows on the real game, so these are aliases, not extra behaviour.
-        t["kp7"] = 276; t["upleft"] = 276; t["nw"] = 276      // == left
-        t["kp9"] = 273; t["upright"] = 273; t["ne"] = 273     // == up
-        t["kp1"] = 274; t["downleft"] = 274; t["sw"] = 274    // == down
-        t["kp3"] = 275; t["downright"] = 275; t["se"] = 275   // == right
+        // and the numpad names match what you see. kp7/kp9/kp1/kp3 keep the
+        // true numpad codes: that is what this window's own numpad sends and
+        // what the headless runner sends, so a key name means one scancode
+        // whichever runner an agent reached. The game accepts the arrows for
+        // the same four axes, verified byte-identical, so the words below are
+        // aliases for the arrows.
+        t["upleft"] = 276; t["nw"] = 276      // == left
+        t["upright"] = 273; t["ne"] = 273     // == up
+        t["downleft"] = 274; t["sw"] = 274    // == down
+        t["downright"] = 275; t["se"] = 275   // == right
         // Game-facing aliases used by the agent API.
         t["ok"] = 13
         t["confirm"] = 13
@@ -39,6 +43,12 @@ enum RetroKey {
         t["yes"] = 121   // y
         t["no"] = 110    // n
         t["w"] = 119; t["a"] = 97; t["s"] = 115; t["d"] = 100
+        // Single ASCII characters already parse, but GET /keys is what an
+        // agent reads to learn the vocabulary, so the punctuation is listed
+        // under the glyph as well as the word, as the headless runner lists it.
+        t[";"] = 59; t["'"] = 39; t[","] = 44; t["."] = 46; t["/"] = 47
+        t["-"] = 45; t["="] = 61; t["["] = 91; t["]"] = 93; t["`"] = 96
+        t["\\"] = 92
         return t
     }()
 

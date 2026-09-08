@@ -249,7 +249,9 @@ server.main()
             self.assertGreater(after['core_ticks'],before['core_ticks'])
             self.assertEqual(after['recording']['pending_bytes'],0)
             self.assertFalse((self.folder/'saves/.health/failure.json').exists())
-            status,body=workers.request(self.port,'/api/key?react=0&stable=1&maxsettle=6',{'key':'up','hold':1})
+            # server.MIN_HOLD_FRAMES; spelled out because this module talks to
+            # the worker over HTTP rather than importing the server.
+            status,body=workers.request(self.port,'/api/key?react=0&stable=1&maxsettle=6',{'key':'up','hold':5})
             self.assertEqual(status,200,body)
 
     def test_recoverable_recording_pause_does_not_become_core_stall(self):

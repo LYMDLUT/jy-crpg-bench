@@ -50,7 +50,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let port = UInt16(Self.flagValue("--port").flatMap(UInt16.init) ?? 8765)
         do {
-            api = try ControlAPI(port: port, log: log, saveDir: saves, emu: emu)
+            api = try ControlAPI(port: port, log: log, saveDir: saves,
+                                 skillsDir: root.appendingPathComponent("skills"), emu: emu)
         } catch {
             log.add("LISTEN", ":\(port)", payload: "\(error)", ok: false)
         }
@@ -188,7 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func resetCore() {
-        background("RESET", "/") { [emu] in emu!.submitSync([.reset], settle: .fixed(60), wantShot: false, timeout: 60) }
+        background("RESET", "/") { [emu] in emu!.submitSync([.reset], settle: .fixed(60), wantShot: false, atLeast: 60) }
     }
 
     @objc private func toggleAspect(_ sender: NSMenuItem) {

@@ -61,6 +61,19 @@ def call(url, body=None, timeout=60, tries=4):
     return 0, {}
 
 
+def final_summary(base, first, tries=10):
+    """Re-read the end payload until it carries the run's own numbers."""
+    payload = first
+    for _ in range(tries):
+        if payload.get("reason"):
+            return payload
+        time.sleep(2)
+        _, payload = call(f"{base}/api/screen")
+        if not payload.get("ended"):
+            return first
+    return payload
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--backend", default=BACKEND)
@@ -82,7 +95,7 @@ def main():
     if status != 200 or "base_url" not in s:
         raise SystemExit(f"could not start a run: {status} {s}")
     base = s["base_url"]
-    print(f"  {s.get('session_id', '?')}  {s.get('seconds', '?')}s  {base}",
+    print(f"  {s.get('session', '?')}  {s.get('seconds', '?')}s  {base}",
           flush=True)
 
     started, n, hist = time.time(), 0, {}
@@ -90,6 +103,10 @@ def main():
         key = rng.choice(ACTIONS)
         status, r = call(f"{base}/api/key", {"key": key})
         if status == 410 or r.get("ended"):
+            # The first 410 can arrive while the run is still being scored, and
+            # carries only "stopped, validating". The summary the catalogue
+            # publishes is what this line is for, so wait the moment out.
+            r = final_summary(base, r)
             print(f"\n  ended: {r.get('reason', '?')}  after {n} actions",
                   flush=True)
             if r.get("video_url"):

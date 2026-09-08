@@ -85,7 +85,15 @@ enable `POST /api/reset?token=...`, which restores the opening save state in
 `saves/start.state`.
 
 Both runners load the same core through the same C host (`Sources/CoreHost`)
-and expose the same key vocabulary and control API.
+and expose the same key vocabulary and control API: the same paths under the
+same names, with or without the `/api` prefix, the same reply fields, the same
+bounds, and `GET /help` serving the same briefing from `skills/`. A test parses
+`Keys.swift` against the headless key table and fails if one name resolves to a
+different scancode on either side. What is left is a property of the runner and
+not of the API: the native one honours `?scale` and returns the image unless
+`?image=0`, the headless one returns native-resolution frames and omits the
+image unless `?image=1`, and a scored benchmark session hides `/slots`,
+`/save`, `/load` and `/reset`.
 
 ## Three ways to let a model play
 
@@ -98,38 +106,70 @@ combat, attributes, the compass, the expensive traps). `?part=core` returns the
 first half only. Paste it into a system prompt and the model has everything it
 needs.
 
+The whole game control API is nine calls, and there is one way to do each
+thing:
+
 ```
 GET  /api/screen[?format=png]         look; JSON with a base64 PNG, or raw bytes
 GET  /api/help?lang=en|zh[&part=core] the briefing
-GET  /api/keys  /api/slots  /api/history?limit=100
+GET  /api/keys                        every accepted key name
+GET  /api/slots                       emulator snapshots on disk
 POST /api/key    {"key":"kp3"}        one key; "times" repeats, "hold" frames
 POST /api/keys   {"keys":["kp9","enter"]}   several in order, "gap" frames between
-POST /api/wait   {"ms":1000}
-POST /api/save   {"slot":1} | {"name":"before-boss"}
-POST /api/load   {"slot":1}
+POST /api/wait   {"ms":1000}          let the game run
+POST /api/save   {"name":"before-boss"}     a name of its own, or none
+POST /api/load   {"name":"before-boss"}
 ```
 
-Actions wait for the screen to react and then hold still, and return
-`changed`, `frame` and `settled_frames`. They return no picture by default; add
-`?image=1` to capture the settled frame before the action lock is released, so
-the observation cannot belong to another controller's action. `?stable`,
-`?react` and `?maxsettle` tune the wait in frames. The native runner uses the
-same paths without the `/api` prefix and includes the image unless `?image=0`.
+That is the whole vocabulary an agent needs, and the whole of what the briefing
+teaches. Everything else this server exposes - `/status`, `/api/history`,
+`/api/recording`, `/ws`, and the broker's `/api/sessions` and `/api/catalog` -
+is the meta API the leaderboard and the browser client read. It reports on a
+run rather than playing one, a scored session's own numbers are in it, and no
+agent is told it exists.
 
-Requests outside these bounds get a 400 with the reason:
+Both runners answer the control paths with and without the `/api` prefix, so
+one agent loop drives either without knowing which it reached. The native
+runner includes the image unless `?image=0`; the headless one omits it unless
+`?image=1`, and returns native-resolution frames where the native runner
+honours `?scale`.
+
+Actions wait for the screen to react and then hold still. Every reply carries
+`ok`, `action`, `changed`, `settled_frames`, `width`, `height`, `frame` - which
+names the picture - and `screen`, its hash, which tells "still animating" from
+"waiting for input". `?image=1` captures the settled frame before the action
+lock is released, so the observation cannot belong to another controller's
+action. `?react`, `?stable` and `?maxsettle` tune the wait in frames.
+
+A body field this call does not read is a 400 naming it, not a silent no-op:
+a request that is answered 200 while the game does something else is the one
+failure an agent cannot see. Requests outside these bounds get a 400 with the
+reason too:
 
 | parameter | range |
 |---|---|
-| `hold` | 1 to 1200 frames, default 10 |
+| `hold` | 5 to 1200 frames, default 10 |
 | `times`, `keys` | 1 to 100 |
 | `gap` | 0 to 600 frames, default 6 |
 | `ms` | 0 to 60000 |
+| `react`, `maxsettle` | 0 to 2000 frames, default 30 and 120 |
 | `stable` | 1 to 600 frames, default 9 |
 | one action | at most 2800 frames in total |
 
+`hold` starts at five frames because that is where the game stops missing
+presses. Measured over 24 taps a point against a key whose effect is certain, a
+one-frame hold registers 0-29% of the time, two frames 33-67%, three 79-88%,
+four 96-100%, and five and up 100%: below five a keydown and keyup can be
+consumed inside one game-loop iteration and the press never happens. The
+default of 10 leaves twice the margin. Omit `hold` unless you have measured a
+reason not to.
+
 One action runs at a time. A caller that cannot get the lock within
-`QUNXIA_LOCK_TIMEOUT` (30 s) gets a 503 with `"error": "busy"`. Name your agent
-with an `X-Agent` header or `?agent=` so the activity log stays legible.
+`QUNXIA_LOCK_TIMEOUT` (30 s) gets a 503 with `"error": "busy"` and a `holder`
+naming what has it - a browser keeps the lease for as long as its key is down,
+which is the one way an agent's keys can stall while the page stays responsive.
+Name your agent with an `X-Agent` header or `?agent=` so the activity log stays
+legible.
 
 The world is isometric. The numpad names match what you see and are
 byte-identical to the arrows:

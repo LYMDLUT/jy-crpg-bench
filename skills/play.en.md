@@ -83,6 +83,11 @@ Landmarks may leave the current view as you move. Use short taps and look again
 when the route or a junction is unclear; use longer holds on a confirmed clear
 stretch, checking the actual distance from the screen or compass.
 
+A `hold` shorter than 5 frames is refused: the game reads its keyboard once a
+game-loop iteration, and a press and release inside one of them never happens
+at all. The default of 10 leaves twice the margin, so omit `hold` unless a
+longer press is what you want.
+
 ## Interacting
 
 - enter and space confirm, advance ordinary dialogue, and investigate. For an

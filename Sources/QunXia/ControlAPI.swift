@@ -10,6 +10,12 @@ final class ControlAPI {
     // keyup to be consumed in the same game-loop iteration. Ten remains well
     // below the held-key repeat delay while reliably producing one tap.
     private static let defaultTapFrames = 10
+    // Measured floor, 24 taps per point against a key whose effect is certain:
+    // 1 frame lands 0-29% of the time, 2 frames 33-67%, 3 frames 79-88%,
+    // 4 frames 96-100%, 5 frames and up 100%. Below five the game and the
+    // caller disagree about whether a key was pressed, which is worse for an
+    // agent than a refusal, so a shorter hold is a bad request.
+    private static let minHoldFrames = 5
     private static let maxHoldFrames = 1200
     private static let maxGapFrames = 600
     private static let maxKeysPerAction = 100
@@ -18,13 +24,15 @@ final class ControlAPI {
     private let listener: NWListener
     private let log: ActionLog
     private let saveDir: URL
+    private let skillsDir: URL
     private let emu: Emulator
     let port: UInt16
 
-    init(port: UInt16, log: ActionLog, saveDir: URL, emu: Emulator) throws {
+    init(port: UInt16, log: ActionLog, saveDir: URL, skillsDir: URL, emu: Emulator) throws {
         self.port = port
         self.log = log
         self.saveDir = saveDir
+        self.skillsDir = skillsDir
         self.emu = emu
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
@@ -126,6 +134,18 @@ final class ControlAPI {
             return query[key]
         }
         func int(_ key: String) -> Int? {
+            // `is Bool` is not the test. JSONSerialization gives back an
+            // NSNumber, and on Darwin an NSNumber holding 0 or 1 bridges to
+            // Bool - so `{"times": 1}` and `{"gap": 0}`, the most ordinary
+            // requests there are, were refused as if a boolean had been sent.
+            // Only a real JSON true/false is a CFBoolean.
+            if let number = json[key] as? NSNumber {
+                if CFGetTypeID(number) == CFBooleanGetTypeID() { return nil }
+                let value = number.doubleValue
+                guard value.isFinite, value.rounded(.towardZero) == value,
+                      value >= Double(Int.min), value <= Double(Int.max) else { return nil }
+                return Int(value)
+            }
             if json[key] is Bool { return nil }
             if let i = json[key] as? Int { return i }
             if let d = json[key] as? Double,
@@ -143,8 +163,10 @@ final class ControlAPI {
         var wantsRawPNG: Bool {
             query["format"] == "png" || (headers["accept"] ?? "").contains("image/png")
         }
+        /// Query only, as on the headless runner: one place to ask for the
+        /// picture rather than two that can disagree.
         var wantsImage: Bool {
-            !(query["image"] == "0" || query["image"] == "false" || (json["image"] as? Bool) == false)
+            !(query["image"] == "0" || query["image"] == "false")
         }
     }
 
@@ -153,9 +175,21 @@ final class ControlAPI {
     private func handle(_ r: Request) -> Data {
         let scale = min(6, max(1, r.int("scale") ?? 2))
 
-        switch (r.method, r.path) {
-        case ("GET", "/"), ("GET", "/help"):
+        switch (r.method, Self.route(r.path)) {
+        case ("GET", "/"):
             log.add("GET", r.path)
+            return respond(200, "text/plain; charset=utf-8", Data(Self.help.utf8))
+
+        case ("GET", "/help"):
+            log.add("GET", r.path)
+            // The same briefing the headless runner serves, from the same
+            // files, with this host substituted in. It is the text an agent is
+            // told to read, so it cannot differ between the two runners.
+            if let text = briefing(lang: r.string("lang") ?? "en",
+                                   coreOnly: r.string("part") == "core",
+                                   base: Self.origin(r, port: port)) {
+                return respond(200, "text/plain; charset=utf-8", Data(text.utf8))
+            }
             return respond(200, "text/plain; charset=utf-8", Data(Self.help.utf8))
 
         case ("GET", "/screen"):
@@ -194,17 +228,21 @@ final class ControlAPI {
             return respond(200, "application/json", json(["slots": slots]))
 
         case ("POST", "/key"):
+            if let bad = unknownFields(r, ["key", "hold", "times", "gap"]) {
+                return respond(400, "application/json", json(["ok": false, "error": bad]))
+            }
             guard let name = r.string("key"), let combo = RetroKey.parseCombo(name) else {
                 log.add("KEY", r.string("key") ?? "?", ok: false)
                 return respond(400, "application/json", json(["ok": false, "error": "unknown key", "hint": "GET /keys"]))
             }
             guard let hold = bounded(r, "hold", default: Self.defaultTapFrames,
-                                     min: 1, max: Self.maxHoldFrames),
+                                     min: Self.minHoldFrames, max: Self.maxHoldFrames),
                   let times = bounded(r, "times", default: 1,
                                       min: 1, max: Self.maxKeysPerAction),
                   let gap = bounded(r, "gap", default: 6,
                                     min: 0, max: Self.maxGapFrames) else {
-                return respond(400, "application/json", json(["ok": false, "error": "invalid hold, times, or gap"]))
+                return respond(400, "application/json", json(["ok": false,
+                    "error": "hold must be \(Self.minHoldFrames) to \(Self.maxHoldFrames) frames, times 1 to \(Self.maxKeysPerAction), gap 0 to \(Self.maxGapFrames)"]))
             }
             let total = times * (hold + 2) + max(0, times - 1) * gap
             guard total <= Self.maxActionFrames else {
@@ -212,26 +250,33 @@ final class ControlAPI {
             }
             // Logged before the keys go in, so the pane shows an action
             // starting rather than reporting one already over.
-            log.add("KEY", times > 1 ? "\(name) x\(times)" : name)
+            let note = times > 1 ? "\(name) x\(times)" : name
+            log.add("KEY", note)
             var steps: [Emulator.Step] = []
             for i in 0..<times {
                 steps.append(.press(combo, frames: hold))
                 if i != times - 1, gap > 0 { steps.append(.wait(gap)) }
             }
             let res = emu.submitSync(steps, settle: settle(r), scale: scale,
-                                     wantShot: r.wantsImage, timeout: 60)
-            return reply(r, ok: res.ok, extra: ["key": name, "times": times], shot: res.shot, changed: res.changed)
+                                     wantShot: r.wantsImage, atLeast: 60)
+            return reply(r, ok: res.ok,
+                         extra: ["action": note],
+                         shot: res.shot, changed: res.changed, settled: res.waited)
 
         case ("POST", "/keys"):
+            if let bad = unknownFields(r, ["keys", "hold", "gap"]) {
+                return respond(400, "application/json", json(["ok": false, "error": bad]))
+            }
             guard let names = r.strings("keys"),
                   1...Self.maxKeysPerAction ~= names.count else {
                 return respond(400, "application/json", json(["ok": false, "error": "keys must contain 1 to \(Self.maxKeysPerAction) entries"]))
             }
             guard let hold = bounded(r, "hold", default: Self.defaultTapFrames,
-                                     min: 1, max: Self.maxHoldFrames),
+                                     min: Self.minHoldFrames, max: Self.maxHoldFrames),
                   let gap = bounded(r, "gap", default: 6,
                                     min: 0, max: Self.maxGapFrames) else {
-                return respond(400, "application/json", json(["ok": false, "error": "invalid hold or gap"]))
+                return respond(400, "application/json", json(["ok": false,
+                    "error": "hold must be \(Self.minHoldFrames) to \(Self.maxHoldFrames) frames, gap 0 to \(Self.maxGapFrames)"]))
             }
             let total = names.count * (hold + 2) + max(0, names.count - 1) * gap
             guard total <= Self.maxActionFrames else {
@@ -248,36 +293,41 @@ final class ControlAPI {
                 log.add("KEYS", names.joined(separator: ","), payload: "bad: \(bad.joined(separator: ","))", ok: false)
                 return respond(400, "application/json", json(["ok": false, "error": "unknown keys", "keys": bad]))
             }
+            let note = names.joined(separator: " ")
             log.add("KEYS", names.joined(separator: ","))
-            let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, timeout: 60)
-            return reply(r, ok: res.ok, extra: ["keys": names], shot: res.shot, changed: res.changed)
+            let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, atLeast: 60)
+            return reply(r, ok: res.ok, extra: ["action": note],
+                         shot: res.shot, changed: res.changed, settled: res.waited)
 
         case ("POST", "/wait"):
-            let frames: Int
-            if r.value("frames") != nil {
-                guard let parsed = bounded(r, "frames", default: 0, min: 0, max: 4000) else {
-                    return respond(400, "application/json", json(["ok": false, "error": "frames must be an integer from 0 to 4000"]))
-                }
-                frames = parsed
-            } else {
-                guard let ms = bounded(r, "ms", default: 500, min: 0, max: 60000) else {
-                    return respond(400, "application/json", json(["ok": false, "error": "ms must be an integer from 0 to 60000"]))
-                }
-                frames = min(4000, Int(Double(ms) * core_fps() / 1000.0))
+            if let bad = unknownFields(r, ["ms"]) {
+                return respond(400, "application/json", json(["ok": false, "error": bad]))
             }
-            log.add("WAIT", "\(frames)f")
-            let res = emu.submitSync([.wait(frames)], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, timeout: 120)
-            return reply(r, ok: res.ok, extra: ["frames": frames], shot: res.shot, changed: res.changed)
+            guard let ms = bounded(r, "ms", default: 1000, min: 0, max: 60000) else {
+                return respond(400, "application/json", json(["ok": false, "error": "ms must be an integer from 0 to 60000"]))
+            }
+            let frames = min(4000, Int(Double(ms) * core_fps() / 1000.0))
+            log.add("WAIT", "\(ms)ms")
+            let res = emu.submitSync([.wait(frames)], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, atLeast: 120)
+            return reply(r, ok: res.ok, extra: ["action": "\(ms)ms"],
+                         shot: res.shot, changed: res.changed, settled: res.waited)
 
         case ("POST", "/save"):
+            if let bad = unknownFields(r, ["name"]) {
+                return respond(400, "application/json", json(["ok": false, "error": bad]))
+            }
             let url = slotURL(r)
             let res = emu.submitSync([.save(url)], settle: .fixed(1), scale: scale, wantShot: r.wantsImage)
             log.add("SAVE", url.deletingPathExtension().lastPathComponent, payload: res.ok ? "" : res.detail, ok: res.ok)
             return reply(r, ok: res.ok, status: res.ok ? 200 : 500,
-                         extra: ["slot": url.deletingPathExtension().lastPathComponent, "error": res.ok ? "" : res.detail],
-                         shot: res.shot, changed: res.changed)
+                         extra: ["action": "save", "slot": url.deletingPathExtension().lastPathComponent,
+                                 "error": res.ok ? "" : res.detail],
+                         shot: res.shot)
 
         case ("POST", "/load"):
+            if let bad = unknownFields(r, ["name"]) {
+                return respond(400, "application/json", json(["ok": false, "error": bad]))
+            }
             let url = slotURL(r)
             guard FileManager.default.fileExists(atPath: url.path) else {
                 log.add("LOAD", url.lastPathComponent, ok: false)
@@ -286,13 +336,15 @@ final class ControlAPI {
             let res = emu.submitSync([.load(url)], settle: settle(r), scale: scale, wantShot: r.wantsImage)
             log.add("LOAD", url.deletingPathExtension().lastPathComponent, payload: res.ok ? "" : res.detail, ok: res.ok)
             return reply(r, ok: res.ok, status: res.ok ? 200 : 500,
-                         extra: ["slot": url.deletingPathExtension().lastPathComponent, "error": res.ok ? "" : res.detail],
-                         shot: res.shot, changed: res.changed)
+                         extra: ["action": "load", "slot": url.deletingPathExtension().lastPathComponent,
+                                 "error": res.ok ? "" : res.detail],
+                         shot: res.shot)
 
         case ("POST", "/reset"):
-            let res = emu.submitSync([.reset], settle: Emulator.Settle(minFrames: 60, maxFrames: 600, stableFrames: 6), scale: scale, wantShot: r.wantsImage, timeout: 60)
+            let res = emu.submitSync([.reset], settle: Emulator.Settle(minFrames: 60, maxFrames: 600, stableFrames: 6), scale: scale, wantShot: r.wantsImage, atLeast: 60)
             log.add("RESET", "/", ok: res.ok)
-            return reply(r, ok: res.ok, extra: [:], shot: res.shot, changed: res.changed)
+            return reply(r, ok: res.ok, extra: ["action": "reset"],
+                         shot: res.shot, changed: res.changed, settled: res.waited)
 
         default:
             log.add(r.method, r.path, ok: false)
@@ -302,6 +354,61 @@ final class ControlAPI {
 
     // MARK: - helpers
 
+    /// The headless runner serves the control API under `/api` and the
+    /// briefing names it that way, so both spellings route here. One agent
+    /// loop, and one briefing, then work against either runner unchanged.
+    private static func route(_ path: String) -> String {
+        if path == "/api" { return "/" }
+        if path.hasPrefix("/api/") { return String(path.dropFirst(4)) }
+        return path
+    }
+
+    /// The address this server was reached at, for the URLs in the briefing.
+    /// A Host header that is not a plain name and port cannot rewrite them.
+    private static func origin(_ r: Request, port: UInt16) -> String {
+        let host = r.headers["host"] ?? ""
+        let plain = host.range(of: "^[A-Za-z0-9._-]+(:[0-9]{1,5})?$",
+                               options: .regularExpression) != nil
+        return "http://" + (plain ? host : "127.0.0.1:\(port)")
+    }
+
+    /// The briefing in `skills/`, or nil when it is not beside the binary.
+    /// Mirrors server/prompt.py: play first, then the field manual unless the
+    /// caller asked for the core only, with `{BASE}` substituted and the
+    /// doubled braces that keep JSON examples editable folded back down.
+    private func briefing(lang: String, coreOnly: Bool, base: String) -> String? {
+        let name = lang.lowercased().hasPrefix("zh") ? "zh" : "en"
+        func read(_ stem: String) -> String? {
+            try? String(contentsOf: skillsDir.appendingPathComponent("\(stem).md"),
+                        encoding: .utf8)
+        }
+        guard var text = read("play.\(name)") else { return nil }
+        if !coreOnly, let manual = read("speedrun.\(name)") {
+            while let last = text.last, last == "\n" || last == " " || last == "\t" {
+                text.removeLast()
+            }
+            text += "\n\n" + manual
+        }
+        return text
+            .replacingOccurrences(of: "{BASE}", with: base)
+            .replacingOccurrences(of: "{{", with: "{")
+            .replacingOccurrences(of: "}}", with: "}")
+    }
+
+    /// Refuse a body field this call does not read.
+    ///
+    /// Ignoring it silently is the failure this API is built to avoid: the
+    /// caller is told 200 and the game does something else. Returns the error
+    /// text, or nil when every field is one this call uses. The query string
+    /// is not checked here - it carries the shared options (scale, image, the
+    /// settle phases) rather than this call's own arguments.
+    private func unknownFields(_ r: Request, _ known: [String]) -> String? {
+        let extra = r.json.keys.filter { !known.contains($0) }.sorted()
+        guard !extra.isEmpty else { return nil }
+        return "unknown field\(extra.count > 1 ? "s" : ""): \(extra.joined(separator: ", ")); "
+             + "this call takes \(known.joined(separator: ", "))"
+    }
+
     private func bounded(_ r: Request, _ key: String, default fallback: Int,
                          min: Int, max: Int) -> Int? {
         if r.value(key) == nil { return fallback }
@@ -309,8 +416,9 @@ final class ControlAPI {
         return value
     }
 
+    /// ?react, ?stable and ?maxsettle, the same three the headless runner
+    /// takes. There is no fourth spelling of the same wait.
     private func settle(_ r: Request, fallbackMin: Int? = nil) -> Emulator.Settle {
-        if let fixed = r.int("settle") { return .fixed(max(0, min(fixed, 2000))) }
         var s = Emulator.Settle.default
         if let m = fallbackMin { s.reactFrames = m }
         if let m = r.int("react") { s.reactFrames = max(0, min(m, 2000)) }
@@ -320,15 +428,20 @@ final class ControlAPI {
         return s
     }
 
+    /// The window's quick save writes here too, so ⌘S and a nameless POST mean
+    /// the same slot. "slot" was this same name spelled a second way.
+    private static let quickState = "slot1"
+
     private func slotURL(_ r: Request) -> URL {
-        if let name = r.string("name"), !name.isEmpty {
-            let safe = name.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "..", with: "_")
-            return saveDir.appendingPathComponent("\(safe).state")
+        guard let name = r.string("name"), !name.isEmpty else {
+            return saveDir.appendingPathComponent("\(Self.quickState).state")
         }
-        return saveDir.appendingPathComponent("slot\(r.int("slot") ?? 1).state")
+        let safe = name.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "..", with: "_")
+        return saveDir.appendingPathComponent("\(safe).state")
     }
 
-    private func reply(_ r: Request, ok: Bool, status: Int = 200, extra: [String: Any], shot: Emulator.Shot?, changed: Bool? = nil) -> Data {
+    private func reply(_ r: Request, ok: Bool, status: Int = 200, extra: [String: Any],
+                       shot: Emulator.Shot?, changed: Bool? = nil, settled: Int? = nil) -> Data {
         if r.wantsRawPNG, let shot {
             return respond(status, "image/png", shot.png)
         }
@@ -336,20 +449,21 @@ final class ControlAPI {
             "ok": ok,
             "width": Int(core_width()),
             "height": Int(core_height()),
-            "fps": (core_fps() * 1000).rounded() / 1000,
+            // frame names the picture; screen is its hash, so polling it tells
+            // "still animating" from "waiting for input".
             "frame": Int(core_frame_serial()),
-            "ticks": Int(core_ticks()),
-            // Poll this to tell "still animating" from "waiting for input".
             "screen": String(core_frame_hash(), radix: 16),
         ]
         if let changed { obj["changed"] = changed }
+        // Reported whether or not a picture was captured, so ?image=0 still
+        // says how long the screen took to hold still.
+        if let settled { obj["settled_frames"] = settled }
         for (k, v) in extra where !((v as? String)?.isEmpty ?? false) { obj[k] = v }
         if let shot {
             obj["image"] = "data:image/png;base64," + shot.png.base64EncodedString()
             obj["image_width"] = shot.width
             obj["image_height"] = shot.height
             obj["scale"] = shot.scale
-            obj["settled_frames"] = shot.waited
         }
         return respond(status, "application/json", json(obj))
     }
@@ -385,22 +499,32 @@ final class ControlAPI {
     The game takes key presses and nothing else. There is no text entry and no
     mouse, so every interaction below is a key.
 
+    Every path below also answers under /api, the prefix the headless runner
+    uses, so one agent loop drives either runner unchanged.
+
     GET  /screen[?format=png]         look at the screen
     GET  /history[?limit=100]         action log
     GET  /keys                        every accepted key name
     GET  /slots                       savestates on disk
-    GET  /help
+    GET  /help[?lang=en|zh][&part=core]     the full briefing
 
     POST /key    {"key":"kp3"}        one key; optional "times", "hold", "gap"
     POST /keys   {"keys":["kp9","enter"]}   several in order; "gap" between
     POST /wait   {"ms":1000}          let the game run
-    POST /save   {"slot":1} | {"name":"before-boss"}
-    POST /load   {"slot":1}
+    POST /save   {"name":"before-boss"}    a name of its own, or none
+    POST /load   {"name":"before-boss"}
     POST /reset
 
     A POST waits for the screen to react and then to hold still, so what comes
     back is the result of the action. "changed":false means nothing visible
     happened. Add ?format=png for raw bytes, ?image=0 to skip the capture.
+    ?react, ?stable and ?maxsettle tune that wait in frames.
+
+    A body field a call does not read is a 400 naming it, not a silent no-op.
+
+    "hold" is in emulated frames and starts at 5. Below that a keydown and
+    keyup can be consumed inside one game-loop iteration and the press never
+    happens; the default of 10 leaves twice the margin.
 
     Movement is isometric, so the four axes are diagonals on screen:
       kp7 up-left   kp9 up-right   kp1 down-left   kp3 down-right

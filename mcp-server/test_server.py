@@ -86,11 +86,25 @@ class PressContractTests(unittest.TestCase):
         )
 
     def test_explicit_hold_is_forwarded(self):
+        """A repeat of one key is /key's "times", not a /keys sequence.
+
+        Both reach the game as the same presses, but only one of them is what
+        the call means, and the activity log reads "kp3 x2" rather than
+        "kp3 kp3".
+        """
         with patch.object(SERVER, "_act", return_value=[]) as act:
             SERVER.press("kp3", times=2, hold=14, stable=8)
         act.assert_called_once_with(
-            "/keys", {"keys": ["kp3", "kp3"], "hold": 14},
+            "/key", {"key": "kp3", "hold": 14, "times": 2},
             note="kp3 x2", stable=8,
+        )
+
+    def test_a_sequence_of_different_keys_still_uses_keys(self):
+        with patch.object(SERVER, "_act", return_value=[]) as act:
+            SERVER.press_sequence(["esc", "down", "enter"], gap=8)
+        act.assert_called_once_with(
+            "/keys", {"keys": ["esc", "down", "enter"], "gap": 8},
+            note="esc down enter", stable=None,
         )
 
     def test_locally_expanded_action_batches_are_bounded(self):

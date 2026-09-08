@@ -127,7 +127,7 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
         fake_lib = SimpleNamespace(
             core_frame_hash=lambda: 1, core_width=lambda: 320,
             core_height=lambda: 200, core_frame_serial=lambda: 7,
-            core_fps=lambda: 70.0)
+            core_ticks=lambda: 7, core_fps=lambda: 70.0)
 
         async def fake_settle(*_a, **_k):
             return 9, True

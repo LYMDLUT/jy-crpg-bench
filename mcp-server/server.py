@@ -41,6 +41,10 @@ AGENT = "".join(
 # Mirrors the game server's own request limits, so a bad argument is rejected
 # here with a readable message instead of a 400 from the API.
 DEFAULT_TAP_FRAMES = 10
+# The game can consume a keydown and keyup inside one game-loop iteration, so a
+# shorter hold is a press that may never happen. Measured floor, matching both
+# game servers.
+MIN_HOLD_FRAMES = 5
 MAX_ARRAY_REPEAT = 100
 MAX_HOLD_FRAMES = 1200
 MAX_GAP_FRAMES = 600
@@ -222,7 +226,7 @@ def press(key: str, times: int = 1, hold: int | None = None,
          backspace. The native runner also accepts combos like "alt+x".
     times: repeat the same key this many times (useful for walking or for
          advancing several dialogue lines).
-    hold: frames to hold the key down. Omit it to use the game server's safe
+    hold: frames to hold the key down, 5 or more. Omit it to use the game server's safe
          tap default; override it only for an intentional longer press.
     stable: frames the picture must hold still before the action settles.
 
@@ -231,15 +235,18 @@ def press(key: str, times: int = 1, hold: int | None = None,
     """
     times = _bounded_int("times", times, 1, MAX_ARRAY_REPEAT)
     if hold is not None:
-        _bounded_int("hold", hold, 1, MAX_HOLD_FRAMES)
+        _bounded_int("hold", hold, MIN_HOLD_FRAMES, MAX_HOLD_FRAMES)
     if stable is not None:
         _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
     _action_length(times, hold if hold is not None else DEFAULT_TAP_FRAMES)
+    # One key, repeated, is what /key's "times" is for; /keys is for a sequence
+    # of different keys. Spelling a repeat as a sequence made two calls out of
+    # one and logged "kp3 kp3 kp3" where the game saw "kp3 x3".
     payload = {"hold": hold} if hold is not None else {}
     if times > 1:
-        return _act("/keys", {"keys": [key] * times, **payload},
-                    note=f"{key} x{times}", stable=stable)
-    return _act("/key", {"key": key, **payload}, note=key, stable=stable)
+        payload["times"] = times          # omitted at 1: the server's default
+    note = f"{key} x{times}" if times > 1 else key
+    return _act("/key", {"key": key, **payload}, note=note, stable=stable)
 
 
 @mcp.tool()
@@ -275,7 +282,8 @@ def move(direction: str, steps: int = 1) -> list:
         raise ValueError("direction must be kp7, kp9, kp1, kp3, up, down, left or right")
     steps = _bounded_int("steps", steps, 1, MAX_ARRAY_REPEAT)
     _action_length(steps)
-    return _act("/keys", {"keys": [direction] * steps, "gap": 6},
+    payload = {"times": steps} if steps > 1 else {}
+    return _act("/key", {"key": direction, **payload},
                 note=f"move {direction} x{steps}")
 
 

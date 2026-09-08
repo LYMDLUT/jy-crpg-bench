@@ -201,23 +201,26 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       key: Type.String({ minLength: 1, maxLength: 32, description: "Key name, e.g. kp3, enter, esc, y" }),
       times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
-      hold: Type.Optional(Type.Integer({ minimum: 1, maximum: 1200,
-        description: "Frames to hold the key. Omit to use the game server's tap default.",
+      hold: Type.Optional(Type.Integer({ minimum: 5, maximum: 1200,
+        description: "Emulated frames to hold the key, 5 or more. Below five the game can " +
+          "consume the press and release together and the key never registers. " +
+          "Omit to use the game server's tap default of 10.",
       })),
       stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
         description: "Frames the picture must hold still before the screenshot. Raise if you get a half-written dialogue line.",
       })),
     }),
     async execute(_id, params, signal) {
+      // One key, repeated, is what /key's "times" is for; /keys is for a
+      // sequence of different keys. Spelling a repeat as a sequence made two
+      // calls out of one and logged "kp3 kp3 kp3" where the game saw "kp3 x3".
       const times = params.times ?? 1;
       const stable = params.stable;
       const q = stable ? `&stable=${stable}` : "";
       const note = times > 1 ? `${params.key} x${times}` : params.key;
-      const body = times > 1
-        ? { keys: Array(times).fill(params.key), hold: params.hold }
-        : { key: params.key, hold: params.hold };
-      const path = times > 1 ? "/keys" : "/key";
-      return act(path, body, note, signal, q);
+      const body: Record<string, unknown> = { key: params.key, hold: params.hold };
+      if (times > 1) body.times = times;   // omitted at 1: the server's default
+      return act("/key", body, note, signal, q);
     },
   });
 
@@ -283,7 +286,9 @@ export default function (pi: ExtensionAPI) {
         });
       }
       const steps = params.steps ?? 1;
-      return act("/keys", { keys: Array(steps).fill(key), gap: 6 }, `move ${dir} x${steps}`, signal);
+      const body: Record<string, unknown> = { key };
+      if (steps > 1) body.times = steps;
+      return act("/key", body, `move ${dir} x${steps}`, signal);
     },
   });
 

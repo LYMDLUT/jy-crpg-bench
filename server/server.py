@@ -152,7 +152,10 @@ paused_ack = threading.Event()
 clients: set[web.WebSocketResponse] = set()
 stats = {"frames": 0, "sent": 0, "bytes": 0, "tiles": 0, "dropped": 0,
          "pump_errors": 0, "last_error": "", "pump_ticks": 0, "pump_stage": "init",
-         "queued": 0}
+         # Whoever last took the one-player lease. A caller that waits out
+         # LOCK_TIMEOUT and gets a 503 is otherwise left guessing whether it
+         # queued behind another agent or behind a browser leaning on a key.
+         "queued": 0, "holder": ""}
 SEND_TIMEOUT = float(os.environ.get("QUNXIA_SEND_TIMEOUT", "3"))
 # Recording. Tile deltas are what the stream already produces, so a recording is
 # just those kept with timestamps, plus the keys that caused them.
@@ -165,11 +168,18 @@ LOCK_TIMEOUT = float(os.environ.get("QUNXIA_LOCK_TIMEOUT", "30"))
 # iteration. Measure all tap phases against emulated frames rather than wall
 # time so host scheduling cannot shorten a pulse.
 DEFAULT_TAP_FRAMES = 10
+# Measured floor, 24 taps per point against a key whose effect is certain:
+# 1 frame lands 0-29% of the time, 2 frames 33-67%, 3 frames 79-88%, 4 frames
+# 96-100%, 5 frames and up 100%. Below five the game and the caller disagree
+# about whether a key was pressed, which is worse for an agent than a refusal,
+# so a shorter hold is a bad request rather than an unreliable one.
+MIN_HOLD_FRAMES = 5
 KEY_RELEASE_FRAMES = 2
 BETWEEN_TAPS_FRAMES = 6
 DEFAULT_STABLE_FRAMES = 9
 DEFAULT_SETTLE_MAX_FRAMES = 120
 MAX_STABLE_FRAMES = 600
+MAX_SETTLE_FRAMES = 2000
 MAX_HOLD_FRAMES = 1200
 MAX_GAP_FRAMES = 600
 MAX_KEYS_PER_ACTION = 100
@@ -834,7 +844,7 @@ async def ws_handler(request):
                     down = bool(d.get("down"))
                     if down and code not in holding:
                         if not lock_held:
-                            lock_held = await acquire_action_lock()
+                            lock_held = await acquire_action_lock(f"browser holding {name}")
                         if not lock_held:
                             log_action("web", "KEY", name, detail="busy", ok=False)
                             continue
@@ -858,7 +868,7 @@ async def ws_handler(request):
                 code = KEYS.get(name)
                 if code and code not in holding:
                     borrowed = lock_held
-                    if borrowed or await acquire_action_lock():
+                    if borrowed or await acquire_action_lock(f"browser tapping {name}"):
                         try:
                             rec["actor"] = "web"
                             log_action("web", "KEY", name)
@@ -984,11 +994,12 @@ def resume_emulator():
     paused_ack.clear()
 
 
-async def acquire_action_lock():
+async def acquire_action_lock(holder=""):
     """Acquire the one-player lease shared by REST and browser input."""
     stats["queued"] += 1
     try:
         await asyncio.wait_for(action_lock().acquire(), timeout=LOCK_TIMEOUT)
+        stats["holder"] = holder
         return True
     except asyncio.TimeoutError:
         return False
@@ -1149,10 +1160,13 @@ async def run_action(request, steps, note, verb="KEY"):
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
 
-    if not await acquire_action_lock():
+    if not await acquire_action_lock(f"{actor(request)} {verb} {note}"[:60]):
         return web.json_response(
             {"ok": False, "error": "busy", "queued": stats["queued"],
-             "hint": "another agent holds the game; retry"}, status=503)
+             "holder": stats["holder"],
+             "hint": f"{stats['holder'] or 'another controller'} holds the game; "
+                     "a browser keeps the lease for as long as its key is down"},
+            status=503)
 
     image = None
     image_w = image_h = 0
@@ -1261,8 +1275,7 @@ async def run_action(request, steps, note, verb="KEY"):
 
     result = {
         "ok": True, "action": note, "changed": changed,
-        "width": LIB.core_width(), "height": LIB.core_height(),
-        "frame": LIB.core_frame_serial(), "settled_frames": waited,
+        "settled_frames": waited, **core_fields(),
     }
     if image:
         result.update({
@@ -1280,6 +1293,22 @@ async def body_of(request):
     except Exception:
         return None
     return body if isinstance(body, dict) else None
+
+
+def only(body, *known):
+    """Refuse a body field this call does not read.
+
+    Ignoring it silently is the failure this API is built to avoid: the caller
+    is told 200 and the game does something else. ``{"frames": 70}`` on a wait
+    that measures milliseconds is a request that never happened, and the
+    agent has no way to find that out.
+    """
+    unknown = sorted(set(body) - set(known))
+    if unknown:
+        raise ValueError(
+            f"unknown field{'s' if len(unknown) > 1 else ''}: "
+            f"{', '.join(unknown)}; this call takes {', '.join(known)}")
+    return body
 
 
 def bounded_int(value, name, default, minimum, maximum):
@@ -1305,16 +1334,31 @@ def bounded_int(value, name, default, minimum, maximum):
 def settle_options(request):
     """Validated headless equivalents of the native API settle controls."""
     q = request.query
-    react = bounded_int(q.get("react"), "react", 30, 0, 2000)
+    react = bounded_int(q.get("react"), "react", 30, 0, MAX_SETTLE_FRAMES)
     stable = bounded_int(q.get("stable"), "stable", DEFAULT_STABLE_FRAMES,
                          1, MAX_STABLE_FRAMES)
     maxframes = bounded_int(q.get("maxsettle"), "maxsettle",
-                            DEFAULT_SETTLE_MAX_FRAMES, 1, 2000)
+                            DEFAULT_SETTLE_MAX_FRAMES, 1, MAX_SETTLE_FRAMES)
     return {"react": react, "stable": stable, "maxframes": max(maxframes, react)}
 
 
 def wants_image(request):
     return str(request.query.get("image", "0")).lower() in ("1", "true", "yes")
+
+
+def core_fields():
+    """The description of the machine that every reply carries.
+
+    The same set the native runner returns, so one agent loop can read either
+    without knowing which it is talking to. ``frame`` names the picture;
+    ``screen`` is its hash, which tells "still animating" from "waiting for
+    input". Emulated-frame counters and the session's own numbers are not here:
+    they belong to the board, not to the agent playing.
+    """
+    return {
+        "width": LIB.core_width(), "height": LIB.core_height(),
+        "frame": LIB.core_frame_serial(), "screen": f"{LIB.core_frame_hash():x}",
+    }
 
 
 def validate_action_frames(count, hold, gap):
@@ -1329,11 +1373,13 @@ def keycode(name):
     return KEYS.get(str(name).strip().lower())
 
 
+# What a save with no name of its own is called. The window's own quick save
+# writes here too, so ⌘S and a nameless POST mean the same slot.
+QUICK_STATE = "slot1"
+
+
 def state_path(body):
-    raw = body.get("name")
-    if raw is None:
-        slot = bounded_int(body.get("slot"), "slot", 1, 1, 99)
-        raw = f"slot{slot}"
+    raw = body.get("name", QUICK_STATE)
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("state name must be a non-empty string")
     clean = "".join(c if c.isalnum() or c in "-_" else "_" for c in raw.strip())[:64]
@@ -1404,12 +1450,16 @@ async def api_key(request):
     d = await body_of(request)
     if d is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
+    try:
+        only(d, "key", "hold", "times", "gap")
+    except ValueError as exc:
+        return web.json_response({"ok": False, "error": str(exc)}, status=400)
     code = keycode(d.get("key", ""))
     if not code:
         return web.json_response({"ok": False, "error": "unknown key"}, status=400)
     try:
         hold = bounded_int(d.get("hold"), "hold", DEFAULT_TAP_FRAMES,
-                           1, MAX_HOLD_FRAMES)
+                           MIN_HOLD_FRAMES, MAX_HOLD_FRAMES)
         times = bounded_int(d.get("times"), "times", 1,
                             1, MAX_KEYS_PER_ACTION)
         gap = bounded_int(d.get("gap"), "gap", BETWEEN_TAPS_FRAMES,
@@ -1430,6 +1480,10 @@ async def api_keys(request):
     d = await body_of(request)
     if d is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
+    try:
+        only(d, "keys", "hold", "gap")
+    except ValueError as exc:
+        return web.json_response({"ok": False, "error": str(exc)}, status=400)
     names = d.get("keys") or []
     if not isinstance(names, list) or not 1 <= len(names) <= MAX_KEYS_PER_ACTION:
         return web.json_response(
@@ -1442,7 +1496,7 @@ async def api_keys(request):
         return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
     try:
         hold = bounded_int(d.get("hold"), "hold", DEFAULT_TAP_FRAMES,
-                           1, MAX_HOLD_FRAMES)
+                           MIN_HOLD_FRAMES, MAX_HOLD_FRAMES)
         gap = bounded_int(d.get("gap"), "gap", BETWEEN_TAPS_FRAMES,
                           0, MAX_GAP_FRAMES)
         validate_action_frames(len(names), hold, gap)
@@ -1461,6 +1515,7 @@ async def api_wait(request):
     if d is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
     try:
+        only(d, "ms")
         ms = bounded_int(d.get("ms"), "ms", 1000, 0, MAX_WAIT_MS)
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
@@ -1492,9 +1547,9 @@ async def api_screen(request):
     if fmt in ("png", "webp", "jpeg"):
         return web.Response(body=data, content_type=mime)
     return web.json_response({
-        "ok": True, "width": LIB.core_width(), "height": LIB.core_height(),
-        "frame": LIB.core_frame_serial(), "image_width": w, "image_height": h,
+        "ok": True, "image_width": w, "image_height": h,
         "image": f"data:{mime};base64," + base64.b64encode(data).decode(),
+        **core_fields(),
     })
 
 
@@ -1564,11 +1619,12 @@ async def api_save(request):
     if body is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
     try:
-        path, name = state_path(body)
+        path, name = state_path(only(body, "name"))
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
-    if not await acquire_action_lock():
-        return web.json_response({"ok": False, "error": "busy"}, status=503)
+    if not await acquire_action_lock("save"):
+        return web.json_response({"ok": False, "error": "busy",
+                                  "holder": stats["holder"]}, status=503)
     ok = False
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1576,7 +1632,7 @@ async def api_save(request):
         try:
             LIB.core_release_all_keys()
             ok = bool(LIB.core_save_state(str(path).encode()))
-            result = {"ok": ok, "slot": name}
+            result = {"ok": ok, "action": "save", "slot": name, **core_fields()}
             if not ok:
                 result["error"] = core_error("save failed")
             if wants_image(request):
@@ -1587,7 +1643,7 @@ async def api_save(request):
         finally:
             resume_emulator()
     except Exception as exc:
-        result = {"ok": False, "slot": name, "error": str(exc)}
+        result = {"ok": False, "action": "save", "slot": name, "error": str(exc)}
     finally:
         action_lock().release()
     log_action(actor(request), "SAVE", name, ok=ok)
@@ -1602,13 +1658,14 @@ async def api_load(request):
     if body is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
     try:
-        path, name = state_path(body)
+        path, name = state_path(only(body, "name"))
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
     if not path.is_file():
         return web.json_response({"ok": False, "error": "no such slot"}, status=404)
-    if not await acquire_action_lock():
-        return web.json_response({"ok": False, "error": "busy"}, status=503)
+    if not await acquire_action_lock("load"):
+        return web.json_response({"ok": False, "error": "busy",
+                                  "holder": stats["holder"]}, status=503)
     ok = False
     try:
         await pause_emulator()
@@ -1621,7 +1678,7 @@ async def api_load(request):
             resume_emulator()
         if ok:
             await wait_core_frames(2)
-        result = {"ok": ok, "slot": name}
+        result = {"ok": ok, "action": "load", "slot": name, **core_fields()}
         if not ok:
             result["error"] = core_error("load failed")
         if wants_image(request):
@@ -1630,7 +1687,7 @@ async def api_load(request):
             except Exception as exc:
                 result["image_error"] = f"{type(exc).__name__}: {exc}"
     except Exception as exc:
-        result = {"ok": False, "slot": name, "error": str(exc)}
+        result = {"ok": False, "action": "load", "slot": name, "error": str(exc)}
     finally:
         action_lock().release()
     log_action(actor(request), "LOAD", name, ok=ok)

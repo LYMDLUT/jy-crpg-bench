@@ -42,6 +42,10 @@ final class Emulator {
         var shot: Shot?
         /// False means the action produced no visible change at all.
         var changed: Bool = true
+        /// Frames spent settling. Carried here rather than only on the shot,
+        /// so a caller that asked for no picture still learns how long the
+        /// screen took to hold still.
+        var waited: Int = 0
     }
 
     enum Step {
@@ -99,20 +103,70 @@ final class Emulator {
 
     // MARK: - public submit
 
+    /// Handoff between the connection thread and the emulation thread. A job
+    /// that finishes after its caller gave up must not write into a value the
+    /// caller has already returned, so the result crosses through here under a
+    /// lock and a late delivery is dropped rather than raced.
+    private final class Slot {
+        private let lock = NSLock()
+        private let sem = DispatchSemaphore(value: 0)
+        private var value: Result?
+        private var abandoned = false
+
+        func deliver(_ result: Result) {
+            lock.lock()
+            if !abandoned { value = result }
+            lock.unlock()
+            sem.signal()
+        }
+
+        func take(timeout: TimeInterval) -> Result? {
+            let arrived = sem.wait(timeout: .now() + timeout) == .success
+            lock.lock()
+            defer { lock.unlock() }
+            if !arrived { abandoned = true }
+            return value
+        }
+    }
+
+    /// How long a job may take before the caller stops believing in it.
+    ///
+    /// A constant here was a ceiling below the work the request asked for: an
+    /// action of 2794 frames followed by a 2000-frame settle needs 68 seconds
+    /// and the ceiling was 60, so the caller was told the action failed while
+    /// the emulator went on pressing its keys. Size it from the frames the job
+    /// contains instead, at a fifth of nominal speed, the way the headless
+    /// server sizes its own input budget. `minimum` stays a floor for the
+    /// native calls that are not measured in frames.
+    private static func budget(_ steps: [Step], _ settle: Settle, minimum: TimeInterval) -> TimeInterval {
+        var frames = 0
+        for step in steps {
+            switch step {
+            case .press(_, let hold): frames += max(1, hold) + 2
+            case .wait(let n): frames += max(0, n)
+            case .mouseMove: frames += 2
+            case .mouseClick: frames += 5
+            case .save, .load, .reset: frames += 30
+            }
+        }
+        // stableFrames is Int.max for a fixed settle; the cap is maxFrames.
+        frames += max(settle.maxFrames, settle.reactFrames + min(settle.stableFrames, settle.maxFrames))
+        return max(minimum, Double(frames) / max(1.0, core_fps()) * 5 + 0.5)
+    }
+
     /// Blocks the caller (an API connection thread) until the action has been
     /// applied and the screen has settled.
-    func submitSync(_ steps: [Step], settle: Settle = .default, scale: Int = 2, wantShot: Bool = true, timeout: TimeInterval = 20) -> Result {
-        let sem = DispatchSemaphore(value: 0)
-        var out = Result(ok: false, detail: "timeout", shot: nil)
+    func submitSync(_ steps: [Step], settle: Settle = .default, scale: Int = 2,
+                    wantShot: Bool = true, atLeast: TimeInterval = 20) -> Result {
+        let slot = Slot()
         lock.lock()
         jobs.append(Job(steps: steps, settle: settle, scale: scale, wantShot: wantShot) { r in
-            out = r
-            sem.signal()
+            slot.deliver(r)
         })
         lock.signal()
         lock.unlock()
-        _ = sem.wait(timeout: .now() + timeout)
-        return out
+        return slot.take(timeout: Self.budget(steps, settle, minimum: atLeast))
+            ?? Result(ok: false, detail: "timeout", shot: nil, changed: false)
     }
 
     /// Fire-and-forget, used by the native key handler in the window.
@@ -229,7 +283,7 @@ final class Emulator {
 
         let (waited, changed) = settleFrames(job.settle, baseline: baseline)
         let shot = job.wantShot ? Self.capture(scale: job.scale, waited: waited) : nil
-        job.done(Result(ok: ok, detail: detail, shot: shot, changed: changed))
+        job.done(Result(ok: ok, detail: detail, shot: shot, changed: changed, waited: waited))
     }
 
     private func pump(_ n: Int) {
