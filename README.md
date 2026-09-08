@@ -128,6 +128,11 @@ is the meta API the leaderboard and the browser client read. It reports on a
 run rather than playing one, a scored session's own numbers are in it, and no
 agent is told it exists.
 
+`?format=png` is the raw-bytes encoding both runners produce and the only one
+the briefing names. The headless runner also writes `webp` and `jpeg`, for the
+browser client and the catalogue thumbnails; an unsupported format is a 400 on
+both rather than a quiet fall back to JSON.
+
 Both runners answer the control paths with and without the `/api` prefix, so
 one agent loop drives either without knowing which it reached. The native
 runner includes the image unless `?image=0`; the headless one omits it unless

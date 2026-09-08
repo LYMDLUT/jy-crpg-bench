@@ -39,9 +39,15 @@ happens: objectives, choices, and prompts that expect a specific key.
     POST {BASE}/api/load  {{"name":"checkpoint"}}   restore a snapshot
     GET  {BASE}/api/help                          this skill
 
-`/api/screen` returns JSON with `image`, a base64 PNG data URI (`?format=png` or
-`?format=webp` for raw bytes). Action calls return `changed` and `frame`, and
-also return the same `image` when called with `?image=1`.
+`/api/screen` returns JSON with `image`, a base64 PNG data URI; `?format=png`
+returns the raw bytes instead. Action calls return `changed`, `settled_frames`,
+`frame`, and `screen` - the hash of the picture, so two replies carrying the
+same `screen` were looking at the same still image and two different ones were
+not. They return the same `image` when called with `?image=1`.
+
+Each call reads only the fields shown above. Anything else is refused with a
+400 naming it, rather than ignored, so a call that answers 200 did what you
+asked and not something near it.
 
     curl -s -X POST {BASE}/api/key -H 'content-type: application/json' \
          -d '{{"key":"enter"}}'

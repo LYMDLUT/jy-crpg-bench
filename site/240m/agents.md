@@ -82,9 +82,14 @@
     POST $BASE/api/wait  {"ms":1000}             让游戏自己跑一段时间
     GET  $BASE/api/help                          本技能说明
 
-`/api/screen` 会回传画面：JSON 含 `image`，是 base64 的 PNG data URI（加
-`?format=png` 或 `?format=webp` 可直接取得位元组）。动作类呼叫预设回传
-`changed` 与 `frame`；加 `?image=1` 也会回传同样的 `image`。
+`/api/screen` 会回传画面：JSON 含 `image`，是 base64 的 PNG data URI；加
+`?format=png` 则直接取得 PNG 位元组。动作类呼叫预设回传
+`changed`、`settled_frames`、`frame` 与 `screen`：`screen` 是画面的杂凑值，两次
+回应的 `screen` 相同就代表看到的是同一张静止画面，不同就代表不是。加 `?image=1`
+也会回传同样的 `image`。
+
+每个呼叫只读取上面列出的栏位。其他栏位会以 400 明确指出并拒绝，而不是默默忽略，
+所以回应 200 的呼叫做的就是你要求的事，不是相近的另一件事。
 
     curl -s -X POST $BASE/api/key -H 'content-type: application/json' \
          -d '{"key":"enter"}'

@@ -186,6 +186,11 @@ MAX_KEYS_PER_ACTION = 100
 MAX_ACTION_FRAMES = 2800
 MAX_WAIT_MS = 60000
 MAX_HISTORY_LIMIT = 300
+# Raw-bytes encodings for GET /screen; "" is the default JSON reply. PNG is the
+# one an agent is told about, because it is the one every runner can produce
+# and the one vision stacks read most reliably. WebP and JPEG are here for the
+# browser client and the catalogue thumbnails, which pay for bytes on a wire.
+SCREEN_FORMATS = ("", "png", "webp", "jpeg")
 # Reset restores this rather than rebooting. It puts the agent in the opening
 # room with a character already made, because creating one means driving the
 # 注音 IME, which is a puzzle about input methods and not about the game.
@@ -1530,6 +1535,11 @@ async def api_screen(request):
     appear in its action log, or watching a run would change its numbers.
     """
     fmt = request.query.get("format", "")
+    if fmt not in SCREEN_FORMATS:
+        return web.json_response(
+            {"ok": False,
+             "error": f"format must be one of {', '.join(f for f in SCREEN_FORMATS if f)}"
+                      "; omit it for JSON with a base64 PNG"}, status=400)
     watching = request.query.get("spectate") == "1"
     if warden.ON and not watching:
         ended = warden.ended_payload()

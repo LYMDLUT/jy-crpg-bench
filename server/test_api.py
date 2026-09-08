@@ -163,6 +163,31 @@ class UnknownFieldTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(seen["steps"]), 3)   # tap, gap, tap
 
 
+class ScreenFormatTest(unittest.IsolatedAsyncioTestCase):
+    """An encoding this server cannot produce is a 400, not a JSON reply.
+
+    The briefing names `png` because it is the one both runners write; webp
+    and jpeg are here for the browser client and the catalogue thumbnails.
+    """
+
+    async def test_an_unsupported_format_is_refused(self):
+        response = await server.api_screen(
+            FakeRequest(query={"format": "avif"}))
+        self.assertEqual(response.status, 400)
+        self.assertIn("png", response_json(response)["error"])
+
+    def test_the_briefing_only_promises_what_both_runners_write(self):
+        native = (pathlib.Path(server.__file__).resolve().parent.parent
+                  / "Sources" / "QunXia" / "ControlAPI.swift").read_text()
+        # The native runner writes PNG only: ImageIO cannot encode WebP.
+        self.assertIn('format == "png"', native)
+        for brief in ("play.en", "play.zh"):
+            text = (pathlib.Path(server.__file__).resolve().parent.parent
+                    / "skills" / f"{brief}.md").read_text(encoding="utf-8")
+            self.assertIn("?format=png", text)
+            self.assertNotIn("?format=webp", text)
+
+
 class StateNameTest(unittest.TestCase):
     """A saved state has one name. "slot" was that same name spelled twice."""
 

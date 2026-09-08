@@ -193,12 +193,21 @@ final class ControlAPI {
             return respond(200, "text/plain; charset=utf-8", Data(Self.help.utf8))
 
         case ("GET", "/screen"):
+            // PNG is the only raw encoding here: ImageIO cannot write WebP, and
+            // the headless runner's WebP and JPEG exist to save bytes on a wire
+            // this runner does not have. An unsupported format says so rather
+            // than quietly answering with JSON.
+            let format = r.query["format"] ?? ""
+            guard format.isEmpty || format == "png" else {
+                return respond(400, "application/json", json(["ok": false,
+                    "error": "format must be png; omit it for JSON with a base64 PNG"]))
+            }
             guard let shot = emu.snapshot(scale: 1) else {
                 log.add("GET", "/screen", ok: false)
                 return respond(503, "application/json", json(["ok": false, "error": "no frame yet"]))
             }
             log.add("GET", "/screen", image: shot.png)
-            if r.query["format"] == "png" {
+            if format == "png" {
                 return respond(200, "image/png", shot.png)
             }
             return reply(r, ok: true, extra: [:], shot: shot)

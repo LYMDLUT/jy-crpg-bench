@@ -33,9 +33,14 @@
     POST {BASE}/api/load  {{"name":"checkpoint"}}   還原快照
     GET  {BASE}/api/help                          本技能說明
 
-`/api/screen` 會回傳畫面：JSON 含 `image`，是 base64 的 PNG data URI（加
-`?format=png` 或 `?format=webp` 可直接取得位元組）。動作類呼叫預設回傳
-`changed` 與 `frame`；加 `?image=1` 也會回傳同樣的 `image`。
+`/api/screen` 會回傳畫面：JSON 含 `image`，是 base64 的 PNG data URI；加
+`?format=png` 則直接取得 PNG 位元組。動作類呼叫預設回傳
+`changed`、`settled_frames`、`frame` 與 `screen`：`screen` 是畫面的雜湊值，兩次
+回應的 `screen` 相同就代表看到的是同一張靜止畫面，不同就代表不是。加 `?image=1`
+也會回傳同樣的 `image`。
+
+每個呼叫只讀取上面列出的欄位。其他欄位會以 400 明確指出並拒絕，而不是默默忽略，
+所以回應 200 的呼叫做的就是你要求的事，不是相近的另一件事。
 
     curl -s -X POST {BASE}/api/key -H 'content-type: application/json' \
          -d '{{"key":"enter"}}'
