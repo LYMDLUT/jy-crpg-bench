@@ -75,6 +75,8 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "level": None, "exp": None, "hp": None, "maxhp": None, "skills": None,
        "items": None, "reputation": None, "potential": None,
        "inventory_distinct": None, "picked_item": None,
+       # in-game semantics: the fourteen books, and everything carried
+       "books": None, "items_total": None,
        # Retained for metrics compatibility; the fixed deadline grants no credit.
        "credit": 0.0,
        "done": None, "result": None}
@@ -223,7 +225,8 @@ def metrics():
         # minutes, which is itself the finding.
         **{k: run[k] for k in ("level", "exp", "hp", "maxhp", "skills",
                                "items", "reputation", "potential",
-                               "inventory_distinct", "picked_item")},
+                               "inventory_distinct", "picked_item",
+                               "books", "items_total")},
         # There is no count of distinct places here on purpose. It was
         # measured off the framebuffer and the framebuffer cannot answer it:
         # the menu is an overlay whose size follows where you are, so no fixed

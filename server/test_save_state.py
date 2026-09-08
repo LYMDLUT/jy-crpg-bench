@@ -1,0 +1,125 @@
+"""The save decoder against the game's own shipped data.
+
+`game/RANGER.GRP` is the new-game archive the original release ships. Every
+offset this decoder uses is checked against it, so a wrong field is a failing
+test and never a plausible-looking number on the board.
+"""
+import os
+import pathlib
+import struct
+import unittest
+
+import save_state as S
+
+GAME = pathlib.Path(__file__).resolve().parent.parent / "game"
+RANGER = GAME / "RANGER.GRP"
+RANGER_IDX = GAME / "RANGER.IDX"
+
+
+def shipped():
+    if not RANGER.is_file() or not RANGER_IDX.is_file():
+        raise unittest.SkipTest("the game is not present; see README")
+    return RANGER.read_bytes(), RANGER_IDX.read_bytes()
+
+
+class LayoutTests(unittest.TestCase):
+    def test_record_sizes_are_the_shipped_ones(self):
+        grp, idx = shipped()
+        ends = struct.unpack_from("<6I", idx, 0)
+        self.assertEqual(ends[0], S.BASE_BYTES)                       # 836
+        self.assertEqual(ends[1] - ends[0], S.CHAR_BYTES)             # 320 x 182
+        self.assertEqual(ends[2] - ends[1], S.ITEM_SLOTS * S.ITEM_SZ)  # 200 x 190
+        self.assertEqual(ends[-1], len(grp))
+
+    def test_carried_item_slots_close_the_character_record(self):
+        # item[4] then itemCount[4] are the last two fields, so the record ends
+        # exactly there. This is the pair an earlier reader dismissed as AI
+        # scratch space.
+        self.assertEqual(S.C_ITEM_COUNT + S.CARRY_ITEMS * 2, S.CHAR_SZ)
+
+
+class BookTests(unittest.TestCase):
+    def test_the_fourteen_are_the_novels_the_game_ships(self):
+        grp, idx = shipped()
+        names = S.decode_items(S.split_archive(grp, idx)[S.SEC_ITEMS])
+        self.assertEqual(tuple(names[i] for i in S.BOOK_IDS), S.BOOK_NAMES)
+        self.assertEqual(len(S.BOOK_IDS), 14)
+
+    def test_books_are_counted_from_the_bag_and_from_the_party(self):
+        self.assertEqual(S.books_held({144: 1, 3: 9}), [144])
+        self.assertEqual(
+            S.books_held({}, [{"carrying": {157: 1}}]), [157])
+        # one book in two places is still one book
+        self.assertEqual(
+            S.books_held({144: 1}, [{"carrying": {144: 1}}]), [144])
+        self.assertEqual(S.books_held({3: 1}, [{"carrying": {9: 1}}]), [])
+
+
+class ArchiveTests(unittest.TestCase):
+    def test_a_new_game_reads_as_one_character_at_level_one(self):
+        grp, idx = shipped()
+        s = S.from_archive(grp, idx)
+        self.assertEqual(s["team_size"], 1)
+        self.assertEqual(s["team_level"], 1)
+        self.assertEqual(s["level"], 1)
+        self.assertEqual(s["exp"], 0)
+        self.assertEqual(s["books"], 0)
+        self.assertEqual(s["items_distinct"], 4)
+        self.assertEqual(s["position"]["x"], 357)
+        self.assertEqual(s["position"]["y"], 235)
+
+    def test_a_torn_archive_is_refused(self):
+        grp, idx = shipped()
+        self.assertIsNone(S.from_archive(grp[:100], idx))
+        self.assertIsNone(S.from_archive(grp, idx[:8]))
+
+
+class MemoryTests(unittest.TestCase):
+    """The working copy: the bag in front of the character records."""
+
+    def image(self, bag, lead_level=1, lead_exp=0):
+        pad = 4096
+        slots = []
+        for item_id, count in bag.items():
+            slots += [item_id, count]
+        slots += [-1, 0] * (S.BAG_SLOTS - len(bag))
+        bag_bytes = struct.pack(f"<{S.BAG_SLOTS * 2}h", *slots)
+        chars = bytearray(S.CHAR_BYTES)
+        chars[S.C_NAME:S.C_NAME + 2] = "王".encode("big5")
+        struct.pack_into("<h", chars, S.C_LEVEL, lead_level)
+        struct.pack_into("<H", chars, S.C_EXP, lead_exp)
+        struct.pack_into("<h", chars, S.C_HP, 50)
+        struct.pack_into("<h", chars, S.C_MAXHP, 50)
+        struct.pack_into("<h", chars, S.C_SKILL_ID, 1)
+        return bytes(pad * b"\0" + bag_bytes + bytes(chars)), pad + len(bag_bytes)
+
+    def test_the_working_bag_is_read_from_in_front_of_the_records(self):
+        mem, base = self.image({0: 3, 2: 3})
+        s = S.from_memory(mem, base)
+        self.assertEqual(s["items"], 6)
+        self.assertEqual(s["items_distinct"], 2)
+        self.assertEqual(s["level"], 1)
+        self.assertEqual(s["skills"], 1)
+        self.assertEqual(s["source"], "memory")
+
+    def test_books_in_the_working_bag_are_counted(self):
+        mem, base = self.image({144: 1, 157: 1, 3: 2})
+        s = S.from_memory(mem, base)
+        self.assertEqual(s["books"], 2)
+        self.assertEqual(s["book_ids"], [144, 157])
+
+    def test_a_region_that_is_not_a_bag_is_refused(self):
+        mem, base = self.image({0: 3})
+        # a gap followed by an entry is not a packed bag
+        broken = bytearray(mem)
+        struct.pack_into("<4h", broken, base - S.BAG_SLOTS * 4, -1, 0, 5, 1)
+        self.assertIsNone(S.from_memory(bytes(broken), base))
+
+    def test_an_offset_with_no_room_for_a_bag_is_refused(self):
+        mem, base = self.image({0: 3})
+        self.assertIsNone(S.from_memory(mem, 4))
+        self.assertIsNone(S.from_memory(mem, None))
+
+
+if __name__ == "__main__":
+    unittest.main()

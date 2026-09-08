@@ -423,6 +423,9 @@ async def _start_session(app, agent, budget, publish=True):
                QUNXIA_BENCH_SITE=SITE)
     proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"))
     sess = {"id": sid, "agent": agent, "port": port, "token": token,
+            # kept here so the board can ask the worker for a run's own
+            # numbers; it never travels in an address an agent holds
+            "reset_token": reset_token,
             "proc": proc, "work": WORK / sid, "budget": budget,
             "started": time.time(), "ends_at": time.time() + budget, "started_clock": clock()}
     sessions[sid] = sess
@@ -1026,9 +1029,12 @@ async def sweep(app):
     # down every second even when no run is active.
     http = aiohttp.ClientSession()
 
-    async def live_status(port):
+    async def live_status(port, token=""):
+        # The worker withholds a scored run's own numbers from anyone without
+        # the operator token, so the board asks with it and the agent cannot.
         try:
             async with http.get(f"http://127.0.0.1:{port}/status",
+                                headers={"X-Reset-Token": token} if token else {},
                                 timeout=aiohttp.ClientTimeout(total=3)) as r:
                 return (await r.json()).get("session", {})
         except Exception:
@@ -1062,7 +1068,7 @@ async def sweep(app):
             # stall the counts, the publish, or the reclaim below for all the
             # others in the pool (24 by default, 3s + 8s per stalled fetch).
             for s, d in zip(running, await asyncio.gather(
-                    *(live_status(s["port"]) for s in running))):
+                    *(live_status(s["port"], s.get("reset_token", "")) for s in running))):
                 if d is None:
                     continue
                 s["live_actions"] = d.get("actions", 0)

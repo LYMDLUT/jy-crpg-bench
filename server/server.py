@@ -29,6 +29,7 @@ from PIL import Image
 
 import warden
 from state_reader import decode_inventory, inventory_gained
+import save_state
 
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
@@ -267,7 +268,11 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "level": None, "exp": None, "hp": None, "maxhp": None,
          "skills": None, "items": None, "reputation": None, "potential": None,
          "inventory_distinct": None, "picked_item": None,
-         "inventory_baseline": None}
+         "inventory_baseline": None,
+         # The game's own semantics, read from the working copy: how many of
+         # the fourteen books are held, and which. This is the score the
+         # benchmark is for, and no agent can reach it.
+         "books": None, "book_ids": None, "items_total": None}
 
 
 def _state_bytes():
@@ -327,6 +332,14 @@ def read_stats():
     inventory = decode_inventory(mem, base)
     if inventory is not None:
         hero["inventory_distinct"] = len(inventory)
+        hero["items_total"] = sum(inventory.values())
+        # The fourteen novels end the game. They count whether they sit in the
+        # shared bag or in the protagonist's own four carried slots.
+        carried = save_state.decode_character(
+            mem[base:base + save_state.CHAR_BYTES], 0) or {}
+        held = save_state.books_held(inventory, [carried] if carried else [])
+        hero["books"] = len(held)
+        hero["book_ids"] = held
         opening = hero["inventory_baseline"]
         if opening is None:
             hero["inventory_baseline"] = dict(inventory)
@@ -780,6 +793,8 @@ def session_summary():
             "skills": hero["skills"], "items": hero["items"],
             "inventory_distinct": hero["inventory_distinct"],
             "picked_item": hero["picked_item"],
+            "items_total": hero["items_total"],
+            "books": hero["books"],
             "reputation": hero["reputation"], "potential": hero["potential"],
             "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
             # the key histogram, so a card can draw its bars while the run is
@@ -1255,7 +1270,7 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential", "inventory_distinct",
-                      "picked_item"):
+                      "picked_item", "items_total", "books"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -1753,6 +1768,7 @@ async def api_reset(request):
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
                     potential=None, inventory_distinct=None, picked_item=None,
+                    items_total=None, books=None,
                     inventory_baseline=None)
         agents.clear()
         rec_reset()
@@ -1892,11 +1908,31 @@ async def index(_request):
     return web.FileResponse(ROOT / "index.html")
 
 
+# What a scored run must not be able to read about itself. A model that can
+# see its own score can play the score; the board and the operator see these,
+# the agent never does.
+SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
+                 "potential", "inventory_distinct", "picked_item",
+                 "items_total", "books", "meaningful", "oscillation",
+                 "scenes", "frontier", "bigmap", "exit_acts", "exit_secs")
+
+
+def operator(request):
+    """True when the caller holds the token the broker keeps to itself."""
+    want = os.environ.get("QUNXIA_RESET_TOKEN")
+    got = request.query.get("token") or request.headers.get("X-Reset-Token")
+    return bool(want) and hmac.compare_digest(
+        (got or "").encode("utf-8"), want.encode("utf-8"))
+
+
 async def status(_request):
+    summary = session_summary()
+    if warden.ON and not operator(_request):
+        summary = {k: v for k, v in summary.items() if k not in SCORED_FIELDS}
     return web.json_response({
         "width": LIB.core_width(), "height": LIB.core_height(),
         "fps": round(LIB.core_fps(), 3), "frame": LIB.core_frame_serial(),
-        "clients": len(clients), "session": session_summary(), **stats,
+        "clients": len(clients), "session": summary, **stats,
         **(health.snapshot() if health else {}),
         "recording": {"cache_bytes": 0, "pending_bytes": recording_store.pending_bytes if recording_store else 0,
                       "error": recording_store.error if recording_store else ""},
