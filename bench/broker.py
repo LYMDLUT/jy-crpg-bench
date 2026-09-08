@@ -605,7 +605,7 @@ async def proxy(request):
     parts = tail.split("/")
     # The token gates play access; compare it in constant time, for the same
     # reason a password is never compared with ==.
-    authenticated = (len(parts) >= 3 and parts[0] == "t"
+    authenticated = (len(parts) >= 2 and parts[0] == "t"
                      and hmac.compare_digest(parts[1],
                                              sess.get("token") or ""))
     if authenticated:
