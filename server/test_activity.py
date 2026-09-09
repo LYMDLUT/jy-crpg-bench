@@ -118,6 +118,55 @@ class ServerActivityTests(unittest.TestCase):
         self.assertEqual(len(self.server.history), 1)
 
 class LegacyImportTests(unittest.TestCase):
+    def test_import_matches_legacy_timestamp_precision(self):
+        from import_activity import import_recording
+        with tempfile.TemporaryDirectory() as tmp:
+            recording, history = Path(tmp) / 'recording.jsonl', Path(tmp) / 'activity.json'
+            events = [{'t': 1.358, 'act': 'GET', 'who': 'agent', 'on': 'screen'}]
+            raw = '\n'.join(json.dumps(x) for x in [{'version': 1, 'started': 1700000000}, *events]) + '\n'
+            recording.write_text(raw)
+            old = entry(1)
+            old['detail'] = 'legacy'
+            old['ok'] = True
+            old['verb'] = 'GET'
+            old['target'] = 'screen'
+            old['at'] = 1700000001.358023
+            ActivityStore(history).save([old])
+            report = import_recording(recording, history)
+            rows = ActivityStore(history).load()
+            self.assertEqual(report['recording_actions'], 1)
+            self.assertEqual(report['retained_entries'], 1)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]['at'], 1700000001.358023)
+            self.assertEqual(rows[0]['detail'], 'legacy')
+            import_recording(recording, history)
+            self.assertEqual(ActivityStore(history).load(), rows)
+            self.assertEqual(recording.read_text(), raw)
+
+    def test_import_capacity_keeps_new_entries_when_recording_is_full(self):
+        from import_activity import import_recording
+        with tempfile.TemporaryDirectory() as tmp:
+            recording, history = Path(tmp) / 'recording.jsonl', Path(tmp) / 'activity.json'
+            events = [{'t': i, 'act': 'GET', 'who': 'old-agent', 'on': 'screen'}
+                      for i in range(300)]
+            raw = '\n'.join(json.dumps(x) for x in [{'version': 1, 'started': 1700000000}, *events]) + '\n'
+            recording.write_text(raw)
+            newer = []
+            for i in range(1, 301):
+                row = entry(i)
+                row['src'] = 'new-agent'
+                row['detail'] = 'new'
+                row['at'] = 1700001000 + i
+                newer.append(row)
+            ActivityStore(history).save(newer)
+            report = import_recording(recording, history)
+            rows = ActivityStore(history).load()
+            self.assertEqual(report['recording_actions'], 300)
+            self.assertEqual(report['retained_entries'], 300)
+            self.assertEqual([row['src'] for row in rows], ['new-agent'] * 300)
+            self.assertEqual(rows[-1]['at'], 1700001300)
+            self.assertEqual(recording.read_text(), raw)
+
     def test_import_merges_deduplicates_and_leaves_recording_unchanged(self):
         from import_activity import import_recording
         with tempfile.TemporaryDirectory() as tmp:

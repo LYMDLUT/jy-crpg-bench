@@ -10,6 +10,9 @@ from activity import ActivityStore, MAX_ENTRIES
 from activity_thumbnails import restore_thumbnails
 
 
+LEGACY_TIME_TOLERANCE = 0.001
+
+
 def read_actions(path):
     """Scan a fixed prefix and retain offsets for the latest action markers."""
     rows = deque(maxlen=MAX_ENTRIES)
@@ -64,18 +67,28 @@ def import_recording(recording, history):
         # Use the action's byte offset, not its rounded timestamp, as identity.
         # Upgrade earlier imports without this identity by matching each old row once.
         by_origin = {(r['recording_started'], r['recording_offset']): i for i, r in enumerate(rows)}
-        by_content = defaultdict(deque)
+        by_content = defaultdict(list)
         for i, row in enumerate(rows):
-            by_content[(row['at'], row['src'], row['verb'], row['target'])].append(i)
+            by_content[(row['src'], row['verb'], row['target'])].append(i)
         used = set()
         for old in existing:
-            origin = old.get('recording_started'), old.get('recording_offset')
-            index = by_origin.get(origin)
-            if origin == (None, None):
-                matches = by_content[(old['at'], old['src'], old['verb'], old['target'])]
-                while matches and matches[0] in used:
-                    matches.popleft()
-                index = matches.popleft() if matches else None
+            offset = old.get('recording_offset')
+            started = old.get('recording_started')
+            index = None
+            if type(offset) is int and offset >= 0:
+                index = by_origin.get((started, offset))
+            else:
+                # Early imports had no byte identity and the recording stores
+                # timestamps rounded to milliseconds. Consume candidates in
+                # recording order so equal-time actions cannot be reused or
+                # paired with a later duplicate.
+                candidates = by_content[(old['src'], old['verb'], old['target'])]
+                for candidate in candidates:
+                    if candidate in used:
+                        continue
+                    if abs(rows[candidate]['at'] - old['at']) <= LEGACY_TIME_TOLERANCE:
+                        index = candidate
+                        break
             if index is None:
                 rows.append(old)
             else:
