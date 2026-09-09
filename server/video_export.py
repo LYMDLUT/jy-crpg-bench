@@ -384,6 +384,8 @@ class VideoExports:
         self._reap()
         if request_id is not None:
             previous = self.request_jobs.get(request_id)
+            if previous is not None and (previous.recording != recording or previous.speed != speed):
+                raise web.HTTPConflict(reason='request id is already bound to another export')
             if (previous is not None and previous.recording == recording
                     and previous.speed == speed and not previous.stop.is_set()
                     and previous.state not in ('cancelled', 'error')

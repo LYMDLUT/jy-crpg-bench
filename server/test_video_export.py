@@ -206,6 +206,14 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
             headers={'X-Video-Request-Id': 'header-token'})
         self.assertEqual(response.status, 400)
 
+    async def test_request_id_cannot_change_export_payload(self):
+        self.write()
+        first = await self.client.post('/api/video', json={'speed': 1, 'requestId': 'fixed-token'})
+        self.assertEqual(first.status, 202)
+        conflict = await self.client.post('/api/video', json={'speed': 4, 'requestId': 'fixed-token'})
+        self.assertEqual(conflict.status, 409)
+        self.assertEqual(len(self.service.jobs), 1)
+
     async def test_unfinished_settle_and_renderer_changes_invalidate_cache(self):
         self.store.append(frame(0, (1, 2, 3)))
         self.store.append({'t': 1, 'act': 'KEY', 'who': 'agent'})
