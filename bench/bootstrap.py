@@ -126,14 +126,20 @@ def build(base, token, log=print):
     # every run on that host then began at the boot screen.
     log("reading the opening scene to its end")
     deadline = time.time() + float(os.environ.get("QUNXIA_OPENING_SECONDS", "420"))
-    rounds = 0
+    rounds, began = 0, time.time()
     while True:
         rounds += 1
         for _ in range(4):
             g.key("enter")
         if free_to_act(g):
-            log(f"  free to move after {rounds} rounds")
+            log(f"  free to move after {rounds} rounds, "
+                f"{time.time() - began:.0f}s")
             break
+        # Progress, not just an outcome. Without this a run that is merely
+        # slow and one that is wedged look exactly alike from outside: the
+        # phase logs once when it starts and then nothing for seven minutes.
+        if rounds % 3 == 0:
+            log(f"  round {rounds}, {time.time() - began:.0f}s elapsed")
         if time.time() > deadline:
             raise RuntimeError(f"never became free to move after {rounds} rounds")
 

@@ -1259,8 +1259,11 @@ async def author_start_state(state, attempt):
     # replayed by a script here, and a save macro's escape landing in the
     # middle of it derails the replay and leaves the pool with no origin.
     env["QUNXIA_SNAPSHOT_EVERY"] = "0"
-    proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"),
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # The worker's own output goes where the broker's does. It used to go to
+    # /dev/null, and when an authoring run stopped making progress there was
+    # nothing at all to look at: the pool simply stayed "booting" with the last
+    # line of the bootstrap's own log as the only evidence.
+    proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"))
     try:
         if not await wait_healthy(port):
             raise RuntimeError("worker did not start")
