@@ -17,7 +17,7 @@ from history_frames import complete_frame
 from recording import Snapshot
 
 INDEX_LOCK = threading.Lock()
-SCHEMA = 1
+SCHEMA = 2
 SETTLE = 1.0
 
 
@@ -44,9 +44,10 @@ def normalize(event):
         result['detail'] = str(event['detail'])[:4096]
     if 'phase' in event:
         result['phase'] = str(event['phase'])[:32]
-    for name in ('ok', 'history'):
-        if name in event:
-            result[name] = bool(event[name])
+    if 'ok' in event:
+        result['ok'] = event['ok'] if type(event['ok']) is bool else None
+    if 'history' in event:
+        result['history'] = bool(event['history'])
     return kind, result
 
 
@@ -193,7 +194,8 @@ class HistoryIndex:
             for following in itertools.chain(marks, (None,)):
                 if self.cancelled.is_set():
                     return
-                immediate = current['act'] == 'GET' or current.get('phase') == 'after'
+                immediate = (current['act'] == 'GET' or current.get('phase') == 'after'
+                             or current.get('ok') is False)
                 absolute_cutoff = current['_when'] if immediate else min(current['_when'] + SETTLE,
                                   following['_when'] if following is not None else math.inf)
                 cutoff = absolute_cutoff - self.base

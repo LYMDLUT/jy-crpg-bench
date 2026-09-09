@@ -198,12 +198,18 @@ clients poll the returned token until ready, then read bounded `/steps` pages
 and individual `/frame` PNGs. Later opens incrementally index appended data.
 Tokens expire and release their file handles. Normal game startup does not
 scan the recording. The endpoints are absent in benchmark mode.
+The benchmark observer page uses the realtime log directly. Reset or a server
+session change invalidates an open history page before loading the new snapshot.
+Version 2 of the disposable index preserves unknown action results instead of
+treating them as failures. The first history open after this upgrade rebuilds
+that index once; the source JSONL and the previous version 1 index are retained.
 
 Legacy agent GET/KEY records and older key-only recordings remain readable.
 Numbered action markers from newer recordings are supported too. A historical
 image is reconstructed from recorded frames, not claimed to be the exact API
 response: GET uses the preceding frame, while old key steps wait up to one
-second or until the next action. Corrupt frame windows report an error instead
+second or until the next action. Failed actions show their failure and reason,
+and use the frame before their marker. Corrupt frame windows report an error instead
 of manufacturing an image. Source JSONL files are never rewritten by readers.
 
 For long-lived play, enable `QUNXIA_PERSIST_HISTORY=1`. New interactive actions

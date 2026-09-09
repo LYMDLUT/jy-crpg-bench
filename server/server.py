@@ -2192,7 +2192,13 @@ async def recording_script(_request):
 
 
 async def index(_request):
-    return web.FileResponse(ROOT / "index.html")
+    # The benchmark deliberately has no saved-history endpoints. Let its
+    # observer page choose the available live log without probing a 404.
+    page = (ROOT / "index.html").read_text(encoding="utf-8").replace(
+        'data-history-enabled="auto"',
+        f'data-history-enabled="{str(not warden.ON).lower()}"')
+    return web.Response(text=page, content_type="text/html",
+                        headers={"Cache-Control": "no-store"})
 
 
 async def progress(request):

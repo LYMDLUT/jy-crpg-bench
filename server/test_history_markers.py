@@ -40,4 +40,15 @@ class DiskHistoryMarkerTests(unittest.TestCase):
             writer.append.assert_not_called()
 
 
+class HistoryPageCapabilityTests(unittest.IsolatedAsyncioTestCase):
+    async def test_page_exposes_explicit_history_capability(self):
+        for benchmark in (False, True):
+            with mock.patch.object(server.warden, 'ON', benchmark):
+                response = await server.index(None)
+            expected = str(not benchmark).lower()
+            self.assertIn(f'data-history-enabled="{expected}"', response.text)
+            self.assertNotIn('data-history-enabled="auto"', response.text)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+
 if __name__=='__main__':unittest.main()

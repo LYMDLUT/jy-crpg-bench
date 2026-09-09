@@ -17,7 +17,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image
 
 from history_frames import complete_frame
-from history_index import HistoryIndex, INDEX_LOCK
+from history_index import HistoryIndex, INDEX_LOCK, normalize
 from recording_store import RecordingStore
 from saved_history import SavedHistory
 
@@ -177,6 +177,57 @@ class SavedHistoryTests(unittest.IsolatedAsyncioTestCase):
             self.store.append(event)
         meta = await self.opened()
         self.assertEqual(meta['steps'], 1)
+
+    async def test_failed_key_uses_the_picture_before_the_marker(self):
+        for event in [frame(0, (255, 0, 0)),
+                      {'t': 1, 'act': 'KEY', 'who': 'web', 'on': 'up',
+                       'detail': 'busy', 'ok': False, 'history': 1},
+                      # Millisecond-rounded times may be equal; neither this
+                      # later frame nor another actor's result belongs to the
+                      # rejected input.
+                      frame(1, (0, 255, 0)), frame(1.5, (0, 0, 255))]:
+            self.store.append(event)
+        meta = await self.opened()
+        page = await (await self.client.get(f'/api/replay/{meta["token"]}/steps')).json()
+        self.assertFalse(page['steps'][0]['ok'])
+        self.assertEqual(page['steps'][0]['detail'], 'busy')
+        self.assertEqual(page['steps'][0]['cutoff'], 1)
+        self.assertEqual((await self.picture(meta['token'], 0)).getpixel((0, 0)), (255, 0, 0))
+
+    async def test_unknown_legacy_result_is_not_reported_as_a_failed_action(self):
+        for result in (None, '', 0, 'unknown'):
+            _, mark = normalize({'act': 'KEY', 'who': 'agent', 'ok': result})
+            self.assertIsNone(mark['ok'])
+
+    async def test_version_two_rebuilds_unknown_results_without_touching_old_index_or_source(self):
+        for event in [frame(0, (255, 0, 0)),
+                      {'t': 1, 'act': 'KEY', 'who': 'agent', 'ok': None, 'history': 1},
+                      frame(1.5, (0, 0, 255))]:
+            self.store.append(event)
+        source = self.path.read_bytes()
+
+        def old_normalize(event):
+            result = normalize(event)
+            if result and 'ok' in result[1]:
+                result[1]['ok'] = bool(event['ok'])
+            return result
+
+        with mock.patch('history_index.SCHEMA', 1), mock.patch('history_index.normalize', old_normalize):
+            first = await self.opened()
+        old_index = self.service.states[first['token']]['index']
+        old_path = old_index.path
+        self.assertIs(old_index.step(0)['ok'], False)
+        await self.client.delete('/api/replay/' + first['token'])
+        old_bytes = old_path.read_bytes()
+
+        second = await self.opened()
+        new_index = self.service.states[second['token']]['index']
+        self.assertNotEqual(new_index.path, old_path)
+        self.assertTrue(new_index.path.name.startswith('v2-'))
+        self.assertIsNone(new_index.step(0)['ok'])
+        self.assertEqual((await self.picture(second['token'], 0)).getpixel((0, 0)), (0, 0, 255))
+        self.assertEqual(old_path.read_bytes(), old_bytes)
+        self.assertEqual(self.path.read_bytes(), source)
 
     async def test_false_key_marker_is_not_an_anchor_and_unmarked_whole_frame_is(self):
         self.store.append(frame(0, (10, 10, 10), marked=False))
