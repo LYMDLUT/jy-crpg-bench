@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "CoreHost.h"
 
 #include <dlfcn.h>
@@ -8,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "libretro.h"
 
@@ -604,6 +606,7 @@ bool core_mem_read(unsigned id, size_t off, void *dst, size_t n) {
 }
 
 bool core_save_state(const char *path) {
+    if (!path || !*path) { set_err("savestate path is empty"); return false; }
     pthread_mutex_lock(&g_exec_mu);
     if (!g_ser_size || !g_ser) {
         pthread_mutex_unlock(&g_exec_mu);
@@ -620,10 +623,31 @@ bool core_save_state(const char *path) {
     bool ok = g_ser(buf, n);
     pthread_mutex_unlock(&g_exec_mu);
     if (ok) {
-        FILE *f = fopen(path, "wb");
-        if (!f) { free(buf); set_err("cannot open savestate for write"); return false; }
-        ok = fwrite(buf, 1, n, f) == n;
-        fclose(f);
+        /* A failed write must never truncate the previous checkpoint. Stage
+           beside it so rename is atomic, including for native-app callers. */
+        size_t length = strlen(path) + sizeof(".tmp.XXXXXX");
+        char *temporary = malloc(length);
+        if (!temporary) { free(buf); set_err("cannot allocate savestate path"); return false; }
+        snprintf(temporary, length, "%s.tmp.XXXXXX", path);
+        int fd = mkstemp(temporary);
+        FILE *f = fd < 0 ? NULL : fdopen(fd, "wb");
+        if (!f) {
+            if (fd >= 0) { close(fd); unlink(temporary); }
+            ok = false;
+            set_err("cannot open temporary savestate for write");
+        } else {
+            ok = fwrite(buf, 1, n, f) == n;
+            if (ok) ok = fflush(f) == 0;
+            if (ok) ok = fsync(fileno(f)) == 0;
+            if (fclose(f) != 0) ok = false;
+            if (!ok) set_err("cannot finish writing savestate");
+            else if (rename(temporary, path) != 0) {
+                ok = false;
+                set_err("cannot replace savestate");
+            }
+            if (!ok) unlink(temporary);
+        }
+        free(temporary);
     } else {
         set_err("retro_serialize failed");
     }
