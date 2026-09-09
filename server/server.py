@@ -1911,8 +1911,8 @@ async def api_save(request):
 
 async def checkpoint_core(path, *, saving):
     """Drain native work before releasing the pause, including cancellation."""
-    await pause_emulator()
     try:
+        await pause_emulator()
         def operation():
             LIB.core_release_all_keys()
             if saving:

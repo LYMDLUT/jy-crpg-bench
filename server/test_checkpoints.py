@@ -21,6 +21,8 @@ class CheckpointTests(unittest.IsolatedAsyncioTestCase):
         self.lib.core_load_state.return_value = True
         self.paused = False
         self.wait = mock.AsyncMock()
+        self.real_pause_emulator = server.pause_emulator
+        self.real_resume_emulator = server.resume_emulator
 
         def save(path):
             self.assertTrue(self.paused)
@@ -103,6 +105,25 @@ class CheckpointTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(asyncio.CancelledError):
             await task
         self.assert_preserved()
+
+    async def test_cancelled_pause_ack_wait_unpauses_before_releasing_the_lease(self):
+        paused, acknowledged = threading.Event(), threading.Event()
+        with mock.patch.object(server, "paused", paused), \
+                mock.patch.object(server, "paused_ack", acknowledged), \
+                mock.patch.object(server, "recording_blocked", False), \
+                mock.patch.object(server, "pause_emulator", self.real_pause_emulator), \
+                mock.patch.object(server, "resume_emulator", self.real_resume_emulator):
+            task = asyncio.create_task(server.save_checkpoint())
+            try:
+                self.assertTrue(await asyncio.to_thread(paused.wait, 1))
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            self.assertTrue(task.cancelled())
+            self.assertFalse(paused.is_set())
+            self.assertFalse(acknowledged.is_set())
+            self.lib.core_save_state.assert_not_called()
+            self.assert_preserved()
 
     async def test_restore_waits_for_warmup_then_checks_execution(self):
         await server.resume_and_autosave()
