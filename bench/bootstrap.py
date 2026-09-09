@@ -126,7 +126,22 @@ def build(base, token, log=print):
     log("naming the character through the 注音 IME")
     g.keys(["j", ";", "6"])        # ㄨㄤˊ
     g.keys(["1", "enter"])         # pick 王, confirm
-    g.key("y")                     # accept the rolled attributes
+
+    # The attribute roll takes y and n and nothing else. A y that arrives
+    # before the prompt is simply lost, and every enter after it is ignored,
+    # so the replay sits on a screen whose white share the opening loop reads
+    # as dialogue and never leaves it - which is exactly how a slower machine
+    # failed here, for fifteen minutes, with one y and a hope. Press until the
+    # picture moves on. The prompt is drawn over the title art, so its white
+    # share is the art's until the game leaves it.
+    art = white_share(g.png())
+    for _ in range(20):
+        g.key("y")
+        g.wait(1500)
+        if abs(white_share(g.png()) - art) > 0.005:
+            break
+    else:
+        raise RuntimeError("the attribute roll never took y")
     g.wait(9000)
 
     # Bounded by the clock, not by a round count. A round is only slow when
