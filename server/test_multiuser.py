@@ -58,6 +58,29 @@ class MultiuserTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(value["listen_host"], "127.0.0.1")
         self.assertEqual(value["bench"], "0")
 
+    async def test_relative_core_and_server_paths_survive_the_worker_chdir(self):
+        core = self.root / "probe-core.so"
+        core.write_text("fixture core")
+        script = self.root / "worker" / "probe.py"
+        script.parent.mkdir()
+        fixture = Path(__file__).parent / "test_fixtures/gateway_probe_server.py"
+        script.write_text("import os, pathlib, runpy\n"
+                          "assert pathlib.Path(os.environ['QUNXIA_CORE']).is_file()\n"
+                          f"runpy.run_path({str(fixture.resolve())!r}, run_name='__main__')\n")
+        for relative_core, relative_server in ((True, False), (False, True), (True, True)):
+            with self.subTest(core=relative_core, server=relative_server):
+                await self.client.close()
+                self.manager = BackendManager(self.store,
+                    os.path.relpath(core) if relative_core else core,
+                    server=os.path.relpath(script) if relative_server else script,
+                    startup_timeout=3, shutdown_timeout=3)
+                self.client = TestClient(TestServer(build_app(self.store, self.manager)))
+                await self.client.start_server()
+                backend = await self.manager.ensure(self.user)
+                self.assertIsNone(backend.process.poll())
+                self.assertEqual(Path(self.manager.core), core.resolve())
+                self.assertEqual(self.manager.server, script.resolve())
+
     async def test_existing_ids_survive_restart_and_new_users_have_separate_game_trees(self):
         second = await (await self.client.post("/api/users", json={"name": "Second player"})).json()
         first_game = self.store.paths(self.user["id"])[1] / "PLAY.BAT"

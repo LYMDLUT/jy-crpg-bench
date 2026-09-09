@@ -110,8 +110,8 @@ class Backend:
 class BackendManager:
     def __init__(self, store, core, *, python=sys.executable, server=HERE / "server.py",
                  startup_timeout=90, shutdown_timeout=15, environment=None):
-        self.store, self.core = store, str(core)
-        self.python, self.server = python, Path(server)
+        self.store, self.core = store, str(Path(core).expanduser().resolve())
+        self.python, self.server = python, Path(server).expanduser().resolve()
         self.startup_timeout, self.shutdown_timeout = startup_timeout, shutdown_timeout
         self.environment = environment or {}
         self.backends, self.locks = {}, {}
