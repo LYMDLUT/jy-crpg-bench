@@ -462,9 +462,17 @@ that also carries input. A dialogue update is about 60 tiles and 5 KB; an idle
 screen sends nothing.
 
 Every session is recorded as those tile deltas plus the keys that caused them,
-appended to a JSONL journal on disk. The activity panel replays at 4x and
-exports an MP4 in the browser; the benchmark renders the same journal with
-ffmpeg.
+appended to a JSONL journal on disk. The activity panel plays saved actions:
+one action per 0.6 seconds before the selected speed is applied, skipping idle
+gaps. It shows the action and actor, with elapsed time from the start of the
+original recording displayed to the millisecond separately from playback
+progress. Original times beyond 24 hours do not wrap. Both current and archived recordings use this action
+playback and load only a small window of frames; the complete source journal
+remains on disk. MP4 export runs on the server, with progress, cancellation
+and a download button; it stays active after a page reload and does not block
+playback. Action playback and export require the saved-history backend; an
+unavailable backend is shown explicitly. The benchmark keeps its own ffmpeg
+rendering path.
 
 ### Saved-action video API
 

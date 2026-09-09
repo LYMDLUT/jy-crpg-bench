@@ -29,7 +29,7 @@
     display: flex; justify-content: space-between; align-items: baseline;
   }
   #side h2 em { font-style: normal; color: #5b5b66; font-size: 10px; letter-spacing: 0; }
-  #side h2 .right { display: flex; align-items: center; gap: 8px; }
+  #side h2 .right { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
   #play, #save {
     padding: 3px 9px; font-size: 10.5px; letter-spacing: .04em;
     background: #17171b; border: 1px solid #2e2e36; border-radius: 4px;
@@ -37,6 +37,18 @@
   }
   #play:hover, #save:hover { border-color: #4a4a58; color: #fff; }
   #play[disabled], #save[disabled] { opacity: .45; cursor: default; }
+  #recordingfiles { position: relative; width: auto; border: 0; background: none; }
+  #recordingfiles summary { display: block; padding: 1px 5px; font-size: 17px; line-height: 1.2; letter-spacing: 0; }
+  #recordinglinks {
+    position: absolute; right: 0; top: 28px; width: min(280px, 80vw);
+    max-height: 300px; overflow: auto; z-index: 25; padding: 12px;
+    background: #17171d; border: 1px solid #383844; border-radius: 5px;
+    box-shadow: 0 7px 25px #0008; font-size: 11px; letter-spacing: 0;
+  }
+  .recording-file + .recording-file { margin-top: 12px; }
+  .recording-file-name { display: block; margin-bottom: 5px; overflow-wrap: anywhere; }
+  #recordinglinks a { color: #8ecdf7; }
+  #recordinglinks button { margin-left: 10px; padding: 3px 7px; font-size: 10px; }
   #vcr {
     position: fixed; inset: 0; z-index: 20; display: none;
     background: #000d; backdrop-filter: blur(2px);
@@ -49,9 +61,10 @@
   }
   #vcrkeys .k { font-size: 13px; min-width: 20px; padding: 2px 6px; }
   #vcrbar { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #9a9aa6; }
-  #vcrkeys { display: flex; gap: 4px; min-height: 20px; align-items: center; }
-  #vcrtrack { width: 260px; height: 4px; background: #26262c; border-radius: 2px; overflow: hidden; }
-  #vcrfill { display: block; height: 4px; width: 0; background: #6cb6ff; }
+  #vcrkeys { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: 20px; align-items: center; }
+  #vcrrecorded, #vcrstatus { color: #9a9aa6; font-size: 12px; max-width: 90vw; text-align: center; }
+  #vcrbar { flex-wrap: wrap; justify-content: center; max-width: 94vw; }
+  #vcrseek { width: min(35vw, 360px); accent-color: #6cb6ff; }
   #logrows { overflow-y: auto; padding: 6px 0 10px; flex: 1; }
   .r { display: flex; gap: 7px; padding: 2px 12px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
   .r:hover { background: #17171c; }
@@ -334,9 +347,15 @@
 <div id="vcr">
   <canvas id="vcv" width="320" height="200"></canvas>
   <div id="vcrkeys"></div>
+  <div id="vcrrecorded" title="原始时间从这份录像开始计时，播放进度已跳过空闲。"></div>
+  <div id="vcrstatus" role="status"></div>
   <div id="vcrbar">
     <span id="vcrtime">0:00</span>
-    <span id="vcrtrack"><span id="vcrfill"></span></span>
+    <input id="vcrseek" type="range" min="0" max="0" step="0.1" value="0" aria-label="动作回放进度">
+    <span id="vcrduration">0:00</span>
+    <button id="vcrpause">pause</button>
+    <button id="vcrretry" hidden>重试</button>
+    <select id="vcrspeed" aria-label="Replay speed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option></select>
     <button id="vcrclose">close</button>
   </div>
 </div>
@@ -356,7 +375,8 @@
   <div id="roster"></div>
   <h2>ACTIVITY
     <span class="right"><em id="logcount"></em>
-      <button id="play">▶ 4×</button><button id="save">⤓ mp4</button></span>
+      <button id="play">▶ 回放</button><button id="save">⤓ mp4</button>
+      <details id="recordingfiles"><summary aria-label="更多录像" title="更多录像">···</summary><div id="recordinglinks">正在读取录像文件…</div></details></span>
   </h2>
   <div id="meter">
     <span>played <b id="m-time">0:00</b></span>
@@ -380,6 +400,7 @@
 </div>
 
 <script src="recording.js"></script>
+<script src="replay.js"></script>
 <script>
 const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d", { alpha: false });
@@ -454,7 +475,7 @@ function vcrClose() {
   if (vcrStop) { vcrStop(); vcrStop = null; }
   vcr.classList.remove("on");
   playBtn.disabled = false;
-  playBtn.textContent = "▶ 4×";
+  playBtn.textContent = "▶ 回放";
 }
 document.getElementById("vcrclose").onclick = vcrClose;
 vcr.onclick = e => { if (e.target === vcr) vcrClose(); };
@@ -466,207 +487,154 @@ addEventListener("keydown", e => {
   if (e.key === "Escape" && vcr.classList.contains("on")) { escSwallow = true; vcrClose(); }
 });
 
-// ---- export the recording as a video ---------------------------------------
-const saveBtn = document.getElementById("save");
+// ---- export the recording in the background (video-export.js) --------------
 
-function pickMime() {
-  for (const t of ["video/mp4;codecs=avc1.42E01E", "video/mp4",
-                   "video/webm;codecs=vp9", "video/webm"]) {
-    if (MediaRecorder.isTypeSupported(t)) return t;
-  }
-  return "";
-}
-
-saveBtn.onclick = async () => {
-  if (!window.MediaRecorder) return;
-  const mime = pickMime();
-  if (!mime) { saveBtn.textContent = "unsupported"; return; }
-
-  saveBtn.disabled = true;
-  playBtn.disabled = true;
-  saveBtn.title = "encodes in real time at 4x, so about a quarter of the session length";
-  saveBtn.textContent = "loading";
-  let recording;
-  // MediaRecorder samples in real time, so the export takes the recording
-  // length divided by the playback speed. Say so rather than appear stuck.
-  try {
-    recording = await ReplayRecording.open();
-  } catch { saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
-  if (!(await recording.peek())) { recording.close(); saveBtn.disabled = playBtn.disabled = false; saveBtn.textContent = "⤓ mp4"; return; }
-
-  // 640x400 keeps both game modes at a whole multiple, plus a strip for keys.
-  const W = 640, H = 400, BAR = 56;
-  const out = document.createElement("canvas");
-  out.width = W; out.height = H + BAR;
-  const octx = out.getContext("2d", { alpha: false });
-  octx.imageSmoothingEnabled = false;
-  const work = document.createElement("canvas");
-  const wctx = work.getContext("2d", { alpha: false });
-  const cache = {};
-  const down = new Set();
-  let clock = 0, actor = "";
-
-  const chip = (label, x, y, arrow) => {
-    const w = octx.measureText(label).width + 20;
-    octx.fillStyle = "#1c1c22";
-    octx.strokeStyle = arrow ? "#3f6076" : "#33333d";
-    octx.beginPath();
-    octx.roundRect(x, y, w, 32, 5);
-    octx.fill(); octx.stroke();
-    octx.fillStyle = arrow ? "#8ecdf7" : "#cdcdd6";
-    octx.fillText(label, x + 10, y + 16);
-    return w;
-  };
-
-  const compose = () => {
-    octx.fillStyle = "#0b0b0d";
-    octx.fillRect(0, 0, W, H + BAR);
-    if (work.width) {
-      const sc = Math.min(W / work.width, H / work.height);
-      const dw = work.width * sc, dh = work.height * sc;
-      octx.drawImage(work, (W - dw) / 2, (H - dh) / 2, dw, dh);
-    }
-    octx.fillStyle = "#101014";
-    octx.fillRect(0, H, W, BAR);
-    octx.textBaseline = "middle";
-    let x = 14;
-    if (actor) {
-      octx.font = "17px ui-monospace, Menlo, monospace";
-      octx.fillStyle = colorOf(actor);
-      octx.fillText(actor, x, H + 28);
-      x += octx.measureText(actor).width + 16;
-    }
-    octx.font = "20px ui-monospace, Menlo, monospace";
-    for (const k of down) x += chip(GLYPH[k] ?? k, x, H + 12, ARROW.has(k)) + 8;
-    octx.fillStyle = "#6c6c78";
-    octx.font = "16px ui-monospace, Menlo, monospace";
-    octx.textAlign = "right";
-    octx.fillText(fmt(clock) + "  4x", W - 14, H + 28);
-    octx.textAlign = "left";
-  };
-
-  compose();
-  const stream = out.captureStream(30);
-  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
-  const chunks = [];
-  mr.ondataavailable = e => e.data.size && chunks.push(e.data);
-  const finished = new Promise(r => (mr.onstop = r));
-  mr.start();
-
-  const SPEED = 4;
-  const total = recording.duration || 1;
-  const t0 = performance.now();
-  let exportError = null;
-  let raf = requestAnimationFrame(function loop() { compose(); raf = requestAnimationFrame(loop); });
-
-  try {
-  while (true) {
-    const ev = await recording.peek();
-    if (!ev) break;
-    const wait = t0 + (ev.t * 1000) / SPEED - performance.now();
-    if (wait > 2) { await new Promise(r => setTimeout(r, wait)); continue; }
-    recording.take();
-    clock = ev.t;
-    if (ev.d) {
-      paintDelta(await inflate(b64bytes(ev.d)), work, wctx, cache);
-    } else if (ev.key) {
-      if (ev.who) actor = ev.who;
-      ev.down ? down.add(ev.key) : down.delete(ev.key);
-    }
-    const left = Math.max(0, (total - ev.t) / SPEED);
-    saveBtn.textContent = Math.round((ev.t / total) * 100) + "% " + fmt(left);
-  }
-
-  } catch (error) { exportError = error; }
-  finally { recording.close(); }
-
-  await new Promise(r => setTimeout(r, 300));   // let the tail frames be sampled
-  cancelAnimationFrame(raf);
-  mr.stop();
-  await finished;
-
-  if (exportError) {
-    saveBtn.textContent = "export failed";
-    saveBtn.title = exportError.message;
-    saveBtn.disabled = playBtn.disabled = false;
-    return;
-  }
-
-  const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
-  const blob = new Blob(chunks, { type: mime });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `jy-crpg-bench-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.${ext}`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-
-  saveBtn.textContent = "⤓ " + ext;
-  saveBtn.disabled = playBtn.disabled = false;
-};
-
-playBtn.onclick = async () => {
+async function openPlayback(recording = 'current') {
+  // A focused Play button can be activated again before its first fetch ends.
+  // Keep exactly one owner of the canvas and of the pinned replay reader.
+  if (vcrStop || vcr.classList.contains("on")) return;
   playBtn.disabled = true;
   playBtn.textContent = "loading";
-  let recording;
-  try {
-    recording = await ReplayRecording.open();
-  } catch { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
-  if (!(await recording.peek())) { recording.close(); playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
-
-  playBtn.textContent = "playing";
   vcr.classList.add("on");
-  vctx.fillStyle = "#000";
-  vctx.fillRect(0, 0, vcv.width, vcv.height);
-  vcrKeys.textContent = "";
-
-  const SPEED = 4;
-  const total = recording.duration || 1;
-  const cache = {};
-  const down = new Set();
-  let cancelled = false;
-  vcrStop = () => { cancelled = true; recording.close(); };
-
-  const t0 = performance.now();
-  const step = async () => {
-    try {
-    while (!cancelled) {
-      const ev = await recording.peek();
-      if (!ev) break;
-      const due = t0 + (ev.t * 1000) / SPEED;
-      const wait = due - performance.now();
-      if (wait > 4) { setTimeout(step, wait); return; }
-      recording.take();
-      if (ev.d) {
-        paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, cache);
-      } else if (ev.key) {
-        ev.down ? down.add(ev.key) : down.delete(ev.key);
-        vcrKeys.textContent = "";
-        if (ev.who) {
-          const who = document.createElement("span");
-          who.textContent = ev.who;
-          who.style.color = colorOf(ev.who);
-          who.style.marginRight = "6px";
-          vcrKeys.appendChild(who);
-        }
-        for (const k of down) {
-          const chip = document.createElement("span");
-          chip.className = "k" + (ARROW.has(k) ? " arrow" : "");
-          chip.textContent = GLYPH[k] ?? k;
-          vcrKeys.appendChild(chip);
-        }
-      }
-      document.getElementById("vcrfill").style.width = (ev.t / total) * 100 + "%";
-      document.getElementById("vcrtime").textContent = fmt(ev.t);
-    }
-    recording.close();
-    if (!cancelled) { playBtn.textContent = "▶ 4×"; }
-    } catch (error) {
-      recording.close();
-      if (!cancelled) { playBtn.textContent = "replay unavailable"; playBtn.title = error.message; }
-    }
+  document.getElementById("recordingfiles").open = false;
+  document.getElementById("vcrclose").focus();
+  let source, player, closed = false;
+  const lifetime = new AbortController();
+  const keys = new ReplayKeys(vcrKeys, {glyphs:GLYPH, arrows:ARROW, colorOf});
+  const seek = document.getElementById("vcrseek"), pause = document.getElementById("vcrpause");
+  const speed = document.getElementById("vcrspeed"), retry = document.getElementById("vcrretry");
+  const status = document.getElementById("vcrstatus"), recorded = document.getElementById("vcrrecorded");
+  retry.hidden = true;
+  retry.onclick = () => { vcrClose(); return openPlayback(recording); };
+  const formatRecordedTime = seconds => {
+    if (!Number.isFinite(Number(seconds)) || seconds == null) return '—';
+    const millis = Math.max(0, Math.round(Number(seconds) * 1000));
+    const hours = Math.floor(millis / 3600000);
+    const minutes = Math.floor(millis / 60000) % 60;
+    const wholeSeconds = Math.floor(millis / 1000) % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(wholeSeconds).padStart(2, '0')}.${String(millis % 1000).padStart(3, '0')}`;
   };
-  step();
-};
+  seek.disabled = pause.disabled = speed.disabled = true;
+  seek.max = seek.value = "0";
+  seek.setAttribute("aria-valuetext", "0:00 / 0:00");
+  document.getElementById("vcrtime").textContent = "loading…";
+  document.getElementById("vcrduration").textContent = "0:00";
+  recorded.textContent = '';
+  status.textContent = '正在读取动作记录…';
+  pause.textContent = "pause";
+  speed.value = "4";
+  vcrStop = () => { closed = true; lifetime.abort(); player?.close(); source?.close(); };
+  const reset = held => {
+    vctx.fillStyle = "#000"; vctx.fillRect(0, 0, vcv.width, vcv.height);
+    keys.reset(held);
+  };
+  const failed = error => {
+    if (closed) return;
+    playBtn.textContent = "replay unavailable";
+    playBtn.title = error.message;
+    status.textContent = error.message;
+    document.getElementById("vcrtime").textContent = '读取失败';
+    retry.hidden = false;
+    seek.disabled = pause.disabled = speed.disabled = true;
+  };
+  reset({});
+  try {
+    source = await StepReplaySource.open(recording, {
+      signal:lifetime.signal,
+      progress:meta => {
+        if (closed) return;
+        const percent = meta.total ? ' ' + Math.min(100, Math.floor(100 * meta.scanned / meta.total)) + '%' : '';
+        status.textContent = '正在准备磁盘动作索引' + percent + '，完成后开始回放。';
+      },
+    });
+    if (closed) { source.close(); return; }
+    const callbacks = {
+      paint: (decoded, ev) => {
+        vcv.width = decoded.width; vcv.height = decoded.height;
+        vctx.imageSmoothingEnabled = false;
+        vctx.drawImage(decoded, 0, 0);
+        keys.showStep(ev);
+      },
+      update: state => {
+        if (closed) return;
+        seek.max = String(state.duration); seek.value = String(state.position);
+        seek.disabled = pause.disabled = speed.disabled = !state.ready;
+        const clock = fmt(state.position / state.speed), duration = fmt(state.duration / state.speed);
+        const original = formatRecordedTime(state.step?.recorded_t ?? state.step?.t);
+        seek.setAttribute("aria-valuetext", `播放 ${clock} / ${duration}，动作 ${state.index + 1} / ${state.total}，原始时间 ${original}`);
+        document.getElementById("vcrtime").textContent = state.loading ? "loading…" : '播放 ' + clock;
+        document.getElementById("vcrduration").textContent = duration;
+        recorded.textContent = `动作 ${state.index + 1} / ${state.total} · 原始时间 ${original}`;
+        status.textContent = state.loading ? '正在读取动作画面…' : `每步 ${(0.6 / state.speed).toFixed(2)} 秒 · 已跳过动作间空闲`;
+        pause.textContent = state.playing ? "pause" : "resume";
+        speed.value = String(state.speed);
+        playBtn.textContent = "replay";
+      },
+      error:failed,
+    };
+    player = new ActionReplayPlayer(source, callbacks);
+    pause.onclick = () => player.wantPlaying ? player.pause() : player.play();
+    seek.oninput = () => player.seek(Number(seek.value));
+    speed.onchange = e => player.setSpeed(Number(e.target.value));
+    await player.start();
+  } catch (error) {
+    source?.close();
+    failed(error);
+  }
+}
+playBtn.onclick = () => openPlayback();
+
+// ---- recording files ------------------------------------------------------
+const recordingFiles = document.getElementById("recordingfiles");
+const recordingLinks = document.getElementById("recordinglinks");
+let recordingsRequest = 0;
+recordingFiles.addEventListener("toggle", async () => {
+  const request = ++recordingsRequest;
+  if (!recordingFiles.open) return;
+  recordingLinks.textContent = "正在读取录像文件…";
+  try {
+    const response = await fetch("api/recordings", {cache:"no-store"});
+    if (response.status === 404) throw new Error("当前服务器暂不支持录像列表。");
+    if (!response.ok) throw new Error("暂时无法读取录像文件，请稍后重试。");
+    const body = await response.json();
+    if (!recordingFiles.open || request !== recordingsRequest) return;
+    if (!Array.isArray(body.files)) throw new Error("录像列表格式无法识别。");
+    recordingLinks.replaceChildren();
+    for (const file of body.files) {
+      const row = document.createElement("div");
+      row.className = "recording-file";
+      const name = document.createElement("span");
+      name.className = "recording-file-name";
+      name.textContent = (file.id === "current" ? "当前录像" : file.name.replace(/\.jsonl$/, ""))
+        + " · " + (file.bytes / 1048576).toFixed(1) + " MB";
+      const download = document.createElement("a");
+      download.href = "api/recordings/" + encodeURIComponent(file.id);
+      download.download = file.name;
+      download.textContent = "下载原文";
+      const replay = document.createElement("button");
+      replay.type = "button";
+      replay.textContent = "回放";
+      replay.onclick = () => { recordingFiles.open = false; openPlayback(file.id); };
+      row.append(name, download, replay);
+      recordingLinks.appendChild(row);
+    }
+    if (!body.files.length) recordingLinks.textContent = "还没有录像文件。";
+  } catch (error) {
+    if (recordingFiles.open && request === recordingsRequest) recordingLinks.textContent = error.message;
+  }
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest("#recordingfiles")) recordingFiles.open = false;
+});
+addEventListener("keydown", event => {
+  if (recordingFiles.open && event.key === "Escape") {
+    recordingFiles.open = false;
+    recordingFiles.querySelector("summary").focus();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+// ---- live connection ------------------------------------------------------
 
 function connect() {
   const socketUrl = new URL("ws", location.href);
@@ -1202,3 +1170,5 @@ document.getElementById("open").onclick = () => window.open("api/help?lang=" + l
 fit();
 connect();
 </script>
+
+<script src="video-export.js"></script>
