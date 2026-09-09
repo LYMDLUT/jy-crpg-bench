@@ -59,9 +59,9 @@ for itself what is worth doing, and hold one plan across hours of dependent
 decisions. We present \bench{}, a benchmark that places a vision-language
 agent inside \game{金庸群俠傳} (\emph{Heroes of Jin Yong}, Heluo Studio
 1996), an unmodified commercial open-world role-playing game under DOS
-emulation, and scores it against the ending the game defines: recovering the
-fourteen books of the Jin Yong canon, which takes a first-time human player
-tens of hours. The environment lies far outside the training distribution of
+emulation, and scores it against the ending the game defines, which requires
+recovering the fourteen books of the Jin Yong canon and takes a first-time
+human player tens of hours. The environment lies far outside the training distribution of
 current vision encoders, with a $320\times200$ framebuffer, a $45^\circ$
 isometric projection in which no key moves straight up the screen, Traditional
 Chinese rendered as 16-pixel bitmap glyphs, and objectives stated only inside
@@ -80,8 +80,8 @@ public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
 \label{sec:intro}
 
 Frontier models prove competition mathematics and write working compilers,
-yet remain unreliable on tasks that unfold over hours. Long-horizon
-evaluation takes two forms. Episodic benchmarks set a goal and score its
+yet the tasks they complete reliably are still measured in hours of human
+work \citep{kwa2025horizon}. Long-horizon evaluation takes two forms. Episodic benchmarks set a goal and score its
 completion; continuing benchmarks give the agent an environment
 with no terminal state and score what accumulates
 \citep{backlund2025vending,fan2026ecommerce}. Open-world games belong to the
@@ -131,8 +131,11 @@ models accuracy \citep{niu2025resolution}, degraded input costs them more
 \citep{usama2025corruptions}, out-of-distribution images degrade recognition
 even of familiar categories \citep{lin2026oodbench}, and text rendered as
 pixels is understood less well than the same text supplied as tokens
-\citep{liu2026vistabench}; a $320\times200$ frame of 1996 bitmap art carrying
-16-pixel Traditional Chinese glyphs sits at the hard end of all four. Control
+\citep{liu2026vistabench}, and precise spatial reading fails once primitives
+are small or adjacent \citep{rahmanzadehgervi2024blind,wang2024spatialeval};
+a $320\times200$
+frame of 1996 bitmap art carrying 16-pixel Traditional Chinese glyphs sits at
+the hard end of all five. Control
 is projected. The world is drawn in a $45^\circ$ isometric projection, so the
 four movement keys run along screen diagonals, and an agent that reasons in
 screen coordinates walks in circles. Progress is self-directed. The game
@@ -228,20 +231,24 @@ task with a state-verifiable metric \citep{ouyang2026gameworld}. MineExplorer
 evaluates open-world exploration in Minecraft and finds that models handle
 single-hop tasks but degrade once hidden prerequisites must be coordinated
 over a longer trajectory \citep{ju2026mineexplorer}, which is the structure
-of the opening sequence in our environment as well. Public live experiments
-have had frontier models play Pok\'emon from raw frames over weeks
-\citep{joelz2025gemini}. Crafter established the single-environment,
-achievement-based design we follow \citep{hafner2021benchmarking}, and
-NetHack remains the depth extreme for learned agents
-\citep{kuttler2020nethack}.
+of the opening sequence in our environment as well. The closest precedents
+to our setting are the public Pok\'emon runs. Claude
+3.7 Sonnet reached three gym badges from screen pixels behind a memory
+scaffold, where an earlier model had not left the first house
+\citep{anthropic2025pokemon}; Gemini 2.5 Pro finished Pok\'emon Blue in 813
+hours behind a harness that translated the RAM of the game into text, and an
+ablation without vision performed about as well \citep{comanici2025gemini};
+the PokeAgent Challenge turned the setting into a speedrunning track scored
+by completion time over milestones \citep{karten2026pokeagent}. Crafter
+established the single-environment, achievement-based design we follow
+\citep{hafner2021benchmarking}, and NetHack remains the depth extreme for
+learned agents \citep{kuttler2020nethack}.
 
-\bench{} differs from these along four axes. It runs one persistent open
-world where the comparable benchmarks run suites of level-structured games;
-it treats Traditional Chinese text as a core obstacle where they treat text
-as absent or incidental; it verifies progress from emulator memory and from
-the save file of the game where they verify from screen similarity; and it
-scores against the completion condition the game defines, which gives the
-ladder a terminal rung and the leaderboard a second scale in completion time.
+\bench{} differs from these in running one persistent open world with
+Traditional Chinese as its only text, in verifying progress from emulator
+memory and from the save file of the game, and in scoring against the
+completion condition the game defines, which gives the leaderboard a second
+scale in completion time.
 
 \subsection{Long-Horizon Evaluation and Its Measurement}
 
@@ -255,20 +262,32 @@ shares our self-directed, long-horizon framing while removing vision
 text renderings \citep{li2025textatari}, ARC-AGI-3 isolates fluid agency by
 excluding language and culture \citep{arc2026arcagi3}, and AutumnBench probes
 world-model quality through environment-level queries
-\citep{warrier2025benchmarking}.
+\citep{warrier2025benchmarking}. UltraHorizon makes exploration under hidden
+rules the task itself \citep{luo2025ultrahorizon}, and \citet{kapoor2026openworld}
+observe that benchmark design has favoured tasks that are precisely
+specified, automatically graded and short, and call for open-world
+evaluation. Navigation from rendered images is a documented weakness: on
+mazes, one-shot navigation collapses for every model by ten cells a side
+\citep{jiang2026lostaggregation}, and the failures are attributed to looping
+\citep{einarsson2025mazeeval}, which is the behaviour our oscillation metric
+counts.
 
 Measurement is where long horizons strain evaluation. The ABC checklist
 catalogues task-validity and outcome-validity failures across agentic
-benchmarks \citep{zhu2025establishing}, and a survey of the horizon gap finds
-that the field answers uninformative outcome signals by building denser
-step-level ones \citep{chen2026horizongap}. Our milestone ladder and the
-behavioural profile beneath it are an instance of that answer, with the
+benchmarks \citep{zhu2025establishing}, an audit of agent traces finds
+reward hacking in a majority of them on two suites \citep{shao2026validity},
+and a survey of the horizon gap finds that the field answers uninformative
+outcome signals by building denser step-level ones
+\citep{chen2026horizongap}. State-based verification has precedent outside
+games, where $\tau$-bench compares the final database state with an
+annotated goal \citep{yao2024taubench}. Our milestone ladder and the
+behavioural profile beneath it are an instance of the same answer, with the
 ladder read from machine state so that dense signals cannot be mistaken for
 progress. For behavioural quantities we follow GVGAI-LLM in distinguishing
 effective from redundant actions \citep{li2025gvgai}, and we report binomial
-proportions with their intervals, in the spirit of comparative platforms
-that account for ranking uncertainty
-\citep{chiang2024chatbot,wilson1927probable}.
+proportions with their intervals
+\citep{wilson1927probable,miller2024errorbars}, in the spirit of comparative
+platforms that account for ranking uncertainty \citep{chiang2024chatbot}.
 
 \section{\bench{}}
 \label{sec:bench}
@@ -280,8 +299,8 @@ that account for ranking uncertainty
 compound, and the fiction supplies the only standing instruction: enter the
 world of the Jin Yong novels, join its factions, learn its martial arts, and
 recover the fourteen books that end the game. The world is two-tier, with
-many local scenes such as buildings, sects and caves attached to one large
-outdoor map. For each of \Mrecords{} named characters the game maintains a
+many local scenes such as buildings, sects and caves attached to one outdoor
+map of $480\times480$ tiles \citep{scarsty2026kyscpp}. For each of \Mrecords{} named characters the game maintains a
 record carrying level, experience, health, stamina, learned skills, carried
 items, reputation and aptitude. Progression is nonlinear and gated. Most
 buildings stay shut until specific items are held, and the opening sets the
@@ -309,8 +328,9 @@ objective, prompt and statistic reaches the agent as Traditional Chinese
 rendered at sixteen pixels a line, and the character sheet it would have to
 read is the same record the benchmark reads from memory. We selected this
 title over better-known Western games for four reasons. Its text is
-Traditional Chinese throughout, so cross-lingual grounding is a first-class
-obstacle. It is menu-driven, so an agent that deliberates between actions is
+Traditional Chinese throughout, a script that multimodal evaluation has
+largely passed over \citep{tam2025vistw}, so cross-lingual grounding is a
+first-class obstacle. It is menu-driven, so an agent that deliberates between actions is
 not structurally disadvantaged as it would be in a real-time title
 \citep[cf.][]{zhang2025videogamebench}. Its progression state is rich enough
 to measure at the level of individual character statistics. And its
@@ -385,9 +405,10 @@ game writes, on a path no control call reaches.}
 Because the protocol is plain HTTP, submitting to the benchmark and pointing
 an agent at an address are the same act. We fix nothing about memory,
 prompting or reasoning strategy, and report the model and harness that
-played. Harness choice is known to move game results \citep{hu2026lmgame},
-and separating model capability from harness capability is an open problem
-\citep{chen2026horizongap}, so we treat a submission as a system and keep the
+played. Harness choice is known to move game results
+\citep{hu2026lmgame,karten2026harness}, and on long-horizon tasks the
+variance a harness induces can exceed the variance between models
+\citep{zhang2026harness}, so we treat a submission as a system and keep the
 full recording so that its behaviour is auditable.
 
 \subsection{State-Verifiable Progress}
@@ -429,9 +450,10 @@ carries no weights, and a rung whose instrumentation post-dates a run is
 reported as unmeasured, since an unmeasured zero and a true zero are
 different claims.
 
-The ladder ends where the game does. Recovering all fourteen books is the
-condition the fiction sets and the state the archive records, so the last
-rung is finishing itself. Sessions run to twenty-four hours on the same
+The ladder points at the ending of the game. The fourteen books are what the
+game requires before its final sequence can be played, and the archive
+records every book held, so the count of books carries the ladder from its
+last rung to the ending itself. Sessions run to twenty-four hours on the same
 protocol, and a session that reaches the ending carries a completion time,
 which orders a field in which every entrant passes. One instrument therefore
 covers both regimes, and the benchmark keeps measuring after the first model
@@ -440,8 +462,10 @@ finishes.
 \subsection{Behavioural Metrics}
 \label{sec:metrics}
 
-Beneath the ladder we record what the agent did, computed from the traffic of
-the run itself so that the quantities hold for any harness. The
+Long-horizon failures arise in execution more than in reasoning
+\citep{sinha2025illusion}, so beneath the ladder we record what the agent
+did, computed from the traffic of the run itself so that the quantities hold
+for any harness. The
 \emph{meaningful-step ratio} is the share of actions that changed the screen
 at all, and \emph{oscillation} is the share that reverse the previous one,
 following the effective-versus-redundant distinction of GVGAI-LLM
@@ -457,8 +481,9 @@ as the protocol allows, so the two are read together.
 
 A seeded random policy anchors these quantities. It draws from the key
 vocabulary the brief teaches, at a cadence within the range agents achieve,
-and never reads the screen, following the use of random play as the floor a
-model has to clear \citep{hafner2021benchmarking,arc2026arcagi3}. It fixes
+and never reads the screen, following the convention that anchors a score
+on random and human play
+\citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. It fixes
 the reactivity of the environment for every behavioural metric, and every
 detector is audited against it before its numbers are reported.
 
@@ -476,8 +501,9 @@ replay timeline and metric record reachable from the leaderboard.
 
 \tbd{The present field is one to three runs per configuration. A sweep of
 repeated runs per configuration under one fixed harness, and a human
-reference run under the same budget and interface, are the two additions
-this table most needs.}
+reference run under the same budget and interface reported to the
+human-baseline checklist \citep{wei2025humanbaselines}, are the two
+additions this table most needs.}
 
 \subsection{Progression}
 
@@ -510,7 +536,7 @@ the ladder by vendor family.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\linewidth]{figures/ladder.pdf}
+\includegraphics[width=0.74\linewidth]{figures/ladder.pdf}
 \caption{The milestone ladder over all published runs, by vendor family.
 Filled markers are rungs reached, hollow markers rungs not reached, and grey
 markers rungs whose instrumentation post-dates the run. Fractions give the
@@ -539,7 +565,8 @@ every \QrandomGap{}\,s, and still changes the screen \Qrandom{} of the time,
 which measures the reactivity of the environment and sets the floor any
 model should clear.
 
-One configuration falls below that floor. \texttt{\QworstLabel} reads the
+One configuration falls below that floor, as GameBench also reports for one
+model \citep{costarelli2024gamebench}. \texttt{\QworstLabel} reads the
 screen before \QworstReads\% of its \QworstN{} actions, acts quickly, and
 reaches a meaningful ratio of \Qworst{}, \QunderTimes{} times below random.
 Its replay shows minutes-long repetition of keys the game ignores in the mode
@@ -553,7 +580,7 @@ document \citep{paglieri2025balrog,zhang2025videogamebench}.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.9\linewidth]{figures/horizon.pdf}
+\includegraphics[width=0.84\linewidth]{figures/horizon.pdf}
 \caption{One row per scored session. Grey is time inside the opening scene
 and blue is time on the world map, with the action count at which the
 transition happened; hatched rows latched the map signature without a
@@ -740,5 +767,8 @@ The ending requires the \BookCount{} books, which the game stores as item
 records \BookFirst{} to \BookLast{} of its item table, named after the
 novels: \booklist. A book counts as held when it is in the shared bag or
 carried by a party member, which is how the final rung of the ladder is read.
+With all fourteen in hand and sufficient reputation, the game opens its final
+sequence at a shrine on the far side of the map, where the books are placed
+and a last battle decides the ending \citep{bahamut2023walkthrough}.
 
 \end{document}
