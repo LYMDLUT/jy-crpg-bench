@@ -130,3 +130,18 @@ class WithholdingTests(unittest.TestCase):
         for field in ("books", "items_total", "team_size", "team_level",
                       "team", "saved_at", "saved_why"):
             self.assertIn(field, game_server.SCORED_FIELDS)
+
+
+class DisabledTests(unittest.TestCase):
+    def test_zero_switches_the_macro_off(self):
+        # The worker that authors the start state is driven through the
+        # opening by a script. A save macro's escape in the middle of that
+        # derails the replay, so the broker sets the interval to zero and the
+        # task must return rather than loop.
+        import asyncio
+        was = game_server.SNAPSHOT_EVERY
+        game_server.SNAPSHOT_EVERY = 0
+        try:
+            asyncio.run(asyncio.wait_for(game_server.snapshotter(), timeout=1))
+        finally:
+            game_server.SNAPSHOT_EVERY = was

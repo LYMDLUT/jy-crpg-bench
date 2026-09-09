@@ -1255,6 +1255,10 @@ async def author_start_state(state, attempt):
     env.update(PORT=str(port), QUNXIA_RESET_TOKEN=token,
                QUNXIA_START_STATE=str(state))
     env.pop("QUNXIA_BENCH", None)              # the authoring run is not a run
+    # ...and being not a run, it must not be interrupted: the opening is
+    # replayed by a script here, and a save macro's escape landing in the
+    # middle of it derails the replay and leaves the pool with no origin.
+    env["QUNXIA_SNAPSHOT_EVERY"] = "0"
     proc = subprocess.Popen([PYTHON, str(SERVER)], env=env, cwd=str(REPO / "server"),
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

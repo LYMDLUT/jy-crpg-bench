@@ -292,6 +292,10 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
 GAME_DIR = pathlib.Path(GAME).parent
 SNAPSHOT_SLOT = min(3, max(1, int(os.environ.get("QUNXIA_SNAPSHOT_SLOT", "3"))))
 # How often to try, in seconds. A try that finds a scene costs two taps.
+# Zero switches it off, which is what the broker does for the worker that
+# authors the start state: that one is being driven through the opening by a
+# script, not played, and a key of ours in the middle of it would derail the
+# replay and leave the benchmark without an origin.
 SNAPSHOT_EVERY = float(os.environ.get("QUNXIA_SNAPSHOT_EVERY", "120"))
 # Idle before trying, so the macro never lands between an agent's own keys.
 SNAPSHOT_IDLE = 2.0
@@ -458,6 +462,8 @@ async def snapshotter():
     back exactly as it was; one that finds the world map costs a few seconds
     and leaves a save behind.
     """
+    if SNAPSHOT_EVERY <= 0:
+        return
     while True:
         await asyncio.sleep(5)
         if paused.is_set():
