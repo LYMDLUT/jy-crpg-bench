@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createRequire} from 'node:module';
-const {ReplayPlayer} = createRequire(import.meta.url)('../server/replay.js');
+const {ReplayPlayer, ReplayKeys} = createRequire(import.meta.url)('../server/replay.js');
 
 function fixture(decode = async event => event.d) {
   let now = 0, current, i = 0;
@@ -86,6 +86,75 @@ test('closing during decode releases the source and prevents a late frame', asyn
   await started; f.player.close(); release(); await pending;
   assert.equal(f.source.closed,true);
   assert.deepEqual(f.colors,['red']);
+});
+
+test('a seek during the first decode cannot discard the recording origin', async () => {
+  let release, began;
+  const started = new Promise(resolve=>{began=resolve;});
+  const delayed = new Promise(resolve=>{release=resolve;});
+  const f = fixture(async event=>{
+    if (event.d==='red') { began(); await delayed; }
+    return event.d;
+  });
+  const states = [];
+  f.player.update = state=>states.push(state);
+  const opening = f.player.start();
+  await started;
+  assert.equal(states.at(-1).ready, false);
+  assert.equal(states.at(-1).loading, true);
+  await f.player.seek(1.5);
+  release(); await opening;
+  assert.equal(f.player.origin, 5);
+  assert.equal(f.player.duration, 2);
+  assert.equal(f.player.position, 0);
+  assert.equal(f.color(), 'red');
+  assert.equal(states.at(-1).ready, true);
+  assert.equal(states.at(-1).loading, false);
+  await f.player.pause();
+  await f.player.seek(1.5);
+  assert.equal(f.color(), 'green');
+  f.player.close();
+});
+
+test('pausing during the first decode stays paused once its picture arrives', async () => {
+  let release, began;
+  const started = new Promise(resolve=>{began=resolve;});
+  const delayed = new Promise(resolve=>{release=resolve;});
+  const f = fixture(async event=>{ began(); await delayed; return event.d; });
+  const opening = f.player.start();
+  await started; await f.player.pause();
+  release(); await opening;
+  assert.equal(f.color(), 'red');
+  assert.equal(f.player.position, 0);
+  assert.equal(f.player.playing, false);
+  assert.equal(f.player.wantPlaying, false);
+  f.player.close();
+});
+
+test('seek snapshots and later key events retain actor names and styled key chips', () => {
+  const container = {
+    children: [],
+    ownerDocument: {createElement:()=>({style:{}})},
+    replaceChildren() { this.children = []; },
+    appendChild(child) { this.children.push(child); },
+  };
+  const keys = new ReplayKeys(container, {
+    glyphs:{up:'↗',enter:'⏎'}, arrows:new Set(['up']),
+    colorOf:actor=>actor==='agent-a' ? '#abcdef' : '#123456',
+  });
+  const labels = ()=>container.children.map(child=>child.textContent);
+  keys.reset({up:'agent-a', enter:'agent-b'});
+  assert.deepEqual(labels(), ['agent-a','↗','agent-b','⏎']);
+  assert.equal(container.children[0].style.color, '#abcdef');
+  assert.equal(container.children[1].className, 'k arrow');
+  assert.equal(container.children[2].style.color, '#123456');
+  assert.equal(container.children[3].className, 'k');
+  keys.apply({key:'up',down:false,who:'agent-a'});
+  assert.deepEqual(labels(), ['agent-b','⏎','agent-a']);
+  keys.apply({key:'space',down:true,who:'<operator>'});
+  assert.deepEqual(labels(), ['agent-b','⏎','<operator>','space']);
+  keys.reset({});
+  assert.deepEqual(labels(), []);
 });
 
 test('default browser timers are not invoked with the player as their receiver', async () => {

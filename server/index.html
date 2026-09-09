@@ -577,15 +577,24 @@ playBtn.onclick = async () => {
   playBtn.textContent = "loading";
   vcr.classList.add("on");
   let source, player, closed = false;
-  const cache = {}, down = new Set();
+  const cache = {};
+  const keys = new ReplayKeys(vcrKeys, {glyphs:GLYPH, arrows:ARROW, colorOf});
   const seek = document.getElementById("vcrseek"), pause = document.getElementById("vcrpause");
+  const speed = document.getElementById("vcrspeed");
+  seek.disabled = pause.disabled = speed.disabled = true;
+  seek.max = seek.value = "0";
+  seek.setAttribute("aria-valuetext", "0:00 / 0:00");
+  document.getElementById("vcrtime").textContent = "loading…";
+  document.getElementById("vcrduration").textContent = "0:00";
+  pause.textContent = "pause";
+  speed.value = "4";
   vcrStop = () => { closed = true; player?.close(); source?.close(); };
   const reset = held => {
     vctx.fillStyle = "#000"; vctx.fillRect(0, 0, vcv.width, vcv.height);
-    cache.img = null; down.clear();
-    for (const key of Object.keys(held)) down.add(key);
-    vcrKeys.textContent = [...down].map(k=>GLYPH[k] ?? k).join(" ");
+    cache.img = null;
+    keys.reset(held);
   };
+  reset({});
   try {
     source = await ReplayRecording.open();
     if (closed) { source.close(); return; }
@@ -598,25 +607,23 @@ playBtn.onclick = async () => {
       reset,
       paint: (decoded, ev) => {
         if (decoded) paintDelta(decoded, vcv, vctx, cache);
-        if (ev.key) {
-          ev.down ? down.add(ev.key) : down.delete(ev.key);
-          vcrKeys.textContent = [...down].map(k=>GLYPH[k] ?? k).join(" ");
-        }
+        keys.apply(ev);
       },
       update: state => {
         seek.max = String(state.duration); seek.value = String(state.position);
+        seek.disabled = pause.disabled = speed.disabled = !state.ready;
         seek.setAttribute("aria-valuetext", fmt(state.position) + " / " + fmt(state.duration));
         document.getElementById("vcrtime").textContent = state.loading ? "loading…" : fmt(state.position);
         document.getElementById("vcrduration").textContent = fmt(state.duration);
         pause.textContent = state.playing ? "pause" : "resume";
-        document.getElementById("vcrspeed").value = String(state.speed);
+        speed.value = String(state.speed);
         playBtn.textContent = "replay";
       },
       error: error => { playBtn.textContent = "replay unavailable"; playBtn.title = error.message; },
     });
     pause.onclick = () => player.wantPlaying ? player.pause() : player.play();
     seek.oninput = () => player.seek(Number(seek.value));
-    document.getElementById("vcrspeed").onchange = e => player.setSpeed(Number(e.target.value));
+    speed.onchange = e => player.setSpeed(Number(e.target.value));
     await player.start();
   } catch (error) {
     source?.close();
@@ -1051,25 +1058,50 @@ const MAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   Enter: "enter", Escape: "esc", " ": "space", Backspace: "backspace", Tab: "tab",
 };
+// Game keyboard routing. UI controls own their keys and never steer the game.
 const held = new Set();
+function uiOwnsKeyboard(target) {
+  if (slotOpen() || document.getElementById("vcr")?.classList.contains("on")) return true;
+  return !!(target?.isContentEditable || target?.closest?.(
+    "input,textarea,select,button:not([data-k]),a,summary,[role=tab],[role=slider]"));
+}
+function releaseGameKeys() {
+  for (const k of held) send({t:"key", k, down:false});
+  held.clear();
+}
 addEventListener("keydown", e => {
   if (e.key === "Escape" && escSwallow) { escSwallow = false; return; }
-  if (slotOpen()) return;           // reading the save is not playing
+  if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey || uiOwnsKeyboard(e.target)) {
+    releaseGameKeys();
+    return;
+  }
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
   if (!k) return;
   e.preventDefault();
-  if (held.has(k)) return;          // ignore auto-repeat, the game does its own
+  if (held.has(k)) return;
   held.add(k);
-  send({ t: "key", k, down: true });
+  send({t:"key", k, down:true});
 });
 addEventListener("keyup", e => {
-  if (slotOpen() && !held.size) return;
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
-  if (!k) return;
+  if (!held.has(k)) return;
+  // Release a game-owned key even if focus moved into a control meanwhile.
   e.preventDefault();
   held.delete(k);
-  send({ t: "key", k, down: false });
+  send({t:"key", k, down:false});
 });
+addEventListener("blur", releaseGameKeys);
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseGameKeys(); });
+document.addEventListener("focusin", e => { if (uiOwnsKeyboard(e.target)) releaseGameKeys(); });
+document.addEventListener("pointerdown", e => { if (uiOwnsKeyboard(e.target)) releaseGameKeys(); });
+if (typeof MutationObserver !== "undefined") {
+  const observer = new MutationObserver(() => { if (uiOwnsKeyboard(null)) releaseGameKeys(); });
+  for (const id of ["vcr", "slot"]) {
+    const modal = document.getElementById(id);
+    if (modal) observer.observe(modal, {attributes:true, attributeFilter:["class"]});
+  }
+}
+// End game keyboard routing.
 
 for (const b of document.querySelectorAll("button[data-k]")) {
   const k = b.dataset.k;
