@@ -52,7 +52,6 @@
   #vcrkeys { display: flex; gap: 4px; min-height: 20px; align-items: center; }
   #vcrtrack { width: 260px; height: 4px; background: #26262c; border-radius: 2px; overflow: hidden; }
   #vcrfill { display: block; height: 4px; width: 0; background: #6cb6ff; }
-  #image-jump { margin: 0 12px 8px; align-self: flex-start; font: inherit; font-size: 11px; padding: 4px 8px; }
   #logrows { overflow-y: auto; padding: 6px 0 10px; flex: 1; }
   .r { display: flex; gap: 7px; padding: 2px 12px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
   .r:hover { background: #17171c; }
@@ -247,6 +246,7 @@
   #side [hidden] { display: none !important; }
   #side h2 { flex: none; }
   #meter { color: #8b8b99; }
+  #image-jump { margin: 0 12px 8px; align-self: flex-start; font: inherit; font-size: 11px; padding: 4px 8px; }
   #activitytabs { display: flex; gap: 14px; padding: 0 12px; border-bottom: 1px solid #26262c; flex: none; }
   #activitytabs button { padding: 9px 0; font-size: 11px; border: 0; border-radius: 0; background: none; color: #7e7e8e; }
   #activitytabs button[aria-selected=true] { color: #a6d5ff; box-shadow: inset 0 -2px #7fc7ff; }
@@ -269,6 +269,7 @@
   .history-empty { padding: 15px 12px; color: #9292a0; font-size: 11px; }
 
 </style>
+<script defer src="saved-history.js" data-history-enabled="auto"></script>
 
 <div id="app">
 <div id="main">
@@ -1199,5 +1200,3 @@ document.getElementById("open").onclick = () => window.open("/api/help?lang=" + 
 fit();
 connect();
 </script>
-
-<script src="saved-history.js" data-history-enabled="auto"></script>

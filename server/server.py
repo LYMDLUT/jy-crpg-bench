@@ -2399,10 +2399,10 @@ def main():
     threading.Thread(target=emulate, daemon=True).start()
 
     app = web.Application(middlewares=[json_errors])
+    app.router.add_get("/saved-history.js", saved_history_script)
     app.add_routes([
         web.get("/", index),
         web.get("/recording.js", recording_script),
-        web.get("/saved-history.js", saved_history_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
         web.get("/progress", progress),
