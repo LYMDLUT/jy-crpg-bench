@@ -52,16 +52,32 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   without the token from `QUNXIA_RESET_TOKEN` rather than 403, so the path
   cannot be confirmed by probing. Pauses the emulation thread first, since
   `retro_reset` underneath a running `retro_run` is a race.
-- `/api/recording` the session as tile deltas plus key presses, for playback.
-  Recording restarts with the game, keeps every frame while anyone is acting,
-  and once idle keeps only the last 30 seconds so an untouched game still shows
-  its own animation without growing forever. A whole picture is forced every 30
-  seconds so a pruned recording always has somewhere to start replaying from.
-  The page plays it back at 4x from a button in the activity header, and can
-  export it as a video from another. Export composites the frames with the keys
-  that were held and encodes in the browser with MediaRecorder, so the server
-  spends nothing on it. MediaRecorder captures in real time, so an export takes
-  the length of the recording divided by four.
+- `/api/recording` streams the original recording journal; `?format=jsonl`
+  downloads its tile deltas, input events and action markers as JSONL. Readers
+  pin a committed file prefix, so later appends or reset do not change an open
+  snapshot. The source journal remains on disk.
+  With the saved-history backend, the page plays current and archived recordings
+  as saved actions, skipping idle gaps. Each action occupies 0.6 / speed seconds;
+  pause/resume and both seek directions retain the selected picture. Original
+  JSONL timestamps (`recorded_t`) are shown separately to the millisecond and do
+  not wrap after 24 hours. There is no continuous-recording fallback; an
+  unavailable action source can be retried.
+- `/api/video` submits a background action-video job to the saved-history backend.
+  It uses ffmpeg on the server, with progress, cancellation and a completed MP4
+  download. Encoding does not wait through original recording timestamps and
+  does not disable playback. Temporary status-query failures retain the job and
+  retry it. An `X-Video-Request-Id` header or JSON `requestId` makes submission
+  idempotent while its in-process job record is retained: retries return the
+  same queued/active job, or replay cancelled/error terminal state with HTTP
+  200. Reusing a token with a different recording or speed is HTTP 409. If a
+  ready MP4 has been evicted while its job record remains, the token returns
+  HTTP 410 so the caller can submit a new token instead of silently creating a
+  second export. Request-token mappings are not persisted: the same-job-ID
+  guarantee ends when the job record is reaped or the service restarts. The
+  completed MP4 cache remains persistent. ffmpeg must be installed on the
+  server. Cached results are bounded by a 2 GiB / 30-day policy, retaining the
+  latest result and active downloads. The source recording and benchmark
+  counters are unaffected by export.
 - `/api/history?limit=100` the bounded action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the
@@ -70,8 +86,8 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   (about 2 KB). Attaching one to every keypress buried the log. Only the
   newest 40 entries keep their image.
 
-The live canvas uses the small `zlib` tile encoder. Pillow is used only for
-on-demand PNG/WebP observations and activity thumbnails.
+The live canvas uses the small `zlib` tile encoder. Pillow is used for on-demand PNG/WebP observations, activity thumbnails,
+history reconstruction and background video captions.
 
 ## Several agents on one session
 
@@ -235,3 +251,49 @@ In benchmark mode, the file-list and download routes are absent and archive
 selection is rejected. The existing current-recording endpoint and benchmark
 accounting remain unchanged. These file selectors do not change the source of
 the right-hand screenshot history.
+
+### Disk-backed screenshot history and realtime activity
+
+The page separates two views: **historical screenshots** page through the full
+recording, eight images at a time, while **realtime activity** keeps a small
+reconnect cache. The 300-entry/40-thumbnail cache does not limit historical
+browsing. The history pane can jump to the oldest or latest page and move in
+both directions. Only one page of image blobs is held by the browser.
+
+`/api/replay` pins the recording's committed file prefix and builds a disposable
+SQLite index in the background. An initial `202` reports indexing progress;
+clients poll the returned token until ready, then read bounded `/steps` pages
+and individual `/frame` PNGs. Later opens incrementally index appended data.
+Tokens expire and release their file handles. Normal game startup does not
+scan the recording. The endpoints are absent in benchmark mode.
+The benchmark observer page uses the realtime log directly. Reset or a server
+session change invalidates an open history page before loading the new snapshot.
+Version 2 of the disposable index preserves unknown action results instead of
+treating them as failures. The first history open after this upgrade rebuilds
+that index once; the source JSONL and the previous version 1 index are retained.
+
+Legacy agent GET/KEY records and older key-only recordings remain readable.
+Numbered action markers from newer recordings are supported too. A historical
+image is reconstructed from recorded frames, not claimed to be the exact API
+response: GET uses the preceding frame, while old key steps wait up to one
+second or until the next action. Failed actions show their failure and reason,
+and use the frame before their marker. Corrupt frame windows report an error instead
+of manufacturing an image. Source JSONL files are never rewritten by readers.
+
+For long-lived play, enable `QUNXIA_PERSIST_HISTORY=1`. New interactive actions
+and GET markers are then appended to the full recording, including screen
+reads that later leave the realtime cache. Session counters still start fresh
+on restart. An explicit game reset clears the cache and rotates the recording
+through the existing recording lifecycle. Formal benchmark accounting is
+unchanged.
+
+The optional `QUNXIA_SAVES/activity.json` snapshot retains the latest 300 entries
+and 40 small WebP thumbnails (64 KiB each) for fast reconnects. Atomic writes
+preserve the prior file on failure; invalid snapshots are left intact and
+snapshot persistence is disabled for that process. The independent full-disk
+history reader remains available.
+
+The optional `server/import_activity.py` command can seed that **realtime
+cache** while the server is stopped. This import is optional and not needed to browse complete disk history.
+It preserves the recording and labels reconstructed previews with their source
+and frame time; existing original thumbnails take priority.

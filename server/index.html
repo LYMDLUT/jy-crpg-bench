@@ -242,7 +242,34 @@
   #books div.got { color: #74d99f; border-color: #2e5c42; background: #17241d; }
   #copied { color: #64b47a; font-size: 11px; opacity: 0; transition: opacity .2s; }
   #copied.on { opacity: 1; }
+  #side { position: relative; }
+  #side [hidden] { display: none !important; }
+  #side h2 { flex: none; }
+  #meter { color: #8b8b99; }
+  #image-jump { margin: 0 12px 8px; align-self: flex-start; font: inherit; font-size: 11px; padding: 4px 8px; }
+  #activitytabs { display: flex; gap: 14px; padding: 0 12px; border-bottom: 1px solid #26262c; flex: none; }
+  #activitytabs button { padding: 9px 0; font-size: 11px; border: 0; border-radius: 0; background: none; color: #7e7e8e; }
+  #activitytabs button[aria-selected=true] { color: #a6d5ff; box-shadow: inset 0 -2px #7fc7ff; }
+  #historyinfo { margin-left: 5px; font-size: 10px; color: #818190; }
+  #historypane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #historyrows { overflow-y: auto; flex: 1; min-height: 0; padding: 3px 0; }
+  #historynav { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-top: 1px solid #26262c; flex: none; }
+  #historynav button { padding: 4px 7px; font-size: 10px; }
+  #historyrange { color: #818190; font-size: 10px; }
+  .saved-row { padding: 8px 12px 10px; border-bottom: 1px solid #202028; }
+  .saved-meta { display: flex; justify-content: space-between; gap: 5px; font-size: 10px; color: #707080; margin-bottom: 4px; }
+  .saved-who { color: #8ecdf7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+  .saved-action { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; font-size: 11px; min-height: 22px; margin-bottom: 5px; }
+  .saved-action .verb { color: #9ba3b5; margin-right: 5px; }
+  .saved-result { color: #ff9b94; font-size: 11px; margin-bottom: 6px; }
+  .saved-detail { color: #9292a0; font-size: 11px; margin-bottom: 6px; }
+  .saved-action .k { font-size: 13px; min-width: 25px; padding: 1px 5px; border-radius: 3px; }
+  .saved-shot { display: block; }
+  .saved-shot img { width: 220px; max-width: 100%; display: block; border: 1px solid #2a2a32; border-radius: 3px; image-rendering: pixelated; }
+  .history-empty { padding: 15px 12px; color: #9292a0; font-size: 11px; }
+
 </style>
+<script defer src="saved-history.js" data-history-enabled="auto"></script>
 
 <div id="app">
 <div id="main">
@@ -333,12 +360,21 @@
   </h2>
   <div id="meter">
     <span>played <b id="m-time">0:00</b></span>
-    <span>actions <b id="m-acts">0</b></span>
+    <span title="Actions since this server session started">session actions <b id="m-acts">0</b></span>
     <span>agent <b id="m-api">0</b></span>
     <span>web <b id="m-web">0</b></span>
   </div>
   <div id="bars"></div>
-  <div id="logrows"><div id="empty">nothing yet. keys you press here, and calls
+  <div id="activitytabs" role="tablist" aria-label="活动记录">
+    <button id="historytab" role="tab" aria-selected="true" aria-controls="historypane">历史截图<span id="historyinfo"></span></button>
+    <button id="livetab" role="tab" aria-selected="false" aria-controls="logrows">实时活动</button>
+  </div>
+  <div id="historypane" role="tabpanel" aria-labelledby="historytab">
+    <div id="historyrows"><div class="history-empty">正在读取截图…</div></div>
+    <div id="historynav"><button id="historyfirst" title="最早的截图" disabled>«</button><button id="historyprev" disabled>← 更早</button><span id="historyrange"></span><button id="historynext" disabled>更晚 →</button><button id="historylatest" title="最新 / 刷新" disabled>↻</button></div>
+  </div>
+  <button id="image-jump" hidden>Show latest image</button>
+  <div id="logrows" role="tabpanel" aria-labelledby="livetab" hidden><div id="empty">nothing yet. keys you press here, and calls
     to /api/*, both show up.</div></div>
 </aside>
 </div>
@@ -674,6 +710,16 @@ function connect() {
 const rows = document.getElementById("logrows");
 const empty = document.getElementById("empty");
 const logcount = document.getElementById("logcount");
+const imageJump = document.getElementById("image-jump");
+imageJump.onclick = () => {
+  const shots = rows.querySelectorAll(".shot");
+  shots[shots.length - 1]?.scrollIntoView({block: "center"});
+};
+function updateImageJump() {
+  const count = rows.querySelectorAll(".shot").length;
+  imageJump.hidden = !count || document.getElementById("historypane")?.hidden === false;
+  imageJump.textContent = `Show latest image (${count})`;
+}
 let logged = 0, lastId = 0;
 
 const GLYPH = { up: "↗", down: "↙", left: "↖", right: "↘", enter: "⏎",
@@ -989,12 +1035,14 @@ setInterval(() => {
 }, 1000);
 
 function clearLog() {
+  dispatchEvent(new Event("historyinvalidate"));
   rows.textContent = "";
   awaitingHold = [];
   downAt.clear();
   lastId = 0;                 // ids restart after a reset, so the dedupe must too
   logged = 0;
   logcount.textContent = "";
+  updateImageJump();
 }
 
 function addLog(e) {
@@ -1010,6 +1058,7 @@ function addLog(e) {
     `<span class="ts"></span><span class="src"></span>` +
     `<span class="vbwrap"><span class="vb"></span></span><span class="tg"></span>`;
   row.children[0].textContent = ts;
+  row.children[0].title = d.toLocaleString();
   row.children[1].textContent = e.src;
   row.children[1].style.color = e.src === "web" ? "#7c7c8a" : colorOf(e.src);
   row.children[1].title = e.src;
@@ -1033,14 +1082,16 @@ function addLog(e) {
   }
   else if (e.verb === "TEXT") tgt.textContent = JSON.stringify(e.target);
   else tgt.textContent = e.target + (e.detail ? " " + e.detail : "");
-  if (!e.ok) row.style.color = "#ff6b6b";
+  if (e.ok === false) row.style.color = "#ff6b6b";
   rows.appendChild(row);
   if (e.thumb) {
     const box = document.createElement("div");
     box.className = "shot";
     const img = new Image();
     img.src = e.thumb;
-    img.title = "what the API returned";
+    img.title = e.thumb_source === "recording"
+      ? "Nearest recorded frame before this action" + (e.thumb_at ? " · " + new Date(e.thumb_at * 1000).toLocaleString() : "")
+      : "what the API returned";
     img.onclick = () => window.open(e.thumb, "_blank");
     img.onload = () => { rows.scrollTop = rows.scrollHeight; };
     box.append(img);
@@ -1049,6 +1100,7 @@ function addLog(e) {
   while (rows.children.length > 400) rows.firstChild.remove();
   rows.scrollTop = rows.scrollHeight;
   logcount.textContent = ++logged;
+  updateImageJump();
 }
 
 const send = o => {
@@ -1061,25 +1113,50 @@ const MAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   Enter: "enter", Escape: "esc", " ": "space", Backspace: "backspace", Tab: "tab",
 };
+// Game keyboard routing. UI controls own their keys and never steer the game.
 const held = new Set();
+function uiOwnsKeyboard(target) {
+  if (slotOpen() || document.getElementById("vcr")?.classList.contains("on")) return true;
+  return !!(target?.isContentEditable || target?.closest?.(
+    "input,textarea,select,button:not([data-k]),a,summary,[role=tab],[role=slider]"));
+}
+function releaseGameKeys() {
+  for (const k of held) send({t:"key", k, down:false});
+  held.clear();
+}
 addEventListener("keydown", e => {
   if (e.key === "Escape" && escSwallow) { escSwallow = false; return; }
-  if (slotOpen()) return;           // reading the save is not playing
+  if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey || uiOwnsKeyboard(e.target)) {
+    releaseGameKeys();
+    return;
+  }
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
   if (!k) return;
   e.preventDefault();
-  if (held.has(k)) return;          // ignore auto-repeat, the game does its own
+  if (held.has(k)) return;
   held.add(k);
-  send({ t: "key", k, down: true });
+  send({t:"key", k, down:true});
 });
 addEventListener("keyup", e => {
-  if (slotOpen() && !held.size) return;
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
-  if (!k) return;
+  if (!held.has(k)) return;
+  // Release a game-owned key even if focus moved into a control meanwhile.
   e.preventDefault();
   held.delete(k);
-  send({ t: "key", k, down: false });
+  send({t:"key", k, down:false});
 });
+addEventListener("blur", releaseGameKeys);
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseGameKeys(); });
+document.addEventListener("focusin", e => { if (uiOwnsKeyboard(e.target)) releaseGameKeys(); });
+document.addEventListener("pointerdown", e => { if (uiOwnsKeyboard(e.target)) releaseGameKeys(); });
+if (typeof MutationObserver !== "undefined") {
+  const observer = new MutationObserver(() => { if (uiOwnsKeyboard(null)) releaseGameKeys(); });
+  for (const id of ["vcr", "slot"]) {
+    const modal = document.getElementById(id);
+    if (modal) observer.observe(modal, {attributes:true, attributeFilter:["class"]});
+  }
+}
+// End game keyboard routing.
 
 for (const b of document.querySelectorAll("button[data-k]")) {
   const k = b.dataset.k;

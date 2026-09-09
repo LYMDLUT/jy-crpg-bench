@@ -31,6 +31,9 @@ from PIL import Image
 import warden
 from state_reader import decode_inventory, inventory_gained
 import save_state
+from activity import ActivityStore
+from saved_history import SavedHistory
+from video_export import VideoExports
 
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
@@ -211,6 +214,33 @@ checkpoint = {"enabled": bool(RESUME_STATE), "state": "warming" if RESUME_STATE 
 # what. The game is shared, so this doubles as "why did the screen just move".
 history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
+activity_store = None
+
+
+def restore_activity():
+    global activity_store
+    # Persistent UI history is explicitly opt-in and never enters formal runs.
+    if warden.ON or os.environ.get("QUNXIA_PERSIST_HISTORY", "0") != "1":
+        return
+    store = ActivityStore(pathlib.Path(SAVES) / "activity.json")
+    try:
+        entries = store.load()
+    except (OSError, ValueError) as exc:
+        # Preserve malformed/unreadable snapshots for inspection, not overwrite.
+        print(f"activity history disabled: {exc}", flush=True)
+        return
+    history.extend(entries)
+    _seq[0] = entries[-1]["id"] if entries else 0
+    activity_store = store
+
+
+def persist_activity():
+    if activity_store is not None:
+        try:
+            activity_store.save(history)
+        except (OSError, ValueError) as exc:
+            print(f"activity history write failed: {exc}", flush=True)
+
 # Counted per game, so a reset starts a fresh session rather than continuing one.
 session = {"started": time.time(), "actions": 0, "key_events": 0,
            "input_frames": 0, "wait_calls": 0, "by_api": 0, "by_web": 0}
@@ -705,6 +735,32 @@ def make_thumb():
     return "data:image/webp;base64," + base64.b64encode(out.getvalue()).decode()
 
 
+def disk_history_enabled():
+    return (not warden.ON and recording_store is not None
+            and os.environ.get("QUNXIA_PERSIST_HISTORY", "0") == "1")
+
+
+def record_activity(entry):
+    # The JSONL retains every marker; the deque and activity.json are only a
+    # small reconnect cache. GETs must survive after their cache entries age out.
+    if not disk_history_enabled() or entry["verb"] not in ("GET", "KEY", "KEYS", "WAIT", "TEXT"):
+        return
+    event = {"t": round(entry["at"] - rec["started"], 3),
+             "act": entry["verb"], "who": entry["src"], "on": entry["target"],
+             "detail": entry["detail"], "ok": entry["ok"], "history": 1}
+    if entry.get("thumb"):
+        event["thumb"] = entry["thumb"]
+    try:
+        ok = recording_store.append(event)
+    except (OSError, BufferError) as exc:
+        recording_store.error = str(exc)
+        ok = False
+    if not ok:
+        block_recording()
+        raise RecordingUnavailable(recording_store.error)
+    rec["bytes"] = recording_store.committed_size
+
+
 def log_action(src, verb, target, detail="", ok=True, thumb=False,
                key_events=None, input_frames=0, wait_call=False):
     _seq[0] += 1
@@ -730,7 +786,9 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False,
         session["wait_calls"] += int(wait_call or verb == "WAIT")
         session["by_web" if src == "web" else "by_api"] += 1
         agents[src] += 1
+    record_activity(entry)
     history.append(entry)
+    persist_activity()
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -1062,7 +1120,7 @@ async def ws_handler(request):
     except BaseException:
         peers[ws].drop()
         raise
-    peers[ws].put(json.dumps({"t": "log", "e": list(history)[-80:],
+    peers[ws].put(json.dumps({"t": "log", "e": list(history),
                                   "s": session_summary(), "c": list(curve)}), text=True)
     # code -> (name, core tick at keydown). Browser automation can emit keydown
     # and keyup within one emulated frame, so remember when each press reached
@@ -1453,7 +1511,8 @@ async def run_action(request, steps, note, verb="KEY"):
         log_action(rec["actor"], verb, note, detail=held_note(steps),
                    key_events=len(key_steps), input_frames=input_frames,
                    wait_call=not key_steps)
-        rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
+        if not disk_history_enabled():
+            rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         if warden.ON:
             # Only key steps carry a name at index 2; "wait" and "frames" are
             # pairs. Filtering by kind broke the moment a new pause kind was
@@ -2073,6 +2132,7 @@ async def api_reset(request):
         finally:
             resume_emulator()
         history.clear()
+        persist_activity()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, key_events=0,
                        input_frames=0, wait_calls=0, by_api=0, by_web=0)
@@ -2217,12 +2277,22 @@ async def api_help(request):
                         content_type="text/plain", charset="utf-8")
 
 
+async def saved_history_script(_request):
+    return web.FileResponse(ROOT / "saved-history.js", headers={"Cache-Control": "no-store"})
+
+
 async def recording_script(_request):
     return web.FileResponse(ROOT / "recording.js")
 
 
 async def index(_request):
-    return web.FileResponse(ROOT / "index.html")
+    # The benchmark deliberately has no saved-history endpoints. Let its
+    # observer page choose the available live log without probing a 404.
+    page = (ROOT / "index.html").read_text(encoding="utf-8").replace(
+        'data-history-enabled="auto"',
+        f'data-history-enabled="{str(not warden.ON).lower()}"')
+    return web.Response(text=page, content_type="text/html",
+                        headers={"Cache-Control": "no-store"})
 
 
 async def progress(request):
@@ -2415,6 +2485,7 @@ def main():
     if RESUME_STATE and (not math.isfinite(AUTOSAVE_SECONDS) or AUTOSAVE_SECONDS < 0
                          or RESUME_WARMUP_FRAMES < 1):
         raise SystemExit("checkpoint interval must be finite and non-negative; warmup frames must be positive")
+    restore_activity()
     directory = os.environ.get("QUNXIA_RECORDING_DIR", str(ROOT.parent / "recordings"))
     validate_recording_directory(directory)
     path = pathlib.Path(os.environ.get("QUNXIA_RECORDING_FILE", str(pathlib.Path(directory) / f"{PORT}.jsonl")))
@@ -2440,6 +2511,7 @@ def main():
     threading.Thread(target=emulate, daemon=True).start()
 
     app = web.Application(middlewares=[json_errors])
+    app.router.add_get("/saved-history.js", saved_history_script)
     app.add_routes([
         web.get("/", index),
         web.get("/recording.js", recording_script),
@@ -2463,6 +2535,9 @@ def main():
     recording_api.install(app)
     # Startup handlers are awaited, so the workers are detached tasks rather
     # than returned, or startup would block on loops that never end.
+    pin_provider = getattr(recording_api, "pin", None)
+    SavedHistory(recording_store, pin_provider=pin_provider).install(app, enabled=not warden.ON)
+    VideoExports(recording_store, pin_provider=pin_provider).install(app, enabled=not warden.ON)
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
     web.run_app(app, host=HOST, port=PORT, access_log=None)
