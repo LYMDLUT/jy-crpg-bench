@@ -89,6 +89,9 @@ action lock. Cancellation and failures discard only the staged new checkpoint,
 so the previous one remains available. Abrupt process termination can lose
 progress since the last successful checkpoint. Recordings continue through the
 existing RecordingStore and are not scanned for replay during startup.
+This guarantee requires the atomic CoreHost saver and a rebuilt native bridge:
+an older saver that reports success despite a failed buffered close can pass a
+partial staged file to the checkpoint layer.
 
 This mode disables the game's automatic menu-save macro and optional position
 calibration, whose reload of the opening state would undo resumed progress.
