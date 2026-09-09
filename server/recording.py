@@ -1,5 +1,6 @@
 """Bounded reads of an immutable prefix of the append-only recording."""
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -11,6 +12,7 @@ class Snapshot:
     def __init__(self, path, fd, end, last_timestamp=0):
         self.path, self.fd, self.end = Path(path), fd, end
         self.closed = False
+        self.seek_index = None
         try:
             _, header = next(self.lines(0))
             self.header = json.loads(header)
@@ -70,6 +72,8 @@ class Snapshot:
     def close(self):
         if not self.closed:
             self.closed = True
+            if self.seek_index:
+                self.seek_index.close()
             os.close(self.fd)
 
     def __del__(self):
@@ -111,7 +115,22 @@ class RecordingAPI:
             if request.query.get('touch') == '1':
                 return web.json_response({'ok': True})
             try:
-                return web.json_response(dict(reader.page(request.query.get('start')), token=token))
+                if 'time' in request.query:
+                    from replay_index import SeekIndex
+                    when = float(request.query['time'])
+                    if not math.isfinite(when) or when < 0:
+                        raise ValueError('seek time must be finite and non-negative')
+                    if reader.seek_index is None:
+                        reader.seek_index = SeekIndex(reader)
+                    index = reader.seek_index
+                    if not index.done.is_set():
+                        return web.json_response({'token': token, 'indexing': True,
+                                                  'scanned': index.scanned, 'total': index.total}, status=202)
+                    location = index.locate(when)
+                    return web.json_response(dict(reader.page(location['start']), token=token,
+                                                  seek=location, seek_supported=True))
+                return web.json_response(dict(reader.page(request.query.get('start')), token=token,
+                                              seek_supported=True))
             except ValueError as exc:
                 return web.json_response({'error': str(exc)}, status=400)
 
