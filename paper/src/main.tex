@@ -37,8 +37,10 @@
 Out-of-Distribution Open World}
 
 \author{Han Xiao \\
-Jina AI \\
-\texttt{han.xiao@jina.ai}}
+\texttt{han.xiao@jina.ai} \\
+\And
+Yiming Liu \\
+\texttt{convliu@tencent.com}}
 
 \begin{document}
 
@@ -56,24 +58,26 @@ without being told what is worth doing, and stay coherent over hundreds of
 dependent decisions. We introduce \bench{}, a benchmark that places a
 vision-language agent inside \game{金庸群俠傳} (\emph{Heroes of Jin Yong},
 Heluo Studio 1996), an unmodified commercial open-world role-playing game run
-under DOS emulation. The environment is deliberately far from the
-distribution modern vision encoders are trained on: a $320\times200$
-framebuffer, a $45^\circ$ isometric projection in which no key moves straight
-up the screen, Traditional Chinese rendered as 16-pixel bitmap glyphs, and a
-world whose objectives are stated only in its own fiction. An agent joins by
+under DOS emulation, and measures it against the ending the game itself
+defines: recovering the fourteen books of the Jin Yong canon, which a
+first-time human player reaches in tens of hours. The environment is far from
+the distribution modern vision encoders are trained on, with a
+$320\times200$ framebuffer, a $45^\circ$ isometric projection in which no key
+moves straight up the screen, Traditional Chinese rendered as 16-pixel bitmap
+glyphs, and objectives stated only in its own fiction. An agent joins by
 pointing an HTTP client at a session URL, so any model under any harness can
-play without adopting a framework. We score progress from the state of the
-emulated machine: character records, milestone events and scene transitions are
-read out of memory, so each rung of progress is verifiable and cannot be
-reached by pixel similarity. Across \NmodelLabels{}
-agent configurations from \Nvendors{} vendors and a seeded random baseline,
-no session gains a single experience point or passes level one within the
-twenty-minute budget, and \Sstayed{} of \Nsessions{} sessions never leave the
-scene they start in. Behaviour nevertheless separates sharply beneath that
-floor: the screen-changing action ratio spans \Qworst{}--\Qbest{} against a
-random-policy floor of \Qrandom{}, and one configuration falls below the floor
-while reading the screen before nearly every action. \bench{} is released as a
-live, replayable public arena at
+play without adopting a framework. We score from the state of the emulated
+machine and from the save file the game writes for itself, so the party, the
+character records, the inventory and the books are read as the game stores
+them and cannot be reached by pixel similarity. One instrument spans the whole
+distance: a milestone ladder while agents are learning to move, and completion
+time once they can finish, which keeps ordering the field after the first
+model arrives. We report the standing of \NmodelLabels{} agent configurations
+from \Nvendors{} vendors against a seeded random baseline: the field clears
+the opening rungs, the character-progression rungs above them are still open,
+and the behavioural profile separates configurations that share a progression
+result. We release
+\bench{} as a live, replayable public arena at
 \url{https://github.com/hanxiao/jy-crpg-bench}.
 \end{abstract}
 
@@ -118,6 +122,17 @@ that requires recovering fourteen books scattered across the world. A first
 human playthrough takes tens of hours. The agent receives the framebuffer and
 a key vocabulary, and nothing else.
 
+We measure against that ending. The fourteen books sit behind items,
+factions and martial arts that have to be
+acquired in order, in a world that reports nothing about itself, and the game
+records whether they have been recovered. An agent that finished would have
+held one plan across tens of hours of self-directed play, which is the
+capability long-horizon evaluation exists to detect. We therefore built the
+instrument for the whole distance. A ladder of machine-verified milestones
+orders the field while agents are learning to move through the world, and
+completion time orders it once they can finish, so the benchmark gains a
+speedrun ranking at the point where a pass-or-fail score would saturate.
+
 Three properties make the environment adversarial for current models in ways
 a modern title would not be, and \cref{fig:opening} shows the world they apply
 to. Perception is out of
@@ -143,11 +158,12 @@ has begun to say so: GameWorld names heuristic verification as the obstacle to
 standardized game-agent evaluation and pairs each of its tasks with a
 state-verifiable metric \citep{ouyang2026gameworld}. We take the same
 position and push it into the emulator. The benchmark reads progress out of
-the memory of the running machine: the character array the game itself
-maintains, at \Mrecords{} records of \MrecordBytes{} bytes, and the
-fade-to-black the renderer performs on every scene change. The agent never
-sees any of this. Screen-derived quantities are reported as behaviour, never
-as progress, so no amount of visual churn can move a progress metric.
+the memory of the running machine, from the character array the game itself
+maintains at \Mrecords{} records of \MrecordBytes{} bytes, and out of the save
+file the game writes when asked, which is where the party and the world
+position are true. The agent never sees any of this and has no call that
+returns it. Screen-derived quantities are reported as behaviour, never as
+progress, so no amount of visual churn can move a progress metric.
 
 \begin{figure}[t]
 \centering
@@ -169,18 +185,19 @@ Traditional Chinese grounding, a keyboard action space of \MkeyNames{} names
 over \MkeyCodes{} distinct keys of which a small subset does anything, and
 persistent character state that only coherent play advances.
 
-\item We score progress from emulator memory. The character records, the milestone ladder built on them, and the scene-change
-detector are each validated against the shipped save files of the game and
+\item We score progress in the terms the game keeps. Character records, the party
+and the fourteen books are read from emulator memory and from a save the game
+performs for itself, validated against the archives the release ships and
 against positive and negative controls, and measurement never writes to the
-machine it observes. This makes every rung of the ladder an event that
-screen similarity cannot manufacture.
+machine it observes. Every rung of the ladder is therefore an event that
+screen similarity cannot manufacture, and the terminal rung is the ending the
+game defines.
 
 \item We evaluate \NmodelLabels{} agent configurations from \Nvendors{}
 vendors and a seeded random baseline under a wall-clock budget, and report a
-behavioural profile beneath the progression floor in place of a single score.
-The profile separates configurations that share an identical progression
-result, and identifies a failure mode in which an agent reads the screen
-before nearly every action and still acts below the random floor.
+behavioural profile alongside the ladder in place of a single score. The
+profile separates configurations that share a progression result, and resolves
+how a session spends a budget it has not yet learned to use.
 \end{enumerate}
 
 The interface is deliberately thin. A participant pastes one line into an
@@ -218,7 +235,7 @@ VideoGameBench & 1990s action games & varies & no & English & checkpoint images 
 GameWorld & 34 browser games & varies & no & English & game state \\
 MineExplorer & Minecraft & 3D render & no & English & milestone rules \\
 \midrule
-\bench{} (ours) & one 1996 CRPG & 320$\times$200 & yes & Trad.\ Chinese & emulator memory \\
+\bench{} (ours) & one 1996 CRPG & 320$\times$200 & yes & Trad.\ Chinese & memory and save file \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -249,12 +266,14 @@ achievement-based design we follow \citep{hafner2021benchmarking}, and
 NetHack remains the depth extreme for learned agents
 \citep{kuttler2020nethack}.
 
-\bench{} differs along four axes. It runs one persistent open world where the
+\bench{} differs along five axes. It runs one persistent open world where the
 comparable benchmarks run suites of level-structured games. It treats
 Traditional Chinese text as a core obstacle where they treat text as absent or
-incidental. It verifies progress from emulator memory where they verify from
-screen similarity. And it is a public wall-clock arena that any harness can
-enter.
+incidental. It verifies progress from emulator memory and from the save file
+of the game where they verify from screen similarity. It scores against the
+completion condition the game defines, which gives the ladder a terminal rung
+and the leaderboard a second scale in completion time. And it is a public
+wall-clock arena that any harness can enter.
 
 \subsection{Long-Horizon Evaluation and Its Measurement}
 
@@ -442,9 +461,21 @@ $\mathrm{hp}\le\mathrm{maxHp} \lor \mathrm{mp}\le\mathrm{maxMp}$, and then
 located the same array in the live emulated machine by anchoring on a
 character name that occurs exactly once and confirming two neighbouring
 records at the correct stride. A read costs 1.2\,ms through serialisation
-into a reused buffer, and a cached anchor check costs 0.3\,$\mu$s.
-Measurement is read-only: the benchmark may serialise the machine but never
-loads state into it, so observing a run cannot alter it.
+into a reused buffer, and a cached anchor check costs 0.3\,$\mu$s. The shared
+inventory sits immediately in front of that array and moves the moment an item
+is taken, which is how the item count and the books held are current rather
+than last saved. Measurement is read-only: the benchmark may serialise the
+machine but never loads state into it, so observing a run cannot alter it.
+
+Two quantities are not live in memory. The party roster and the world
+position exist there only as the copies the game loaded when the run began,
+and they do not follow the player, so the benchmark asks the game to save. The
+game offers its save menu on the world map alone and announces as much through
+the height of that menu, so an attempt opens the menu, counts its rows and
+withdraws where saving is not offered, returning the screen unchanged. The
+archive it writes is read the same way as the shipped ones. Neither the save
+nor anything read from it is reachable through the control surface, for the
+same reason the snapshot calls are withheld from a scored session.
 
 Scene changes are detected from the fade to black that the renderer performs
 on every transition. We sample mean framebuffer luminance each frame while
@@ -456,15 +487,25 @@ its exit tile confirms the detector fires exactly at the transition. Every
 detector carries a demonstrated positive control before its numbers are
 reported anywhere.
 
-Progress is summarised as six strictly ordered milestones, each read from
-this ground truth, in the spirit of the achievements of Crafter
-\citep{hafner2021benchmarking}: \emph{acted} $\prec$ \emph{screen responded}
-$\prec$ \emph{picked something up} $\prec$ \emph{reached the world map}
-$\prec$ \emph{gained experience} $\prec$ \emph{reached level~2}. Because each
-rung is strictly harder than the one before it, the count of rungs is an
-ordering, and carries no weights. A rung whose instrumentation post-dates a
-run is reported as unmeasured and never as failed, since an unmeasured
-zero and a true zero are different claims.
+Progress is summarised as seven ordered milestones read from this ground
+truth, in the spirit of the achievements of Crafter
+\citep{hafner2021benchmarking}: \emph{acted} $\prec$ \emph{picked something up}
+$\prec$ \emph{reached the world map} $\prec$ \emph{gained experience} $\prec$
+\emph{reached level~2} $\prec$ \emph{recruited a companion} $\prec$
+\emph{holds one of the fourteen}. Only the first concerns the harness; the
+rest are the numbers the game keeps about itself. Because each rung is harder
+than the one before it, the count of rungs is an ordering and carries no
+weights. A rung whose instrumentation post-dates a run is reported as
+unmeasured and never as failed, since an unmeasured zero and a true zero are
+different claims.
+
+The ladder ends where the game does. Recovering all fourteen books is the
+condition the fiction sets and the state the archive records, so the last rung
+is not a proxy for finishing but finishing itself. Sessions run to
+twenty-four hours on the same protocol, and a session that reaches the ending
+carries a completion time, which is the quantity that orders a field where
+every entrant passes. One instrument therefore covers both regimes, and the
+benchmark keeps measuring after the first model finishes.
 
 \subsection{Behavioural Metrics}
 \label{sec:metrics}
@@ -482,10 +523,11 @@ action-space coverage as the count of distinct keys used.
 
 The meaningful-step ratio is a binomial proportion, so we report 95\% Wilson
 intervals \citep{wilson1927probable} and group configurations whose intervals
-overlap instead of ranking them outright. Ratio alone rewards near-inaction,
-since a single considered action scores 1.0, and count alone rewards
-mashing, so we also report the quality-throughput frontier and treat one
-configuration as dominating another only when it is better on both.
+overlap in place of ranking them outright. Ratio alone rewards near-inaction,
+since a single considered action scores 1.0, and count alone rewards pressing
+keys as fast as the protocol allows, so we also report the
+quality-throughput frontier and treat one configuration as dominating another
+only when it is better on both.
 
 \section{Experiments}
 \label{sec:results}
@@ -529,9 +571,9 @@ of them the character stands at level \Slevel{} with \SexpSum{} experience and
 the remaining \SmapSolo{} rest on a single detector and are reported as flagged
 and not credited; the other \Sstayed{} spend the whole budget in the scene
 they started in. \Cref{fig:ladder} shows the ladder across the
-field: every configuration clears the first two rungs, contact with the world
-map is the highest rung anything reaches, and the two rungs that require the
-character to change remain empty.
+field: every configuration acts, contact with the world map is the highest
+rung anything reaches, and the rungs that require the character to change are
+still open.
 
 \begin{figure}[t]
 \centering
@@ -543,14 +585,14 @@ sessions reaching that rung over the sessions where it was measured.}
 \label{fig:ladder}
 \end{figure}
 
-That floor is the finding, and it is the reason the environment is worth
-keeping. Placing the result beside comparable instruments, BALROG reports its
-best model at $1.5\%$ progression on NetHack \citep{paglieri2025balrog} and
-VideoGameBench reports the best vision-language models completing $0.48\%$ of
-its suite \citep{zhang2025videogamebench}. A floor of this kind is only
-informative while the instrumentation underneath it is dense enough to
-distinguish the ways of failing, which is what the rest of this section
-reports.
+The field therefore stands at the early rungs of a ladder whose last one is
+the ending of the game, which is where comparable instruments place it as
+well: BALROG reports its best model at $1.5\%$ progression on NetHack
+\citep{paglieri2025balrog} and VideoGameBench reports the best
+vision-language models completing $0.48\%$ of its suite
+\citep{zhang2025videogamebench}. What an instrument owes the field at this
+stage is resolution underneath the rung it has reached, and the rest of this
+section supplies it.
 
 \subsection{Behavioural Profiles}
 
@@ -559,7 +601,8 @@ reports.
 \includegraphics[width=0.62\linewidth]{figures/pareto.pdf}
 \caption{Quality against throughput, with 95\% Wilson intervals on the ratio.
 Neither axis alone is a score: the ratio rewards near-inaction and the count
-rewards mashing. The dashed line joins the runs dominated on neither axis.}
+rewards speed alone. The dashed line joins the runs dominated on neither
+axis.}
 \label{fig:pareto}
 \end{figure}
 
@@ -597,7 +640,7 @@ baseline is the pair of grey rows.}
 \label{fig:behaviour}
 \end{figure}
 
-\subsection{Time Spent in the Opening Scene}
+\subsection{Use of the Budget}
 
 \begin{figure}[t]
 \centering
@@ -621,8 +664,8 @@ This distribution explains why the twenty-minute budget measures early
 competence, and why we price deliberation in wall clock: a configuration
 thinking 20\,s per action spends a third of the run deciding, an efficiency framing shared with
 \citet{arc2026arcagi3} and \citet{phan2025textquests}. The protocol supports
-budgets to twenty-four hours, and the ladder is arranged so that the next
-signals are unambiguous when they arrive.
+budgets to twenty-four hours, which is the setting in which the later rungs
+and a completion time come within reach.
 
 \tbd{Runs at longer budgets, which the protocol already supports, are the
 measurement that would separate a slow agent from a stuck one.}
@@ -641,23 +684,20 @@ exit tile is never reached.
 \label{sec:conclusion}
 
 We presented \bench{}, a long-horizon benchmark that runs an unmodified 1996
-open-world role-playing game and scores agents from the state of the emulated
-machine. The environment is adversarial in ways that are named and checkable: a $320\times200$
-isometric frame far outside the training distribution of current vision
-encoders, Traditional Chinese as the only channel through which objectives
-are stated, and a world that supplies no score. Across the current field, no
-agent gains an experience point or passes level one within twenty minutes,
-and most never leave the room they start in, while the behavioural profile
-beneath that floor separates deliberate configurations from fast ones and
-identifies agents that look at the screen without acting on what it shows.
+open-world role-playing game and scores agents in the terms the game keeps
+about itself. The environment is adversarial in ways that are named and
+checkable: a $320\times200$ isometric frame far outside the training
+distribution of current vision encoders, Traditional Chinese as the only
+channel through which objectives are stated, and a world that supplies no
+score. Progress read from the memory of the environment and from a save the
+game performs for itself cannot be manufactured by visual churn, and every
+rung of the ladder is an event the agent has to cause.
 
-The design choice we would carry to other interactive benchmarks is the
-measurement stance. Progress that is read from the memory of the environment
-cannot be manufactured by visual churn, and every rung of the ladder here is
-an event the agent must actually cause. The benchmark is live: each rung is
-published with the replay that earned it, so when a model climbs one, the
-leaderboard will show which rung, on which run, with the video to watch it
-happen.
+The ladder ends at the ending of the game. Recovering the fourteen books is a
+state the archive records, so a model that finishes leaves proof of it, and
+the benchmark then ranks by the time it took. We built both scales at once so
+that the first finishing model changes what the leaderboard measures, and so
+that the run which gets there is on record and replayable frame by frame.
 
 \section*{Ethics statement}
 The benchmark evaluates publicly released models on a commercial game under

@@ -82,28 +82,38 @@ RUNS = load()
 PLAY = sorted([r for r in RUNS if r["budget"] == 1200 and (r["actions"] or 0) > 0],
               key=lambda r: (ORDER.index(r["family"]) if r["family"] in ORDER else 9,
                              -(r["actions"] or 0)))
-DEFINITION = ("acted", "screen\nresponded", "picked\nsomething up",
-              "reached\nworld map", "gained\nexperience", "reached\nlevel 2")
+DEFINITION = ("acted", "picked\nsomething up", "reached\nworld map",
+              "gained\nexperience", "reached\nlevel 2", "recruited\na companion",
+              "holds one\nof fourteen")
 
 
 def rungs_of(row):
-    """(reached, known) for each rung, exactly as the published ladder computes it."""
+    """(reached, known) for each rung, exactly as the published ladder computes it.
+
+    The world-map rung reads the save the game wrote, which it only offers on
+    the world map. Runs recorded before the benchmark could ask the game to
+    save carry no such field and keep the fingerprint flag they were scored
+    with.
+    """
+    saved = "saved_at" in row
     known = [
         True,
-        row.get("meaningful") is not None,
         row.get("picked_item") is not None,
-        row.get("bigmap") is not None,
+        True if saved else row.get("bigmap") is not None,
         row.get("exp") is not None,
         row.get("level") is not None,
+        row.get("team_size") is not None,
+        row.get("books") is not None,
     ]
     got = [
         (row.get("key_events") if row.get("key_events") is not None
          else row["actions"]) > 0,
-        (row.get("meaningful") or 0) > 0,
         bool(row.get("picked_item")),
-        bool(row.get("bigmap")),
+        (row.get("saved_at") is not None) if saved else bool(row.get("bigmap")),
         (row.get("exp") or 0) > 0,
         (row.get("level") or 0) > 1,
+        (row.get("team_size") or 0) > 1,
+        (row.get("books") or 0) > 0,
     ]
     return [(g if k else None) for g, k in zip(got, known)]
 
