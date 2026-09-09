@@ -1,6 +1,8 @@
 """Aggregate per-session runs into a leaderboard table from catalog data."""
 import json, os, statistics as st
 
+from display_names import display_agent
+
 CAT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalog_snapshot.json")
 
 
@@ -15,11 +17,6 @@ def wil(k, n, z=1.96):
 
 def median(values):
     return st.median(values) if values else float("nan")
-
-def display_agent(label):
-    names = {'claude':'Claude','gemini':'Gemini','qwen':'Qwen','grok':'Grok','glm':'GLM','gpt':'GPT','vista':'Vista','codex':'Codex','random':'Random'}
-    return '-'.join(names.get(part.lower(), next((names[v] + part[len(v):] for v in names if part.lower().startswith(v)), part)) for part in label.split('-'))
-
 
 def main():
     rows = json.load(open(CAT, encoding="utf-8"))
@@ -65,8 +62,8 @@ def main():
     lines = [
         r"\begin{tabular}{@{}lrrrrrrr@{}}",
         r"\toprule",
-        r"Agent & runs & actions & ratio [95\% CI] &"
-        r" act/min & reads/act & think (s) & map \\",
+        r"Agent & Runs & Actions & Ratio [95\% CI] &"
+        r" Act/min & Reads/Act & Think (s) & Map \\",
         r"\midrule",
     ]
     best = max(r[4] for r in body if not r[0].startswith("random"))

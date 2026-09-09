@@ -24,6 +24,8 @@ import os
 import statistics as st
 import sys
 
+from display_names import display_agent
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.dirname(HERE)
 CAT = os.path.join(HERE, "catalog_snapshot.json")
@@ -43,11 +45,6 @@ def vendor(label):
     if s.startswith("random"):
         return "random"
     return next((v for v in VEND if v in s), "other")
-
-def display_agent(label):
-    names = {'claude':'Claude','gemini':'Gemini','qwen':'Qwen','grok':'Grok','glm':'GLM','gpt':'GPT','vista':'Vista','codex':'Codex','random':'Random'}
-    return '-'.join(names.get(part.lower(), next((names[v] + part[len(v):] for v in names if part.lower().startswith(v)), part)) for part in label.split('-'))
-
 
 def wil_ci(k, n, z=1.96):
     """Wilson score interval for a binomial proportion."""
@@ -104,14 +101,14 @@ def wr(name, text):
         fh.write(text.lstrip("\n"))
 
 
-MARK = {True: "reached", False: "not reached", None: "unmeasured"}
+MARK = {True: "Reached", False: "Not Reached", None: "Unmeasured"}
 sessions = []
 for r in play:
     k = round(r["meaningful"] * r["actions"])
     lo, c, hi = wil_ci(k, r["actions"])
     sessions.append((r["agent"], r["id"][:8], r["actions"], k, c, lo, hi,
                      MARK[r.get("bigmap")],
-                     "abort idle" if r["reason"] == "idle" else "full budget"))
+                     "Abort Idle" if r["reason"] == "idle" else "Full Budget"))
 
 # Split the headline claim two ways, and say which evidence backs it.
 evi = {}
@@ -141,8 +138,8 @@ header = r"""
 \newcommand{\mkruns}[0]{%
 \begin{tabular}{@{}llrrrrll@{}}
 \toprule
-Agent & Run & \thead{actions} & \thead{screen-changing} &
-\thead{ratio} & \thead{95\% CI} & \thead{world map} & \thead{ended} \\
+Agent & Run & \thead{Actions} & \thead{Screen-changing} &
+\thead{Ratio} & \thead{95\% CI} & \thead{World Map} & \thead{Ended} \\
 \midrule
 """
 body = []
@@ -163,11 +160,13 @@ ag = [r"""
 \newcommand{\mkfamily}[0]{%
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Agent & \thead{runs} & \thead{actions} & \thead{median ratio} &
-\thead{spread} & \thead{action rate} \\
-\midrule"""]
+Agent & \thead{Runs} & \thead{Actions} & \thead{Median Ratio} &
+\thead{Spread} & \thead{Act/min} \\
+\midrule
+"""]
 for label, runs, acts, med, spread, ttfa_med, keys_med, ven, xr in agg_rows:
-    ag.append(f"{display_agent(label)} & {runs} & {acts} & {med:.3f} & {spread:.3f} & {xr:.1f}/min \\\\")
+    row = f"{display_agent(label)} & {runs} & {acts} & {med:.3f} & {spread:.3f} & {xr:.1f}/min "
+    ag.append(row + "\\\\\n")
 ag.append(r"""\bottomrule
 \end{tabular}}""")
 wr("family.tex", "".join(ag))
