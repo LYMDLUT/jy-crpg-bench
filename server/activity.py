@@ -23,7 +23,7 @@ def clean_entries(entries):
             raise ValueError("invalid activity sequence")
         if type(at) not in (int, float) or not math.isfinite(at):
             raise ValueError("invalid activity timestamp")
-        row = {"id": seq, "at": at, "ok": entry.get("ok") is True}
+        row = {"id": seq, "at": at, "ok": entry.get("ok") if type(entry.get("ok")) is bool else None}
         for key in ("src", "verb", "target", "detail"):
             value = entry.get(key, "")
             if not isinstance(value, str):

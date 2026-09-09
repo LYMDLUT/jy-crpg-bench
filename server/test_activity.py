@@ -117,6 +117,38 @@ class ServerActivityTests(unittest.TestCase):
         self.assertEqual(self.path.read_text(), '{broken')
         self.assertEqual(len(self.server.history), 1)
 
+class LegacyImportTests(unittest.TestCase):
+    def test_import_merges_deduplicates_and_leaves_recording_unchanged(self):
+        from import_activity import import_recording
+        with tempfile.TemporaryDirectory() as tmp:
+            recording, history = Path(tmp) / 'recording.jsonl', Path(tmp) / 'activity.json'
+            raw = json.dumps({'version': 1, 'started': 1700000000}) + '\n'
+            raw += '\n'.join(json.dumps({'t': i, 'act': 'GET', 'who': 'old-agent', 'on': 'screen'}) for i in range(1, 305)) + '\n'
+            raw += '{"t": 305, "d":"frame"}\n{"t":306'
+            recording.write_text(raw)
+            ActivityStore(history).save([entry(1, thumb='data:image/webp;base64,AAAA') | {'at': 1700000400}])
+            report = import_recording(recording, history)
+            self.assertEqual(report['recording_actions'], 304)
+            rows = ActivityStore(history).load()
+            self.assertEqual(len(rows), 300)
+            self.assertEqual(rows[0]['at'], 1700000006)
+            self.assertIsNone(rows[0]['ok'])
+            self.assertEqual(rows[-1]['src'], 'agent')
+            import_recording(recording, history)
+            self.assertEqual(ActivityStore(history).load(), rows)
+            self.assertEqual(recording.read_text(), raw)
+
+    def test_import_rejects_invalid_time_without_overwriting(self):
+        from import_activity import import_recording
+        with tempfile.TemporaryDirectory() as tmp:
+            recording, history = Path(tmp) / 'recording.jsonl', Path(tmp) / 'activity.json'
+            recording.write_text('{"started":0}\n{"t":-1,"act":"KEY"}\n')
+            ActivityStore(history).save([entry(1)])
+            before = history.read_bytes()
+            with self.assertRaises(ValueError):
+                import_recording(recording, history)
+            self.assertEqual(history.read_bytes(), before)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -197,5 +197,19 @@ This is disabled by default and always disabled in warden/benchmark mode.
 Each server must have its own save directory. An explicit game reset clears
 the retained activity as well. Writes replace a bounded snapshot atomically;
 failed writes keep the prior file and report an error. An invalid snapshot is
-left intact and persistence is disabled for that process. Past entries lost
-before this option was enabled cannot be recovered from this file.
+left intact and persistence is disabled for that process. This snapshot cannot recover entries it never received. Legacy recordings may
+contain action markers that can be imported as described below.
+
+To recover activity from an older local `recording.jsonl`, stop the server and
+run the following, then restart with persistence enabled:
+
+```sh
+python server/import_activity.py --recording /path/recording.jsonl --history /path/saves/activity.json
+```
+
+ The importer scans the recording once with bounded memory,
+merges its latest action markers with existing activity, and keeps the newest
+300 entries. It never changes the recording or scans it during normal startup.
+Imported markers retain timestamps, actors, verbs and targets; unavailable
+results are marked unknown. Original thumbnail/detail fields cannot be recovered
+from action markers. Re-importing the same recording does not duplicate rows.
