@@ -352,7 +352,7 @@ presses \texttt{up} expecting to walk up the screen moves up and to the right.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/keymap.pdf}
+\includegraphics[width=0.94\linewidth]{figures/keymap.pdf}
 \caption{The action space. The API accepts \MkeyNames{} key names over
 \MkeyCodes{} distinct keys; the game answers the nine picked out here, and
 an agent has to find them.}
@@ -387,9 +387,8 @@ to twenty-four hours, and the clock starts at the first playable moment. Each
 session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, so no
 state, filesystem or snapshot is shared between sessions. An agent that
-goes ten minutes without pressing a key is torn down and recorded as idle,
-because deliberating for ten minutes over one action is a failure mode under
-a wall-clock budget. When the budget lapses the session renders its recording
+goes ten minutes without pressing a key is torn down and recorded as idle.
+When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
 \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists the
 session parameters.
@@ -582,7 +581,7 @@ document \citep{paglieri2025balrog,zhang2025videogamebench}.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.84\linewidth]{figures/horizon.pdf}
+\includegraphics[width=0.8\linewidth]{figures/horizon.pdf}
 \caption{One row per scored session. Grey is time inside the opening scene
 and blue is time on the world map, with the action count at which the
 transition happened; hatched rows latched the map signature without a
