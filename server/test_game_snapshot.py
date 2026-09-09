@@ -6,6 +6,7 @@ border is a white column at x 21 starting at y 23, 122 pixels long for the
 six-row world-map menu and 82 for the four-row one a scene offers.
 """
 import importlib.util
+import os
 import pathlib
 import sys
 import unittest
@@ -80,3 +81,52 @@ class MenuRowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WithholdingTests(unittest.TestCase):
+    """Who may read what a run has achieved.
+
+    A model that can watch its own score can play the score, so a scored run
+    keeps its numbers from everyone but the operator - while it is still being
+    played. Once it is over the board publishes them anyway.
+    """
+
+    class Request:
+        def __init__(self, token=None):
+            self.query = {"token": token} if token else {}
+            self.headers = {}
+
+    def setUp(self):
+        self.was_on = game_server.warden.ON
+        self.was_done = game_server.warden.run["done"]
+        self.was_token = os.environ.get("QUNXIA_RESET_TOKEN")
+        os.environ["QUNXIA_RESET_TOKEN"] = "secret"
+
+    def tearDown(self):
+        game_server.warden.ON = self.was_on
+        game_server.warden.run["done"] = self.was_done
+        if self.was_token is None:
+            os.environ.pop("QUNXIA_RESET_TOKEN", None)
+        else:
+            os.environ["QUNXIA_RESET_TOKEN"] = self.was_token
+
+    def test_an_unscored_session_hides_nothing(self):
+        game_server.warden.ON = False
+        self.assertFalse(game_server.withheld(self.Request()))
+
+    def test_a_live_scored_run_hides_from_everyone_but_the_operator(self):
+        game_server.warden.ON = True
+        game_server.warden.run["done"] = None
+        self.assertTrue(game_server.withheld(self.Request()))
+        self.assertTrue(game_server.withheld(self.Request("wrong")))
+        self.assertFalse(game_server.withheld(self.Request("secret")))
+
+    def test_a_finished_run_hides_nothing(self):
+        game_server.warden.ON = True
+        game_server.warden.run["done"] = "time"
+        self.assertFalse(game_server.withheld(self.Request()))
+
+    def test_the_scored_set_covers_what_the_save_adds(self):
+        for field in ("books", "items_total", "team_size", "team_level",
+                      "team", "saved_at", "saved_why"):
+            self.assertIn(field, game_server.SCORED_FIELDS)
