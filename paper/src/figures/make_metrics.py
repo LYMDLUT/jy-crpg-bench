@@ -44,6 +44,10 @@ def vendor(label):
         return "random"
     return next((v for v in VEND if v in s), "other")
 
+def display_agent(label):
+    names = {'claude':'Claude','gemini':'Gemini','qwen':'Qwen','grok':'Grok','glm':'GLM','gpt':'GPT','vista':'Vista','codex':'Codex','random':'Random'}
+    return '-'.join(names.get(part.lower(), next((names[v] + part[len(v):] for v in names if part.lower().startswith(v)), part)) for part in label.split('-'))
+
 
 def wil_ci(k, n, z=1.96):
     """Wilson score interval for a binomial proportion."""
@@ -143,7 +147,7 @@ Agent & Run & \thead{actions} & \thead{screen-changing} &
 """
 body = []
 for a, rid, acts, k, c, lo, hi, latch, how in sessions:
-    body.append(f"{a} & {rid} & {acts} & {k} & {c:.3f} & [{lo:.3f}, {hi:.3f}] "
+    body.append(f"{display_agent(a)} & {rid} & {acts} & {k} & {c:.3f} & [{lo:.3f}, {hi:.3f}] "
                 f"& {latch} & {how} \\\\")
 tail = """
 \\bottomrule
@@ -163,7 +167,7 @@ Agent & \thead{runs} & \thead{actions} & \thead{median ratio} &
 \thead{spread} & \thead{action rate} \\
 \midrule"""]
 for label, runs, acts, med, spread, ttfa_med, keys_med, ven, xr in agg_rows:
-    ag.append(f"{label} & {runs} & {acts} & {med:.3f} & {spread:.3f} & {xr:.1f}/min \\\\")
+    ag.append(f"{display_agent(label)} & {runs} & {acts} & {med:.3f} & {spread:.3f} & {xr:.1f}/min \\\\")
 ag.append(r"""\bottomrule
 \end{tabular}}""")
 wr("family.tex", "".join(ag))

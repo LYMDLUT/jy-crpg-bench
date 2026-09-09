@@ -16,6 +16,10 @@ def wil(k, n, z=1.96):
 def median(values):
     return st.median(values) if values else float("nan")
 
+def display_agent(label):
+    names = {'claude':'Claude','gemini':'Gemini','qwen':'Qwen','grok':'Grok','glm':'GLM','gpt':'GPT','vista':'Vista','codex':'Codex','random':'Random'}
+    return '-'.join(names.get(part.lower(), next((names[v] + part[len(v):] for v in names if part.lower().startswith(v)), part)) for part in label.split('-'))
+
 
 def main():
     rows = json.load(open(CAT, encoding="utf-8"))
@@ -72,7 +76,7 @@ def main():
         ratio = ("\\textbf{%.3f}" if p == best else "%.3f") % p
         lines.append(
             "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %.2f & %.1f & %d/%d \\\\"
-            % (agent.replace("_", "\\_").replace("--", "-{-}"),
+            % (display_agent(agent).replace("_", "\\_").replace("--", "-{-}"),
                n, den, ratio, lo, hi, aps, reads / den, g50, maps_c, maps)
         )
     lines += [r"\bottomrule", r"\end{tabular}"]
