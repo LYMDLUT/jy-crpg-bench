@@ -107,6 +107,18 @@ class MultiuserTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await ws.receive(timeout=1)).type, WSMsgType.CLOSE)
         await ws.close()
 
+    async def test_shutdown_interrupts_a_request_waiting_for_worker_warmup(self):
+        self.manager.environment["PROBE_PHASE"] = "warming"
+        self.manager.startup_timeout = 30
+        request = asyncio.create_task(self.client.get(f'/u/{self.user["id"]}/'))
+        await self.wait_for(lambda: bool(self.manager.backends))
+        backend = self.manager.backends[self.user["id"]]
+        await self.client.server.app.shutdown()
+        response = await asyncio.wait_for(request, timeout=3)
+        self.assertEqual(response.status, 503)
+        self.assertIsNotNone(backend.process.poll())
+        self.assertFalse(backend.marker.exists())
+
     async def test_foreign_live_pid_is_never_terminated(self):
         marker = self.store.paths(self.user["id"])[0] / "backend.json"
         marker.write_text(json.dumps({"pid": os.getpid(), "port": 1}))

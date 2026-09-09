@@ -208,7 +208,8 @@ class BackendManager:
             try:
                 atomic_json(marker, {"pid": process.pid, "port": port, "started_at": time.time()})
                 deadline = asyncio.get_running_loop().time() + self.startup_timeout
-                while process.poll() is None and asyncio.get_running_loop().time() < deadline:
+                while (not self.closing and process.poll() is None
+                       and asyncio.get_running_loop().time() < deadline):
                     try:
                         async with self.client.get(f"http://127.0.0.1:{port}/status", timeout=1) as response:
                             status = await response.json()
