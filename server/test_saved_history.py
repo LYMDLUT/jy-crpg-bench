@@ -488,27 +488,25 @@ class SavedHistoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.service.states[meta['token']]['index'].source.end, original_end)
         self.assertEqual((await self.picture(meta['token'], 1)).getpixel((0, 0)), (1, 0, 7))
 
-    async def test_expiration_eviction_and_close_release_descriptors(self):
+    async def test_reader_cap_refuses_instead_of_evicting_and_close_releases_descriptors(self):
         self.write(2)
         first = await self.opened()
         first_index = self.service.states[first['token']]['index']
-        fd = first_index.source.fd
-        second = await self.opened()
-        third = await self.opened()
-        self.assertEqual(len(self.service.states), 2)
-        self.assertEqual((await self.client.get('/api/replay/' + first['token'])).status, 410)
-        self.assertTrue(first_index.closed)
-        self.assertTrue(first_index.source.closed)
-        # The operating system can reuse the evicted fd for the new reader.
-        self.assertEqual(first_index.source.fd, fd)
-        second_fd = self.service.states[second['token']]['index'].source.fd
-        await self.client.delete('/api/replay/' + second['token'])
+        others = [await self.opened() for _ in range(self.service.MAX_OPEN - 1)]
+        self.assertEqual(len(self.service.states), self.service.MAX_OPEN)
+        # A reader past the cap is refused; the readers already open keep playing.
+        self.assertEqual((await self.client.get('/api/replay')).status, 429)
+        self.assertIn((await self.client.get('/api/replay/' + first['token'])).status, (200, 202))
+        self.assertFalse(first_index.closed)
+        second_fd = self.service.states[others[0]['token']]['index'].source.fd
+        await self.client.delete('/api/replay/' + others[0]['token'])
         with self.assertRaises(OSError):
             os.fstat(second_fd)
-        self.assertEqual(len(self.service.states), 1)
-        self.service.states[third['token']]['used'] = time.monotonic() - self.service.TTL - 1
-        self.assertEqual((await self.client.get('/api/replay/' + third['token'])).status, 410)
-        self.assertFalse(self.service.states)
+        self.assertEqual(len(self.service.states), self.service.MAX_OPEN - 1)
+        # An idle reader expires and releases its handle.
+        self.service.states[others[1]['token']]['used'] = time.monotonic() - self.service.TTL - 1
+        self.assertEqual((await self.client.get('/api/replay/' + others[1]['token'])).status, 410)
+        self.assertNotIn(others[1]['token'], self.service.states)
 
     async def test_cancelling_an_indexing_reader_does_not_block_the_event_loop(self):
         self.write(2)

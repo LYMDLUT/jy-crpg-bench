@@ -42,15 +42,23 @@ def read_actions(path):
             if b'"act"' not in line:
                 continue
             event = json.loads(line)
-            if not event.get('act'):
+            act = event.get('act')
+            if isinstance(act, str) and act:
+                verb, target = act, event.get('on', '')
+            elif type(act) in (int, float) and isinstance(event.get('label'), str):
+                # Numbered benchmark markers carry the verb in their label,
+                # "KEY down", the way history_index.normalize reads them.
+                verb, _, target = event['label'].partition(' ')
+                verb = verb or 'KEY'
+            else:
                 continue
             timestamp = event.get('t')
             if type(timestamp) not in (int, float) or not math.isfinite(timestamp) or timestamp < 0:
                 raise ValueError('invalid action timestamp')
             count += 1
             rows.append(dict(id=count, at=started + timestamp,
-                             src=event.get('who', ''), verb=event['act'],
-                             target=event.get('on', ''),
+                             src=event.get('who', ''), verb=verb,
+                             target=target,
                              detail='from recording; result unknown', ok=None,
                              recording_offset=offset, recording_started=started,
                              _keyframe_offset=keyframe))

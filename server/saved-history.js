@@ -143,6 +143,9 @@
     }
   });
   get('historytab').hidden = !enabled;
+  // Playback, export and the recordings menu read the same endpoints the
+  // history pane does, so where the server has none they are hidden too.
+  if (!enabled) for (const id of ['play', 'save', 'recordingfiles']) get(id).hidden = true;
   selectHistory(enabled);
   if (enabled) load();
 })();

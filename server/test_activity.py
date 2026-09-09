@@ -187,6 +187,21 @@ class LegacyImportTests(unittest.TestCase):
             self.assertEqual(ActivityStore(history).load(), rows)
             self.assertEqual(recording.read_text(), raw)
 
+    def test_import_reads_numbered_markers_by_their_label(self):
+        from import_activity import import_recording
+        with tempfile.TemporaryDirectory() as tmp:
+            recording, history = Path(tmp) / 'recording.jsonl', Path(tmp) / 'activity.json'
+            events = [{'t': 1, 'act': 'GET', 'who': 'agent', 'on': 'screen'},
+                      {'t': 2, 'act': 1, 'label': 'KEY up', 'who': 'agent'},
+                      {'t': 3, 'act': 2, 'who': 'agent'}]
+            raw = '\n'.join(json.dumps(x) for x in [{'version': 1, 'started': 1700000000}, *events]) + '\n'
+            recording.write_text(raw)
+            report = import_recording(recording, history)
+            rows = ActivityStore(history).load()
+            self.assertEqual(report['recording_actions'], 2)
+            self.assertEqual([(row['verb'], row['target']) for row in rows], [('GET', 'screen'), ('KEY', 'up')])
+            self.assertEqual(recording.read_text(), raw)
+
     def test_import_rejects_invalid_time_without_overwriting(self):
         from import_activity import import_recording
         with tempfile.TemporaryDirectory() as tmp:

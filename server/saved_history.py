@@ -24,7 +24,7 @@ async def finish(function, *args):
 
 
 class SavedHistory:
-    MAX_OPEN = 2
+    MAX_OPEN = 4
     TTL = 300
 
     def __init__(self, store, pin_provider=None):
@@ -74,7 +74,7 @@ class SavedHistory:
         return dict(token=token, indexing=False, steps=index.steps,
                     started=index.source.header.get('started'),
                     duration=max(0.0, index.source.duration-index.base),
-                    beat=.6, speeds=[.5, 1, 2, 4, 8], **index.summary)
+                    beat=.6, speeds=[1, 2, 4, 8], **index.summary)
 
     async def open(self, request):
         # No user-supplied filesystem paths, including archived filenames.
@@ -85,9 +85,12 @@ class SavedHistory:
             if self.closed:
                 raise web.HTTPServiceUnavailable(reason='history service is closing')
             await self._expire()
-            while len(self.states) >= self.MAX_OPEN:
-                _, state = self.states.popitem(last=False)
-                await self._close(state)
+            # A reader holds its token for the whole playback, so a cap that
+            # evicted the oldest reader would cut another spectator's replay
+            # to admit a new one. Refuse the newcomer instead; idle readers
+            # still expire through the TTL above.
+            if len(self.states) >= self.MAX_OPEN:
+                raise web.HTTPTooManyRequests(reason='too many open history readers')
             try:
                 pin = self.pin_provider(recording) if self.pin_provider else self.store.pin()
                 index = HistoryIndex(pin)

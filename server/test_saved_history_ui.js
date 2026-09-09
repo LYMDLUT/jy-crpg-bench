@@ -70,7 +70,8 @@ function fixture({enabled = true, handle, decode} = {}) {
     click() { if (!this.disabled) return this.onclick?.({target: this}); }
   }
   const ids = ['historyrows', 'historyinfo', 'historypane', 'historytab', 'livetab',
-    'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historyrange'];
+    'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historyrange',
+    'play', 'save', 'recordingfiles'];
   const elements = Object.fromEntries(ids.map(id => [id, Object.assign(new Element(), {id})]));
   class TestURL extends URL {
     static createObjectURL(blob) {
@@ -189,6 +190,9 @@ test('explicitly disabled history selects realtime and makes no replay request',
   assert.equal(state.elements.livetab.getAttribute('aria-selected'), 'true');
   assert.ok(state.elements.historytab.disabled || state.elements.historytab.hidden,
     'the unavailable history tab must not be interactive');
+  for (const id of ['play', 'save', 'recordingfiles']) {
+    assert.equal(state.elements[id].hidden, true, id + ' reads endpoints this server does not have');
+  }
   state.elements.historytab.click();
   state.emit('historyinvalidate');
   await settle();
