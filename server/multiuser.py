@@ -187,6 +187,12 @@ class BackendManager:
                     QUNXIA_SAVES=str(saves), QUNXIA_STATE_DIR=str(saves / "states"),
                     QUNXIA_START_STATE=str(saves / "start.state"),
                     QUNXIA_RESUME_STATE=str(saves / "live.state"),
+                    # Health and diagnostic files are worker-local state.  Do
+                    # not let a gateway-level environment override these
+                    # paths: multiple users may otherwise overwrite one
+                    # another's heartbeat or incident while running together.
+                    QUNXIA_HEALTH_DIR=str(saves / ".health"),
+                    QUNXIA_DIAGNOSTIC_DIR=str(saves / ".health" / "incidents"),
                     QUNXIA_RECORDING_DIR=str(saves), QUNXIA_RECORDING_FILE=str(saves / "recording.jsonl"),
                     QUNXIA_BENCH="0", QUNXIA_CALIBRATE="0", QUNXIA_SNAPSHOT_EVERY="0",
                     QUNXIA_PARENT_FD=str(read_fd))

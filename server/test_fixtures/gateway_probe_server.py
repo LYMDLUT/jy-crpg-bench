@@ -12,6 +12,8 @@ async def status(request):
         "checkpoint": {"enabled": True, "state": os.environ.get("PROBE_PHASE", "ready")},
         "pid": os.getpid(), "saves": os.environ["QUNXIA_SAVES"],
         "recording": os.environ["QUNXIA_RECORDING_FILE"],
+        "health": os.environ["QUNXIA_HEALTH_DIR"],
+        "diagnostic": os.environ["QUNXIA_DIAGNOSTIC_DIR"],
         "listen_host": os.environ["QUNXIA_HOST"],
         "prefix": request.headers.get("X-Forwarded-Prefix"),
         "bench": os.environ["QUNXIA_BENCH"]})

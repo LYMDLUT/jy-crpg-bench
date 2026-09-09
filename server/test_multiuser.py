@@ -55,8 +55,50 @@ class MultiuserTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(value["prefix"], f"/u/{identity}")
         self.assertEqual(value["saves"], str(self.store.root / identity / "saves"))
         self.assertEqual(value["recording"], str(self.store.root / identity / "saves/recording.jsonl"))
+        self.assertEqual(value["health"], str(self.store.root / identity / "saves/.health"))
+        self.assertEqual(value["diagnostic"], str(self.store.root / identity / "saves/.health/incidents"))
         self.assertEqual(value["listen_host"], "127.0.0.1")
         self.assertEqual(value["bench"], "0")
+
+    async def test_workers_never_share_health_or_diagnostic_paths(self):
+        """Worker-local watchdog files stay private despite shared parent env."""
+        second = self.store.create("Second player")
+
+        async def status(backend):
+            async with self.manager.client.get(f"http://127.0.0.1:{backend.port}/status") as response:
+                self.assertEqual(response.status, 200)
+                return await response.json()
+
+        # First exercise the normal environment with two workers, then repeat
+        # with gateway-level paths that would have been shared before the fix.
+        first, second_backend = await asyncio.gather(
+            self.manager.ensure(self.user), self.manager.ensure(second))
+        values = await asyncio.gather(status(first), status(second_backend))
+        self.assertNotEqual(values[0]["health"], values[1]["health"])
+        self.assertNotEqual(values[0]["diagnostic"], values[1]["diagnostic"])
+        for user, value in zip((self.user, second), values):
+            saves = self.store.paths(user["id"])[2]
+            self.assertEqual(value["health"], str(saves / ".health"))
+            self.assertEqual(value["diagnostic"], str(saves / ".health" / "incidents"))
+
+        shared = self.root / "shared-health"
+        self.manager.environment.update(
+            QUNXIA_HEALTH_DIR=str(shared),
+            QUNXIA_DIAGNOSTIC_DIR=str(shared / "incidents"),
+        )
+        third = self.store.create("Third player")
+        fourth = self.store.create("Fourth player")
+        third_backend, fourth_backend = await asyncio.gather(
+            self.manager.ensure(third), self.manager.ensure(fourth))
+        values = await asyncio.gather(status(third_backend), status(fourth_backend))
+        for user, value in zip((third, fourth), values):
+            saves = self.store.paths(user["id"])[2]
+            self.assertEqual(value["health"], str(saves / ".health"))
+            self.assertEqual(value["diagnostic"], str(saves / ".health" / "incidents"))
+            self.assertNotEqual(value["health"], str(shared))
+            self.assertNotEqual(value["diagnostic"], str(shared / "incidents"))
+        self.assertNotEqual(values[0]["health"], values[1]["health"])
+        self.assertNotEqual(values[0]["diagnostic"], values[1]["diagnostic"])
 
     async def test_relative_core_and_server_paths_survive_the_worker_chdir(self):
         core = self.root / "probe-core.so"

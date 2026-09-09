@@ -27,6 +27,10 @@ not an account authentication system; the lobby lists the available sessions.
 Workers always bind to loopback and use the opt-in checkpoint path. The normal
 checkpoint interval and warmup settings apply. Benchmark mode, calibration and
 the menu-save macro are disabled for these persistent interactive workers.
+Each worker's watchdog state is kept under its own `saves/.health/` directory,
+with diagnostics under `saves/.health/incidents/`; gateway-level
+`QUNXIA_HEALTH_DIR` and `QUNXIA_DIAGNOSTIC_DIR` values cannot make workers
+share these files.
 The gateway waits for `checkpoint.state=ready`; a failed resume is reported
 instead of accepting input into a fresh game. Asset, help, WebSocket and
 recording requests resolve relative to the session URL. For a reverse proxy,
