@@ -52,22 +52,24 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   without the token from `QUNXIA_RESET_TOKEN` rather than 403, so the path
   cannot be confirmed by probing. Pauses the emulation thread first, since
   `retro_reset` underneath a running `retro_run` is a race.
-- `/api/recording` the session as tile deltas plus key presses, for playback.
-  Recording restarts with the game, keeps every frame while anyone is acting,
-  and once idle keeps only the last 30 seconds so an untouched game still shows
-  its own animation without growing forever. A whole picture is forced every 30
-  seconds so a pruned recording always has somewhere to start replaying from.
-  The page starts playback at the first complete picture. Pause/resume keeps
-  the current position; the slider seeks in both directions, and speed can be
-  1x, 2x, 4x or 8x. A newer seek cannot be overwritten by a late frame from an
-  older one. Playback keeps its pinned snapshot open until the viewer closes,
-  so the end can be replayed or inspected without refreshing. With server seek
-  support the slider uses its sparse keyframe index; older servers fall back
-  to reading bounded pages from the beginning. The page can also
-  export it as a video from another. Export composites the frames with the keys
-  that were held and encodes in the browser with MediaRecorder, so the server
-  spends nothing on it. MediaRecorder captures in real time, so an export takes
-  the length of the recording divided by four.
+- `/api/recording` streams the original recording journal; `?format=jsonl`
+  downloads its tile deltas, input events and action markers as JSONL. Readers
+  pin a committed file prefix, so later appends or reset do not change an open
+  snapshot. The source journal remains on disk.
+  With the saved-history backend, the page plays current and archived recordings
+  as saved actions, skipping idle gaps. Each action occupies 0.6 / speed seconds;
+  pause/resume and both seek directions retain the selected picture. Original
+  JSONL timestamps (`recorded_t`) are shown separately to the millisecond and do
+  not wrap after 24 hours. There is no continuous-recording fallback; an
+  unavailable action source can be retried.
+- `/api/video` submits a background action-video job to the saved-history backend.
+  It uses ffmpeg on the server, with progress, cancellation and a completed MP4
+  download. Encoding does not wait through original recording timestamps and
+  does not disable playback. Temporary status-query failures retain the job and
+  retry it; a confirmed missing or expired job allows a new export. ffmpeg must
+  be installed on the server. Cached results are bounded by a 2 GiB / 30-day
+  policy, retaining the latest result and active downloads. The source recording
+  and benchmark counters are unaffected by export.
 - `/api/history?limit=100` the bounded action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the
@@ -76,8 +78,8 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   (about 2 KB). Attaching one to every keypress buried the log. Only the
   newest 40 entries keep their image.
 
-The live canvas uses the small `zlib` tile encoder. Pillow is used only for
-on-demand PNG/WebP observations and activity thumbnails.
+The live canvas uses the small `zlib` tile encoder. Pillow is used for on-demand PNG/WebP observations, activity thumbnails,
+history reconstruction and background video captions.
 
 ## Several agents on one session
 
