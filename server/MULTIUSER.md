@@ -21,7 +21,7 @@ manual slots and `saves/recording.jsonl`. The existing RecordingStore opens
 that JSONL directly; no log conversion or startup replay indexing occurs.
 `QUNXIA_USERS_DIR`, `QUNXIA_CORE`, `QUNXIA_GAME_DIR`,
 `QUNXIA_MULTIUSER_HOST` and `PORT` provide the corresponding defaults.
-`QUNXIA_MAX_USERS=0` leaves user count uncapped. This is a local/shared gateway,
+`QUNXIA_MAX_USERS` caps user creation at 32 by default, since every user is a private copy of the game on disk; `0` leaves it uncapped. This is a local/shared gateway,
 not an account authentication system; the lobby lists the available sessions.
 
 Workers always bind to loopback and use the opt-in checkpoint path. The normal

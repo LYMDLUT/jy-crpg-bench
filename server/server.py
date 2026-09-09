@@ -205,8 +205,22 @@ STATE_DIR = os.environ.get("QUNXIA_STATE_DIR", str(ROOT.parent / "saves" / "stat
 # Long-lived play is opt-in. A scored run must never read or update a previous
 # interactive checkpoint, even if its launcher inherited these variables.
 RESUME_STATE = "" if warden.ON else os.environ.get("QUNXIA_RESUME_STATE", "")
-AUTOSAVE_SECONDS = float(os.environ.get("QUNXIA_AUTOSAVE_SECONDS", "30")) if RESUME_STATE else 0
-RESUME_WARMUP_FRAMES = int(os.environ.get("QUNXIA_RESUME_WARMUP_FRAMES", "1500")) if RESUME_STATE else 0
+
+
+def _checkpoint_setting(name, default, parse):
+    # A typo in an operator's environment should end in one sentence naming
+    # the variable, not in a traceback from import time.
+    value = os.environ.get(name, default)
+    try:
+        return parse(value)
+    except ValueError:
+        raise SystemExit(f"{name} must be a number, not {value!r}") from None
+
+
+AUTOSAVE_SECONDS = _checkpoint_setting("QUNXIA_AUTOSAVE_SECONDS", "30", float) if RESUME_STATE else 0
+# 1500 frames is where bench/repro.py (BOOT_MIN_FRAMES) finds the title
+# parked at the pinned cycle setting; a restore before that lands mid-boot.
+RESUME_WARMUP_FRAMES = _checkpoint_setting("QUNXIA_RESUME_WARMUP_FRAMES", "1500", int) if RESUME_STATE else 0
 checkpoint = {"enabled": bool(RESUME_STATE), "state": "warming" if RESUME_STATE else "disabled",
               "restored": False, "saves": 0, "last_saved": None, "error": None}
 
@@ -1901,8 +1915,10 @@ def base_url(request):
             scheme = value
             break
     base = f"{scheme}://{host}"
+    # Only the multiuser gateway sets this header, and a scored session never
+    # sits behind that gateway, so a client's own value is ignored there.
     prefix = request.headers.get("X-Forwarded-Prefix", "").rstrip("/")
-    if re.fullmatch(r"/u/[A-Za-z0-9_-]{20,64}", prefix):
+    if not warden.ON and re.fullmatch(r"/u/[A-Za-z0-9_-]{20,64}", prefix):
         return base + prefix
     sid = os.environ.get("QUNXIA_BENCH_SID", "")
     if os.environ.get("QUNXIA_BENCH") == "1" and sid:

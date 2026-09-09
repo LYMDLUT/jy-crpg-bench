@@ -191,13 +191,15 @@ class MultiuserTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(backend.process.poll())
         self.assertFalse(backend.marker.exists())
 
-    async def test_foreign_live_pid_is_never_terminated(self):
+    async def test_stale_marker_with_a_live_foreign_pid_is_discarded_not_signalled(self):
+        # A marker left by an unclean exit may name a PID that now belongs to
+        # an unrelated process (here: this test). The free lease proves the old
+        # worker is gone, so the session starts and the marker is rewritten.
         marker = self.store.paths(self.user["id"])[0] / "backend.json"
         marker.write_text(json.dumps({"pid": os.getpid(), "port": 1}))
-        with self.assertRaisesRegex(RuntimeError, "previous backend"):
-            await self.manager.ensure(self.user)
-        self.assertEqual(self.manager.backends, {})
-        self.assertEqual(json.loads(marker.read_text())["pid"], os.getpid())
+        backend = await self.manager.ensure(self.user)
+        self.assertEqual(json.loads(marker.read_text())["pid"], backend.process.pid)
+        self.assertNotEqual(backend.process.pid, os.getpid())
 
     async def test_another_gateway_and_escaping_user_paths_are_refused(self):
         other = BackendManager(self.store, "unused")

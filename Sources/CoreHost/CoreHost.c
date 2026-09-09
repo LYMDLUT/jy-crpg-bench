@@ -2,12 +2,14 @@
 #include "CoreHost.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -101,6 +103,14 @@ static void slogf(const char *fmt, ...) {
 static void set_err(const char *s) {
     snprintf(g_err, sizeof(g_err), "%s", s);
     slog(s);
+}
+
+static void set_errf(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(g_err, sizeof(g_err), fmt, ap);
+    va_end(ap);
+    slog(g_err);
 }
 
 static void RETRO_CALLCONV retro_log_cb(enum retro_log_level level, const char *fmt, ...) {
@@ -632,18 +642,28 @@ bool core_save_state(const char *path) {
         int fd = mkstemp(temporary);
         FILE *f = fd < 0 ? NULL : fdopen(fd, "wb");
         if (!f) {
+            int fail = errno;
             if (fd >= 0) { close(fd); unlink(temporary); }
             ok = false;
-            set_err("cannot open temporary savestate for write");
+            set_errf("cannot open temporary savestate for write: %s", strerror(fail));
         } else {
+            /* mkstemp creates the file private to the user. A savestate that
+               is being replaced keeps the mode it had, so a deliberately
+               shared file stays shared; a new one stays private. */
+            struct stat existing;
+            if (stat(path, &existing) == 0) fchmod(fd, existing.st_mode & 07777);
+            int fail = 0;
             ok = fwrite(buf, 1, n, f) == n;
-            if (ok) ok = fflush(f) == 0;
-            if (ok) ok = fsync(fileno(f)) == 0;
-            if (fclose(f) != 0) ok = false;
-            if (!ok) set_err("cannot finish writing savestate");
+            if (!ok) fail = errno ? errno : EIO;
+            if (ok && fflush(f) != 0) { ok = false; fail = errno; }
+            if (ok && fsync(fileno(f)) != 0) { ok = false; fail = errno; }
+            if (fclose(f) != 0 && ok) { ok = false; fail = errno; }
+            /* The operator reads this through /api/save and the app log, so
+               it names the step's errno: ENOSPC and EIO need different fixes. */
+            if (!ok) set_errf("cannot finish writing savestate: %s", strerror(fail));
             else if (rename(temporary, path) != 0) {
                 ok = false;
-                set_err("cannot replace savestate");
+                set_errf("cannot replace savestate: %s", strerror(errno));
             }
             if (!ok) unlink(temporary);
         }

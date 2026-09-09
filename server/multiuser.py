@@ -7,7 +7,6 @@ import argparse
 import asyncio
 from dataclasses import dataclass
 import fcntl
-import html
 import json
 import os
 from pathlib import Path
@@ -23,6 +22,8 @@ from urllib.parse import urlsplit
 from lobby import lobby_page
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
+from multidict import CIMultiDict
+from yarl import URL
 
 HERE = Path(__file__).resolve().parent
 USER_ID = re.compile(r"[A-Za-z0-9_-]{20,64}")
@@ -127,7 +128,10 @@ class BackendManager:
             os.close(self.lease)
             self.lease = None
             raise RuntimeError("another gateway owns this users directory")
-        self.client = ClientSession(timeout=ClientTimeout(total=120), auto_decompress=False)
+        # No total deadline: a proxied recording download streams for as long
+        # as the journal is long. Connect and read stalls are still bounded.
+        self.client = ClientSession(timeout=ClientTimeout(total=None, connect=10, sock_read=120),
+                                    auto_decompress=False)
 
     async def stop(self, backend):
         if backend.process.poll() is None:
@@ -159,20 +163,19 @@ class BackendManager:
             lease = os.open(base / ".backend.lock", os.O_CREAT | os.O_RDWR, 0o600)
             try:
                 fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                # A legacy marker is not proof that we own its PID. Refuse a
-                # live unknown owner instead of signalling an unrelated process.
+                # A worker holds this lease for its whole life, so acquiring it
+                # proves the previous owner is gone whatever its marker says:
+                # after an unclean exit the recorded PID may already belong to
+                # an unrelated process, which is never signalled. The stale
+                # marker is dropped and rewritten for the worker started below.
                 if marker.exists():
                     try:
-                        pid = int(json.loads(marker.read_text())["pid"])
-                    except (OSError, ValueError, KeyError, TypeError):
-                        pid = 0
-                    if pid > 0:
-                        try:
-                            os.kill(pid, 0)
-                        except ProcessLookupError:
-                            pass
-                        else:
-                            raise RuntimeError("a previous backend may still own this session")
+                        stale = json.loads(marker.read_text()).get("pid")
+                    except (OSError, ValueError, AttributeError):
+                        stale = None
+                    print(f"discarding stale backend marker for {identity} (pid {stale})",
+                          file=sys.stderr, flush=True)
+                    marker.unlink(missing_ok=True)
                 with socket.socket() as sock:
                     sock.bind(("127.0.0.1", 0))
                     port = sock.getsockname()[1]
@@ -296,8 +299,12 @@ def build_app(store, manager, public_origin=None):
             async with create_lock:
                 user = await asyncio.to_thread(store.create, body.get("name", ""))
             return web.json_response({"ok": True, "id": user["id"], "url": f'/u/{user["id"]}/'}, status=201)
-        except (ValueError, OSError) as exc:
+        except ValueError as exc:
             return web.json_response({"error": str(exc)}, status=400)
+        except OSError as exc:
+            # The message would name server-side paths; the log gets it.
+            print(f"user creation failed: {exc}", file=sys.stderr, flush=True)
+            return web.json_response({"error": "the user could not be created"}, status=500)
 
     async def proxy(request):
         identity = request.match_info["identity"]
@@ -308,22 +315,31 @@ def build_app(store, manager, public_origin=None):
             raise web.HTTPFound(f"/u/{identity}/")
         try:
             backend = await manager.ensure(user)
-        except (OSError, RuntimeError) as exc:
+        except RuntimeError as exc:
             return web.json_response({"error": str(exc)}, status=503)
-        target = f'http://127.0.0.1:{backend.port}/{request.match_info["tail"]}'
-        if request.query_string:
-            target += "?" + request.rel_url.raw_query_string
+        except OSError as exc:
+            print(f"backend for {identity} could not start: {exc}", file=sys.stderr, flush=True)
+            return web.json_response({"error": "the session backend could not be started"}, status=503)
+        # The request target is forwarded byte for byte: re-parsing the decoded
+        # tail would turn an encoded "?" or "/" in a path segment into syntax.
+        target = URL.build(scheme="http", host="127.0.0.1", port=backend.port,
+                           path=request.rel_url.raw_path[len(f"/u/{identity}"):] or "/",
+                           query_string=request.rel_url.raw_query_string, encoded=True)
         headers = forwarded_headers(request, identity, public_origin)
         if request.headers.get("Upgrade", "").lower() == "websocket":
+            if manager.closing:
+                raise web.HTTPServiceUnavailable()
+            downstream = web.WebSocketResponse(max_msg_size=4096, compress=False)
+            # A malformed handshake is answered here and never reaches the
+            # worker, which would count it as a spectator joining and leaving.
+            if not downstream.can_prepare(request).ok:
+                raise web.HTTPBadRequest(reason="not a websocket handshake")
             upstream = await manager.client.ws_connect(target, headers=headers, max_msg_size=4 << 20,
                                                         compress=0)
-            downstream = web.WebSocketResponse(max_msg_size=4096, compress=False)
             pair = (downstream, upstream, request.transport)
             connections.add(pair)
             tasks = []
             try:
-                if manager.closing:
-                    raise web.HTTPServiceUnavailable()
                 await downstream.prepare(request)
                 tasks = [asyncio.create_task(relay(a, b)) for a, b in
                          ((downstream, upstream), (upstream, downstream))]
@@ -334,18 +350,25 @@ def build_app(store, manager, public_origin=None):
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
                 await upstream.close()
-                await downstream.close()
+                if downstream.prepared:
+                    await downstream.close()
             return downstream
+        body = request.content.iter_chunked(64 << 10) if request.can_read_body else None
         async with manager.client.request(request.method, target, headers=headers,
-                data=request.content.iter_chunked(64 << 10), allow_redirects=False) as upstream:
-            headers = {k: v for k, v in upstream.headers.items() if k.lower() not in HOP}
+                data=body, allow_redirects=False) as upstream:
+            # A multidict keeps repeated headers such as Set-Cookie apart.
+            headers = CIMultiDict((k, v) for k, v in upstream.headers.items() if k.lower() not in HOP)
             if headers.get("Location", "").startswith("/"):
                 headers["Location"] = f"/u/{identity}" + headers["Location"]
             downstream = web.StreamResponse(status=upstream.status, headers=headers)
             if upstream.content_length is not None:
                 downstream.content_length = upstream.content_length
-            await downstream.prepare(request)
+            # A client that gave up while the worker was still warming up has
+            # already closed its socket by the time the upstream answers, and
+            # then even sending the headers raises; that is the client's
+            # choice, not a gateway fault, so it is not logged as one.
             try:
+                await downstream.prepare(request)
                 async for chunk in upstream.content.iter_chunked(64 << 10):
                     await downstream.write(chunk)
                 await downstream.write_eof()
@@ -399,7 +422,9 @@ def main():
     args = parser.parse_args()
     if not args.users_dir:
         parser.error("set --users-dir or QUNXIA_USERS_DIR")
-    store = UserStore(args.users_dir, args.game_dir, int(os.environ.get("QUNXIA_MAX_USERS", "0")))
+    # Every user is a private copy of the game on disk, so creation is capped
+    # by default; QUNXIA_MAX_USERS=0 lifts the cap deliberately.
+    store = UserStore(args.users_dir, args.game_dir, int(os.environ.get("QUNXIA_MAX_USERS", "32")))
     if args.command == "list":
         print(json.dumps(store.all(), ensure_ascii=False, indent=2))
     elif args.command == "create":
