@@ -212,3 +212,26 @@ name search, creation-time/name sorting, and a new-game dialog. Reading the lobb
 only inspects user metadata and save-file timestamps; it does not start game
 workers or read recordings. The displayed time is explicitly a save time, since
 a running game may autosave without player input.
+
+## Recording files and reset archives
+
+Interactive servers expose `GET /api/recordings` with a `files` list containing
+the current recording and reset archives, including their IDs, filenames and
+byte sizes. `GET /api/recordings/{id}` downloads the original JSONL as an
+attachment. Single byte ranges, open-ended ranges, suffix ranges and `If-Range`
+are supported so a large download can resume. Each response pins its file
+descriptor and byte length before streaming; a concurrent reset or append does
+not change the bytes in that response.
+
+To replay an archive, start the existing paged reader with
+`/api/recording?view=paged&recording={id}`. Continue with the returned token and
+cursor as usual; subsequent requests keep the same snapshot. `current` remains
+the default. Archive IDs must match `YYYYMMDD-HHMMSS-<12 lowercase hex>.jsonl`
+inside the recording's `recordings/` directory. Symbolic links and other file
+types are refused. Archives are opened read-only, and their replay duration is
+recovered from a bounded file tail without opening another recording writer.
+
+In benchmark mode, the file-list and download routes are absent and archive
+selection is rejected. The existing current-recording endpoint and benchmark
+accounting remain unchanged. These file selectors do not change the source of
+the right-hand screenshot history.

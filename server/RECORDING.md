@@ -18,6 +18,22 @@ MP4 rendering and its timeline publication also consume the disk recording.
 Browser MediaRecorder output chunks are still held in the browser until download;
 this change bounds the server history and replay input, not all browser memory.
 
+Paged responses advertise `seek_supported`. To seek the same pinned snapshot,
+request `?view=paged&token=<token>&time=<recorded-seconds>`. The first seek builds
+a sparse SQLite keyframe index in `.replay-index/`, returning HTTP 202 with
+`indexing`, `scanned` and `total` until ready. Normal startup and sequential
+playback do not build that index. Later opens extend cached metadata only for
+newly committed bytes of the same inode.
+
+A ready seek returns the bounded page starting at the last complete frame at
+or before the requested time (or the first frame), plus `seek.at`, `seek.origin`
+and the held keys at that cursor. Apply that frame and subsequent deltas through
+the target time. Old unmarked complete frames are recognized from their tile
+headers. The JSONL remains unchanged; reset and append cannot change an open
+reader's prefix. Closing a reader cancels its index worker, which owns and
+releases a separate descriptor. The index stores offsets/key state, not frame
+payloads; SQLite uses a 2 MiB cache and temporary data stays on disk.
+
 Cloud Run's writable container filesystem uses instance memory and disappears
 when the instance stops. A path under `/tmp` does not solve that problem. Configure
 an actual POSIX persistent volume and point `QUNXIA_RECORDING_DIR` to it; startup
