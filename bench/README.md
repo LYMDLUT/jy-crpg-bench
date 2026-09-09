@@ -89,6 +89,24 @@ entry. A harness that does not report leaves the entry without usage; a run
 whose model has no declared rates carries no cost; the site shows a dash,
 never a zero.
 
+What the game itself is read for, and what the board now ranks on:
+
+- **level, experience, hit points, skills, items, books** - decoded live out
+  of the machine on every action. The bag sits in the 800 bytes in front of
+  the 320 character records and moves the moment something is picked up, so
+  these are current, not last-saved. Books are how many of the fourteen
+  novels are held; fourteen ends the game.
+- **the party, its summed levels, and where it stands** - only true in a save
+  the game itself wrote. The copies in a machine image are the ones the game
+  loaded when the run began and they do not follow the player, so the
+  benchmark has the game save into slot 3 and reads the archive. The game
+  only offers 存檔 from the world map, so a run that never crosses it carries
+  no party and the board draws those rungs hollow rather than as zeroes.
+
+None of this is in the Control API and a scored run withholds it from anyone
+without the operator token until the run is over. An agent that could read its
+own score could play the score, and one that could save could also load.
+
 What the screen itself is read for, none of it a model judging another model:
 
 - **screen-changing decision ratio** - adjacent decision results whose final
@@ -214,5 +232,8 @@ service; 24 simultaneous short requests lose none.
 | `QUNXIA_PUBLISH` | 1 | set to 0 and the run is not listed or uploaded |
 | `QUNXIA_CALIBRATE` | 0 | read the character's position; see the warning below |
 | `QUNXIA_OPENING_SECONDS` | 420 | budget for playing the opening once |
+| `QUNXIA_SNAPSHOT_EVERY` | 120 | seconds between attempts to have the game save itself; `0` switches it off, which is what the start-state authoring worker gets |
+| `QUNXIA_SNAPSHOT_SLOT` | 3 | which of the game's three save slots the benchmark writes |
+| `QUNXIA_SNAPSHOT_LAST_CALL` | 25 | seconds of budget left when a scored run gets its last save |
 | `QUNXIA_RECORDING_DIR` | `<repo>/recordings` | where the recording journals are written |
 | `QUNXIA_RECORDING_ALLOW_EPHEMERAL` | | `1` lets a container deployment accept instance-memory recordings; without it (or a persistent volume) startup is rejected |

@@ -395,10 +395,14 @@ each of them has learned and carries, the bag under the game's own names and
 descriptions, and which of the fourteen are in. `GET /progress` is that panel's
 source.
 
-Note that the game writes its save slots into the game directory it was
-mounted from, so slot 3 belongs to the benchmark on any machine that runs it.
-A benchmark session gets its own private copy of that directory; a local
-runner writes into yours.
+Note that the game writes a save as three files - `R3.GRP`, `S3.GRP` and
+`D3.GRP` - into the game directory it was mounted from, so slot 3 belongs to
+the benchmark on any machine that runs it. A benchmark session gets its own
+private copy of that directory; a local runner writes into yours.
+
+One worker never saves for itself: the one that authors the start state
+replays the opening from a script, and every key in that replay is placed
+deliberately, so the broker gives it `QUNXIA_SNAPSHOT_EVERY=0`.
 
 ## Control loop
 
@@ -487,10 +491,12 @@ macOS runner with `QUNXIA_SET="dosbox_pure_cycles=max"` or
 # usually the Homebrew interpreter without aiohttp/pillow/numpy, and the
 # suite then dies with 8 module-level ImportError 'modules' - an environment
 # gap, not broken code. Verified on this working copy: system python -> 52
-# tests / 8 errors; .venv (Python 3.14.7) -> 101 tests / 0 failures.
+# tests / 8 errors; .venv (Python 3.14.7) -> 148 server tests / 0 failures.
 # Recreate it with:  uv venv --python 3.14 && uv pip install aiohttp pillow numpy zhconv
 python -m unittest discover -s server -p 'test_*.py'      # needs aiohttp, pillow
 python -m unittest discover -s mcp-server -p 'test_*.py'  # run with mcp<2 and mcp>=2
+# bench includes the reproducibility cases, which run the real core in fresh
+# processes and take about three minutes between them
 python -m unittest discover -s bench -p 'test_*.py'       # needs numpy
 python -m unittest discover -s site -p 'test_*.py'        # needs zhconv
 python -m unittest Scripts/test_agent_launchers.py

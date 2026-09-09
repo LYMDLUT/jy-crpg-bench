@@ -1255,9 +1255,12 @@ async def author_start_state(state, attempt):
     env.update(PORT=str(port), QUNXIA_RESET_TOKEN=token,
                QUNXIA_START_STATE=str(state))
     env.pop("QUNXIA_BENCH", None)              # the authoring run is not a run
-    # ...and being not a run, it must not be interrupted: the opening is
-    # replayed by a script here, and a save macro's escape landing in the
-    # middle of it derails the replay and leaves the pool with no origin.
+    # ...and being not a run, it saves nothing for itself. The opening is
+    # replayed by a script here and every key in that replay is placed
+    # deliberately, so a key of the benchmark's own has no business landing
+    # between two of them. (This was first shipped as a fix for a pool that
+    # would not boot. It was not that: the cause was the attribute roll in
+    # `bootstrap.py`. The rule stands on its own.)
     env["QUNXIA_SNAPSHOT_EVERY"] = "0"
     # The worker's own output goes where the broker's does. It used to go to
     # /dev/null, and when an authoring run stopped making progress there was
