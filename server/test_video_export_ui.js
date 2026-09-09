@@ -270,3 +270,51 @@ test('pageshow restores an idle button if creation failed while the page was hid
   assert.equal(f.elements.save.disabled,false);assert.equal(f.elements.save.textContent,'⤓ MP4');
   assert.equal(f.storage.size,0);assert.equal(f.timers.size,0);
 });
+
+const invalidReplies={
+  'truncated JSON':()=>({...response(null),json:async()=>{throw new TypeError('response body interrupted');}}),
+  'missing id':()=>response({state:'cancelled'}),
+  'wrong id':()=>response(row('cancelled',{id:'another-job'})),
+  'unknown state':()=>response(row('not-a-real-state')),
+};
+for(const [label,invalid] of Object.entries(invalidReplies)){
+  test(`DELETE 200 with ${label} retains the original id and permits cancelling it after recovery`,async()=>{
+    let deletes=0;
+    const f=setup(call=>{
+      if(call.method==='DELETE')return ++deletes===1?invalid():response(row('cancelled'));
+      return response(row('encoding'));
+    });
+    await f.elements.save.onclick();await f.elements.cancel.onclick();
+    assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job1'});
+    assert.equal(f.elements.save.textContent,'连接中断，正在重试');
+    assert.equal(f.elements.save.disabled,true);assert.equal(f.elements.cancel.hidden,false);
+    assert.equal(f.elements.cancel.disabled,false);assert.equal(f.timers.size,1);
+    await f.elements.save.onclick();assert.equal(f.calls.filter(call=>call.method==='POST').length,1);
+    await f.tick();
+    assert.equal(f.elements.save.textContent,'生成 50%');
+    await f.elements.cancel.onclick();
+    assert.ok(f.calls.filter(call=>call.method!=='POST').every(call=>call.url.href===base+'api/video/job1'));
+    assert.equal(f.elements.cancel.hidden,true);assert.equal(f.storage.size,0);assert.equal(f.timers.size,0);
+  });
+  test(`GET 200 with ${label} retains the original id until a valid status arrives`,async()=>{
+    let polls=0;
+    const f=setup(()=>++polls===1?invalid():response(row('ready',{download:'api/video/job1/file'})),'job1');
+    await flush();
+    assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job1'});
+    assert.equal(f.elements.save.disabled,true);assert.equal(f.elements.cancel.hidden,false);
+    assert.equal(f.elements.save.textContent,'连接中断，正在重试');
+    await f.tick();
+    assert.equal(f.elements.save.textContent,'⤓ 下载 MP4');
+    assert.ok(f.calls.every(call=>call.method==='GET'&&call.url.href===base+'api/video/job1'));
+  });
+}
+
+for(const status of [404,410]){
+  for(const method of ['GET','DELETE'])test(`${method} ${status} expires a job even with a non-JSON error response`,async()=>{
+    const f=setup(call=>call.method===method?{...response(null,status),json:async()=>{throw new SyntaxError('not JSON');}}:response(row('encoding')));
+    await f.elements.save.onclick();
+    if(method==='GET')await f.tick();else await f.elements.cancel.onclick();
+    assert.equal(f.storage.size,0);assert.equal(f.timers.size,0);
+    assert.equal(f.elements.save.disabled,false);assert.equal(f.elements.cancel.hidden,true);
+  });
+}

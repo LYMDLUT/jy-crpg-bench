@@ -11,6 +11,7 @@
   button.after(cancel);
   let job = null, timer = null, requesting = false, cancelling = false, closed = false, revision = 0;
   let activePoll = null, activeCancel = null, failures = 0;
+  const states = new Set(['queued','indexing','rendering','encoding','finalizing','ready','cancelled','error','failed']);
   const terminal = state => ['ready','cancelled','error','failed'].includes(state);
   const storage = value => { try { value ? sessionStorage.setItem(key,JSON.stringify(value)) : sessionStorage.removeItem(key); } catch {} };
   function schedule(delay=700) {
@@ -37,13 +38,20 @@
   }
   async function call(url,options={}) {
     const response = await fetch(url,{cache:'no-store',...options});
-    const body = await response.json().catch(()=>({}));
     if (!response.ok) {
-      const error=Error(body.error || ([404,410].includes(response.status) ? '后台任务已失效，请重新生成' : `导出请求失败（${response.status}）`));
+      // HTTP expiry remains authoritative even when the error body is not JSON.
+      const body = await response.json().catch(()=>({}));
+      const error=Error(body?.error || ([404,410].includes(response.status) ? '后台任务已失效，请重新生成' : `导出请求失败（${response.status}）`));
       error.status=response.status;
       throw error;
     }
-    return body;
+    // A truncated successful response cannot stand in for a real job status.
+    return response.json();
+  }
+  function validate(row,id) {
+    if (!row || typeof row.id!=='string' || !row.id || (id!==undefined && row.id!==id) || !states.has(row.state))
+      throw Error('无法读取后台任务状态');
+    return row;
   }
   async function timedCall(pending,url,options={}) {
     const signal=pending.controller.signal;
@@ -79,8 +87,7 @@
     try {
       const row = await timedCall(pending,new URL(id,api));
       if (current !== revision || closed) return;
-      if (row.id !== id || typeof row.state !== 'string') throw Error('无法读取后台任务状态');
-      show(row);
+      show(validate(row,id));
     } catch(error) { if (current === revision && !closed) unavailable(error); }
     finally {if (activePoll===pending) activePoll=null;}
   }
@@ -95,6 +102,7 @@
     requesting=true;button.disabled=true;button.textContent='提交中';
     try {
       const row=await call(new URL('api/video',page),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recording:'current',speed:4})});
+      validate(row);
       requesting=false;
       if (closed) {job=row;storage(!terminal(row.state)||row.state==='ready'?{id:row.id}:null);return;}
       show(row);
@@ -102,10 +110,10 @@
   };
   cancel.onclick=async()=>{
     if (!job || closed || cancelling) return;
-    const current=++revision;clearTimeout(timer);timer=null;stopPoll();cancelling=true;
+    const current=++revision,id=job.id;clearTimeout(timer);timer=null;stopPoll();cancelling=true;
     const pending={controller:new AbortController()};activeCancel=pending;
     cancel.disabled=true;
-    try { const row=await timedCall(pending,new URL(job.id,api),{method:'DELETE'});if(current===revision&&!closed){cancelling=false;show(row);} }
+    try { const row=await timedCall(pending,new URL(id,api),{method:'DELETE'});if(current===revision&&!closed){validate(row,id);cancelling=false;show(row);} }
     catch(error) { if(current!==revision||closed)return;cancelling=false;unavailable(error); }
     finally {if(current===revision)cancelling=false;if(activeCancel===pending)activeCancel=null;}
   };
