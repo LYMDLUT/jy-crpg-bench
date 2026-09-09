@@ -12,8 +12,8 @@ the claim:
   been up when it arrived - the start state is a well-defined origin,
   not a moving target.
 
-The last two are checked on `repro.DETERMINISTIC` rather than on the
-whole signature, and the reason is measured rather than assumed. The
+Fresh-process and golden comparisons use `repro.DETERMINISTIC` rather than
+the whole signature, and the reason is measured rather than assumed. The
 emulator carries counters its own serialiser does not restore: at two
 park lengths the machine image differs immediately after the load,
 before a frame of the script has run, while the picture and the game's
