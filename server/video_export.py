@@ -379,8 +379,6 @@ class VideoExports:
                 raise ValueError()
         except (ValueError, TypeError, AttributeError):
             raise web.HTTPBadRequest(reason='invalid video export request')
-        if recording != 'current' and self.pin_provider is None:
-            raise web.HTTPNotFound(reason='recording not found')
         self._reap()
         if request_id is not None:
             previous = self.request_jobs.get(request_id)
@@ -405,6 +403,8 @@ class VideoExports:
                         os.utime(previous.path, None)
                     return web.json_response(meta, status=200)
                 return web.json_response(previous.public(), status=202)
+        if recording != 'current' and self.pin_provider is None:
+            raise web.HTTPNotFound(reason='recording not found')
         try:
             pin = self.pin_provider(recording) if self.pin_provider else self.store.pin()
             index = HistoryIndex(pin)

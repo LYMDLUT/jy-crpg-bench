@@ -212,6 +212,10 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first.status, 202)
         conflict = await self.client.post('/api/video', json={'speed': 4, 'requestId': 'fixed-token'})
         self.assertEqual(conflict.status, 409)
+        conflict = await self.client.post('/api/video', json={
+            'speed': 1, 'requestId': 'fixed-token',
+            'recording': '20260909-120000-aaaaaaaaaaaa.jsonl'})
+        self.assertEqual(conflict.status, 409)
         self.assertEqual(len(self.service.jobs), 1)
 
     async def test_request_id_replays_cancelled_and_error_terminal_states(self):
@@ -225,7 +229,9 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
         replay = await self.client.post('/api/video', json={
             'speed': 1, 'requestId': 'cancelled-token'})
         self.assertEqual(replay.status, 200)
-        self.assertEqual((await replay.json())['id'], cancelled['id'])
+        replay = await replay.json()
+        self.assertEqual(replay['id'], cancelled['id'])
+        self.assertEqual(replay['state'], 'cancelled')
         self.assertEqual((await self.client.post('/api/video', json={
             'speed': 4, 'requestId': 'cancelled-token'})).status, 409)
 
@@ -242,6 +248,7 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(replay['state'], 'error')
         self.assertEqual((await self.client.post('/api/video', json={
             'speed': 4, 'requestId': 'error-token'})).status, 409)
+        self.assertEqual(len(self.service.jobs), 2)
 
     async def test_request_id_ready_artifact_expiry_requires_new_token(self):
         self.write()
@@ -256,10 +263,15 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
             expired = await self.client.post('/api/video', json={
                 'speed': 1, 'requestId': 'ready-token'})
             self.assertEqual(expired.status, 410)
+            self.assertEqual(len(self.service.jobs), 1)
+            self.assertEqual(self.service.request_jobs['ready-token'].id, first['id'])
+            self.assertEqual((await self.client.post('/api/video', json={
+                'speed': 4, 'requestId': 'ready-token'})).status, 409)
             replacement = await self.client.post('/api/video', json={
                 'speed': 1, 'requestId': 'new-ready-token'})
             self.assertEqual(replacement.status, 202)
             self.assertNotEqual((await replacement.json())['id'], first['id'])
+            self.assertEqual(len(self.service.jobs), 2)
 
     async def test_unfinished_settle_and_renderer_changes_invalidate_cache(self):
         self.store.append(frame(0, (1, 2, 3)))
