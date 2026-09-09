@@ -50,8 +50,8 @@
   #vcrkeys .k { font-size: 13px; min-width: 20px; padding: 2px 6px; }
   #vcrbar { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #9a9aa6; }
   #vcrkeys { display: flex; gap: 4px; min-height: 20px; align-items: center; }
-  #vcrtrack { width: 260px; height: 4px; background: #26262c; border-radius: 2px; overflow: hidden; }
-  #vcrfill { display: block; height: 4px; width: 0; background: #6cb6ff; }
+  #vcrbar { flex-wrap: wrap; justify-content: center; max-width: 94vw; }
+  #vcrseek { width: min(35vw, 360px); accent-color: #6cb6ff; }
   #logrows { overflow-y: auto; padding: 6px 0 10px; flex: 1; }
   .r { display: flex; gap: 7px; padding: 2px 12px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
   .r:hover { background: #17171c; }
@@ -309,7 +309,10 @@
   <div id="vcrkeys"></div>
   <div id="vcrbar">
     <span id="vcrtime">0:00</span>
-    <span id="vcrtrack"><span id="vcrfill"></span></span>
+    <input id="vcrseek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Replay position">
+    <span id="vcrduration">0:00</span>
+    <button id="vcrpause">pause</button>
+    <select id="vcrspeed" aria-label="Replay speed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option></select>
     <button id="vcrclose">close</button>
   </div>
 </div>
@@ -343,7 +346,8 @@
 </aside>
 </div>
 
-<script src="/recording.js"></script>
+<script src="recording.js"></script>
+<script src="replay.js"></script>
 <script>
 const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d", { alpha: false });
@@ -571,65 +575,53 @@ saveBtn.onclick = async () => {
 playBtn.onclick = async () => {
   playBtn.disabled = true;
   playBtn.textContent = "loading";
-  let recording;
-  try {
-    recording = await ReplayRecording.open();
-  } catch { playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
-  if (!(await recording.peek())) { recording.close(); playBtn.disabled = false; playBtn.textContent = "▶ 4×"; return; }
-
-  playBtn.textContent = "playing";
   vcr.classList.add("on");
-  vctx.fillStyle = "#000";
-  vctx.fillRect(0, 0, vcv.width, vcv.height);
-  vcrKeys.textContent = "";
-
-  const SPEED = 4;
-  const total = recording.duration || 1;
-  const cache = {};
-  const down = new Set();
-  let cancelled = false;
-  vcrStop = () => { cancelled = true; recording.close(); };
-
-  const t0 = performance.now();
-  const step = async () => {
-    try {
-    while (!cancelled) {
-      const ev = await recording.peek();
-      if (!ev) break;
-      const due = t0 + (ev.t * 1000) / SPEED;
-      const wait = due - performance.now();
-      if (wait > 4) { setTimeout(step, wait); return; }
-      recording.take();
-      if (ev.d) {
-        paintDelta(await inflate(b64bytes(ev.d)), vcv, vctx, cache);
-      } else if (ev.key) {
-        ev.down ? down.add(ev.key) : down.delete(ev.key);
-        vcrKeys.textContent = "";
-        if (ev.who) {
-          const who = document.createElement("span");
-          who.textContent = ev.who;
-          who.style.color = colorOf(ev.who);
-          who.style.marginRight = "6px";
-          vcrKeys.appendChild(who);
-        }
-        for (const k of down) {
-          const chip = document.createElement("span");
-          chip.className = "k" + (ARROW.has(k) ? " arrow" : "");
-          chip.textContent = GLYPH[k] ?? k;
-          vcrKeys.appendChild(chip);
-        }
-      }
-      document.getElementById("vcrfill").style.width = (ev.t / total) * 100 + "%";
-      document.getElementById("vcrtime").textContent = fmt(ev.t);
-    }
-    recording.close();
-    if (!cancelled) { playBtn.textContent = "▶ 4×"; }
-    } catch (error) {
-      recording.close();
-      if (!cancelled) { playBtn.textContent = "replay unavailable"; playBtn.title = error.message; }
-    }
+  let source, player, closed = false;
+  const cache = {}, down = new Set();
+  const seek = document.getElementById("vcrseek"), pause = document.getElementById("vcrpause");
+  vcrStop = () => { closed = true; player?.close(); source?.close(); };
+  const reset = held => {
+    vctx.fillStyle = "#000"; vctx.fillRect(0, 0, vcv.width, vcv.height);
+    cache.img = null; down.clear();
+    for (const key of Object.keys(held)) down.add(key);
+    vcrKeys.textContent = [...down].map(k=>GLYPH[k] ?? k).join(" ");
   };
-  step();
+  try {
+    source = await ReplayRecording.open();
+    if (closed) { source.close(); return; }
+    player = new ReplayPlayer(source, {
+      decode: ev => inflate(b64bytes(ev.d)),
+      complete: d => {
+        const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
+        return d.length >= 13 && v.getUint16(11, true) === v.getUint16(7, true) * v.getUint16(9, true);
+      },
+      reset,
+      paint: (decoded, ev) => {
+        if (decoded) paintDelta(decoded, vcv, vctx, cache);
+        if (ev.key) {
+          ev.down ? down.add(ev.key) : down.delete(ev.key);
+          vcrKeys.textContent = [...down].map(k=>GLYPH[k] ?? k).join(" ");
+        }
+      },
+      update: state => {
+        seek.max = String(state.duration); seek.value = String(state.position);
+        seek.setAttribute("aria-valuetext", fmt(state.position) + " / " + fmt(state.duration));
+        document.getElementById("vcrtime").textContent = state.loading ? "loading…" : fmt(state.position);
+        document.getElementById("vcrduration").textContent = fmt(state.duration);
+        pause.textContent = state.playing ? "pause" : "resume";
+        document.getElementById("vcrspeed").value = String(state.speed);
+        playBtn.textContent = "replay";
+      },
+      error: error => { playBtn.textContent = "replay unavailable"; playBtn.title = error.message; },
+    });
+    pause.onclick = () => player.wantPlaying ? player.pause() : player.play();
+    seek.oninput = () => player.seek(Number(seek.value));
+    document.getElementById("vcrspeed").onchange = e => player.setSpeed(Number(e.target.value));
+    await player.start();
+  } catch (error) {
+    source?.close();
+    if (!closed) { playBtn.textContent = "replay unavailable"; playBtn.title = error.message; }
+  }
 };
 
 function connect() {

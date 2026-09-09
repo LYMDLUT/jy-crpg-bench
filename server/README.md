@@ -57,7 +57,13 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   and once idle keeps only the last 30 seconds so an untouched game still shows
   its own animation without growing forever. A whole picture is forced every 30
   seconds so a pruned recording always has somewhere to start replaying from.
-  The page plays it back at 4x from a button in the activity header, and can
+  The page starts playback at the first complete picture. Pause/resume keeps
+  the current position; the slider seeks in both directions, and speed can be
+  1x, 2x, 4x or 8x. A newer seek cannot be overwritten by a late frame from an
+  older one. Playback keeps its pinned snapshot open until the viewer closes,
+  so the end can be replayed or inspected without refreshing. With server seek
+  support the slider uses its sparse keyframe index; older servers fall back
+  to reading bounded pages from the beginning. The page can also
   export it as a video from another. Export composites the frames with the keys
   that were held and encodes in the browser with MediaRecorder, so the server
   spends nothing on it. MediaRecorder captures in real time, so an export takes

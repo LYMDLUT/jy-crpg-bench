@@ -2128,6 +2128,10 @@ async def recording_script(_request):
     return web.FileResponse(ROOT / "recording.js")
 
 
+async def replay_script(_request):
+    return web.FileResponse(ROOT / "replay.js")
+
+
 async def index(_request):
     return web.FileResponse(ROOT / "index.html")
 
@@ -2331,6 +2335,7 @@ def main():
     app.add_routes([
         web.get("/", index),
         web.get("/recording.js", recording_script),
+        web.get("/replay.js", replay_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
         web.get("/progress", progress),
