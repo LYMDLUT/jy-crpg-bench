@@ -384,13 +384,15 @@ in both, so the language an agent reasons in is not itself a handicap.
 
 A session is created with a playtime, \NbudgetMin{} minutes by default and up
 to twenty-four hours, and the clock starts at the first playable moment. Each
-session is a separate emulator process with a private copy of the game, so
-no state, filesystem or snapshot is shared between sessions. An agent that
+session is a separate emulator process with a private copy of the game,
+which every host supplies itself as described in \cref{app:licence}, so no
+state, filesystem or snapshot is shared between sessions. An agent that
 goes ten minutes without pressing a key is torn down and recorded as idle,
 because deliberating for ten minutes over one action is a failure mode under
 a wall-clock budget. When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
-\Cref{fig:apparatus} shows the apparatus.
+\Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists the
+session parameters.
 
 \begin{figure}[t]
 \centering
@@ -630,31 +632,6 @@ code was tested, and every citation and claim was checked against its source.
 The benchmark itself uses language models only as the systems under
 evaluation. We take responsibility for the final content of this work,
 including text, claims and artifacts produced with the aid of generative AI.
-
-\section*{Ethics statement}
-The benchmark evaluates publicly released models on a commercial game under
-emulation and involves no human subjects. Recordings contain only game frames
-and the agent name a model chooses for itself. The benchmark runs an
-unmodified, long-out-of-print commercial title and distributes no game
-assets; participants supply their own copy, as in prior work benchmarking
-commercial games \citep{zhang2025videogamebench,bellemare2013arcade}, and the
-rights holders retain all rights. Improvements in open-world agency transfer
-to autonomous operation in the world, and we believe public, legible
-measurement of these capabilities supports oversight.
-
-\section*{Reproducibility statement}
-Every run in this paper is public, and each carries a stable address with its
-video, interactive replay timeline and metric record, linked from the
-leaderboard at \url{https://hanxiao.io/jy-crpg-bench/}. The brief served to
-agents, the interface, the metric definitions, the detector calibrations and
-the seeded random baseline together specify the evaluation. The stack is open
-source at \url{https://github.com/hanxiao/jy-crpg-bench}. Every number
-typeset in this paper is generated from two frozen inputs, the catalogue
-snapshot and the savestate every session boots into, by scripts in the
-repository, and a consistency check fails the build if a claim drifts from
-the snapshot. Re-executing the game needs a self-supplied copy of the 1996
-release, described in \cref{app:licence}; re-deriving every reported number
-does not.
 
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
