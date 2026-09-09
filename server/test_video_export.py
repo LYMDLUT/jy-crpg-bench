@@ -147,6 +147,65 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(again['id'], third['id'])
             self.assertTrue(again['cached'])
 
+    async def test_request_id_is_idempotent_across_append_and_distinguishes_tokens(self):
+        self.write()
+        with mock.patch('video_export.encode', side_effect=self.fake_encode):
+            first = await self.client.post('/api/video', json={
+                'speed': 4, 'requestId': 'export-1',
+            })
+            self.assertEqual(first.status, 202)
+            first = await first.json()
+            duplicate = await self.client.post('/api/video', json={
+                'speed': 4, 'requestId': 'export-1',
+            })
+            self.assertEqual(duplicate.status, 202)
+            duplicate = await duplicate.json()
+            self.assertEqual(duplicate['id'], first['id'])
+            self.assertEqual(len(self.service.jobs), 1)
+            second = await self.done(first)
+            self.assertEqual(second['state'], 'ready', second)
+            same = await self.client.post('/api/video', json={
+                'speed': 4, 'requestId': 'export-1',
+            })
+            self.assertEqual(same.status, 200)
+            same = await same.json()
+            self.assertEqual(same['id'], first['id'])
+            self.assertEqual(len(self.service.jobs), 1)
+
+            self.store.append(frame(5000, (8, 8, 8)))
+            after_append = await self.client.post('/api/video', json={
+                'speed': 4, 'requestId': 'export-1',
+            })
+            self.assertEqual(after_append.status, 200)
+            self.assertEqual((await after_append.json())['id'], first['id'])
+
+            other = await self.client.post('/api/video', json={
+                'speed': 4, 'requestId': 'export-2',
+            })
+            self.assertEqual(other.status, 202)
+            self.assertNotEqual((await other.json())['id'], first['id'])
+            self.assertEqual(len(self.service.jobs), 2)
+
+    async def test_request_id_header_and_validation(self):
+        self.write()
+        with mock.patch('video_export.encode', side_effect=self.fake_encode):
+            first = await self.client.post('/api/video', json={'speed': 1},
+                                           headers={'X-Video-Request-Id': 'header-token'})
+            self.assertEqual(first.status, 202)
+            first = await first.json()
+            same = await self.client.post('/api/video', json={'speed': 1},
+                                          headers={'X-Video-Request-Id': 'header-token'})
+            self.assertEqual(same.status, 202)
+            self.assertEqual((await same.json())['id'], first['id'])
+        for request_id in ('', 'contains space', '../path', 'x' * 129, None, 7):
+            body = {'requestId': request_id}
+            response = await self.client.post('/api/video', json=body)
+            self.assertEqual(response.status, 400, body)
+        response = await self.client.post(
+            '/api/video', json={'requestId': 'body-token'},
+            headers={'X-Video-Request-Id': 'header-token'})
+        self.assertEqual(response.status, 400)
+
     async def test_unfinished_settle_and_renderer_changes_invalidate_cache(self):
         self.store.append(frame(0, (1, 2, 3)))
         self.store.append({'t': 1, 'act': 'KEY', 'who': 'agent'})

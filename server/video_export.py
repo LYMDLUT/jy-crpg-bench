@@ -33,6 +33,10 @@ BEAT = .6
 SPEEDS = (1, 2, 4, 8)
 TERMINAL = ('ready', 'cancelled', 'error')
 ARCHIVE = re.compile(r'\d{8}-\d{6}-[a-f0-9]{12}\.jsonl')
+# Keep request ids suitable for use as opaque HTTP idempotency tokens.  This
+# follows the HTTP ``token`` character set and bounds memory retained by the
+# in-process request map.
+REQUEST_ID = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]{1,128}\Z")
 BAR = 64
 BACKGROUND = (11, 11, 15)
 
@@ -118,6 +122,7 @@ class Job:
     index: HistoryIndex
     source_key: tuple
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    request_id: str | None = None
     state: str = 'queued'
     completed: int = 0
     total: int = 0
@@ -279,6 +284,7 @@ class VideoExports:
     def __init__(self, store, pin_provider=None):
         self.store, self.pin_provider = store, pin_provider
         self.jobs = OrderedDict()
+        self.request_jobs = {}
         self.task = None
         self.wake = asyncio.Event()
         self.closed = False
@@ -343,6 +349,9 @@ class VideoExports:
                 break
             if job.state in TERMINAL:
                 self.jobs.pop(token)
+        for request_id, job in list(self.request_jobs.items()):
+            if self.jobs.get(job.id) is not job:
+                self.request_jobs.pop(request_id, None)
 
     def _lookup(self, request):
         job = self.jobs.get(request.match_info['id'])
@@ -356,14 +365,38 @@ class VideoExports:
         try:
             body = await request.json()
             recording, speed = body.get('recording', 'current'), body.get('speed', 1)
+            header_request_id = request.headers.get('X-Video-Request-Id')
+            request_id = (body['requestId'] if 'requestId' in body else header_request_id)
+            if ('requestId' in body and header_request_id is not None
+                    and request_id != header_request_id):
+                raise ValueError()
+            request_id_supplied = 'requestId' in body or header_request_id is not None
             if (type(speed) is not int or speed not in SPEEDS or not isinstance(recording, str)
                     or (recording != 'current' and not ARCHIVE.fullmatch(recording))):
+                raise ValueError()
+            if request_id_supplied and (not isinstance(request_id, str)
+                                        or REQUEST_ID.fullmatch(request_id) is None):
                 raise ValueError()
         except (ValueError, TypeError, AttributeError):
             raise web.HTTPBadRequest(reason='invalid video export request')
         if recording != 'current' and self.pin_provider is None:
             raise web.HTTPNotFound(reason='recording not found')
         self._reap()
+        if request_id is not None:
+            previous = self.request_jobs.get(request_id)
+            if (previous is not None and previous.recording == recording
+                    and previous.speed == speed and not previous.stop.is_set()
+                    and previous.state not in ('cancelled', 'error')
+                    and (previous.state != 'ready'
+                         or (previous.path is not None and previous.path.is_file()))):
+                meta = previous.public()
+                if previous.state == 'ready':
+                    meta['cached'] = True
+                    with contextlib.suppress(OSError):
+                        os.utime(previous.path, None)
+                return web.json_response(meta, status=200 if previous.state == 'ready' else 202)
+            if previous is not None and self.request_jobs.get(request_id) is previous:
+                self.request_jobs.pop(request_id, None)
         try:
             pin = self.pin_provider(recording) if self.pin_provider else self.store.pin()
             index = HistoryIndex(pin)
@@ -373,7 +406,8 @@ class VideoExports:
         source_key = (stat.st_dev, stat.st_ino, index.source.end,
                       json.dumps(index.source.header, sort_keys=True), speed)
         for job in self.jobs.values():
-            if job.source_key == source_key and not job.stop.is_set() and job.state not in ('cancelled', 'error'):
+            if (request_id is None and job.source_key == source_key and not job.stop.is_set()
+                    and job.state not in ('cancelled', 'error')):
                 if job.state != 'ready' or (job.path and job.path.is_file()):
                     index.close()
                     meta = job.public()
@@ -385,9 +419,11 @@ class VideoExports:
         if sum(job.state not in TERMINAL for job in self.jobs.values()) >= self.MAX_PENDING:
             index.close()
             raise web.HTTPTooManyRequests(reason='video export queue is full')
-        job = Job(recording, speed, index, source_key)
+        job = Job(recording, speed, index, source_key, request_id=request_id)
         index.cancelled = job.stop
         self.jobs[job.id] = job
+        if request_id is not None:
+            self.request_jobs[request_id] = job
         self.wake.set()
         return web.json_response(job.public(), status=202)
 
