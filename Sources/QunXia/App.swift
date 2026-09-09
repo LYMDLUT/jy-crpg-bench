@@ -249,9 +249,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     static func applyOptionOverrides(log: ActionLog) {
         var pairs: [String] = []
         var args = Array(CommandLine.arguments.dropFirst())
-        while let i = args.firstIndex(of: "--set"), i + 1 < args.count {
-            pairs.append(args[i + 1])
-            args.removeSubrange(i...(i + 1))
+        while let i = args.firstIndex(of: "--set") {
+            // Consume the option and its value together.  A dangling --set
+            // must also be consumed so it cannot be mistaken for another
+            // flag by later command-line parsing.
+            args.remove(at: i)
+            guard i < args.count else { break }
+            pairs.append(args.remove(at: i))
         }
         if let env = ProcessInfo.processInfo.environment["QUNXIA_SET"] {
             pairs.append(contentsOf: env.split(separator: ",").map(String.init))
