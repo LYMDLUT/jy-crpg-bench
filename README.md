@@ -500,6 +500,7 @@ python -m unittest discover -s mcp-server -p 'test_*.py'  # run with mcp<2 and m
 python -m unittest discover -s bench -p 'test_*.py'       # needs numpy
 python -m unittest discover -s site -p 'test_*.py'        # needs zhconv
 python -m unittest Scripts/test_agent_launchers.py
+python -m unittest Scripts/test_native_contract.py  # Swift-native API/CLI contracts
 node --test Scripts/test-pi-run.mjs Scripts/test-pi-launch.mjs Scripts/test-pi-usage.mjs   # after npm ci
 swift build
 # the paper's numbers pipeline is pure stdlib: its claims must match the
