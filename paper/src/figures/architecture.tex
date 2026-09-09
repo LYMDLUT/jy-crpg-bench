@@ -1,28 +1,95 @@
-\documentclass[tikz,border=4pt]{standalone}
-\usetikzlibrary{arrows.meta,positioning}
+% Figure: the apparatus and what it reads. Grid: 1 unit = 1 cm, total width
+% 13.6. Three columns: agent (0-3.0), session worker (4.2-8.0), emulated
+% machine (9.2-13.6). Rows: A (play, y 0 to -1.7), B (records, y -2.8 to
+% -4.5), C (published, y -5.6 to -6.7). Layers bottom to top: L0 the two
+% wash panels, L1 boxes, L2 text, L3 connectors, L4 connector labels.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+\usetikzlibrary{arrows.meta,calc}
+
+\definecolor{ink}{HTML}{1C1C1E}
+\definecolor{soft}{HTML}{7C7C80}
+\definecolor{accent}{HTML}{2F6FB0}
+\definecolor{accentlt}{HTML}{A8C4DE}
+\definecolor{rule}{HTML}{C9CBD0}
+\definecolor{tile}{HTML}{F4F5F7}
+\definecolor{wash}{HTML}{E8F0F8}
+
 \begin{document}
 \begin{tikzpicture}[
-  >=Stealth, node distance=9mm and 12mm,
-  box/.style={draw, thick, rounded corners=1.5pt, align=center,
-              inner sep=3.5pt, font=\sffamily\scriptsize, text width=21mm,
-              minimum height=7mm},
-  core/.style={box, fill=black!8, text width=19mm},
-  ar/.style={thick, ->},
-  lb/.style={font=\sffamily\tiny, inner sep=1pt},
+  font=\sffamily,
+  >={Stealth[length=2.0mm,width=1.5mm]},
+  box/.style={draw=rule,fill=white,line width=0.5pt,rounded corners=2pt,inner sep=0,anchor=north west},
+  title/.style={font=\sffamily\scriptsize\bfseries,text=ink,inner sep=0,anchor=north west},
+  body/.style={font=\sffamily\tiny,text=ink,inner sep=0,anchor=north west,align=left},
+  panel/.style={font=\sffamily\tiny,text=soft,inner sep=0},
+  flow/.style={->,ink,line width=0.6pt},
+  meas/.style={->,accent,line width=0.8pt},
+  lab/.style={font=\sffamily\tiny,text=ink,inner sep=1.2pt,fill=white},
+  labm/.style={font=\sffamily\tiny,text=accent,inner sep=1.2pt,fill=white},
 ]
-\node[box] (agent)  {any agent\\ \texttt{/api/key}};
-\node[box, right=of agent] (broker) {broker.py\\ \texttt{/api/catalog}\\ \texttt{/api/sessions}};
-\node[box, right=of broker] (work)  {worker\\ \texttt{server.py}\\ \texttt{/api/screen}\\ \texttt{/api/wait}};
-\node[core, below=of work] (qun)    {libqunxia.so\\ in-process\\ core};
-\node[box, below=of broker] (rec)   {recording\\ \texttt{append+fsync}\\ \texttt{JSONL}};
-\node[box, below=of agent] (vis)    {viewer\\ \texttt{/ws} peers\\ \texttt{/api/snapshot}};
+% ---- L0: panels ---------------------------------------------------------
+% the session: one process per run, private copy of the game
+\fill[tile,rounded corners=3pt] (3.7,0.55) rectangle (13.9,-2.15);
+\node[panel,anchor=north west] at (3.85,0.48) {one session: one process, one private copy of the game};
+% measurement: read-only, not exposed
+\fill[wash,rounded corners=3pt] (8.7,-2.45) rectangle (13.9,-7.05);
+\node[panel,anchor=north west,text=accent] at (8.85,-2.52) {measurement, read-only; no control call returns it};
 
-\draw[ar] (agent) -- node[lb, above]{token} (broker);
-\draw[ar] (broker) -- node[lb, above]{spawn} (work);
-\draw[ar] (work) -- node[lb, right]{ctypes} (qun);
-\draw[ar] (work.south west) -- node[lb, above, sloped]{events} (rec.north east);
-\draw[ar] (rec) -- node[lb, above]{bytes} (vis);
-\draw[ar, dashed] (qun.west) -- node[lb, above]{state} (rec.south east);
-\draw[ar, dashed] (vis.north) -- node[lb, left]{frame} (agent.south);
+% ---- L1 + L2: boxes -----------------------------------------------------
+% A1 agent
+\node[box,minimum width=3.0cm,minimum height=1.7cm] (agent) at (0,-0.05) {};
+\node[title] at (0.15,-0.20) {Agent};
+\node[body] at (0.15,-0.62) {any model, any harness\\HTTP client and a brief\\of one page};
+% A2 worker
+\node[box,minimum width=3.8cm,minimum height=1.7cm] (worker) at (4.2,-0.05) {};
+\node[title] at (4.35,-0.20) {Session worker};
+\node[body] at (4.35,-0.62) {control API: screen, key, wait\\one action at a time; a key is held\\for emulated frames, then settles};
+% A3 machine
+\node[box,minimum width=4.4cm,minimum height=1.7cm] (machine) at (9.2,-0.05) {};
+\node[title] at (9.35,-0.20) {Emulated machine};
+\node[body] at (9.35,-0.62) {DOSBox Pure, in-process\\the unmodified 1996 game\\$320\times200$ framebuffer, 70 fps};
+% B2 journal
+\node[box,minimum width=3.8cm,minimum height=1.7cm] (journal) at (4.2,-2.8) {};
+\node[title] at (4.35,-2.95) {Recording};
+\node[body] at (4.35,-3.37) {append-only journal of changed\\$16\times10$ tiles and every key\\with its hold};
+% B3 readers
+\node[box,minimum width=4.4cm,minimum height=1.7cm] (readers) at (9.2,-2.8) {};
+\node[title] at (9.35,-2.95) {Progress readers};
+\node[body] at (9.35,-3.37) {machine image: character records, bag\\game-written save: party, world square\\the release archives as controls};
+% C2 published
+\node[box,minimum width=3.8cm,minimum height=1.1cm] (public) at (4.2,-5.6) {};
+\node[title] at (4.35,-5.75) {Public run};
+\node[body] at (4.35,-6.17) {replay, video, metrics, catalogue};
+% C3 ladder
+\node[box,minimum width=4.4cm,minimum height=1.1cm] (ladder) at (9.2,-5.6) {};
+\node[title] at (9.35,-5.75) {Score};
+\node[body] at (9.35,-6.17) {milestone ladder; completion time};
+
+% ---- L3 + L4: connectors -------------------------------------------------
+% agent <-> worker, from and to the vertical centres of the facing edges
+\draw[flow] (3.0,-0.60) -- (4.2,-0.60);
+\node[lab,anchor=south] at (3.6,-0.52) {keys};
+\draw[flow] (4.2,-1.20) -- (3.0,-1.20);
+\node[lab,anchor=north] at (3.6,-1.28) {frames};
+% worker <-> machine
+\draw[flow] (8.0,-0.60) -- (9.2,-0.60);
+\node[lab,anchor=south] at (8.6,-0.52) {input};
+\draw[flow] (9.2,-1.20) -- (8.0,-1.20);
+\node[lab,anchor=north] at (8.6,-1.28) {frames};
+% worker -> journal -> public
+\draw[flow] (6.1,-1.75) -- (6.1,-2.8);
+\node[lab,anchor=west] at (6.18,-2.28) {events};
+\draw[flow] (6.1,-4.5) -- (6.1,-5.6);
+\node[lab,anchor=west] at (6.18,-5.05) {render};
+% machine -> readers -> ladder, the measurement path
+\draw[meas] (13.1,-1.75) -- (13.1,-2.8);
+\node[labm,anchor=east] at (13.02,-2.28) {machine image; game-written save};
+\draw[meas] (13.1,-4.5) -- (13.1,-5.6);
+\node[labm,anchor=east] at (13.02,-5.05) {level, experience, party, books};
+% readers -> public (metrics go out with the run)
+\draw[flow] (9.2,-3.65) -- (8.0,-3.65);
+\node[lab,anchor=south] at (8.6,-3.57) {state};
 \end{tikzpicture}
 \end{document}
