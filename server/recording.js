@@ -1,9 +1,11 @@
 // One page at a time; the server pins the recording so reset cannot change it.
 class ReplayRecording {
   abort = new AbortController();
-  static async open() {
+  static async open(recording = 'current') {
     const source = new ReplayRecording();
-    await source.load({});
+    // Select a file only when opening it. Every later request uses the token
+    // for that pinned file, even if the current recording is reset meanwhile.
+    await source.load({recording});
     source.keepalive = setInterval(() => source.request({touch:'1'}).catch(() => {}), 60000);
     return source;
   }
@@ -57,3 +59,4 @@ class ReplayRecording {
     this.page = {events:[],done:true};
   }
 }
+if (typeof module !== 'undefined') module.exports = {ReplayRecording};
