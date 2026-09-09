@@ -42,6 +42,9 @@ Yiming Liu \\
 \begin{document}
 
 \maketitle
+% Figure 1 is placed in the introduction and belongs at the top of page 2;
+% this keeps the title page free of top floats.
+\suppressfloats[t]
 
 %% Everything numeric in this paper is generated from the run data. Nothing is
 %% typed. See figures/emit_numbers.py and check_consistency.py.
@@ -88,6 +91,18 @@ with no terminal state and score what accumulates
 second family and add a requirement the business simulations do not: the
 model has to recover its own state from raw perception, because nothing in
 the environment reports it.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/env.pdf}
+\caption{The environment at the resolution the model receives it, upscaled
+three times without interpolation: the two tiers of the world (a, b), the
+four axes the movement keys run along (c), the three kinds of text panel
+through which every objective, choice and statistic is stated (d--f), the
+bag (g), the outdoor menu with the party list it opens (h), and a turn of
+battle with the menu and record of the acting character (i).}
+\label{fig:env}
+\end{figure}
 
 Existing game benchmarks each remove one part of that problem to isolate
 another. BALROG evaluates six research environments in language-only and
@@ -320,20 +335,6 @@ who heals. A party that wanders elsewhere first meets storylines whose fights
 it cannot survive at level one, and a lost fight ends the game, which then
 offers nothing but its own load menu.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/env.pdf}
-\caption{The environment at the resolution the model receives it, upscaled
-three times without interpolation. The two tiers of the world (a, b), the
-four axes along which the four movement keys move the character (c), the
-three kinds of text panel through which every objective, choice and statistic
-is stated (d--f), the bag with one item described at a time (g), the outdoor
-menu, two rows longer than the indoor one, with the party list it opens (h),
-and a turn of battle, with the menu of the acting character and its record
-beside the grid (i).}
-\label{fig:env}
-\end{figure}
-
 \Cref{fig:env} shows the world at the resolution the model receives it. Every
 objective, prompt and statistic reaches the model as Traditional Chinese
 rendered at sixteen pixels a line, and the character sheet it would have to
@@ -403,8 +404,10 @@ runs, where the harness translated RAM into text and did the perception
 models: harness choice moves game results
 \citep{hu2026lmgame,karten2026harness}, and on long-horizon tasks the
 variance a harness induces can exceed the variance between models
-\citep{zhang2026harness}. The model and its reasoning-effort setting are
-recorded with every run.
+\citep{zhang2026harness}. A scored run declares its model and a thinking
+level, one of seven from off to max, when the launcher creates its session,
+and both travel with the run into the public record through the usage report
+of \cref{sec:metrics}.
 
 A session is created with a playtime, \NbudgetMin{} minutes by default and up
 to twenty-four hours, and the clock starts at the first playable moment. Each
@@ -457,27 +460,60 @@ offered, leaving the screen unchanged. The archive the game writes is decoded
 like the shipped ones. Neither the save nor anything read from it is
 reachable through the control surface.
 
-Progress is summarised as seven ordered milestones read from this ground
-truth, in the spirit of the achievements of Crafter
-\citep{hafner2021benchmarking}: \emph{acted} $\prec$ \emph{picked something
-up} $\prec$ \emph{reached the world map} $\prec$ \emph{gained experience}
-$\prec$ \emph{reached level~2} $\prec$ \emph{recruited a companion} $\prec$
-\emph{holds one of the fourteen}. Only the first concerns the harness; the
-rest are the numbers the game keeps about itself. The world-map rung is
-corroborated by the full fade to black the renderer draws on every scene
-transition, calibrated as described in \cref{app:metrics}. Because each rung
-is harder than the one before it, the count of rungs is an ordering and
-carries no weights, and a rung whose instrumentation post-dates a run is
-reported as unmeasured, since an unmeasured zero and a true zero are
-different claims.
+Progress is summarised as eight milestones read from this ground truth, in
+the spirit of the achievements of Crafter \citep{hafner2021benchmarking}, and
+\cref{tab:ladder} lists them with the evidence each rests on. Only the first
+concerns the harness; the rest are the numbers the game keeps about itself.
+The rungs fall into two horizons that the game itself draws. The opening
+needs no fight: the chest in the first room, the exit tile, the compass in
+the cabinet of the hermit, and the companion whose house that conversation
+opens and who joins through dialogue are reached by walking, reading and
+answering. The campaign begins with the first fight, which is what experience
+and levels require, and runs through the chains of items, factions and fights
+that the books sit behind. The default budget is sized to the opening and the
+extended budgets to the campaign. The rungs are listed in the order the
+opening imposes, but a run is credited with every rung it reaches, so the
+count does not depend on the path taken, and a rung whose instrumentation
+post-dates a run is reported as unmeasured, since an unmeasured zero and a
+true zero are different claims.
+
+\begin{table}[t]
+\centering
+\caption{The milestone ladder. \emph{Evidence} is the game state that credits
+the rung and \emph{source} is where the benchmark reads it: the session record
+of the harness, the bag and character array in emulator memory, or the save
+the game writes on the world map, where the world-map rung is corroborated by
+the fade to black the renderer draws on every scene transition.}
+\label{tab:ladder}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Rung & Evidence & Source \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{The opening, reached without a fight}} \\
+acted & a key event was sent & session record \\
+picked something up & an item count above the opening bag & bag in memory \\
+reached the world map & the game wrote its save & save \\
+holds the compass & the compass in the bag & bag in memory \\
+recruited a companion & a party roster longer than one & save \\
+\addlinespace
+\multicolumn{3}{@{}l}{\emph{The campaign, from the first fight on}} \\
+gained experience & experience above zero & character record \\
+reached level 2 & level above one & character record \\
+holds one of the fourteen & a book in the bag or carried & bag and record \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 The ladder points at the ending of the game. The fourteen books are what the
 game requires before its final sequence can be played, and the archive
 records every book held, so the count of books carries the ladder from its
-last rung to the ending itself. Sessions run to twenty-four hours on the same
-protocol, and a session that reaches the ending carries a completion time,
+last rung to the threshold of that sequence, and the fourteenth book is the
+completion event the benchmark times. Sessions run to twenty-four hours on
+the same protocol, and a session that completes carries a completion time,
 which orders a field in which every entrant passes. One instrument therefore
-covers both regimes, and the benchmark keeps measuring after the first model
+covers both horizons, and the benchmark keeps measuring after the first model
 finishes.
 
 \subsection{Behavioural Metrics}
@@ -499,6 +535,18 @@ count of distinct keys used. The ratio is a binomial proportion, so we report
 whose intervals overlap. Ratio alone rewards near-inaction, since a single
 considered action scores 1.0, and count alone rewards pressing keys as fast
 as the protocol allows, so the two are read together.
+
+Effort is recorded beside behaviour. The session records every decision call
+with its wall-clock time, key events and requested hold frames, and every
+screen read, so turns, reads and think time are measured on the server for
+any client. Token consumption is a property of the client, so the reference
+harness meters it: after a run it sums the usage the provider reported for
+every assistant turn on the active branch of its session, as input, output,
+cache read, cache write and cost, and files the total once, with the model
+identifier and the declared thinking level, under the name the session was
+created with. A run with any unmetered turn files nothing, so the record
+carries the whole meter or none, and cost is shown beside a run rather than
+used to rank it.
 
 A seeded random policy anchors these quantities. It draws from the key
 vocabulary the brief teaches, at a cadence within the range models achieve,
@@ -538,8 +586,9 @@ reported as flagged and not credited, and the other \Sstayed{} spend the
 whole budget in the scene they started in. The \Sread{} sessions that expose
 a readable character record all stand at level \Slevel{} with \SexpSum{}
 experience and \Sskills{} skill, the state the session booted into, so the
-rungs that require the character to change are open. \Cref{fig:ladder} shows
-the ladder by vendor family. Comparable instruments place their fields at a
+rungs that require the character to change are open. The item, compass and
+companion rungs post-date every run in the field and are reported as
+unmeasured. \Cref{fig:ladder} shows the ladder by vendor family. Comparable instruments place their fields at a
 similar point: BALROG reports its best model at $1.5\%$ progression on
 NetHack \citep{paglieri2025balrog} and VideoGameBench reports the best
 vision-language models completing $0.48\%$ of its suite
@@ -649,7 +698,11 @@ starting name is acceptable. It is generated from the same source the game
 server serves at \texttt{/api/help}, so the documentation cannot drift from
 the behaviour. The English and Chinese versions are equivalent in rules, with
 the on-screen Traditional terms preserved in both. \Cref{tab:api} lists the
-control surface; a scored session answers the last three calls with 404.
+control surface; a scored session answers the last three calls with 404. A
+tenth call, \texttt{POST /usage}, belongs to the broker that creates sessions
+rather than to a session: after a run, the harness files the usage meter of
+\cref{sec:metrics} under the name the session was created with, and the
+broker merges it into the catalogue entry of that run.
 
 \begin{table}[h]
 \centering
@@ -702,7 +755,12 @@ map and four inside a scene, and only the six-row menu carries the system
 entry through which the game saves. Attempts wait for a two-second gap
 between the keys the model sends, recur every two minutes, and are made once more
 shortly before the budget lapses, into a save slot reserved for the
-benchmark.
+benchmark. The item rung compares the live bag with the bag at the first read
+of the run; the compass rung looks for item \CompassId{} in the live bag,
+whose name in the shipped item table is \CompassName{}; the book rung looks
+for items \BookFirst{}--\BookLast{} in the bag or in the four carried slots of
+the protagonist; and the shipped names of all fifteen items are checked by the
+test suite.
 
 \section{Session and Infrastructure Parameters}
 \label{app:infra}

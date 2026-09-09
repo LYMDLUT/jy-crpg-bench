@@ -1,4 +1,4 @@
-"""The fourteen books, as the save decoder names them.
+"""The fourteen books and the compass, as the save decoder names them.
 
     python3 figures/emit_books.py > tables/books.tex
 
@@ -23,3 +23,7 @@ print("\\newcommand{\\BookFirst}{%d}" % first)
 print("\\newcommand{\\BookLast}{%d}" % last)
 print("\\newcommand{\\BookCount}{%d}" % len(names))
 print("\\newcommand{\\booklist}{\\game{" + "、".join(names) + "}}")
+compass_id = int(re.search(r"COMPASS_ID = (\d+)", text).group(1))
+compass_name = re.search(r'COMPASS_NAME = "([^"]+)"', text).group(1)
+print("\\newcommand{\\CompassId}{%d}" % compass_id)
+print("\\newcommand{\\CompassName}{\\game{%s}}" % compass_name)

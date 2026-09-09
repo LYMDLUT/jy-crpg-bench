@@ -83,8 +83,10 @@ PLAY = sorted([r for r in RUNS if r["budget"] == 1200 and (r["actions"] or 0) > 
               key=lambda r: (ORDER.index(r["family"]) if r["family"] in ORDER else 9,
                              -(r["actions"] or 0)))
 DEFINITION = ("acted", "picked\nsomething up", "reached\nworld map",
-              "gained\nexperience", "reached\nlevel 2", "recruited\na companion",
-              "holds one\nof fourteen")
+              "holds the\ncompass", "recruited\na companion",
+              "gained\nexperience", "reached\nlevel 2", "holds one\nof fourteen")
+# The first five close the opening without a fight; the last three need one.
+OPENING = 5
 
 
 def rungs_of(row):
@@ -100,9 +102,10 @@ def rungs_of(row):
         True,
         row.get("picked_item") is not None,
         True if saved else row.get("bigmap") is not None,
+        row.get("compass") is not None,
+        row.get("team_size") is not None,
         row.get("exp") is not None,
         row.get("level") is not None,
-        row.get("team_size") is not None,
         row.get("books") is not None,
     ]
     got = [
@@ -110,9 +113,10 @@ def rungs_of(row):
          else row["actions"]) > 0,
         bool(row.get("picked_item")),
         (row.get("saved_at") is not None) if saved else bool(row.get("bigmap")),
+        bool(row.get("compass")),
+        (row.get("team_size") or 0) > 1,
         (row.get("exp") or 0) > 0,
         (row.get("level") or 0) > 1,
-        (row.get("team_size") or 0) > 1,
         (row.get("books") or 0) > 0,
     ]
     return [(g if k else None) for g, k in zip(got, known)]
@@ -192,7 +196,7 @@ def check_overlaps(fig, ax, texts, points=(), name="", anchors=()):
 # ------------------------------------------------------- Fig: milestone ladder
 def figure_ladder():
     fams = [f for f in ORDER if any(r["family"] == f for r in PLAY)]
-    fig, ax = plt.subplots(figsize=(5.3, 0.30 * len(fams) + 1.0))
+    fig, ax = plt.subplots(figsize=(6.0, 0.30 * len(fams) + 1.0))
     notes, boxes = [], []
     for row, fam in enumerate(fams):
         frows = [r for r in PLAY if r["family"] == fam]
@@ -219,8 +223,12 @@ def figure_ladder():
                                          xytext=(7, 0), textcoords="offset points",
                                          ha="left", va="center", fontsize=5.9,
                                          color="#67676b"))
-    ax.axvspan(2.5, 3.5, color="#eef3f9", zorder=1)
-    ax.axvspan(3.5, len(DEFINITION) - 0.5, color="#f5f5f6", zorder=1)
+    # the two horizons: the opening needs no fight, the campaign begins with one
+    ax.axvspan(OPENING - 0.5, len(DEFINITION) - 0.5, color="#f5f5f6", zorder=1)
+    heads = [ax.text((OPENING - 1) / 2, -0.62, "the opening", ha="center",
+                     va="center", fontsize=6.5, color="#67676b"),
+             ax.text((OPENING + len(DEFINITION) - 1) / 2, -0.62, "the campaign",
+                     ha="center", va="center", fontsize=6.5, color="#67676b")]
     ax.set_yticks(range(len(fams)), fams, fontsize=8)
     ax.set_xticks(range(len(DEFINITION)), DEFINITION, fontsize=7)
     ax.set_xlim(-0.55, len(DEFINITION) - 0.35)
@@ -240,7 +248,7 @@ def figure_ladder():
                    columnspacing=1.1)
     fig.tight_layout(pad=0.3)
     check_overlaps(fig, ax, list(ax.get_xticklabels()) + list(ax.get_yticklabels())
-                   + notes + list(leg.get_texts()), boxes, name="ladder")
+                   + notes + heads + list(leg.get_texts()), boxes, name="ladder")
     fig.savefig(os.path.join(HERE, "ladder.pdf"), bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
