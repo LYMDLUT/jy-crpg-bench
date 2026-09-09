@@ -11,14 +11,11 @@
 \usepackage{amsmath,amssymb}
 \usepackage{xcolor}
 \usepackage{CJKutf8}
-\usepackage{listings}
 \usepackage[capitalise,nameinlink]{cleveref}
 \crefname{figure}{Figure}{Figures}
 \Crefname{figure}{Figure}{Figures}
 \crefname{table}{Table}{Tables}
 \Crefname{table}{Table}{Tables}
-\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single,
-        framerule=0.2pt, xleftmargin=6pt, xrightmargin=6pt}
 
 \newcommand{\bench}{\textsc{jy-crpg-bench}}
 \newcommand{\game}[1]{\begin{CJK}{UTF8}{bsmi}#1\end{CJK}}
@@ -54,10 +51,10 @@ Yiming Liu \\
 \input{tables/books.tex}
 
 \begin{abstract}
-Long-horizon agency requires an agent to perceive an unfamiliar world, decide
+Long-horizon agency requires a model to perceive an unfamiliar world, decide
 for itself what is worth doing, and hold one plan across hours of dependent
 decisions. We present \bench{}, a benchmark that places a vision-language
-agent inside \game{金庸群俠傳} (\emph{Heroes of Jin Yong}, Heluo Studio
+model inside \game{金庸群俠傳} (\emph{Heroes of Jin Yong}, Heluo Studio
 1996), an unmodified commercial open-world role-playing game under DOS
 emulation, and scores it against the ending the game defines, which requires
 recovering the fourteen books of the Jin Yong canon and takes a first-time
@@ -65,12 +62,15 @@ human player tens of hours. The environment lies far outside the training distri
 current vision encoders, with a $320\times200$ framebuffer, a $45^\circ$
 isometric projection in which no key moves straight up the screen, Traditional
 Chinese rendered as 16-pixel bitmap glyphs, and objectives stated only inside
-its fiction. Any model under any harness joins over HTTP. Progress is read
+its fiction. Every model plays through the same minimal harness, with the
+brief as its instructions, the frame as its observation and keys as its
+actions, and with no memory scaffold and no access to game state, so a run
+measures the model. Progress is read
 from the memory of the emulated machine and from the save the game writes for
 itself, so every milestone is an event that pixel similarity cannot
 manufacture, and one instrument spans the whole distance: a ladder of
-machine-verified milestones while agents learn to move, and completion time
-once they finish. We report \NmodelLabels{} agent configurations from
+machine-verified milestones while models learn to move, and completion time
+once they finish. We report \NmodelLabels{} frontier models from
 \Nvendors{} vendors against a seeded random baseline under a
 \NbudgetMin{}-minute budget, and release \bench{} as a live, replayable
 public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
@@ -82,11 +82,11 @@ public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
 Frontier models prove competition mathematics and write working compilers,
 yet the tasks they complete reliably are still measured in hours of human
 work \citep{kwa2025horizon}. Long-horizon evaluation takes two forms. Episodic benchmarks set a goal and score its
-completion; continuing benchmarks give the agent an environment
+completion; continuing benchmarks give the model an environment
 with no terminal state and score what accumulates
 \citep{backlund2025vending,fan2026ecommerce}. Open-world games belong to the
 second family and add a requirement the business simulations do not: the
-agent has to recover its own state from raw perception, because nothing in
+model has to recover its own state from raw perception, because nothing in
 the environment reports it.
 
 Existing game benchmarks each remove one part of that problem to isolate
@@ -100,7 +100,7 @@ filters out tasks whose solutions depend on game-specific knowledge
 \citep{ju2026mineexplorer}. Each removal is principled, and each leaves the
 combination untested. We keep the parts together, because acting through
 unfamiliar perception, unfamiliar language and unfamiliar culture at once is
-what a deployed agent is asked to do.
+what a deployed model is asked to do.
 
 \bench{} runs a single deep environment, following the precedent of Crafter
 and NetHack \citep{hafner2021benchmarking,kuttler2020nethack}. The environment is
@@ -110,16 +110,17 @@ modification. The game presents an open world built from the fourteen novels
 of Jin Yong: a two-tier map, several hundred named characters each carrying
 level, experience, skills, items and reputation, and an ending that requires
 recovering fourteen books scattered across the world. A first human
-playthrough takes tens of hours. The agent receives the framebuffer and a key
-vocabulary, and nothing else.
+playthrough takes tens of hours. The model receives the framebuffer and a key
+vocabulary through one fixed, minimal harness, and nothing else, so what
+varies between runs is the model.
 
 We measure against that ending. The fourteen books sit behind items, factions
 and martial arts that have to be acquired in order, in a world that reports
 nothing about itself, and the game records whether they have been recovered.
-An agent that finished would have held one plan across tens of hours of
+A model that finished would have held one plan across tens of hours of
 self-directed play, which is the capability long-horizon evaluation exists to
 detect. The instrument therefore covers the whole distance: a ladder of
-machine-verified milestones orders the field while agents are learning to
+machine-verified milestones orders the field while models are learning to
 move through the world, and completion time orders it once they can finish,
 so the benchmark gains a speedrun ranking at the point where a pass-or-fail
 score would saturate.
@@ -137,7 +138,7 @@ a $320\times200$
 frame of 1996 bitmap art carrying 16-pixel Traditional Chinese glyphs sits at
 the hard end of all five. Control
 is projected. The world is drawn in a $45^\circ$ isometric projection, so the
-four movement keys run along screen diagonals, and an agent that reasons in
+four movement keys run along screen diagonals, and a model that reasons in
 screen coordinates walks in circles. Progress is self-directed. The game
 keeps no quest log, draws no objective marker and reports no score, so
 deciding that the chest is worth searching and that the compass gates the
@@ -151,7 +152,7 @@ state-verifiable metric \citep{ouyang2026gameworld}. We take the same
 position and push it into the emulator. The benchmark reads progress out of
 the memory of the running machine, from the character array the game
 maintains, and out of the save file the game writes when asked, which is
-where the party and the world position are true. The agent has no call that
+where the party and the world position are true. The model has no call that
 returns any of this, and screen-derived quantities are reported as behaviour
 and never as progress.
 
@@ -169,26 +170,26 @@ persistent character state that only coherent play advances.
 party and the fourteen books are read from emulator memory and from a save
 the game performs for itself, validated against the archives the release
 ships, and measurement never writes to the machine it observes. Every rung of
-the ladder is an event the agent has to cause, and the terminal rung is the
+the ladder is an event the model has to cause, and the terminal rung is the
 ending the game defines.
 
-\item We evaluate \NmodelLabels{} agent configurations from \Nvendors{}
-vendors and a seeded random baseline under a wall-clock budget, with a
-behavioural profile beside the ladder, and release the benchmark as a public
-arena that any harness joins over HTTP and in which every run is recorded
-and replayable.
+\item We evaluate \NmodelLabels{} frontier models from \Nvendors{} vendors
+under the same harness and against a seeded random baseline under a
+wall-clock budget, with a behavioural profile beside the ladder, and release
+the benchmark, its harness and every recorded run as a public, replayable
+arena.
 \end{enumerate}
 
 \Cref{tab:related} places \bench{} among interactive agent benchmarks.
 \Cref{sec:related} reviews game environments as agent benchmarks and the
 measurement problem that long horizons create, \cref{sec:bench} details the
 environment, the interface, the session protocol and the measurement,
-\cref{sec:results} reports the current field, and \cref{sec:conclusion}
-concludes.
+\cref{sec:results} reads the current field for the headroom, resolution and
+validity of the instrument, and \cref{sec:conclusion} concludes.
 
 \begin{table}[t]
 \centering
-\caption{Interactive agent benchmarks. \emph{Observation} is what the agent
+\caption{Interactive agent benchmarks. \emph{Observation} is what the model
 receives before any upscaling, \emph{self-directed} marks environments that
 supply no task list, score or objective marker during play, and
 \emph{progress from} is what a progress claim is checked against.}
@@ -315,7 +316,7 @@ encounters a lost fight ends the game.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/env.pdf}
-\caption{The environment at the resolution the agent receives it, upscaled
+\caption{The environment at the resolution the model receives it, upscaled
 three times without interpolation. The two tiers of the world (a, b), the
 four axes along which the four movement keys move the character (c), and the
 three kinds of text panel through which every objective, choice and statistic
@@ -323,31 +324,31 @@ is stated (d--f).}
 \label{fig:env}
 \end{figure}
 
-\Cref{fig:env} shows the world at the resolution the agent receives it. Every
-objective, prompt and statistic reaches the agent as Traditional Chinese
+\Cref{fig:env} shows the world at the resolution the model receives it. Every
+objective, prompt and statistic reaches the model as Traditional Chinese
 rendered at sixteen pixels a line, and the character sheet it would have to
 read is the same record the benchmark reads from memory. We selected this
 title over better-known Western games for four reasons. Its text is
 Traditional Chinese throughout, a script that multimodal evaluation has
 largely passed over \citep{tam2025vistw}, so cross-lingual grounding is a
-first-class obstacle. It is menu-driven, so an agent that deliberates between actions is
+first-class obstacle. It is menu-driven, so a model that deliberates between actions is
 not structurally disadvantaged as it would be in a real-time title
 \citep[cf.][]{zhang2025videogamebench}. Its progression state is rich enough
 to measure at the level of individual character statistics. And its
 $45^\circ$ isometric projection makes the mapping from screen to action
-something the agent must infer.
+something the model must infer.
 
 \subsection{Observation and Action Space}
 \label{sec:interface}
 
-The agent observes the raw framebuffer at $320\times200$ and acts by pressing
+The model observes the raw framebuffer at $320\times200$ and acts by pressing
 keys. Frames are upscaled without interpolation when a larger image is
 requested, so no information is added and none is smoothed away, and nothing
 is annotated: there is no set-of-marks overlay and no accessibility tree
 \citep[cf.][]{xie2024osworld}. The action space is the DOS keyboard,
 \MkeyNames{} names over \MkeyCodes{} distinct keys, and \cref{fig:keymap}
 shows how few of them the game answers. Movement runs along the four numpad
-diagonals, with the arrow keys aliased onto the same axes, so an agent that
+diagonals, with the arrow keys aliased onto the same axes, so a model that
 presses \texttt{up} expecting to walk up the screen moves up and to the right.
 
 \begin{figure}[t]
@@ -355,38 +356,44 @@ presses \texttt{up} expecting to walk up the screen moves up and to the right.
 \includegraphics[width=0.94\linewidth]{figures/keymap.pdf}
 \caption{The action space. The API accepts \MkeyNames{} key names over
 \MkeyCodes{} distinct keys; the game answers the nine picked out here, and
-an agent has to find them.}
+a model has to find them.}
 \label{fig:keymap}
 \end{figure}
 
 An action holds a key for a fixed number of emulated frames, waits for the
-screen to react and then to hold still, and returns, so the frame an agent
+screen to react and then to hold still, and returns, so the frame a model
 receives is the consequence of the key it sent. The hold is counted in frames
 because the game samples its keyboard once per game-loop iteration and a
 shorter pulse can be consumed without registering. The control surface is
 nine HTTP calls, listed in \cref{app:brief}. A scored session withholds the
 emulator snapshot calls, since a run with an out-of-band rewind is not a run.
 
-\subsection{Session Protocol}
+\subsection{Harness and Session Protocol}
 \label{sec:protocol}
 
-A participant joins by pasting one line into an agent:
-
-\begin{lstlisting}
-Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.
-\end{lstlisting}
-
-\noindent The brief behind that address is the whole contract: how to open a
-session, the calls that constitute play, the rules of a run, and orientation
-advice equivalent to the first page of a game manual. It is served in English
-and Chinese, with the on-screen Traditional terms of the game kept verbatim
-in both, so the language an agent reasons in is not itself a handicap.
+The benchmark supplies the harness, and the harness is minimal. The brief is
+the whole instruction the model receives: how a session runs, the calls that constitute play,
+the rules of a run, and orientation advice equivalent to the first page of a
+game manual, served in English and Chinese with the on-screen Traditional
+terms of the game kept verbatim, so the language a model reasons in is not
+itself a handicap. The model reaches the game through four tools, which look
+at the screen, press one key, press a sequence of keys, and let the game run,
+and an action returns only its metadata, so the model looks when it decides
+to. There is no memory scaffold, no map, no pathfinder and no access to the
+state of the game. This separates the setting from the public Pok\'emon
+runs, where the harness translated RAM into text and did the perception
+\citep{comanici2025gemini}, and it is what makes the leaderboard a ranking of
+models: harness choice moves game results
+\citep{hu2026lmgame,karten2026harness}, and on long-horizon tasks the
+variance a harness induces can exceed the variance between models
+\citep{zhang2026harness}. The model and its reasoning-effort setting are
+recorded with every run.
 
 A session is created with a playtime, \NbudgetMin{} minutes by default and up
 to twenty-four hours, and the clock starts at the first playable moment. Each
 session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, so no
-state, filesystem or snapshot is shared between sessions. An agent that
+state, filesystem or snapshot is shared between sessions. A model that
 goes ten minutes without pressing a key is torn down and recorded as idle.
 When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
@@ -403,14 +410,10 @@ game writes, on a path no control call reaches.}
 \label{fig:apparatus}
 \end{figure}
 
-Because the protocol is plain HTTP, submitting to the benchmark and pointing
-an agent at an address are the same act. We fix nothing about memory,
-prompting or reasoning strategy, and report the model and harness that
-played. Harness choice is known to move game results
-\citep{hu2026lmgame,karten2026harness}, and on long-horizon tasks the
-variance a harness induces can exceed the variance between models
-\citep{zhang2026harness}, so we treat a submission as a system and keep the
-full recording so that its behaviour is auditable.
+Because the control surface is plain HTTP, the harness is small and is
+released with the benchmark, and any client can drive a session for
+development or spectating. Every run keeps its full recording, so the
+behaviour behind a score is auditable.
 
 \subsection{State-Verifiable Progress}
 \label{sec:measure}
@@ -464,9 +467,9 @@ finishes.
 \label{sec:metrics}
 
 Long-horizon failures arise in execution more than in reasoning
-\citep{sinha2025illusion}, so beneath the ladder we record what the agent
+\citep{sinha2025illusion}, so beneath the ladder we record what the model
 did, computed from the traffic of the run itself so that the quantities hold
-for any harness. The
+for any model and any client. The
 \emph{meaningful-step ratio} is the share of actions that changed the screen
 at all, and \emph{oscillation} is the share that reverse the previous one,
 following the effective-versus-redundant distinction of GVGAI-LLM
@@ -481,50 +484,36 @@ considered action scores 1.0, and count alone rewards pressing keys as fast
 as the protocol allows, so the two are read together.
 
 A seeded random policy anchors these quantities. It draws from the key
-vocabulary the brief teaches, at a cadence within the range agents achieve,
+vocabulary the brief teaches, at a cadence within the range models achieve,
 and never reads the screen, following the convention that anchors a score
 on random and human play
 \citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. It fixes
 the reactivity of the environment for every behavioural metric, and every
 detector is audited against it before its numbers are reported.
 
-\section{Experiments}
+\section{Evaluation}
 \label{sec:results}
 
-\subsection{Setup}
-
-The field is \NmodelLabels{} agent configurations from \Nvendors{} vendors
+The field at submission is \NmodelLabels{} models from \Nvendors{} vendors
 and a seeded random baseline, over \Nsessions{} scored sessions at the
-\NbudgetMin{}-minute budget, \NrandomRuns{} of them random runs.
-Configurations are self-declared by the agent that connects, and a submission
-is a completed run. Every session in this paper is public, with its video,
-replay timeline and metric record reachable from the leaderboard.
+\NbudgetMin{}-minute budget, \NrandomRuns{} of them random runs. A run is
+listed under the model and reasoning-effort level declared when its session
+was created, and a submission is a completed run. Every session is public, with its video,
+replay timeline and metric record reachable from the leaderboard, and
+\cref{app:field} lists the runs by name. This section reads the field for
+what it says about the instrument: how much of the ladder is open, whether
+the ladder and the behavioural metrics separate models, whether the
+metrics measure what they claim, and how a budget is spent.
 
-\tbd{The present field is one to three runs per configuration. A sweep of
-repeated runs per configuration under one fixed harness, and a human
+\tbd{The present field is one to three runs per model. A sweep of repeated
+runs per model under the fixed harness, and a human
 reference run under the same budget and interface reported to the
 human-baseline checklist \citep{wei2025humanbaselines}, are the two
-additions this table most needs.}
+additions the field most needs.}
 
-\subsection{Progression}
+\subsection{Headroom}
 
-\begin{table}[t]
-\centering
-\caption{The field, pooled by agent over every published run. \emph{ratio}
-is screen-changing actions over total actions with a 95\% Wilson interval,
-\emph{act/min} is the median action rate, \emph{reads/act} is screen reads
-per action, \emph{think} is the median inter-action gap in seconds, and
-\emph{map} counts sessions whose screen latched the world-map signature,
-preceded by how many of those a fade to black corroborates. Rows are ordered
-by ratio, with the random floor last.}
-\label{tab:results}
-\small
-\setlength{\tabcolsep}{4pt}
-\input{tables/aggregate.tex}
-\mktable
-\end{table}
-
-Every configuration acts, and the world map is the highest rung the field
+Every model acts, and the world map is the highest rung the field
 reaches at this budget. \Smap{} of the \Nsessions{} scored sessions latch
 the world-map signature, \SmapFade{} of them corroborated by the fade to
 black; the remaining \SmapSolo{} rest on the fingerprint alone and are
@@ -533,7 +522,12 @@ whole budget in the scene they started in. The \Sread{} sessions that expose
 a readable character record all stand at level \Slevel{} with \SexpSum{}
 experience and \Sskills{} skill, the state the session booted into, so the
 rungs that require the character to change are open. \Cref{fig:ladder} shows
-the ladder by vendor family.
+the ladder by vendor family. Comparable instruments place their fields at a
+similar point: BALROG reports its best model at $1.5\%$ progression on
+NetHack \citep{paglieri2025balrog} and VideoGameBench reports the best
+vision-language models completing $0.48\%$ of its suite
+\citep{zhang2025videogamebench}. The distance from the world map to the
+fourteen books is the headroom the benchmark holds.
 
 \begin{figure}[t]
 \centering
@@ -545,78 +539,65 @@ sessions reaching that rung over the sessions where it was measured.}
 \label{fig:ladder}
 \end{figure}
 
-Comparable instruments place their fields at a similar point: BALROG reports
-its best model at $1.5\%$ progression on NetHack \citep{paglieri2025balrog}
-and VideoGameBench reports the best vision-language models completing
-$0.48\%$ of its suite \citep{zhang2025videogamebench}. What an instrument
-owes the field at this stage is resolution underneath the rung it has
-reached, which the rest of this section supplies.
+\subsection{Discrimination and Validity}
 
-\subsection{Behavioural Profiles}
-
-Configurations that share a progression result behave very differently, and
-\cref{tab:results} separates four styles. The most deliberate
-configurations, \texttt{\QslowA} and \texttt{\QslowB}, take at most
+Models that share a progression result behave very differently, and
+the behavioural metrics separate them where the ladder cannot yet, with
+Wilson intervals on the meaningful-step ratio that do not overlap between
+styles. Three styles recur. The most deliberate models take at most
 \QslowActs{} actions in \NbudgetMin{} minutes at median think times of
-\QslowGap{}\,s and above, so the budget expires before the plan does.
-\texttt{\QsteadyLabel} takes \QsteadyN{} actions at a ratio of \Qsteady{} and
-an oscillation rate of \QsteadyOsc{}, the closest behaviour to purposeful
-traversal in the field. The random baseline never reads the screen, acts
-every \QrandomGap{}\,s, and still changes the screen \Qrandom{} of the time,
-which measures the reactivity of the environment and sets the floor any
-model should clear.
+\QslowGap{}\,s and above, so the budget expires before the plan does. A
+steady traverser takes \QsteadyN{} actions at a ratio of \Qsteady{} with an
+oscillation rate of \QsteadyOsc{}, the closest behaviour to purposeful
+traversal in the field. One model falls below the random floor, as
+GameBench also reports for one model \citep{costarelli2024gamebench}: it
+reads the screen before \QworstReads\% of its \QworstN{} actions, acts
+quickly, and reaches a meaningful ratio of \Qworst{}, \QunderTimes{} times
+below random, because its replay shows minutes of keys the game ignores in
+the mode it is in. Reading the screen frequently therefore does not
+establish that a model perceives it, a divergence between looking and seeing
+that BALROG and VideoGameBench also document
+\citep{paglieri2025balrog,zhang2025videogamebench}.
 
-One configuration falls below that floor, as GameBench also reports for one
-model \citep{costarelli2024gamebench}. \texttt{\QworstLabel} reads the
-screen before \QworstReads\% of its \QworstN{} actions, acts quickly, and
-reaches a meaningful ratio of \Qworst{}, \QunderTimes{} times below random.
-Its replay shows minutes-long repetition of keys the game ignores in the mode
-it is in; oscillation is low because the screen almost never changes, and
-the run spends \QworstStart{} minutes before its first keypress. Reading the
-screen frequently therefore does not establish that a model perceives it, a
-divergence between looking and seeing that BALROG and VideoGameBench also
-document \citep{paglieri2025balrog,zhang2025videogamebench}.
+The floor itself is measured. The random baseline never reads the screen,
+acts every \QrandomGap{}\,s over \QrandomKeys{} distinct keys, and still
+changes the screen \Qrandom{} of the time across \QrandomN{} actions, which
+is the reactivity of the environment that every behavioural metric is read
+against; across those actions the exit tile is never reached. The world-map
+detector is held to the same standard: a latch is credited only when the fade
+to black corroborates it, which is why \SmapSolo{} latches above are flagged
+and not credited.
 
 \subsection{Use of the Budget}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.8\linewidth]{figures/horizon.pdf}
-\caption{One row per scored session. Grey is time inside the opening scene
-and blue is time on the world map, with the action count at which the
-transition happened; hatched rows latched the map signature without a
-corroborating fade. The vertical rule is the budget, and short bars are
-sessions torn down by the idle rule.}
-\label{fig:horizon}
-\end{figure}
-
-\Cref{fig:horizon} accounts for the \NbudgetMin{} minutes directly. Most
-sessions spend the entire budget in the scene they spawned in. The sessions
-that leave it cross at a median of \SexitActs{} actions and \SexitMedian{}
-minutes, so the configurations that reach the second scene spend
-\SexitMedian{} of their \NbudgetMin{} minutes getting there, and
-\SexitVendors{} vendors account for every corroborated crossing. This
-distribution is why the \NbudgetMin{}-minute budget measures early competence
-and why deliberation is priced in wall clock, an efficiency framing shared
-with ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}. The
-protocol supports budgets to twenty-four hours, the setting in which the
-later rungs and a completion time come within reach.
+Most sessions spend the entire budget in the scene they spawned in. The
+sessions that leave it cross at a median of \SexitActs{} actions and
+\SexitMedian{} minutes, so the models that reach the second scene
+spend \SexitMedian{} of their \NbudgetMin{} minutes getting there, and
+\SexitVendors{} vendors account for every corroborated crossing;
+\cref{fig:horizon} in \cref{app:field} shows the budget of every session.
+This distribution is why the \NbudgetMin{}-minute budget measures early
+competence and why deliberation is priced in wall clock, an efficiency
+framing shared with ARC-AGI-3 and TextQuests
+\citep{arc2026arcagi3,phan2025textquests}. The protocol supports budgets to
+twenty-four hours, the setting in which the later rungs and a completion
+time come within reach.
 
 \tbd{Runs at longer budgets, which the protocol already supports, are the
-measurement that separates a slow agent from a stuck one.}
+measurement that separates a slow model from a stuck one.}
 
 \section{Conclusion}
 \label{sec:conclusion}
 
 We presented \bench{}, a long-horizon benchmark that runs an unmodified 1996
-open-world role-playing game and scores agents in the terms the game keeps
-about itself. The environment is adversarial in ways that are named and
+open-world role-playing game, gives every model the same minimal harness, and
+scores it in the terms the game keeps about itself. The environment is adversarial in ways that are named and
 checkable: a $320\times200$ isometric frame far outside the training
 distribution of current vision encoders, Traditional Chinese as the only
 channel through which objectives are stated, and a world that supplies no
 score. Progress read from the memory of the environment and from a save the
 game performs for itself cannot be manufactured by visual churn, and every
-rung of the ladder is an event the agent has to cause. The ladder ends at the
+rung of the ladder is an event the model has to cause. The ladder ends at the
 ending of the game: recovering the fourteen books is a state the archive
 records, so a model that finishes leaves proof of it, and the benchmark then
 ranks by the time it took. Both scales exist from the start, so the first
@@ -640,7 +621,7 @@ including text, claims and artifacts produced with the aid of generative AI.
 \crefname{appendix}{Appendix}{Appendices}
 \Crefname{appendix}{Appendix}{Appendices}
 
-\section{The Agent-Facing Brief and the Control Surface}
+\section{The Brief and the Control Surface}
 \label{app:brief}
 The complete onboarding surface is the brief served at \texttt{agents.md}:
 session creation, the calls that constitute play, the rules of a run covering
@@ -702,7 +683,7 @@ is reported as unmeasured. The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
 entry through which the game saves. Attempts wait for a two-second gap
-between the keys the agent sends, recur every two minutes, and are made once more
+between the keys the model sends, recur every two minutes, and are made once more
 shortly before the budget lapses, into a save slot reserved for the
 benchmark.
 
@@ -746,5 +727,45 @@ carried by a party member, which is how the final rung of the ladder is read.
 With all fourteen in hand and sufficient reputation, the game opens its final
 sequence at a shrine on the far side of the map, where the books are placed
 and a last battle decides the ending \citep{bahamut2023walkthrough}.
+
+\section{The Field at Submission Time}
+\label{app:field}
+\Cref{tab:results} lists every published run under the name declared when
+its session was created, pooled by name, and \cref{fig:horizon} shows how
+each session
+spent its budget. The live leaderboard at
+\url{https://hanxiao.io/jy-crpg-bench/} supersedes both as runs are added.
+The styles of \cref{sec:results} belong to named runs: the two most
+deliberate models are \texttt{\QslowA} and \texttt{\QslowB}, the steady
+traverser is \texttt{\QsteadyLabel}, and the model below the
+random floor is \texttt{\QworstLabel}, which spent \QworstStart{} minutes
+before its first keypress.
+
+\begin{table}[h]
+\centering
+\caption{The field, pooled by declared name over every published run. \emph{ratio}
+is screen-changing actions over total actions with a 95\% Wilson interval,
+\emph{act/min} is the median action rate, \emph{reads/act} is screen reads
+per action, \emph{think} is the median inter-action gap in seconds, and
+\emph{map} counts sessions whose screen latched the world-map signature,
+preceded by how many of those a fade to black corroborates. Rows are ordered
+by ratio, with the random floor last.}
+\label{tab:results}
+\small
+\setlength{\tabcolsep}{4pt}
+\input{tables/aggregate.tex}
+\mktable
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.84\linewidth]{figures/horizon.pdf}
+\caption{One row per scored session. Grey is time inside the opening scene
+and blue is time on the world map, with the action count at which the
+transition happened; hatched rows latched the map signature without a
+corroborating fade. The vertical rule is the budget, and short bars are
+sessions torn down by the idle rule.}
+\label{fig:horizon}
+\end{figure}
 
 \end{document}
