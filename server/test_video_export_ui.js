@@ -11,13 +11,15 @@ const response = (body,status=200) => ({ok:status<400,status,json:async()=>body}
 const row = (state,extra={}) => ({id:'job1',state,completed:2,total:4,...extra});
 const flush = () => new Promise(resolve=>setImmediate(resolve));
 function setup(handle, saved=null) {
-  const storage = new Map(saved ? [[key,JSON.stringify({id:saved})]] : []);
+  const savedValue = saved && typeof saved === 'object' ? saved : (saved ? {id:saved} : null);
+  const storage = new Map(savedValue ? [[key,JSON.stringify(savedValue)]] : []);
   const elements = {save:{disabled:false},play:{disabled:false}};
-  const calls=[],downloads=[],timers=new Map(),delays=new Map(),events={};let sequence=0;
+  const calls=[],downloads=[],timers=new Map(),delays=new Map(),events={};let sequence=0,requestSequence=0;
   const sandbox={URL,AbortController,location:{href:base},document:{
     getElementById:id=>elements[id],
     createElement:tag=>({style:{},click(){if(tag==='a')downloads.push(String(this.href));}}),
   },sessionStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k),removeItem:k=>storage.delete(k)},
+  crypto:{randomUUID:()=>`request-${++requestSequence}`},
   setTimeout:(fn,delay)=>{timers.set(++sequence,fn);delays.set(sequence,delay);return sequence;},
   clearTimeout:id=>{timers.delete(id);delays.delete(id);},
   addEventListener:(name,fn)=>events[name]=fn,
@@ -33,11 +35,44 @@ test('starts a backend job, preserves Play, reports packaging, then downloads at
   await f.elements.save.onclick();assert.equal(f.elements.play.disabled,false);
   assert.equal(f.elements.save.disabled,true);assert.equal(f.elements.cancel.hidden,false);
   assert.equal(f.calls[0].url.href,base+'api/video');
-  assert.deepEqual(JSON.parse(f.calls[0].options.body),{recording:'current',speed:4});
+  assert.deepEqual(JSON.parse(f.calls[0].options.body),{recording:'current',speed:4,requestId:'request-1'});
+  assert.equal(f.calls[0].options.headers['X-Video-Request-Id'],'request-1');
   await f.tick();assert.equal(f.elements.save.textContent,'封装 50%');
   state='ready';await f.tick();assert.equal(f.elements.save.disabled,false);
   await f.elements.save.onclick();assert.deepEqual(f.downloads,[base+'api/video/job1/file']);
   assert.equal(f.storage.size,0);assert.equal(f.elements.save.textContent,'⤓ MP4');
+});
+
+test('a truncated creation response retries with the same idempotency token',async()=>{
+  let posts=0;
+  const f=setup(call=>{
+    if(call.method!=='POST')return response(row('encoding'));
+    if(++posts===1)return {...response(null,202),json:async()=>{throw new TypeError('response body interrupted');}};
+    return response(row('encoding'),202);
+  });
+  await f.elements.save.onclick();
+  assert.equal(f.elements.save.textContent,'重试导出');
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{requestId:'request-1'});
+  const first=f.calls[0];
+  await f.elements.save.onclick();
+  assert.equal(posts,2);
+  const second=f.calls[1];
+  assert.equal(first.options.headers['X-Video-Request-Id'],'request-1');
+  assert.equal(second.options.headers['X-Video-Request-Id'],'request-1');
+  assert.equal(JSON.parse(first.options.body).requestId,JSON.parse(second.options.body).requestId);
+  assert.equal(f.elements.save.textContent,'生成 50%');
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job1'});
+});
+
+test('a pending request token survives reload and is reused by the next submit',async()=>{
+  const original=setup(call=>({...response(null,202),json:async()=>{throw new TypeError('response body interrupted');}}));
+  await original.elements.save.onclick();
+  const token=JSON.parse(original.storage.get(key)).requestId;
+  const reloaded=setup(call=>response(row('encoding'),202),{requestId:token});
+  await reloaded.elements.save.onclick();
+  assert.equal(reloaded.calls[0].options.headers['X-Video-Request-Id'],token);
+  assert.equal(JSON.parse(reloaded.calls[0].options.body).requestId,token);
+  assert.deepEqual(JSON.parse(reloaded.storage.get(key)),{id:'job1'});
 });
 test('cancel wins against an older status response and allows another export',async()=>{
   let release;
@@ -268,7 +303,7 @@ test('pageshow restores an idle button if creation failed while the page was hid
   assert.equal(f.elements.save.textContent,'提交中');
   f.events.pageshow({persisted:true});
   assert.equal(f.elements.save.disabled,false);assert.equal(f.elements.save.textContent,'⤓ MP4');
-  assert.equal(f.storage.size,0);assert.equal(f.timers.size,0);
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{requestId:'request-1'});assert.equal(f.timers.size,0);
 });
 
 const invalidReplies={

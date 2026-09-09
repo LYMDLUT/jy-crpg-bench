@@ -9,11 +9,15 @@
   cancel.id = 'video-cancel'; cancel.textContent = '取消'; cancel.hidden = true;
   cancel.style.cssText = 'font:inherit;font-size:10px;padding:3px 6px;background:#17171b;color:#ccc;border:1px solid #2e2e36;border-radius:4px;cursor:pointer';
   button.after(cancel);
-  let job = null, timer = null, requesting = false, cancelling = false, closed = false, revision = 0;
+  let job = null, requestId = null, timer = null, requesting = false, cancelling = false, closed = false, revision = 0;
   let activePoll = null, activeCancel = null, failures = 0;
   const states = new Set(['queued','indexing','rendering','encoding','finalizing','ready','cancelled','error','failed']);
   const terminal = state => ['ready','cancelled','error','failed'].includes(state);
   const storage = value => { try { value ? sessionStorage.setItem(key,JSON.stringify(value)) : sessionStorage.removeItem(key); } catch {} };
+  function newRequestId() {
+    try { if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID(); } catch {}
+    return `video-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
   function schedule(delay=700) {
     clearTimeout(timer); timer=null;
     if (job && !terminal(job.state) && !closed && !cancelling) timer=setTimeout(poll,delay);
@@ -100,13 +104,24 @@
       job=null;storage(null);button.textContent='⤓ MP4';return;
     }
     requesting=true;button.disabled=true;button.textContent='提交中';
+    if (!requestId) requestId=newRequestId();
+    // Persist the token before sending. If the response body is truncated after
+    // the backend creates a job, retrying this exact token is safe and returns
+    // the original job instead of creating a duplicate.
+    storage({requestId});
     try {
-      const row=await call(new URL('api/video',page),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recording:'current',speed:4})});
+      const row=await call(new URL('api/video',page),{method:'POST',headers:{'Content-Type':'application/json','X-Video-Request-Id':requestId},body:JSON.stringify({recording:'current',speed:4,requestId})});
       validate(row);
+      requestId=null;
       requesting=false;
       if (closed) {job=row;storage(!terminal(row.state)||row.state==='ready'?{id:row.id}:null);return;}
       show(row);
-    } catch(error) { requesting=false;if(closed)return;button.disabled=false;button.textContent='重试导出';button.title=error.message; }
+    } catch(error) {
+      requesting=false;
+      if ([404,410].includes(error.status)) { requestId=null; storage(null); }
+      if(closed)return;
+      button.disabled=false;button.textContent='重试导出';button.title=error.message;
+    }
   };
   cancel.onclick=async()=>{
     if (!job || closed || cancelling) return;
@@ -127,5 +142,9 @@
     if(job){if(job.state)show(job);if(!terminal(job.state))poll();}
     else if(!requesting){button.disabled=false;button.textContent='⤓ MP4';cancel.hidden=true;}
   });
-  try { const saved=JSON.parse(sessionStorage.getItem(key)||'null');if(saved?.id){job=saved;button.disabled=true;button.textContent='读取任务';poll();} } catch {}
+  try {
+    const saved=JSON.parse(sessionStorage.getItem(key)||'null');
+    if (typeof saved?.requestId==='string' && saved.requestId) requestId=saved.requestId;
+    if(saved?.id){job=saved;button.disabled=true;button.textContent='读取任务';poll();}
+  } catch {}
 })();
