@@ -81,8 +81,8 @@ public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
 
 Frontier models prove competition mathematics and write working compilers,
 yet remain unreliable on tasks that unfold over hours. Long-horizon
-evaluation has answered in two families. Episodic benchmarks set a goal and
-score its completion; continuing benchmarks give the agent an environment
+evaluation takes two forms. Episodic benchmarks set a goal and score its
+completion; continuing benchmarks give the agent an environment
 with no terminal state and score what accumulates
 \citep{backlund2025vending,fan2026ecommerce}. Open-world games belong to the
 second family and add a requirement the business simulations do not: the
@@ -102,9 +102,8 @@ combination untested. We keep the parts together, because acting through
 unfamiliar perception, unfamiliar language and unfamiliar culture at once is
 what a deployed agent is asked to do.
 
-\bench{} runs one deep environment in place of a wide suite, following the
-precedent of Crafter and NetHack
-\citep{hafner2021benchmarking,kuttler2020nethack}. The environment is
+\bench{} runs a single deep environment, following the precedent of Crafter
+and NetHack \citep{hafner2021benchmarking,kuttler2020nethack}. The environment is
 \game{金庸群俠傳}, a 1996 Chinese role-playing game that remains a landmark
 of its genre, executed as its original DOS binary under emulation with no
 modification. The game presents an open world built from the fourteen novels
@@ -129,7 +128,7 @@ Three properties make the environment adversarial for current models, and
 \cref{fig:env} shows the world they apply to. Perception is out of
 distribution on several axes at once. Downsampling costs vision-language
 models accuracy \citep{niu2025resolution}, degraded input costs them more
-\citep{wasim2025corruptions}, out-of-distribution images degrade recognition
+\citep{usama2025corruptions}, out-of-distribution images degrade recognition
 even of familiar categories \citep{lin2026oodbench}, and text rendered as
 pixels is understood less well than the same text supplied as tokens
 \citep{liu2026vistabench}; a $320\times200$ frame of 1996 bitmap art carrying
@@ -267,8 +266,8 @@ behavioural profile beneath it are an instance of that answer, with the
 ladder read from machine state so that dense signals cannot be mistaken for
 progress. For behavioural quantities we follow GVGAI-LLM in distinguishing
 effective from redundant actions \citep{li2025gvgai}, and we report binomial
-proportions with intervals in place of bare ranks, in the spirit of
-comparative platforms that account for ranking uncertainty
+proportions with their intervals, in the spirit of comparative platforms
+that account for ranking uncertainty
 \citep{chiang2024chatbot,wilson1927probable}.
 
 \section{\bench{}}
@@ -286,13 +285,13 @@ outdoor map. For each of \Mrecords{} named characters the game maintains a
 record carrying level, experience, health, stamina, learned skills, carried
 items, reputation and aptitude. Progression is nonlinear and gated. Most
 buildings stay shut until specific items are held, and the opening sets the
-order: the compound holds a searchable chest, one speaking character and one
-exit tile, and beyond it the path south leads to the house of the hermit
-\game{南賢}, where the conversation opens locations that otherwise stay
-closed and a cabinet holds the compass, the only source of coordinates the
-game offers. A party that wanders elsewhere first meets storylines whose
-fights it cannot survive at level one, and in most encounters a lost fight
-ends the game.
+order. The compound holds a searchable chest, one speaking character and one
+exit tile. Beyond it, the path south leads to the house of the hermit
+\game{南賢}; the conversation there opens locations that otherwise stay
+closed, and a cabinet beside him holds the compass, the only source of
+coordinates the game offers. A party that wanders elsewhere first meets
+storylines whose fights it cannot survive at level one, and in most
+encounters a lost fight ends the game.
 
 \begin{figure}[t]
 \centering
@@ -700,7 +699,7 @@ is reported as unmeasured. The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
 entry through which the game saves. Attempts wait for a two-second gap
-between the agent's keys, recur every two minutes, and are made once more
+between the keys the agent sends, recur every two minutes, and are made once more
 shortly before the budget lapses, into a save slot reserved for the
 benchmark.
 
