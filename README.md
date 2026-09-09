@@ -509,7 +509,8 @@ cd paper/src && python3 check_consistency.py && \
   python3 figures/emit_numbers.py > figures/numbers.tex && \
   python3 figures/emit_table.py >/dev/null && \
   python3 figures/make_metrics.py >/dev/null && \
-  git diff --exit-code figures/numbers.tex tables/aggregate.tex tables/family.tex tables/runs.tex
+  python3 figures/emit_books.py > tables/books.tex && \
+  git diff --exit-code figures/numbers.tex tables/aggregate.tex tables/family.tex tables/runs.tex tables/books.tex
 # the leaderboard pages and the agents.md briefs are generated too; the page
 # stamp is a hash of its own content, so a regen-and-diff needs no bucket
 python site/build.py && python site/agents_build.py && git diff --exit-code
