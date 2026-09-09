@@ -10,7 +10,7 @@
   cancel.style.cssText = 'font:inherit;font-size:10px;padding:3px 6px;background:#17171b;color:#ccc;border:1px solid #2e2e36;border-radius:4px;cursor:pointer';
   button.after(cancel);
   let job = null, requestId = null, timer = null, requesting = false, cancelling = false, closed = false, revision = 0;
-  let postRevision = 0, activePost = null;
+  let postRevision = 0;
   let activePoll = null, activeCancel = null, failures = 0;
   const states = new Set(['queued','indexing','rendering','encoding','finalizing','ready','cancelled','error','failed']);
   const terminal = state => ['ready','cancelled','error','failed'].includes(state);
@@ -112,7 +112,6 @@
     storage({requestId});
     const currentPost=++postRevision;
     const pending={controller:new AbortController()};
-    activePost=pending;
     try {
       const row=await timedCall(pending,new URL('api/video',page),{method:'POST',headers:{'Content-Type':'application/json','X-Video-Request-Id':requestId},body:JSON.stringify({recording:'current',speed:4,requestId})});
       // A timed-out request can still deliver its body after a retry. Once a
@@ -129,8 +128,6 @@
       if ([404,410].includes(error.status)) { requestId=null; storage(null); }
       if(closed)return;
       button.disabled=false;button.textContent='重试导出';button.title=error.message;
-    } finally {
-      if (activePost===pending) activePost=null;
     }
   };
   cancel.onclick=async()=>{
@@ -144,9 +141,6 @@
   };
   addEventListener('pagehide',()=>{
     closed=true;++revision;clearTimeout(timer);timer=null;stopPoll();cancelling=false;
-    // Keep an in-flight creation alive so a response received while the page
-    // is hidden can still be persisted, but remove its visible deadline.
-    if (activePost) clearTimeout(activePost.timeout);
     if(activeCancel){clearTimeout(activeCancel.timeout);activeCancel.controller.abort();activeCancel=null;}
   });
   addEventListener('pageshow',event=>{

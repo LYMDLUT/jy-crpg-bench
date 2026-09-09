@@ -100,6 +100,32 @@ test('a pending request token survives reload and is reused by the next submit',
   assert.equal(JSON.parse(reloaded.calls[0].options.body).requestId,token);
   assert.deepEqual(JSON.parse(reloaded.storage.get(key)),{id:'job1'});
 });
+
+for(const timeoutWhileHidden of [false,true])test(`a hung creation retains its deadline across pagehide and pageshow (timeout while hidden: ${timeoutWhileHidden})`,async()=>{
+  let releaseFirst,posts=0;
+  const firstBody=new Promise(resolve=>releaseFirst=resolve);
+  const f=setup(()=>++posts===1?{...response(null,202),json:async()=>firstBody}:response(row('encoding'),202));
+  const first=f.elements.save.onclick();await flush();
+  const token=JSON.parse(f.storage.get(key)).requestId;
+  f.events.pagehide({persisted:true});
+  assert.deepEqual([...f.delays.values()],[15000]);
+  if(!timeoutWhileHidden)f.events.pageshow({persisted:true});
+  await f.tick();await first;
+  assert.equal(f.calls[0].options.signal.aborted,true);
+  if(timeoutWhileHidden){
+    assert.equal(f.elements.save.textContent,'提交中','A hidden timeout must not update the hidden UI');
+    f.events.pageshow({persisted:true});
+  }
+  assert.equal(f.elements.save.disabled,false);
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{requestId:token});
+  await f.elements.save.onclick();
+  assert.equal(posts,2);
+  assert.equal(f.calls[1].options.headers['X-Video-Request-Id'],token);
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job1'});
+  releaseFirst(row('ready',{id:'stale-job',download:'api/video/stale-job/file'}));await flush();
+  assert.equal(f.elements.save.textContent,'生成 50%');
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job1'});
+});
 test('cancel wins against an older status response and allows another export',async()=>{
   let release;
   const f=setup(call=>call.method==='POST'?response(row('encoding'),202):call.method==='DELETE'?response(row('cancelled')):new Promise(resolve=>release=resolve));
