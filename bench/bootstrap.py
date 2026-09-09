@@ -7,6 +7,7 @@ used. This plays the opening once: new game, a name through the 注音 IME,
 accept the roll, then read the wake-up scene to its end, and saves the moment
 the player is free to move with the 軟體娃娃 still unspoken to.
 """
+import base64
 import io
 import json
 import os
@@ -54,16 +55,24 @@ def sha(b):
     return hashlib.sha1(b).hexdigest()
 
 
-def has_dialogue(png):
-    """A dialogue box is a bright white frame across the lower half of a screen
-    that is otherwise browns and yellows, so near-white pixels down there are a
-    reliable tell. Measured: about 7 percent with a box, under 1 without."""
-    import io
+def white_share(png):
+    """Near-white pixels across the lower half, as a share of it."""
     im = Image.open(io.BytesIO(png)).convert("RGB")
     w, h = im.size
     crop = im.crop((0, int(h * 0.55), w, h))
     white = sum(1 for r, g, b in crop.getdata() if min(r, g, b) > 200)
-    return white > crop.width * crop.height * 0.01
+    return white / float(crop.width * crop.height)
+
+
+def has_dialogue(png):
+    """A dialogue box is a bright white frame across the lower half of a screen
+    that is otherwise browns and yellows, so near-white pixels down there are a
+    reliable tell. Measured: about 7 percent with a box, under 1 without.
+
+    The title screen passes this too - its scroll is 2.3 percent white - so a
+    replay that never leaves the title looks exactly like one still reading
+    dialogue. That is why the failure below carries the picture."""
+    return white_share(png) > 0.01
 
 
 def quiet(g, samples=3):
@@ -139,8 +148,15 @@ def build(base, token, log=print):
         # slow and one that is wedged look exactly alike from outside: the
         # phase logs once when it starts and then nothing for seven minutes.
         if rounds % 3 == 0:
-            log(f"  round {rounds}, {time.time() - began:.0f}s elapsed")
+            png = g.png()
+            log(f"  round {rounds}, {time.time() - began:.0f}s elapsed, "
+                f"white {white_share(png):.3f}, frame {sha(png)[:12]}")
         if time.time() > deadline:
+            # The picture, not just the count. Reading a stuck replay always
+            # comes down to which screen it is stuck on, and that is the one
+            # thing the numbers cannot say.
+            log("  stuck on: data:image/png;base64,"
+                + base64.b64encode(g.png()).decode())
             raise RuntimeError(f"never became free to move after {rounds} rounds")
 
     if has_dialogue(g.png()):                 # last check before committing
