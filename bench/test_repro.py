@@ -7,11 +7,23 @@ the claim:
 * regenerating twice, in two fresh processes, gives byte-identical
   machine states - the whole pipeline (emulator, game, filesystem,
   build) is deterministic for fixed inputs;
-* regenerating matches the committed golden, on the platform that
-  produced it;
-* the load lands on the same machine state however long the game had
-  been running when it arrived - the start state is a well-defined
-  origin, not a moving target.
+* regenerating reaches the committed golden's destination, on the
+  platform that produced it;
+* the load lands on the same *game* however long the title screen had
+  been up when it arrived - the start state is a well-defined origin,
+  not a moving target.
+
+The last two are checked on `repro.DETERMINISTIC` rather than on the
+whole signature, and the reason is measured rather than assumed. The
+emulator carries counters its own serialiser does not restore: at two
+park lengths the machine image differs immediately after the load,
+before a frame of the script has run, while the picture and the game's
+own state are identical. Under the script the picture then diverges for
+about a hundred frames - a key lands in a different frame - and
+converges again. The image hash also depends on the local build, which
+is not in the repository. So what is asserted is where a run ends up, on
+screen and in the game's own numbers, and the image hash rides along in
+the signature as a diagnostic.
 
 Each case runs the driver in a subprocess: the core's lifecycle is one
 per process - the host refuses a second initialization over a live core
@@ -31,6 +43,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+sys.path.insert(0, str(HERE))
+import repro                                               # noqa: E402
 GOLDEN = HERE / "golden" / f"repro-{platform.system().lower()}.json"
 
 
@@ -64,22 +78,31 @@ class ReproTests(unittest.TestCase):
         b = self._signature(regenerate())
         self.assertEqual(a, b, "two fresh regenerations differ")
 
+    def _destination(self, signature):
+        return {k: signature.get(k) for k in repro.DETERMINISTIC}
+
     def test_golden(self):
         if not GOLDEN.exists():
             self.skipTest("no committed golden on this platform")
         signature = self._signature(regenerate())
-        self.assertEqual(signature, json.loads(GOLDEN.read_text()),
-                         "the regenerated run differs from the committed golden")
+        self.assertEqual(self._destination(signature),
+                         self._destination(json.loads(GOLDEN.read_text())),
+                         "the regenerated run ends somewhere else than the golden")
 
     def test_load_is_invariant_to_park_length(self):
         # The live server loads seconds after the title parked; a run that
-        # loads later must land on the same machine state.  (Loading
-        # mid-boot must never be tried: the core pauses its emulation
-        # thread at the load only outside the boot phase, so a mid-boot
-        # load lands wherever the boot happens to be.)
+        # loads later must land in the same game.  (Loading mid-boot must
+        # never be tried: the core pauses its emulation thread at the load
+        # only outside the boot phase, so a mid-boot load lands wherever the
+        # boot happens to be.)
         parked = self._signature(regenerate())
         longer = self._signature(regenerate(extra=600))
-        self.assertEqual(parked["state_sha256"], longer["state_sha256"])
+        self.assertEqual(parked["game"], longer["game"])
+        self.assertEqual(parked["picture"], longer["picture"])
+        # and the machine image is the thing that does not survive it
+        self.assertNotEqual(parked["state_sha256"], longer["state_sha256"],
+                            "the image now survives a longer park; tighten "
+                            "these assertions back to it")
 
 
 if __name__ == "__main__":

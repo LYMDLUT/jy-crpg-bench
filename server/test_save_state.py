@@ -55,6 +55,76 @@ class BookTests(unittest.TestCase):
         self.assertEqual(S.books_held({3: 1}, [{"carrying": {9: 1}}]), [])
 
 
+class TableTests(unittest.TestCase):
+    """The tables the save-slot browser reads names out of.
+
+    Record sizes are derived from the shipped sections, so a wrong one is a
+    non-integer count here rather than a plausible-looking name later.
+    """
+
+    def sections(self):
+        grp, idx = shipped()
+        sections = S.split_archive(grp, idx)
+        self.assertIsNotNone(sections)
+        return sections
+
+    def test_the_sections_hold_whole_records(self):
+        sections = self.sections()
+        self.assertEqual(len(sections[S.SEC_SUBMAPS]), S.SUBMAP_SLOTS * S.SUBMAP_SZ)
+        self.assertEqual(len(sections[S.SEC_SKILLS]), S.SKILL_SLOTS * S.SKILL_SZ)
+
+    def test_the_names_are_the_game_own(self):
+        sections = self.sections()
+        skills = S.decode_skills(sections[S.SEC_SKILLS])
+        places = S.decode_submaps(sections[S.SEC_SUBMAPS])
+        items = S.decode_item_table(sections[S.SEC_ITEMS])
+        self.assertEqual(skills[0], "普通攻擊")
+        self.assertEqual(skills[1], "野球拳")
+        self.assertEqual(places[0], "胡斐居")      # the room a new game starts in
+        self.assertEqual(len(skills), S.SKILL_SLOTS)
+        self.assertEqual(len(places), S.SUBMAP_SLOTS)
+        self.assertEqual(items[1]["name"], "精氣丸")
+        self.assertEqual(items[1]["kind"], "medicine")
+        self.assertEqual(items[144]["name"], S.BOOK_NAMES[0])
+        self.assertEqual({v["kind"] for v in items.values()}, set(S.ITEM_KINDS))
+
+    def test_a_skill_rank_is_one_to_ten(self):
+        self.assertEqual(S.skill_rank(0), 1)
+        self.assertEqual(S.skill_rank(99), 1)
+        self.assertEqual(S.skill_rank(100), 2)
+        self.assertEqual(S.skill_rank(900), 10)
+        self.assertEqual(S.skill_rank(5000), 10)
+
+
+class DetailTests(unittest.TestCase):
+    def test_a_new_game_reads_as_one_medicine_carrying_hero(self):
+        grp, idx = shipped()
+        d = S.from_archive(grp, idx)["detail"]
+        self.assertTrue(d["position"]["on_world_map"])
+        self.assertEqual(d["position"]["place"], "")
+        self.assertEqual(len(d["team"]), 1)
+        lead = d["team"][0]
+        self.assertEqual([k["rank"] for k in lead["learned"]], [1])
+        self.assertEqual({i["kind"] for i in d["bag"]}, {"medicine"})
+        self.assertEqual(sum(i["count"] for i in d["bag"]), 12)
+        self.assertEqual([b["name"] for b in d["books"]], list(S.BOOK_NAMES))
+        self.assertFalse(any(b["held"] for b in d["books"]))
+
+    def test_a_book_in_the_bag_lights_its_tile(self):
+        grp, idx = shipped()
+        sections = list(S.split_archive(grp, idx))
+        base = bytearray(sections[S.SEC_BASE])
+        struct.pack_into("<2h", base, S.BAG_AT, 144, 1)   # the first novel
+        sections[S.SEC_BASE] = bytes(base)
+        d = S.detail(sections)
+        held = [b for b in d["books"] if b["held"]]
+        self.assertEqual([b["name"] for b in held], [S.BOOK_NAMES[0]])
+        row = next(i for i in d["bag"] if i["id"] == 144)
+        self.assertTrue(row["book"])
+        self.assertEqual(row["kind"], "story")
+        self.assertEqual(row["desc"], "一本小說")
+
+
 class ArchiveTests(unittest.TestCase):
     def test_a_new_game_reads_as_one_character_at_level_one(self):
         grp, idx = shipped()

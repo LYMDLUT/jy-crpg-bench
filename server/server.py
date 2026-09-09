@@ -256,8 +256,7 @@ DARK = 12
 # checked against the game's own shipped RANGER.GRP: 320 records of 182 bytes,
 # and across all 320 only two break hp <= maxHp or mp <= maxMp.
 CHAR_SZ = 182
-CHAR_ANCHOR = ("程靈素", 2)          # this NPC's name occurs once in the image
-CHAR_CHECK = (("胡斐", 1), ("苗人鳳", 3))
+CHAR_ANCHOR = save_state.CHAR_ANCHOR
 # Byte offsets inside one record.
 C_NAME, C_LEVEL, C_EXP, C_HP, C_MAXHP = 8, 30, 32, 34, 36
 C_STAMINA, C_MP, C_MAXMP = 42, 82, 84
@@ -508,23 +507,7 @@ def _state_bytes():
 
 
 def _locate(mem):
-    """Where the character array sits in this image.
-
-    Anchored on a name and confirmed by two neighbours at the right stride.
-    A first hit is not enough: these names appear more than once, and the
-    serialised layout moves between runs.
-    """
-    pat = CHAR_ANCHOR[0].encode("big5")
-    i = mem.find(pat)
-    while i != -1:
-        base = i - C_NAME - CHAR_ANCHOR[1] * CHAR_SZ
-        if base >= 0 and all(
-                mem[base + cid * CHAR_SZ + C_NAME:
-                    base + cid * CHAR_SZ + C_NAME + 10].split(b"\0")[0]
-                == nm.encode("big5") for nm, cid in CHAR_CHECK):
-            return base
-        i = mem.find(pat, i + 1)
-    return None
+    return save_state.locate_characters(mem)
 
 
 def read_stats():
@@ -2143,6 +2126,28 @@ async def index(_request):
     return web.FileResponse(ROOT / "index.html")
 
 
+async def progress(request):
+    """The save slot, decoded, for the browser that reads it like a game.
+
+    Separate from /status because it is bigger and nobody polls it: the panel
+    fetches it when someone opens it, and again when the save time moves.
+    """
+    if withheld(request):
+        return web.json_response({"ok": False, "error": "not while the run is scored"},
+                                 status=404)
+    archived = snap["archive"] or {}
+    return web.json_response({
+        "ok": True,
+        "saved_at": snap["at"], "why": snap["why"], "slot": SNAPSHOT_SLOT,
+        "detail": archived.get("detail"),
+        # The live reading, which is fresher than the save for everything the
+        # save is not the only source of.
+        "live": {k: hero[k] for k in ("level", "exp", "hp", "maxhp", "skills",
+                                      "books", "book_ids", "items_total",
+                                      "inventory_distinct")},
+    })
+
+
 # What a scored run must not be able to read about itself. A model that can
 # see its own score can play the score; the board and the operator see these,
 # the agent never does.
@@ -2161,9 +2166,20 @@ def operator(request):
         (got or "").encode("utf-8"), want.encode("utf-8"))
 
 
+def withheld(request):
+    """Whether this caller must not see what the run has achieved.
+
+    A model that can watch its own score can play the score, so a scored run
+    keeps these from everyone but the operator - while it is still being
+    played. Once it is over there is nothing left to play for and the numbers
+    are published anyway, so whoever is watching can read them.
+    """
+    return warden.ON and not warden.run["done"] and not operator(request)
+
+
 async def status(_request):
     summary = session_summary()
-    if warden.ON and not operator(_request):
+    if withheld(_request):
         summary = {k: v for k, v in summary.items() if k not in SCORED_FIELDS}
     return web.json_response({
         "width": LIB.core_width(), "height": LIB.core_height(),
@@ -2311,6 +2327,7 @@ def main():
         web.get("/recording.js", recording_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
+        web.get("/progress", progress),
         web.get("/api/screen", api_screen),
         web.get("/api/help", api_help),
         web.get("/api/keys", api_key_names),

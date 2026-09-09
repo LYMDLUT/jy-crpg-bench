@@ -122,9 +122,9 @@ POST /api/load   {"name":"before-boss"}
 ```
 
 That is the whole vocabulary an agent needs, and the whole of what the briefing
-teaches. Everything else this server exposes - `/status`, `/api/history`,
-`/api/recording`, `/ws`, and the broker's `/api/sessions` and `/api/catalog` -
-is the meta API the leaderboard and the browser client read. It reports on a
+teaches. Everything else this server exposes - `/status`, `/progress`,
+`/api/history`, `/api/recording`, `/ws`, and the broker's `/api/sessions` and
+`/api/catalog` - is the meta API the leaderboard and the browser client read. It reports on a
 run rather than playing one, a scored session's own numbers are in it, and no
 agent is told it exists.
 
@@ -388,8 +388,12 @@ every couple of minutes plus once near the end of a scored run's budget.
 
 None of this is in the Control API. An agent can move these numbers only by
 playing: it cannot read them (a scored session withholds them from anyone
-without the operator token) and it cannot save or load its way to them. All
-three runners show them live in a panel beside the game.
+without the operator token, until the run is over) and it cannot save or load
+its way to them. All three runners show them live in a panel beside the game,
+and the browser client opens the whole slot from there: the party with what
+each of them has learned and carries, the bag under the game's own names and
+descriptions, and which of the fourteen are in. `GET /progress` is that panel's
+source.
 
 Note that the game writes its save slots into the game directory it was
 mounted from, so slot 3 belongs to the benchmark on any machine that runs it.

@@ -57,7 +57,25 @@ CARRY_ITEMS = 4
 # ---------------------------------------------------------------- section 2
 ITEM_SLOTS = 200
 ITEM_SZ = 190
-I_ID, I_NAME, I_TYPE = 0, 2, 82
+I_ID, I_NAME, I_DESC, I_TYPE = 0, 2, 42, 82
+# itemType, as the game files it: 0 story, 1 equipment, 2 manual, 3 medicine,
+# 4 thrown.
+ITEM_KINDS = ("story", "equipment", "manual", "medicine", "thrown")
+
+# ---------------------------------------------------------------- section 3
+# The places. Only the name is read: it is what a person watching a run wants
+# to see instead of a pair of coordinates.
+SUBMAP_SLOTS = 84
+SUBMAP_SZ = 52
+M_NAME = 2
+
+# ---------------------------------------------------------------- section 4
+SKILL_SLOTS = 93
+SKILL_SZ = 136
+K_NAME = 2
+# The game keeps a skill's level in hundreds and shows a rank of one to ten.
+SKILL_LEVEL_STEP = 100
+SKILL_RANK_MAX = 10
 
 # The fourteen novels that end the game, contiguous in the item table. The
 # names are carried here so a mismatch against the shipped data is a test
@@ -157,12 +175,82 @@ def decode_items(item_block):
     return out
 
 
+def decode_item_table(item_block):
+    """The item table as the browser wants it: name, kind, and description."""
+    out = {}
+    for k in range(ITEM_SLOTS):
+        r = item_block[k * ITEM_SZ:(k + 1) * ITEM_SZ]
+        if len(r) < ITEM_SZ:
+            break
+        name = _text(r[I_NAME:I_NAME + 20])
+        if not name:
+            continue
+        kind = struct.unpack_from("<h", r, I_TYPE)[0]
+        out[struct.unpack_from("<h", r, I_ID)[0]] = {
+            "name": name,
+            "kind": ITEM_KINDS[kind] if 0 <= kind < len(ITEM_KINDS) else "",
+            "desc": _text(r[I_DESC:I_DESC + 30]),
+        }
+    return out
+
+
+def _names(block, slots, size, at, length):
+    """Slot index to name, for the fixed-size tables that carry one."""
+    out = {}
+    for k in range(slots):
+        r = block[k * size:(k + 1) * size]
+        if len(r) < size:
+            break
+        name = _text(r[at:at + length])
+        if name:
+            out[k] = name
+    return out
+
+
+def decode_skills(skill_block):
+    """``{skill_id: name}``: skills are addressed by their slot."""
+    return _names(skill_block, SKILL_SLOTS, SKILL_SZ, K_NAME, 10)
+
+
+def decode_submaps(submap_block):
+    """``{submap_id: name}``: the places, addressed by their slot."""
+    return _names(submap_block, SUBMAP_SLOTS, SUBMAP_SZ, M_NAME, 10)
+
+
+def skill_rank(level):
+    """One to ten, the way the game's own status screen shows it."""
+    return min(SKILL_RANK_MAX, max(0, level // SKILL_LEVEL_STEP) + 1)
+
+
 def books_held(bag, team_records=()):
     """Which of the fourteen are held, in the bag or carried by the party."""
     held = {i for i in bag if i in BOOK_IDS}
     for rec in team_records:
         held |= {i for i in rec.get("carrying", {}) if i in BOOK_IDS}
     return sorted(held)
+
+
+# Where the character array sits in a machine image. Anchored on a name that
+# occurs once and confirmed by two neighbours at the right stride: a first hit
+# is not enough, because these names appear more than once and the serialised
+# layout moves between runs.
+CHAR_ANCHOR = ("程靈素", 2)
+CHAR_CONFIRM = (("胡斐", 1), ("苗人鳳", 3))
+
+
+def locate_characters(mem):
+    """Offset of the 320 character records in a machine image, or None."""
+    pattern = CHAR_ANCHOR[0].encode("big5")
+    at = mem.find(pattern)
+    while at != -1:
+        base = at - C_NAME - CHAR_ANCHOR[1] * CHAR_SZ
+        if base >= 0 and all(
+                mem[base + cid * CHAR_SZ + C_NAME:
+                    base + cid * CHAR_SZ + C_NAME + 10].split(b"\0")[0]
+                == name.encode("big5") for name, cid in CHAR_CONFIRM):
+            return base
+        at = mem.find(pattern, at + 1)
+    return None
 
 
 def _plausible_base(mem, at, chars):
@@ -269,9 +357,58 @@ def summarise(base_block, chars):
     }
 
 
+def detail(sections):
+    """Everything a person would want to read out of one save.
+
+    The compact numbers above are what a run is scored on; this is what the
+    save-slot browser shows: who is in the party and what each of them has
+    learned and carries, the whole shared bag with the game's own names and
+    descriptions, where the party stands, and which of the fourteen are in.
+    """
+    base, chars = sections[SEC_BASE], sections[SEC_CHARS]
+    bag = decode_bag(base)
+    if bag is None:
+        return None
+    items = decode_item_table(sections[SEC_ITEMS])
+    skills = decode_skills(sections[SEC_SKILLS])
+    places = decode_submaps(sections[SEC_SUBMAPS])
+    where = decode_position(base)
+    # subMap is the scene's id plus one, so zero is the world map itself.
+    where["place"] = "" if where["on_world_map"] else places.get(where["submap"] - 1, "")
+
+    def named(item_id, count):
+        row = items.get(item_id, {})
+        return {"id": item_id, "count": count, "name": row.get("name", f"#{item_id}"),
+                "kind": row.get("kind", ""), "desc": row.get("desc", ""),
+                "book": item_id in BOOK_IDS}
+
+    team = []
+    for cid in decode_team(base):
+        rec = decode_character(chars, cid)
+        if rec is None:
+            continue
+        r = chars[cid * CHAR_SZ:(cid + 1) * CHAR_SZ]
+        ids = struct.unpack_from(f"<{LEARN_SKILLS}h", r, C_SKILL_ID)
+        levels = struct.unpack_from(f"<{LEARN_SKILLS}h", r, C_SKILL_LEVEL)
+        rec["learned"] = [{"name": skills.get(sid, f"#{sid}"),
+                           "rank": skill_rank(lv)}
+                          for sid, lv in zip(ids, levels) if sid > 0]
+        rec["items"] = [named(i, c) for i, c in sorted(rec.pop("carrying").items())]
+        rec.pop("skill_levels", None)
+        team.append(rec)
+
+    return {
+        "position": where,
+        "team": team,
+        "bag": [named(i, c) for i, c in sorted(bag.items())],
+        "books": [{"id": i, "name": items.get(i, {}).get("name", f"#{i}"),
+                   "held": i in books_held(bag, team)} for i in BOOK_IDS],
+    }
+
+
 # --------------------------------------------------------------- entry points
 GRP_SECTIONS = 6
-SEC_BASE, SEC_CHARS, SEC_ITEMS = 0, 1, 2
+SEC_BASE, SEC_CHARS, SEC_ITEMS, SEC_SUBMAPS, SEC_SKILLS = 0, 1, 2, 3, 4
 
 
 def split_archive(grp, idx):
@@ -303,6 +440,7 @@ def from_archive(grp, idx):
         return None
     summary["source"] = "archive"
     summary["item_names"] = decode_items(sections[SEC_ITEMS])
+    summary["detail"] = detail(sections)
     return summary
 
 

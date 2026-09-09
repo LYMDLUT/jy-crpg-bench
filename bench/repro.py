@@ -53,6 +53,9 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "server"))
+import save_state                                          # noqa: E402
+
 LIB = ROOT / "server" / "libqunxia.so"
 GAME = os.environ.get("QUNXIA_GAME", str(ROOT / "game" / "PLAY.BAT"))
 START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT / "saves" / "start.state"))
@@ -131,6 +134,9 @@ def load_library():
     lib.core_ticks.restype = ctypes.c_uint64
     lib.core_fps.restype = ctypes.c_double
     lib.core_last_error.restype = ctypes.c_char_p
+    lib.core_state_size.restype = ctypes.c_size_t
+    lib.core_state_copy.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
+    lib.core_state_copy.restype = ctypes.c_int
     lib.core_pixels.restype = ctypes.c_void_p
     lib.core_pitch.restype = ctypes.c_int
     lib.core_width.restype = ctypes.c_int
@@ -225,12 +231,53 @@ def regenerate(lib, core, game, start, extra=0):
             "ticks_delta": int(lib.core_ticks() - ticks0),
             "serial_delta": int(lib.core_frame_serial() - serial0),
             "hashes": hashes,
+            "picture": hashes[-1] if hashes else None,
+            "game": game_state(lib),
             "state_sha256": hashlib.sha256(blob).hexdigest(),
             "state_bytes": len(blob),
         }
     finally:
         lib.core_shutdown()
         shutil.rmtree(saves, ignore_errors=True)
+
+
+# What a regeneration must reproduce, and what it need not.
+#
+# The whole machine image is reproducible only for identical inputs on one
+# build: the emulator carries counters its own serialiser does not restore, so
+# how long the title screen ran before the load, and how long that took in real
+# seconds, both change bytes that never reach the game. Measured: at two park
+# lengths the image differs immediately after the load while the picture and
+# the game's own state are identical, and under the input script the picture
+# diverges for about a hundred frames and then converges again.
+#
+# So a regeneration is checked on what the benchmark is about - where the run
+# ends up, on screen and in the game's own numbers - and the image hash stays
+# in the signature as a diagnostic rather than a claim.
+DETERMINISTIC = ("script", "platform", "start_sha256", "boot_frames",
+                 "ticks_delta", "serial_delta", "picture", "game")
+
+
+def game_state(lib):
+    """The game's own state, decoded out of the machine, or None.
+
+    This is the part of a regeneration that is reproducible across builds and
+    across whatever else the host was doing: the bag, the character record,
+    and the books.
+    """
+    cap = lib.core_state_size()
+    if not cap:
+        return None
+    buf = ctypes.create_string_buffer(cap)
+    n = lib.core_state_copy(buf, cap)
+    if n <= 0:
+        return None
+    mem = buf.raw[:n]
+    base = save_state.locate_characters(mem)
+    state = save_state.from_memory(mem, base) if base is not None else None
+    if state:
+        state.pop("bag", None)              # the counts are in items/distinct
+    return state
 
 
 def main():
@@ -255,13 +302,13 @@ def main():
                            args.extra)
     if args.check:
         golden = json.loads(Path(args.check).read_text())
-        if signature == golden:
+        differs = [k for k in DETERMINISTIC if signature.get(k) != golden.get(k)]
+        if not differs:
             print("the canonical script regenerates the committed golden")
         else:
-            for key in sorted(set(signature) | set(golden)):
-                if signature.get(key) != golden.get(key):
-                    print(f"  {key}:\n    regenerated {signature.get(key)!r}\n"
-                          f"    golden      {golden.get(key)!r}")
+            for key in differs:
+                print(f"  {key}:\n    regenerated {signature.get(key)!r}\n"
+                      f"    golden      {golden.get(key)!r}")
             sys.exit(1)
     else:
         print(json.dumps(signature, indent=2, sort_keys=True))

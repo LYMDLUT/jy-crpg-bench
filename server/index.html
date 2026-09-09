@@ -183,6 +183,63 @@
   .lang button:first-child { border-radius: 4px 0 0 4px; border-left-width: 1px; }
   .lang button:last-child { border-radius: 0 4px 4px 0; }
   .lang button[aria-pressed=true] { background: #2a2a33; color: #fff; border-color: #4a4a58; }
+  /* The save-slot browser: the game's own save, read the way a game would
+     show it rather than as a row of numbers. */
+  #slot {
+    position: fixed; inset: 0; z-index: 25; display: none;
+    background: #000c; backdrop-filter: blur(2px);
+    align-items: center; justify-content: center;
+  }
+  #slot.on { display: flex; }
+  #slotbox {
+    width: min(92vw, 720px); max-height: 86vh; display: flex; flex-direction: column;
+    background: #121216; border: 1px solid #33333d; border-radius: 5px;
+    box-shadow: 0 18px 60px #000a;
+  }
+  #slothead {
+    display: flex; align-items: baseline; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid #1e1e24; font-size: 11px; color: #6c6c78;
+  }
+  #slothead b { color: #d8d8e0; font-size: 12px; letter-spacing: .04em; }
+  #slothead .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  #slottabs { display: flex; gap: 2px; padding: 8px 12px 0; }
+  #slottabs button {
+    font: inherit; font-size: 11px; padding: 4px 12px; cursor: pointer;
+    color: #8a8a96; background: #17171c; border: 1px solid #26262c;
+    border-bottom: none; border-radius: 3px 3px 0 0;
+  }
+  #slottabs button[aria-pressed="true"] { color: #e6e6ee; background: #1e1e26; }
+  #slotbody {
+    overflow: auto; padding: 12px 14px 16px; border-top: 1px solid #26262c;
+    font-size: 11.5px; color: #9a9aa6; line-height: 1.5;
+  }
+  .who {
+    border: 1px solid #26262c; border-radius: 4px; padding: 9px 11px; margin-bottom: 9px;
+    background: #16161b;
+  }
+  .who h3 { margin: 0 0 6px; font-size: 13px; color: #e6e6ee; font-weight: 600; }
+  .who h3 em { font-style: normal; color: #74d99f; font-size: 11px; margin-left: 6px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 2px 16px; margin-bottom: 6px; }
+  .stats span { color: #6c6c78; }
+  .stats b { color: #c8c8d2; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .chip {
+    background: #202028; border: 1px solid #2e2e38; border-radius: 3px;
+    padding: 1px 7px; color: #b9b9c2; font-size: 10.5px;
+  }
+  .chip i { font-style: normal; color: #6c6c78; margin-left: 4px; }
+  .kind { color: #55555f; letter-spacing: .06em; margin: 10px 0 4px; font-size: 10px; }
+  .kind:first-child { margin-top: 0; }
+  .thing { display: flex; gap: 8px; align-items: baseline; padding: 1px 0; }
+  .thing b { color: #c8c8d2; font-weight: 600; min-width: 7em; }
+  .thing u { color: #74d99f; text-decoration: none; }
+  .thing span { color: #55555f; }
+  #books { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 5px; }
+  #books div {
+    border: 1px solid #26262c; border-radius: 3px; padding: 6px 8px;
+    color: #4a4a54; background: #16161b; text-align: center;
+  }
+  #books div.got { color: #74d99f; border-color: #2e5c42; background: #17241d; }
   #copied { color: #64b47a; font-size: 11px; opacity: 0; transition: opacity .2s; }
   #copied.on { opacity: 1; }
 </style>
@@ -229,6 +286,22 @@
   </div>
 </details>
 
+<div id="slot">
+  <div id="slotbox">
+    <div id="slothead">
+      <b>SAVE SLOT <span id="slotn">-</span></b>
+      <span id="slotwhere"></span>
+      <span class="right"><span id="slotwhen"></span><button id="slotclose">close</button></span>
+    </div>
+    <div id="slottabs">
+      <button data-pane="party" aria-pressed="true">party 隊伍</button>
+      <button data-pane="items" aria-pressed="false">items 物品</button>
+      <button data-pane="books" aria-pressed="false">books 秘笈</button>
+    </div>
+    <div id="slotbody"></div>
+  </div>
+</div>
+
 <div id="hud"><span id="stat"></span></div>
 
 <div id="vcr">
@@ -243,7 +316,7 @@
 </div>
 
 <aside id="side">
-  <h2>PROGRESS <span class="right"><em>from the game state</em></span></h2>
+  <h2>PROGRESS <span class="right"><button id="slotbtn">save slot</button></span></h2>
   <div id="progress">
     <span>books <b id="p-books">-</b><i>/14</i></span>
     <span>level <b id="p-level">-</b></span>
@@ -721,6 +794,8 @@ function setProgress(s) {
   put("p-items", s.items_total);
   put("p-hp", s.hp == null ? null : s.hp + "/" + s.maxhp);
   put("p-team", s.team_size);
+  // A browser left open must not go on showing the save before last.
+  if (slotOpen() && s.saved_at && s.saved_at !== (slotData && slotData.saved_at)) openSlot();
   const books = document.getElementById("p-books");
   if (books) books.classList.toggle("won", s.books >= 14);
   // The party and the world square are only true in a save the game itself
@@ -743,6 +818,138 @@ function setProgress(s) {
       : (s.saved_why || "");
   }
 }
+
+// ---------------------------------------------------------- save slot browser
+//
+// The save the game itself wrote, read the way a game would show it. The
+// party and where it stands are true only here; everything else on the
+// PROGRESS line is read live out of the machine and is fresher.
+const KINDS = {
+  story: "story 劇情", equipment: "equipment 裝備", manual: "manual 秘笈",
+  medicine: "medicine 藥品", thrown: "thrown 暗器", "": "other",
+};
+let slotPane = "party", slotData = null;
+
+function slotOpen() { return document.getElementById("slot").classList.contains("on"); }
+function closeSlot() { document.getElementById("slot").classList.remove("on"); }
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+function statCell(row, label, value) {
+  row.append(el("span", "", label + " "));
+  row.append(el("b", "", String(value)));
+}
+
+function thing(item) {
+  const row = el("div", "thing");
+  row.append(el("b", "", item.name));
+  row.append(el("u", "", "x" + item.count));
+  if (item.desc) row.append(el("span", "", item.desc));
+  return row;
+}
+
+function drawSlot() {
+  const body = document.getElementById("slotbody");
+  const d = slotData && slotData.detail;
+  if (!d) {
+    body.replaceChildren(el("div", "kind",
+      (slotData && slotData.why) || "no save yet"));
+    return;
+  }
+  if (slotPane === "party") {
+    body.replaceChildren(...d.team.map(m => {
+      const box = el("div", "who");
+      const head = el("h3", "", m.name);
+      head.append(el("em", "", "Lv " + m.level));
+      box.append(head);
+      const row = el("div", "stats");
+      statCell(row, "hp", m.hp + "/" + m.maxhp);
+      statCell(row, "mp", m.mp + "/" + m.maxmp);
+      statCell(row, "exp", m.exp);
+      statCell(row, "attack", m.attack);
+      statCell(row, "fame", m.reputation);
+      statCell(row, "potential", m.potential);
+      box.append(row);
+      if (m.learned.length) {
+        const chips = el("div", "chips");
+        for (const k of m.learned) {
+          const c = el("span", "chip", k.name);
+          c.append(el("i", "", String(k.rank)));
+          chips.append(c);
+        }
+        box.append(chips);
+      }
+      for (const it of m.items) box.append(thing(it));
+      return box;
+    }));
+    return;
+  }
+  if (slotPane === "items") {
+    const groups = new Map();
+    for (const it of d.bag) {
+      if (!groups.has(it.kind)) groups.set(it.kind, []);
+      groups.get(it.kind).push(it);
+    }
+    const out = [];
+    for (const [kind, rows] of groups) {
+      out.push(el("div", "kind", (KINDS[kind] || kind) + " · " + rows.length));
+      for (const it of rows) out.push(thing(it));
+    }
+    body.replaceChildren(...(out.length ? out : [el("div", "kind", "the bag is empty")]));
+    return;
+  }
+  const grid = el("div", "");
+  grid.id = "books";
+  for (const b of d.books) grid.append(el("div", b.held ? "got" : "", b.name));
+  const held = d.books.filter(b => b.held).length;
+  body.replaceChildren(
+    el("div", "kind", held + " of " + d.books.length + " held"), grid);
+}
+
+async function openSlot() {
+  document.getElementById("slot").classList.add("on");
+  const body = document.getElementById("slotbody");
+  body.replaceChildren(el("div", "kind", "reading the slot…"));
+  try {
+    const r = await fetch("/progress" + location.search);
+    slotData = r.ok ? await r.json() : {why: "hidden while the run is scored"};
+  } catch (e) {
+    slotData = {why: "could not read the slot"};
+  }
+  document.getElementById("slotn").textContent = slotData.slot ?? "-";
+  const d = slotData.detail;
+  document.getElementById("slotwhere").textContent = !d ? ""
+    : (d.position.on_world_map
+        ? `world map ${d.position.x},${d.position.y}`
+        : (d.position.place || `submap ${d.position.submap}`));
+  document.getElementById("slotwhen").textContent = slotData.saved_at
+    ? "saved " + new Date(slotData.saved_at * 1000).toLocaleTimeString() : "";
+  drawSlot();
+}
+
+document.getElementById("slotbtn").onclick = openSlot;
+document.getElementById("slotclose").onclick = closeSlot;
+document.getElementById("slot").onclick = ev => {
+  if (ev.target.id === "slot") closeSlot();
+};
+for (const b of document.querySelectorAll("#slottabs button")) {
+  b.onclick = () => {
+    slotPane = b.dataset.pane;
+    for (const o of document.querySelectorAll("#slottabs button"))
+      o.setAttribute("aria-pressed", String(o === b));
+    drawSlot();
+  };
+}
+// Escape closes the browser. Like the replay, this press must not also reach
+// the game as an "esc" tap, which would toggle the in-game menu.
+addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && slotOpen()) { escSwallow = true; closeSlot(); }
+});
 
 function setMeter(s) {
   setProgress(s);
@@ -855,6 +1062,7 @@ const MAP = {
 const held = new Set();
 addEventListener("keydown", e => {
   if (e.key === "Escape" && escSwallow) { escSwallow = false; return; }
+  if (slotOpen()) return;           // reading the save is not playing
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
   if (!k) return;
   e.preventDefault();
@@ -863,6 +1071,7 @@ addEventListener("keydown", e => {
   send({ t: "key", k, down: true });
 });
 addEventListener("keyup", e => {
+  if (slotOpen() && !held.size) return;
   const k = MAP[e.key] || (e.key.length === 1 ? e.key.toLowerCase() : null);
   if (!k) return;
   e.preventDefault();
