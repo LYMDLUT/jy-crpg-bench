@@ -31,7 +31,7 @@
 % working draft so the author block renders; comment it out before
 % submission, and de-anonymise the URLs (hanxiao.io) into an anonymous
 % mirror for the review copy.
-\iclrfinalcopy
+% \iclrfinalcopy
 
 \title{\raggedright\bench{}: Long-Horizon Agency in an \\
 Out-of-Distribution Open-World RPG}
@@ -40,11 +40,15 @@ Out-of-Distribution Open-World RPG}
 \texttt{han.xiao@jina.ai} \\
 \And
 Yiming Liu \\
-\texttt{convliu@tencent.com}}
+\texttt{convliu@tencent.com}\\
+\tbd{DOUBLE-BLIND: replace author names, affiliations and email addresses with the anonymous author block before submission.}}
 
 \begin{document}
 
 \maketitle
+\begin{center}
+\tbd{DOUBLE-BLIND CHECK: remove author identity, email addresses, repository links, and personal project-host URLs before submission.}
+\end{center}
 
 %% Everything numeric in this paper is generated from the run data. Nothing is
 %% typed. See figures/emit_numbers.py and check_consistency.py.
@@ -73,7 +77,7 @@ machine-verified milestones while agents learn to move, and completion time
 once they finish. We report \NmodelLabels{} agent configurations from
 \Nvendors{} vendors against a seeded random baseline under a
 \NbudgetMin{}-minute budget, and release \bench{} as a live, replayable
-public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
+public arena at \url{https://github.com/hanxiao/jy-crpg-bench}\tbd{ANONYMIZE: replace the project repository URL with an anonymous mirror before submission.}.
 \end{abstract}
 
 \section{Introduction}
@@ -373,7 +377,7 @@ emulator snapshot calls, since a run with an out-of-band rewind is not a run.
 A participant joins by pasting one line into an agent:
 
 \begin{lstlisting}
-Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.
+Read https://hanxiao.io/jy-crpg-bench/agents.md and play it.\tbd{ANONYMIZE: replace the hanxiao.io project URL with an anonymous review mirror before submission.}
 \end{lstlisting}
 
 \noindent The brief behind that address is the whole contract: how to open a
