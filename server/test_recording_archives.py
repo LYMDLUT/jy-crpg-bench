@@ -354,6 +354,15 @@ class RecordingArchiveTests(unittest.IsolatedAsyncioTestCase):
             async with client.get('/api/recording', params=query) as response:
                 self.assertEqual(response.status, 200, await response.text())
                 self.assertEqual(await response.read(), self.path.read_bytes())
+        # Seeking would write an index beside a scored run's journal, so it is
+        # refused and not advertised there.
+        async with client.get('/api/recording', params={'view': 'paged'}) as response:
+            page = await response.json()
+            self.assertEqual(response.status, 200, page)
+            self.assertFalse(page['seek_supported'])
+        async with client.get('/api/recording', params={'view': 'paged', 'token': page['token'], 'time': '0'}) as response:
+            self.assertEqual(response.status, 404, await response.text())
+        self.assertFalse((self.path.parent / '.replay-index').exists())
         page = await self.get_json({'view': 'paged'}, client=client)
         self.assertEqual(page['events'], self.current_events)
 

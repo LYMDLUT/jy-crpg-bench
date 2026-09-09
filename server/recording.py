@@ -2,6 +2,7 @@
 import json
 import math
 import os
+import sqlite3
 import time
 from pathlib import Path
 
@@ -16,7 +17,12 @@ class Snapshot:
         self.closed = False
         self.seek_index = None
         try:
-            _, header = next(self.lines(0))
+            try:
+                _, header = next(self.lines(0))
+            except StopIteration:
+                # An empty file has no header line; say so instead of letting
+                # StopIteration escape into a coroutine as a RuntimeError.
+                raise ValueError("recording is empty") from None
             self.header = json.loads(header)
             self.begin = len(header)
             self.duration = last_timestamp
@@ -157,21 +163,32 @@ class RecordingAPI:
                 return web.json_response({'ok': True})
             try:
                 if 'time' in request.query:
+                    # Seeking builds an index file beside the journal. A scored
+                    # session offers neither that write nor the archives, so
+                    # the same flag governs both.
+                    if not self.archives:
+                        return web.json_response({'error': 'seeking is not available here'}, status=404)
                     from replay_index import SeekIndex
                     when = float(request.query['time'])
                     if not math.isfinite(when) or when < 0:
                         raise ValueError('seek time must be finite and non-negative')
                     if reader.seek_index is None:
-                        reader.seek_index = SeekIndex(reader)
+                        try:
+                            reader.seek_index = SeekIndex(reader)
+                        except OSError as exc:
+                            return web.json_response({'error': 'seek index unavailable: ' + str(exc)}, status=503)
                     index = reader.seek_index
                     if not index.done.is_set():
                         return web.json_response({'token': token, 'indexing': True,
                                                   'scanned': index.scanned, 'total': index.total}, status=202)
-                    location = index.locate(when)
+                    try:
+                        location = index.locate(when)
+                    except sqlite3.Error as exc:
+                        return web.json_response({'error': 'seek index unreadable: ' + str(exc)}, status=503)
                     return web.json_response(dict(reader.page(location['start']), token=token,
                                                   seek=location, seek_supported=True))
                 return web.json_response(dict(reader.page(request.query.get('start')), token=token,
-                                              seek_supported=True))
+                                              seek_supported=self.archives))
             except ValueError as exc:
                 return web.json_response({'error': str(exc)}, status=400)
 
