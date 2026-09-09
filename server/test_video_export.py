@@ -214,6 +214,53 @@ class VideoExportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(conflict.status, 409)
         self.assertEqual(len(self.service.jobs), 1)
 
+    async def test_request_id_replays_cancelled_and_error_terminal_states(self):
+        self.write()
+        cancelled = await self.client.post('/api/video', json={
+            'speed': 1, 'requestId': 'cancelled-token'})
+        self.assertEqual(cancelled.status, 202)
+        cancelled = await cancelled.json()
+        self.service.jobs[cancelled['id']].cancel()
+        cancelled = await self.done(cancelled)
+        replay = await self.client.post('/api/video', json={
+            'speed': 1, 'requestId': 'cancelled-token'})
+        self.assertEqual(replay.status, 200)
+        self.assertEqual((await replay.json())['id'], cancelled['id'])
+        self.assertEqual((await self.client.post('/api/video', json={
+            'speed': 4, 'requestId': 'cancelled-token'})).status, 409)
+
+        failed = await self.client.post('/api/video', json={
+            'speed': 1, 'requestId': 'error-token'})
+        self.assertEqual(failed.status, 202)
+        failed = await failed.json()
+        self.service.jobs[failed['id']].update(state='error', error='test failure')
+        replay = await self.client.post('/api/video', json={
+            'speed': 1, 'requestId': 'error-token'})
+        self.assertEqual(replay.status, 200)
+        replay = await replay.json()
+        self.assertEqual(replay['id'], failed['id'])
+        self.assertEqual(replay['state'], 'error')
+        self.assertEqual((await self.client.post('/api/video', json={
+            'speed': 4, 'requestId': 'error-token'})).status, 409)
+
+    async def test_request_id_ready_artifact_expiry_requires_new_token(self):
+        self.write()
+        with mock.patch('video_export.encode', side_effect=self.fake_encode):
+            response = await self.client.post('/api/video', json={
+                'speed': 1, 'requestId': 'ready-token'})
+            self.assertEqual(response.status, 202)
+            first = await self.done(await response.json())
+            self.assertEqual(first['state'], 'ready')
+            path = self.service.jobs[first['id']].path
+            path.unlink()
+            expired = await self.client.post('/api/video', json={
+                'speed': 1, 'requestId': 'ready-token'})
+            self.assertEqual(expired.status, 410)
+            replacement = await self.client.post('/api/video', json={
+                'speed': 1, 'requestId': 'new-ready-token'})
+            self.assertEqual(replacement.status, 202)
+            self.assertNotEqual((await replacement.json())['id'], first['id'])
+
     async def test_unfinished_settle_and_renderer_changes_invalidate_cache(self):
         self.store.append(frame(0, (1, 2, 3)))
         self.store.append({'t': 1, 'act': 'KEY', 'who': 'agent'})

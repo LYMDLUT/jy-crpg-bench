@@ -386,19 +386,25 @@ class VideoExports:
             previous = self.request_jobs.get(request_id)
             if previous is not None and (previous.recording != recording or previous.speed != speed):
                 raise web.HTTPConflict(reason='request id is already bound to another export')
-            if (previous is not None and previous.recording == recording
-                    and previous.speed == speed and not previous.stop.is_set()
-                    and previous.state not in ('cancelled', 'error')
-                    and (previous.state != 'ready'
-                         or (previous.path is not None and previous.path.is_file()))):
-                meta = previous.public()
+            if previous is not None and previous.recording == recording and previous.speed == speed:
+                # A request token is an idempotency key for the lifetime of the
+                # in-process job record.  Terminal cancellation/failure must
+                # therefore be replayable instead of silently starting a second
+                # export on a retry.
+                if previous.state in ('cancelled', 'error'):
+                    return web.json_response(previous.public(), status=200)
                 if previous.state == 'ready':
+                    # The job record outlives disposable cache files.  Do not
+                    # turn a missing ready artifact into a different export
+                    # under the same token; require a fresh token instead.
+                    if previous.path is None or not previous.path.is_file():
+                        raise web.HTTPGone(reason='video artifact expired; start a new export with a new request id')
+                    meta = previous.public()
                     meta['cached'] = True
                     with contextlib.suppress(OSError):
                         os.utime(previous.path, None)
-                return web.json_response(meta, status=200 if previous.state == 'ready' else 202)
-            if previous is not None and self.request_jobs.get(request_id) is previous:
-                self.request_jobs.pop(request_id, None)
+                    return web.json_response(meta, status=200)
+                return web.json_response(previous.public(), status=202)
         try:
             pin = self.pin_provider(recording) if self.pin_provider else self.store.pin()
             index = HistoryIndex(pin)
