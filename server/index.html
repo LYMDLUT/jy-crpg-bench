@@ -333,7 +333,7 @@
   </h2>
   <div id="meter">
     <span>played <b id="m-time">0:00</b></span>
-    <span>actions <b id="m-acts">0</b></span>
+    <span title="Actions since this server session started">session actions <b id="m-acts">0</b></span>
     <span>agent <b id="m-api">0</b></span>
     <span>web <b id="m-web">0</b></span>
   </div>
@@ -1008,6 +1008,7 @@ function addLog(e) {
     `<span class="ts"></span><span class="src"></span>` +
     `<span class="vbwrap"><span class="vb"></span></span><span class="tg"></span>`;
   row.children[0].textContent = ts;
+  row.children[0].title = d.toLocaleString();
   row.children[1].textContent = e.src;
   row.children[1].style.color = e.src === "web" ? "#7c7c8a" : colorOf(e.src);
   row.children[1].title = e.src;

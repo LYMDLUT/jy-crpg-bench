@@ -183,3 +183,19 @@ execution lock. A time-limit ending still validates core health before it can
 be scored as valid. Input/environment failures remain invalid. The broker
 stores diagnostics under `<result-dir>/<session-id>.diagnostics` and archives
 the last heartbeat, fault and exit status before reclaiming worker scratch.
+
+### Persistent activity history
+
+For a long-lived local game, set `QUNXIA_PERSIST_HISTORY=1` to retain the
+latest 300 activity entries in `QUNXIA_SAVES/activity.json`. Restarting restores
+the list and continues its entry IDs; reconnecting clients receive the retained
+backlog. The most recent 40 small WebP thumbnails are retained (64 KiB each).
+Hover a timestamp to see its full date. Session action counts still start at
+zero after restart; saved activity does not restore scoring or game state.
+
+This is disabled by default and always disabled in warden/benchmark mode.
+Each server must have its own save directory. An explicit game reset clears
+the retained activity as well. Writes replace a bounded snapshot atomically;
+failed writes keep the prior file and report an error. An invalid snapshot is
+left intact and persistence is disabled for that process. Past entries lost
+before this option was enabled cannot be recovered from this file.

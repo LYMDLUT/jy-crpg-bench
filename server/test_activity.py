@@ -1,0 +1,122 @@
+import collections
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest import mock
+
+from activity import ActivityStore, MAX_BYTES
+
+
+def entry(seq, **extra):
+    return dict(id=seq, at=1700000000 + seq, src='agent', verb='KEY',
+                target='up', detail='', ok=True, **extra)
+
+
+class ActivityStoreTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / 'activity.json'
+        self.store = ActivityStore(self.path)
+
+    def test_restart_retains_order_timestamps_and_thumbnails(self):
+        rows = [entry(1), entry(2, thumb='data:image/webp;base64,AAAA')]
+        self.store.save(rows)
+        self.assertEqual(ActivityStore(self.path).load(), rows)
+
+    def test_retention_and_thumbnail_budget(self):
+        self.store.save([entry(i, thumb='data:image/webp;base64,AAAA') for i in range(1, 502)])
+        rows = self.store.load()
+        self.assertEqual([r['id'] for r in rows], list(range(202, 502)))
+        self.assertEqual(sum('thumb' in r for r in rows), 40)
+        self.assertLess(self.path.stat().st_size, MAX_BYTES)
+
+    def test_failed_replace_keeps_old_snapshot_and_cleans_temp(self):
+        self.store.save([entry(1)])
+        before = self.path.read_bytes()
+        with mock.patch('activity.os.replace', side_effect=OSError('disk error')):
+            with self.assertRaises(OSError):
+                self.store.save([entry(2)])
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertEqual(list(self.path.parent.iterdir()), [self.path])
+
+    def test_failed_fsync_keeps_old_snapshot(self):
+        self.store.save([entry(1)])
+        with mock.patch('activity.os.fsync', side_effect=OSError('disk full')):
+            with self.assertRaises(OSError):
+                self.store.save([entry(2)])
+        self.assertEqual(self.store.load(), [entry(1)])
+
+    def test_reset_and_missing_snapshot(self):
+        self.assertEqual(self.store.load(), [])
+        self.store.save([entry(1)])
+        self.store.save([])
+        self.assertEqual(ActivityStore(self.path).load(), [])
+
+    def test_rejects_corrupt_oversized_and_nonmonotonic_files(self):
+        for raw in [b'{', b'x' * (MAX_BYTES + 1),
+                    json.dumps({'version': 1, 'entries': [entry(2), entry(1)]}).encode(),
+                    json.dumps({'version': 2, 'entries': []}).encode()]:
+            with self.subTest(size=len(raw)):
+                self.path.write_bytes(raw)
+                with self.assertRaises(ValueError):
+                    self.store.load()
+                self.assertEqual(self.path.read_bytes(), raw)
+
+
+class ServerActivityTests(unittest.TestCase):
+    def setUp(self):
+        with mock.patch('ctypes.CDLL', return_value=mock.MagicMock()):
+            import server
+        self.server = server
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / 'activity.json'
+        for patch in [mock.patch.object(server, 'SAVES', tmp.name),
+                      mock.patch.object(server, 'history', collections.deque(maxlen=300)),
+                      mock.patch.object(server, '_seq', [0]),
+                      mock.patch.object(server, 'activity_store', None),
+                      mock.patch.object(server.warden, 'ON', False),
+                      mock.patch.dict(os.environ, QUNXIA_PERSIST_HISTORY='1')]:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_real_log_hook_restores_ids_without_changing_session_counters(self):
+        s = self.server
+        counters = dict(s.session)
+        ActivityStore(self.path).save([entry(123)])
+        s.restore_activity()
+        self.assertEqual(s.session, counters)
+        new = s.log_action('agent', 'GET', 'screen')
+        self.assertEqual(new['id'], 124)
+        self.assertEqual(ActivityStore(self.path).load()[-1], new)
+        s.history.clear()
+        s.activity_store = None
+        s.restore_activity()
+        self.assertEqual([e['id'] for e in s.history], [123, 124])
+        s.history.clear()
+        s.persist_activity()
+        self.assertEqual(ActivityStore(self.path).load(), [])
+
+    def test_benchmark_and_default_do_not_load_or_write(self):
+        s = self.server
+        for bench, flag in [(True, '1'), (False, '0')]:
+            with mock.patch.object(s.warden, 'ON', bench), mock.patch.dict(os.environ, QUNXIA_PERSIST_HISTORY=flag):
+                s.restore_activity()
+                s.log_action('agent', 'GET', 'screen')
+                self.assertIsNone(s.activity_store)
+                self.assertFalse(self.path.exists())
+
+    def test_corruption_is_preserved_and_game_logging_continues(self):
+        self.path.write_text('{broken')
+        self.server.restore_activity()
+        self.server.log_action('web', 'GET', 'screen')
+        self.assertIsNone(self.server.activity_store)
+        self.assertEqual(self.path.read_text(), '{broken')
+        self.assertEqual(len(self.server.history), 1)
+
+
+if __name__ == '__main__':
+    unittest.main()
