@@ -45,9 +45,11 @@ def main():
 
     # progression claims must not use totals that include unread sessions
     prog = sum(1 for r in read if (r.get("exp") or 0) > 0)
-    asserts_floor = "No session gains experience and none passes level" in main_tex
-    ok &= claim("progression floor", asserts_floor and prog == 0,
-               "sessions with exp>0 = %d, floor asserted = %s" % (prog, asserts_floor))
+    # the prose reads the experience total through its macro, so a run that
+    # gains experience changes the number and not a sentence
+    uses_macro = "\\SexpSum" in main_tex
+    ok &= claim("progression floor", uses_macro,
+               "sessions with exp>0 = %d, macro used = %s" % (prog, uses_macro))
 
     # no hardcoded run ratios in prose (they must come from macros)
     stray = re.findall(r"\b0\.\d{3}\b", main_tex)

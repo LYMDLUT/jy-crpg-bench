@@ -46,9 +46,12 @@ def fam(agent):
     return next((v for v in VENDORS if low.startswith(v)), "other")
 
 
-def emit(name, value, note=""):
-    """Define \\name. Floats keep three decimals below 10, one above."""
-    if isinstance(value, float):
+def emit(name, value, note="", fmt=None):
+    """Define \\name. Floats keep three decimals below 10, one above,
+    unless `fmt` says otherwise."""
+    if fmt is not None:
+        text = fmt % value
+    elif isinstance(value, float):
         text = f"{value:.3f}" if abs(value) < 10 else f"{value:.1f}"
     else:
         text = str(value)
@@ -97,6 +100,7 @@ emit("Nnever", len(never), "sessions that never sent a key")
 emit("NotherBudget", len(other_budget), "sessions at another playtime")
 emit("Nprobes", len(probes), "service probes, excluded")
 emit("Nbudget", PLAY[0]["budget"], "default playtime, seconds")
+emit("NbudgetMin", PLAY[0]["budget"] // 60, "default playtime, minutes")
 
 # ------------------------------------------------------------------- behaviour
 acts = [r["actions"] for r in PLAY]
@@ -137,7 +141,9 @@ emit("QworstLow", lo_w)
 emit("QworstHigh", hi_w)
 emit("QworstN", worst["actions"])
 emit("QworstLabel", worst["agent"])
-emit("QworstStart", worst["ttfa"] / 60.0, "minutes before its first key")
+emit("QworstStart", worst["ttfa"] / 60.0, "minutes before its first key", fmt="%.1f")
+emit("QworstReads", 100.0 * worst["reads"] / worst["actions"],
+     "screen reads per hundred actions of the lowest-ratio run", fmt="%.0f")
 
 rk = sum(round(r["meaningful"] * r["actions"]) for r in RANDOM)
 rn = sum(r["actions"] for r in RANDOM)
@@ -150,6 +156,21 @@ emit("QrandomKeys", RANDOM[0]["distinct_keys"])
 sub = [r for r in MODELS if r["meaningful"] < p_r]
 emit("NbelowFloor", len(sub), "model sessions under the random floor")
 emit("QunderVsRandom", min(r["meaningful"] for r in sub) / p_r)
+emit("QunderTimes", p_r / min(r["meaningful"] for r in sub),
+     "how many times below the random floor the lowest run sits", fmt="%.1f")
+emit("QrandomGap", st.median(r["gap_p50"] for r in RANDOM),
+     "median inter-action gap of the random baseline, seconds", fmt="%.1f")
+
+# The two model sessions that deliberate longest between actions, so the
+# prose can name them and their pace without typing either.
+_slow = sorted((r for r in MODELS if r.get("gap_p50") is not None),
+               key=lambda r: -r["gap_p50"])[:2]
+emit("QslowA", _slow[0]["agent"])
+emit("QslowB", _slow[1]["agent"])
+emit("QslowGap", min(r["gap_p50"] for r in _slow),
+     "the shorter of their median think times, seconds", fmt="%.0f")
+emit("QslowActs", max(r["actions"] for r in _slow),
+     "the larger of their action counts")
 
 # ---------------------------------------------------------------- machine state
 read = [r for r in PLAY if r.get("level") is not None]
@@ -178,13 +199,16 @@ if _steady:
     emit("Qsteady", round(_steady["meaningful"], 3), "ratio of the steady-traversal run")
     emit("QsteadyOsc", round(_steady["oscillation"], 3), "its oscillation rate")
     emit("QsteadyN", _steady["actions"], "its action count")
+    emit("QsteadyLabel", _steady["agent"], "its label")
 emit("SmapFade", len(both), "of those, corroborated by a black frame")
 emit("SmapSolo", len(cross) - len(both))
 emit("SmapUnread", sum(1 for r in PLAY if r.get("bigmap") is None))
-emit("SexitMedian", st.median(r["exit_secs"] for r in fade) / 60.0, "minutes")
-emit("SexitFirst", min(r["exit_secs"] for r in fade) / 60.0)
-emit("SexitLast", max(r["exit_secs"] for r in fade) / 60.0)
-emit("SexitActs", st.median(r["exit_acts"] for r in fade), "median keys before a crossing")
+emit("SexitMedian", st.median(r["exit_secs"] for r in fade) / 60.0, "minutes", fmt="%.1f")
+emit("SexitFirst", min(r["exit_secs"] for r in fade) / 60.0, fmt="%.1f")
+emit("SexitLast", max(r["exit_secs"] for r in fade) / 60.0, fmt="%.1f")
+emit("SexitActs", st.median(r["exit_acts"] for r in fade), "median keys before a crossing", fmt="%.0f")
+emit("SexitVendors", len({fam(r["agent"]) for r in fade}),
+     "vendor families with a corroborated crossing")
 
 # ---------------------------------------------------- shipped character records
 mem = open(START_STATE, "rb").read()

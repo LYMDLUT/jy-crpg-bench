@@ -24,6 +24,8 @@
 \newcommand{\Nprobes}{2}
 % default playtime, seconds
 \newcommand{\Nbudget}{1200}
+% default playtime, minutes
+\newcommand{\NbudgetMin}{20}
 \newcommand{\EactsTotal}{3240}
 \newcommand{\EactsModels}{1810}
 \newcommand{\EactsRandom}{1430}
@@ -55,7 +57,9 @@
 \newcommand{\QworstN}{337}
 \newcommand{\QworstLabel}{gemini-3.7-flash}
 % minutes before its first key
-\newcommand{\QworstStart}{3.658}
+\newcommand{\QworstStart}{3.7}
+% screen reads per hundred actions of the lowest-ratio run
+\newcommand{\QworstReads}{99}
 \newcommand{\Qrandom}{0.403}
 \newcommand{\QrandomLow}{0.378}
 \newcommand{\QrandomHigh}{0.429}
@@ -64,6 +68,16 @@
 % model sessions under the random floor
 \newcommand{\NbelowFloor}{1}
 \newcommand{\QunderVsRandom}{0.169}
+% how many times below the random floor the lowest run sits
+\newcommand{\QunderTimes}{5.9}
+% median inter-action gap of the random baseline, seconds
+\newcommand{\QrandomGap}{1.4}
+\newcommand{\QslowA}{qwen3.8-flash}
+\newcommand{\QslowB}{claude-sonnet-5}
+% the shorter of their median think times, seconds
+\newcommand{\QslowGap}{21}
+% the larger of their action counts
+\newcommand{\QslowActs}{51}
 % sessions whose character record was read
 \newcommand{\Sread}{11}
 \newcommand{\Sunread}{8}
@@ -83,16 +97,20 @@
 \newcommand{\QsteadyOsc}{0.006}
 % its action count
 \newcommand{\QsteadyN}{159}
+% its label
+\newcommand{\QsteadyLabel}{claude-fable-5}
 % of those, corroborated by a black frame
 \newcommand{\SmapFade}{4}
 \newcommand{\SmapSolo}{4}
 \newcommand{\SmapUnread}{10}
 % minutes
-\newcommand{\SexitMedian}{7.806}
-\newcommand{\SexitFirst}{4.863}
+\newcommand{\SexitMedian}{7.8}
+\newcommand{\SexitFirst}{4.9}
 \newcommand{\SexitLast}{10.4}
 % median keys before a crossing
-\newcommand{\SexitActs}{40.0}
+\newcommand{\SexitActs}{40}
+% vendor families with a corroborated crossing
+\newcommand{\SexitVendors}{2}
 % character records addressed
 \newcommand{\Mrecords}{320}
 \newcommand{\MrecordBytes}{182}

@@ -59,10 +59,10 @@ def main():
         )
 
     lines = [
-        r"\begin{tabular}{@{}lrrrrr@{}}",
+        r"\begin{tabular}{@{}lrrrrrrr@{}}",
         r"\toprule",
         r"Agent & runs & actions & ratio [95\% CI] &"
-        r"act/min & map \\",
+        r" act/min & reads/act & think (s) & map \\",
         r"\midrule",
     ]
     best = max(r[4] for r in body if not r[0].startswith("random"))
@@ -71,9 +71,9 @@ def main():
             lines.append(r"\midrule")
         ratio = ("\\textbf{%.3f}" if p == best else "%.3f") % p
         lines.append(
-            "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %d/%d \\\\"
+            "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %.2f & %.1f & %d/%d \\\\"
             % (agent.replace("_", "\\_").replace("--", "-{-}"),
-               n, den, ratio, lo, hi, aps, maps_c, maps)
+               n, den, ratio, lo, hi, aps, reads / den, g50, maps_c, maps)
         )
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines)
