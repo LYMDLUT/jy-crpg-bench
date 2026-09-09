@@ -31,6 +31,7 @@ import warden
 from state_reader import decode_inventory, inventory_gained
 import save_state
 from activity import ActivityStore
+from saved_history import SavedHistory
 
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
@@ -724,6 +725,32 @@ def make_thumb():
     return "data:image/webp;base64," + base64.b64encode(out.getvalue()).decode()
 
 
+def disk_history_enabled():
+    return (not warden.ON and recording_store is not None
+            and os.environ.get("QUNXIA_PERSIST_HISTORY", "0") == "1")
+
+
+def record_activity(entry):
+    # The JSONL retains every marker; the deque and activity.json are only a
+    # small reconnect cache. GETs must survive after their cache entries age out.
+    if not disk_history_enabled() or entry["verb"] not in ("GET", "KEY", "KEYS", "WAIT", "TEXT"):
+        return
+    event = {"t": round(entry["at"] - rec["started"], 3),
+             "act": entry["verb"], "who": entry["src"], "on": entry["target"],
+             "detail": entry["detail"], "ok": entry["ok"], "history": 1}
+    if entry.get("thumb"):
+        event["thumb"] = entry["thumb"]
+    try:
+        ok = recording_store.append(event)
+    except (OSError, BufferError) as exc:
+        recording_store.error = str(exc)
+        ok = False
+    if not ok:
+        block_recording()
+        raise RecordingUnavailable(recording_store.error)
+    rec["bytes"] = recording_store.committed_size
+
+
 def log_action(src, verb, target, detail="", ok=True, thumb=False,
                key_events=None, input_frames=0, wait_call=False):
     _seq[0] += 1
@@ -749,6 +776,7 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False,
         session["wait_calls"] += int(wait_call or verb == "WAIT")
         session["by_web" if src == "web" else "by_api"] += 1
         agents[src] += 1
+    record_activity(entry)
     history.append(entry)
     persist_activity()
     try:
@@ -1471,7 +1499,8 @@ async def run_action(request, steps, note, verb="KEY"):
         log_action(rec["actor"], verb, note, detail=held_note(steps),
                    key_events=len(key_steps), input_frames=input_frames,
                    wait_call=not key_steps)
-        rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
+        if not disk_history_enabled():
+            rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         if warden.ON:
             # Only key steps carry a name at index 2; "wait" and "frames" are
             # pairs. Filtering by kind broke the moment a new pause kind was
@@ -2154,6 +2183,10 @@ async def api_help(request):
                         content_type="text/plain", charset="utf-8")
 
 
+async def saved_history_script(_request):
+    return web.FileResponse(ROOT / "saved-history.js", headers={"Cache-Control": "no-store"})
+
+
 async def recording_script(_request):
     return web.FileResponse(ROOT / "recording.js")
 
@@ -2362,6 +2395,7 @@ def main():
     app.add_routes([
         web.get("/", index),
         web.get("/recording.js", recording_script),
+        web.get("/saved-history.js", saved_history_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
         web.get("/progress", progress),
@@ -2381,6 +2415,7 @@ def main():
     ])
     # Startup handlers are awaited, so the workers are detached tasks rather
     # than returned, or startup would block on loops that never end.
+    SavedHistory(recording_store).install(app, enabled=not warden.ON)
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)

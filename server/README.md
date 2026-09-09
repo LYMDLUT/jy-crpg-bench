@@ -184,35 +184,42 @@ be scored as valid. Input/environment failures remain invalid. The broker
 stores diagnostics under `<result-dir>/<session-id>.diagnostics` and archives
 the last heartbeat, fault and exit status before reclaiming worker scratch.
 
-### Persistent activity history
+### Disk-backed screenshot history and realtime activity
 
-For a long-lived local game, set `QUNXIA_PERSIST_HISTORY=1` to retain the
-latest 300 activity entries in `QUNXIA_SAVES/activity.json`. Restarting restores
-the list and continues its entry IDs; reconnecting clients receive the retained
-backlog. The most recent 40 small WebP thumbnails are retained (64 KiB each).
-Hover a timestamp to see its full date. Session action counts still start at
-zero after restart; saved activity does not restore scoring or game state.
+The page separates two views: **historical screenshots** page through the full
+recording, eight images at a time, while **realtime activity** keeps a small
+reconnect cache. The 300-entry/40-thumbnail cache does not limit historical
+browsing. The history pane can jump to the oldest or latest page and move in
+both directions. Only one page of image blobs is held by the browser.
 
-This is disabled by default and always disabled in warden/benchmark mode.
-Each server must have its own save directory. An explicit game reset clears
-the retained activity as well. Writes replace a bounded snapshot atomically;
-failed writes keep the prior file and report an error. An invalid snapshot is
-left intact and persistence is disabled for that process. This snapshot cannot recover entries it never received. Legacy recordings may
-contain action markers that can be imported as described below.
+`/api/replay` pins the recording's committed file prefix and builds a disposable
+SQLite index in the background. An initial `202` reports indexing progress;
+clients poll the returned token until ready, then read bounded `/steps` pages
+and individual `/frame` PNGs. Later opens incrementally index appended data.
+Tokens expire and release their file handles. Normal game startup does not
+scan the recording. The endpoints are absent in benchmark mode.
 
-To recover activity from an older local `recording.jsonl`, stop the server and
-run the following, then restart with persistence enabled:
+Legacy agent GET/KEY records and older key-only recordings remain readable.
+Numbered action markers from newer recordings are supported too. A historical
+image is reconstructed from recorded frames, not claimed to be the exact API
+response: GET uses the preceding frame, while old key steps wait up to one
+second or until the next action. Corrupt frame windows report an error instead
+of manufacturing an image. Source JSONL files are never rewritten by readers.
 
-```sh
-python server/import_activity.py --recording /path/recording.jsonl --history /path/saves/activity.json
-```
+For long-lived play, enable `QUNXIA_PERSIST_HISTORY=1`. New interactive actions
+and GET markers are then appended to the full recording, including screen
+reads that later leave the realtime cache. Session counters still start fresh
+on restart. An explicit game reset clears the cache and rotates the recording
+through the existing recording lifecycle. Formal benchmark accounting is
+unchanged.
 
- The importer scans the recording once with bounded memory,
-merges its latest action markers with existing activity, and keeps the newest
-300 entries. It never changes the recording or scans it during normal startup.
-Imported markers retain timestamps, actors, verbs and targets; unavailable
-results are marked unknown. For the latest 40 screen reads, the importer reconstructs a thumbnail from the
-last recorded frame preceding each action marker. Hover a thumbnail to see its
-recorded time and origin. These replay previews may differ from the original
-API screenshot; unavailable frame data stays without an image. Original extra
-detail and execution outcomes cannot be recovered from action markers. Re-importing the same recording does not duplicate rows.
+The optional `QUNXIA_SAVES/activity.json` snapshot retains the latest 300 entries
+and 40 small WebP thumbnails (64 KiB each) for fast reconnects. Atomic writes
+preserve the prior file on failure; invalid snapshots are left intact and
+snapshot persistence is disabled for that process. The independent full-disk
+history reader remains available.
+
+The optional `server/import_activity.py` command can seed that **realtime
+cache** while the server is stopped. This import is optional and not needed to browse complete disk history.
+It preserves the recording and labels reconstructed previews with their source
+and frame time; existing original thumbnails take priority.
