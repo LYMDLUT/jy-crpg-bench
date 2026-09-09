@@ -66,10 +66,16 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   It uses ffmpeg on the server, with progress, cancellation and a completed MP4
   download. Encoding does not wait through original recording timestamps and
   does not disable playback. Temporary status-query failures retain the job and
-  retry it; a confirmed missing or expired job allows a new export. ffmpeg must
-  be installed on the server. Cached results are bounded by a 2 GiB / 30-day
-  policy, retaining the latest result and active downloads. The source recording
-  and benchmark counters are unaffected by export.
+  retry it. An `X-Video-Request-Id` header or JSON `requestId` makes submission
+  idempotent while its in-process job record is retained: retries return the
+  same queued/active job, or replay cancelled/error terminal state with HTTP
+  200. Reusing a token with a different recording or speed is HTTP 409. If a
+  ready MP4 has been evicted while its job record remains, the token returns
+  HTTP 410 so the caller can submit a new token instead of silently creating a
+  second export. ffmpeg must be installed on the server. Cached results are
+  bounded by a 2 GiB / 30-day policy, retaining the latest result and active
+  downloads. The source recording and benchmark counters are unaffected by
+  export.
 - `/api/history?limit=100` the bounded action log. Every REST call and every key pressed in a
   browser is recorded and pushed to all connected pages over the same
   WebSocket, so the activity panel shows an agent and a human acting on the
