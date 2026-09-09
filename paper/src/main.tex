@@ -303,24 +303,34 @@ recover the fourteen books that end the game. The world is two-tier, with
 many local scenes such as buildings, sects and caves attached to one outdoor
 map of $480\times480$ tiles \citep{scarsty2026kyscpp}. For each of \Mrecords{} named characters the game maintains a
 record carrying level, experience, health, stamina, learned skills, carried
-items, reputation and aptitude. Progression is nonlinear and gated. Most
-buildings stay shut until specific items are held, and the opening sets the
-order. The compound holds a searchable chest, one speaking character and one
-exit tile. Beyond it, the path south leads to the house of the hermit
-\game{南賢}; the conversation there opens locations that otherwise stay
-closed, and a cabinet beside him holds the compass, the only source of
-coordinates the game offers. A party that wanders elsewhere first meets
-storylines whose fights it cannot survive at level one, and in most
-encounters a lost fight ends the game.
+items, reputation and aptitude. Progression is nonlinear and gated. Every
+scene carries an entry condition, and at the start all of them are closed
+except the home, five inns and the house of the hermit \game{南賢}; events
+open the rest, and the opening sets their order. The compound holds a
+searchable chest, one speaking character and one exit tile. Beyond it, the
+path south leads to the hermit, whose long conversation opens the house of
+the first companion, and a cabinet beside him holds the compass, the only
+source of coordinates the game offers. The companion joins after a yes-or-no
+prompt at which the confirm key means no. Fights are turn-based on the scene
+grid. Each turn a character moves along the four axes and then strikes, uses
+an item, waits or rests. Skills draw on inner force, and the first scripted
+fight opens by draining it. An automatic mode hands the character to the AI
+of the game, which alternates striking and resting and loses to an opponent
+who heals. A party that wanders elsewhere first meets storylines whose fights
+it cannot survive at level one, and a lost fight ends the game, which then
+offers nothing but its own load menu.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/env.pdf}
 \caption{The environment at the resolution the model receives it, upscaled
 three times without interpolation. The two tiers of the world (a, b), the
-four axes along which the four movement keys move the character (c), and the
+four axes along which the four movement keys move the character (c), the
 three kinds of text panel through which every objective, choice and statistic
-is stated (d--f).}
+is stated (d--f), the bag with one item described at a time (g), the outdoor
+menu, two rows longer than the indoor one, with the party list it opens (h),
+and a turn of battle, with the menu of the acting character and its record
+beside the grid (i).}
 \label{fig:env}
 \end{figure}
 
@@ -350,6 +360,13 @@ is annotated: there is no set-of-marks overlay and no accessibility tree
 shows how few of them the game answers. Movement runs along the four numpad
 diagonals, with the arrow keys aliased onto the same axes, so a model that
 presses \texttt{up} expecting to walk up the screen moves up and to the right.
+Perception has traps of its own. The view follows the character except near
+the edge of a scene, where the background holds still and the sprite walks
+across it, so a model that reads its movement from the scrolling of the
+background loses count of the tiles it walked there. Canopies and roofs are
+drawn over the character, and the entrance of a building is a single tile on
+one face of its wall, so reaching a door means walking around the compound to
+the side the door is on.
 
 \begin{figure}[t]
 \centering
