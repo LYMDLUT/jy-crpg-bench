@@ -39,6 +39,13 @@ class MultiuserTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.02)
         self.fail("worker did not reach the expected state")
 
+    async def test_lobby_does_not_start_any_game(self):
+        response = await self.client.get('/')
+        self.assertEqual(response.status, 200)
+        self.assertIn('Existing player', await response.text())
+        self.assertEqual(self.manager.backends, {})
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
     async def test_concurrent_open_reuses_one_worker_and_private_paths(self):
         a, b = await asyncio.gather(self.manager.ensure(self.user), self.manager.ensure(self.user))
         self.assertIs(a, b)

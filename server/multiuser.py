@@ -20,6 +20,8 @@ import sys
 import time
 from urllib.parse import urlsplit
 
+from lobby import lobby_page
+
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
 
 HERE = Path(__file__).resolve().parent
@@ -269,18 +271,11 @@ def build_app(store, manager, public_origin=None):
     connections = set()
 
     async def lobby(_request):
-        rows = "".join(f'<li><a href="/u/{u["id"]}/">{html.escape(u["name"])}</a></li>' for u in store.all())
-        return web.Response(content_type="text/html", text='''<!doctype html><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Persistent sessions</title>
-<style>body{max-width:38rem;margin:3rem auto;padding:1rem;font:18px system-ui;line-height:1.6}
-input,button{font:inherit;padding:.4rem}li{margin:.5rem 0}</style><h1>Persistent sessions</h1>
-<p>Each player has a separate game, saves and recording. Opening a session can take a moment.</p>
-<ul>''' + rows + '''</ul><form><input name="name" maxlength="40" required placeholder="Player name">
-<button>Create session</button></form><p id="message"></p><script>
-document.querySelector('form').onsubmit=async e=>{e.preventDefault();
-const r=await fetch('api/users',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({name:new FormData(e.target).get('name')})});const d=await r.json();
-if(r.ok)location.href=d.url;else document.querySelector('#message').textContent=d.error;};</script>''')
+        running = {identity for identity, backend in manager.backends.items()
+                   if backend.process.poll() is None}
+        page = await asyncio.to_thread(lobby_page, store, running)
+        return web.Response(content_type="text/html", text=page,
+                            headers={"Cache-Control": "no-store"})
 
     async def users(_request):
         entries = store.all()
