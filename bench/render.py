@@ -67,6 +67,19 @@ def apply_delta(canvas, raw):
 MAX_VIDEO_SECONDS = float(os.environ.get("QUNXIA_MAX_VIDEO_SECONDS", "600"))
 
 
+def action_fields(event, ordinal):
+    """Normalize viewer labels without changing numbered benchmark actions."""
+    action = event['act']
+    if isinstance(action, str):
+        label = event.get('label')
+        if not isinstance(label, str) or not label:
+            label = f"{action} {event.get('on') or ''}".rstrip()
+        # Interactive GET/KEY markers have no benchmark action number. This
+        # ordinal identifies their position in the offline viewer only.
+        return ordinal, label
+    return action, event.get('label', '')
+
+
 def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=None):
     events = recording.get("events") or []
     first_frame = next((e for e in events if "d" in e), None)
@@ -97,16 +110,18 @@ def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=N
                 size=[GAME_W, GAME_H + BAR], bar=BAR, **(timeline_extra or {}))
     with timeline.open('w') as stream:
         stream.write(json.dumps(meta)[:-1] + ',"marks":[')
-        mark, held, first = None, {}, True
+        mark, held, first, ordinal = None, {}, True, 0
         for e in events:
             vt = round((e['t'] - t_start) / speed, 3)
             if vt < 0:
                 continue
             if e.get('act') is not None:
+                ordinal += 1
                 if mark is not None:
                     stream.write(('' if first else ',') + json.dumps(mark))
                     first = False
-                mark = {'n': e['act'], 't': vt, 'do': e.get('label', ''), 'keys': []}
+                number, label = action_fields(e, ordinal)
+                mark = {'n': number, 't': vt, 'do': label, 'keys': []}
             elif e.get('key'):
                 if e.get('down'):
                     held[e['key']] = e['t']
@@ -172,7 +187,7 @@ def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=N
          "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_path)],
         stdin=subprocess.PIPE)
 
-    down, actor, act = [], agent, None
+    down, actor, act, ordinal = [], agent, None, 0
     cursor = iter(events)
     pending = next(cursor, None)
     total_frames = max(1, int(duration * FPS))
@@ -186,7 +201,8 @@ def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=N
                 if "d" in e:
                     canvas = apply_delta(canvas, base64.b64decode(e["d"]))
                 elif e.get("act") is not None:
-                    act = e["act"]
+                    ordinal += 1
+                    act, _ = action_fields(e, ordinal)
                     if e.get("who"):
                         actor = e["who"]
                 elif e.get("key"):
@@ -216,8 +232,9 @@ def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=N
     try:
         subprocess.run(
             ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-             "-ss", "1", "-i", str(out_path), "-frames:v", "1",
-             "-q:v", "4", str(poster)],
+             "-i", str(out_path), "-vf",
+             f"select=eq(n\\,{min(FPS, total_frames - 1)}),format=yuvj420p",
+             "-frames:v", "1", "-q:v", "4", str(poster)],
             check=True, timeout=60)
     except Exception as exc:
         print(f"poster failed: {exc}", flush=True)

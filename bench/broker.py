@@ -94,7 +94,7 @@ VIDEO_WAIT = float(os.environ.get("QUNXIA_VIDEO_WAIT", "300"))
 CORS = {"Access-Control-Allow-Origin": "*"}
 LIVE_HERO_FIELDS = (
     "level", "exp", "hp", "maxhp", "skills", "items",
-    "inventory_distinct", "picked_item",
+    "inventory_distinct", "picked_item", "compass",
 )
 LIVE_TIMING_FIELDS = (
     "ttfa", "gap_p50", "gap_p95", "reads",
@@ -749,6 +749,9 @@ async def spectate(request, sess, url):
 
 # A usage report is a handful of numbers. Anything bigger is not a report.
 USAGE_LIMIT = 64 << 10
+# The thinking levels the pi launcher accepts, in its own words. A report may
+# carry the one the run declared; anything else is not a level and is dropped.
+THINKING_LEVELS = ("off", "minimal", "low", "medium", "high", "xhigh", "max")
 
 
 def _validate_usage(body):
@@ -781,6 +784,9 @@ def _validate_usage(body):
     model = body.get("model")
     if isinstance(model, str) and model:
         usage["model"] = "".join(c for c in model if c.isprintable())[:200]
+    level = body.get("thinkingLevel")
+    if isinstance(level, str) and level in THINKING_LEVELS:
+        usage["thinkingLevel"] = level
     return usage
 
 

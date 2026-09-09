@@ -291,7 +291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var skip = false
         for a in args {
             if skip { skip = false; continue }
-            if a == "--port" { skip = true; continue }
+            if a == "--port" || a == "--set" { skip = true; continue }
             if a.hasPrefix("-") { continue }
             return URL(fileURLWithPath: a)
         }

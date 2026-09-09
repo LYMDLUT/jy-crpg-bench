@@ -54,7 +54,7 @@ test("the active branch is metered, including a compaction on it", async () => {
     message("a2", "u2", "assistant", { usage: usage(100, 5, 105, 0.002) }),
   ];
   const runDir = await makeRun(entries, {
-    manifest: { model: { ref: "provider/model-x" }, piVersion: "0.84.4" },
+    manifest: { model: { ref: "provider/model-x", thinkingLevel: "high" }, piVersion: "0.84.4" },
   });
   const { code } = await runPiUsage(runDir);
   assert.equal(code, 0);
@@ -66,7 +66,24 @@ test("the active branch is metered, including a compaction on it", async () => {
   assert.equal(usageJson.cost, 0.003);
   assert.equal(usageJson.session, "s1");
   assert.equal(usageJson.model, "provider/model-x");
+  assert.equal(usageJson.thinkingLevel, "high");
   assert.equal(usageJson.piVersion, "0.84.4");
+});
+
+test("a manifest without a thinking level reports null, not a guess", async () => {
+  const entries = [
+    { type: "session", id: "s2", version: "0.84.4",
+      timestamp: "2026-09-07T12:00:00.000Z", cwd: "/work" },
+    message("u1", null, "user"),
+    message("a1", "u1", "assistant", { usage: usage(10, 2, 12, 0) }),
+  ];
+  const runDir = await makeRun(entries, {
+    manifest: { model: { ref: "provider/model-x" }, piVersion: "0.84.4" },
+  });
+  const { code } = await runPiUsage(runDir);
+  assert.equal(code, 0);
+  const usageJson = JSON.parse(await readFile(join(runDir, "usage.json"), "utf8"));
+  assert.equal(usageJson.thinkingLevel, null);
 });
 
 test("a discarded branch is not billed to the run", async () => {

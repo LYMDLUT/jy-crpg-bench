@@ -1,8 +1,12 @@
 """Bounded reads of an immutable prefix of the append-only recording."""
 import json
+import math
 import os
+import sqlite3
 import time
 from pathlib import Path
+
+from recording_files import RecordingFiles, archive_name, download
 
 MAX_LINE = 4 << 20
 
@@ -11,8 +15,14 @@ class Snapshot:
     def __init__(self, path, fd, end, last_timestamp=0):
         self.path, self.fd, self.end = Path(path), fd, end
         self.closed = False
+        self.seek_index = None
         try:
-            _, header = next(self.lines(0))
+            try:
+                _, header = next(self.lines(0))
+            except StopIteration:
+                # An empty file has no header line; say so instead of letting
+                # StopIteration escape into a coroutine as a RuntimeError.
+                raise ValueError("recording is empty") from None
             self.header = json.loads(header)
             self.begin = len(header)
             self.duration = last_timestamp
@@ -70,6 +80,8 @@ class Snapshot:
     def close(self):
         if not self.closed:
             self.closed = True
+            if self.seek_index:
+                self.seek_index.close()
             os.close(self.fd)
 
     def __del__(self):
@@ -78,16 +90,52 @@ class Snapshot:
 
 
 class RecordingAPI:
-    def __init__(self, store):
+    def __init__(self, store, archives=True):
         self.store = store
+        self.archives = archives
         self.readers = {}
 
-    def snapshot(self):
-        return Snapshot(**self.store.pin())
+    @property
+    def files(self):
+        # Follow a replaced writer as the original current-recording API did.
+        return RecordingFiles(self.store)
+
+    def pin(self, name='current'):
+        if name != 'current' and not self.archives:
+            raise FileNotFoundError('recording archives are disabled')
+        return self.files.pin(name)
+
+    def snapshot(self, name='current'):
+        return Snapshot(**self.pin(name))
+
+    async def list_files(self, request):
+        from aiohttp import web
+        if not self.archives:
+            raise web.HTTPNotFound()
+        return web.json_response({'files': self.files.listing()}, headers={'Cache-Control': 'no-store'})
+
+    async def download_file(self, request):
+        from aiohttp import web
+        if not self.archives:
+            raise web.HTTPNotFound()
+        try:
+            pin = self.pin(request.match_info['name'])
+        except FileNotFoundError:
+            raise web.HTTPNotFound()
+        return await download(pin, request)
+
+    def install(self, app):
+        from aiohttp import web
+        if self.archives:
+            app.add_routes([web.get('/api/recordings', self.list_files),
+                            web.get('/api/recordings/{name}', self.download_file)])
 
     async def handle(self, request):
         from aiohttp import web
         import uuid
+        name = request.query.get('recording', 'current')
+        if name != 'current' and (not self.archives or not archive_name(name)):
+            raise web.HTTPNotFound()
         if request.query.get('view') == 'paged':
             now = time.monotonic()
             for token, (reader, touched) in list(self.readers.items()):
@@ -99,7 +147,10 @@ class RecordingAPI:
                 if len(self.readers) >= 4:
                     return web.json_response({'error': 'too many replay readers'}, status=429)
                 token = uuid.uuid4().hex
-                self.readers[token] = (self.snapshot(), now)
+                try:
+                    self.readers[token] = (self.snapshot(name), now)
+                except FileNotFoundError:
+                    raise web.HTTPNotFound()
             elif token not in self.readers:
                 return web.json_response({'error': 'replay expired; reopen it'}, status=410)
             reader, _ = self.readers[token]
@@ -111,11 +162,40 @@ class RecordingAPI:
             if request.query.get('touch') == '1':
                 return web.json_response({'ok': True})
             try:
-                return web.json_response(dict(reader.page(request.query.get('start')), token=token))
+                if 'time' in request.query:
+                    # Seeking builds an index file beside the journal. A scored
+                    # session offers neither that write nor the archives, so
+                    # the same flag governs both.
+                    if not self.archives:
+                        return web.json_response({'error': 'seeking is not available here'}, status=404)
+                    from replay_index import SeekIndex
+                    when = float(request.query['time'])
+                    if not math.isfinite(when) or when < 0:
+                        raise ValueError('seek time must be finite and non-negative')
+                    if reader.seek_index is None:
+                        try:
+                            reader.seek_index = SeekIndex(reader)
+                        except OSError as exc:
+                            return web.json_response({'error': 'seek index unavailable: ' + str(exc)}, status=503)
+                    index = reader.seek_index
+                    if not index.done.is_set():
+                        return web.json_response({'token': token, 'indexing': True,
+                                                  'scanned': index.scanned, 'total': index.total}, status=202)
+                    try:
+                        location = index.locate(when)
+                    except sqlite3.Error as exc:
+                        return web.json_response({'error': 'seek index unreadable: ' + str(exc)}, status=503)
+                    return web.json_response(dict(reader.page(location['start']), token=token,
+                                                  seek=location, seek_supported=True))
+                return web.json_response(dict(reader.page(request.query.get('start')), token=token,
+                                              seek_supported=self.archives))
             except ValueError as exc:
                 return web.json_response({'error': str(exc)}, status=400)
 
-        pin = self.store.pin()
+        try:
+            pin = self.pin(name)
+        except FileNotFoundError:
+            raise web.HTTPNotFound()
         raw = request.query.get('format') == 'jsonl'
         response = web.StreamResponse(headers={'Content-Type': 'application/x-ndjson' if raw else 'application/json'})
         reader = None
@@ -127,7 +207,8 @@ class RecordingAPI:
                 for start in range(0, pin['end'], 64 << 10):
                     await response.write(os.pread(pin['fd'], min(64 << 10, pin['end']-start), start))
             else:
-                head = json.dumps({'started': reader.header['started'], 'duration': reader.elapsed})[:-1]
+                head = json.dumps({'started': reader.header['started'],
+                                   'duration': reader.elapsed if name == 'current' else reader.duration})[:-1]
                 await response.write((head + ',"events":[').encode())
                 first = True
                 payload_bytes = 0

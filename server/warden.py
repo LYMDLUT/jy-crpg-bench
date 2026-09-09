@@ -77,6 +77,8 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "inventory_distinct": None, "picked_item": None,
        # in-game semantics: the fourteen books, and everything carried
        "books": None, "items_total": None,
+       # the compass from the hermit's cabinet, the opening's first gated event
+       "compass": None,
        # From the game's own save slot, which is the only place the party and
        # the world square are true.
        "team_size": None, "team_level": None, "saved_at": None,
@@ -229,7 +231,7 @@ def metrics():
         **{k: run[k] for k in ("level", "exp", "hp", "maxhp", "skills",
                                "items", "reputation", "potential",
                                "inventory_distinct", "picked_item",
-                               "books", "items_total",
+                               "books", "items_total", "compass",
                                "team_size", "team_level", "saved_at")},
         # There is no count of distinct places here on purpose. It was
         # measured off the framebuffer and the framebuffer cannot answer it:

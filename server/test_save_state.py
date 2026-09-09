@@ -45,6 +45,11 @@ class BookTests(unittest.TestCase):
         self.assertEqual(tuple(names[i] for i in S.BOOK_IDS), S.BOOK_NAMES)
         self.assertEqual(len(S.BOOK_IDS), 14)
 
+    def test_the_compass_is_the_item_the_game_ships(self):
+        grp, idx = shipped()
+        names = S.decode_items(S.split_archive(grp, idx)[S.SEC_ITEMS])
+        self.assertEqual(names[S.COMPASS_ID], S.COMPASS_NAME)
+
     def test_books_are_counted_from_the_bag_and_from_the_party(self):
         self.assertEqual(S.books_held({144: 1, 3: 9}), [144])
         self.assertEqual(

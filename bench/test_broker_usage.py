@@ -69,6 +69,15 @@ class ValidateUsageTests(unittest.TestCase):
         self.assertEqual(usage["model"], "provider/model-with-newline")
         self.assertNotIn("capturedAt", usage)  # unknown fields never publish
 
+    def test_the_thinking_level_is_kept_only_when_it_is_a_level(self):
+        base = {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0,
+                "totalTokens": 0}
+        self.assertEqual(broker._validate_usage(dict(base, thinkingLevel="high"))
+                         ["thinkingLevel"], "high")
+        for bad in ("turbo", "", 3, None, ["high"]):
+            self.assertNotIn("thinkingLevel",
+                             broker._validate_usage(dict(base, thinkingLevel=bad)))
+
     def test_each_token_field_is_required_and_whole(self):
         for key in ("input", "output", "cacheRead", "cacheWrite", "totalTokens"):
             body = {"input": 1, "output": 2, "cacheRead": 3, "cacheWrite": 4,

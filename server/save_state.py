@@ -85,6 +85,13 @@ BOOK_NAMES = ("飛狐外傳", "雪山飛狐", "連城訣", "天龍八部", "射�
               "白馬嘯西風", "鹿鼎記", "笑傲江湖", "書劍恩仇錄", "神鵰俠侶",
               "俠客行", "倚天屠龍記", "碧血劍", "鴛鴦刀")
 
+# The compass from the hermit's cabinet: the only source of coordinates the
+# game offers, and the first event of the opening that sits behind a
+# conversation rather than a door. Named here so a mismatch against the
+# shipped data is a test failure and not a silent zero.
+COMPASS_ID = 182
+COMPASS_NAME = "羅盤"
+
 MAX_ITEM_ID = ITEM_SLOTS - 1
 
 

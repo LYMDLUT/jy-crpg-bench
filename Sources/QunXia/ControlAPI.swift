@@ -148,15 +148,14 @@ final class ControlAPI {
             if let number = json[key] as? NSNumber {
                 if CFGetTypeID(number) == CFBooleanGetTypeID() { return nil }
                 let value = number.doubleValue
-                guard value.isFinite, value.rounded(.towardZero) == value,
-                      value >= Double(Int.min), value <= Double(Int.max) else { return nil }
-                return Int(value)
+                // Int(value) traps for a Double which is just beyond Int.max:
+                // Double(Int.max) rounds to 2^63.  The exact conversion checks
+                // representability without first converting through a trap.
+                return Int(exactly: value)
             }
             if json[key] is Bool { return nil }
             if let i = json[key] as? Int { return i }
-            if let d = json[key] as? Double,
-               d.isFinite, d.rounded(.towardZero) == d,
-               d >= Double(Int.min), d <= Double(Int.max) { return Int(d) }
+            if let d = json[key] as? Double { return Int(exactly: d) }
             if let s = query[key] { return Int(s) }
             return nil
         }
@@ -208,7 +207,7 @@ final class ControlAPI {
                 return respond(400, "application/json", json(["ok": false,
                     "error": "format must be png; omit it for JSON with a base64 PNG"]))
             }
-            guard let shot = emu.snapshot(scale: 1) else {
+            guard let shot = emu.snapshot(scale: scale) else {
                 log.add("GET", "/screen", ok: false)
                 return respond(503, "application/json", json(["ok": false, "error": "no frame yet"]))
             }

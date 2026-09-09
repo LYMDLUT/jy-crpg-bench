@@ -57,6 +57,7 @@ ZH = {
     "b_base": "基线",
     "b_nocost": "成本不进入排行：token 用量由运行它的 harness 代上报（计费侧数据，不是模型自报），见各局记录。",
     "b_usage": "token 用量", "b_usage_unit": "tokens", "b_usage_turn": "轮",
+    "b_usage_think": "思考强度",
     "b_n_speed": "更快不等于更好：基线排在最前，是因为它不思考。",
     "b_n_effort": "决策调用更多不等于更好：基线排在最前，是因为它从不停下来看。",
     "b_n_rely": "请求错误次数尚未统计；旧记录的零值也是占位值，不能据此判断零错误。",
@@ -70,9 +71,9 @@ ZH = {
     "b_inputs": "决策 · 提交键数 · 请求按住帧",
     "m_act": "出手", "m_move": "画面有反应", "m_item": "拿到东西",
     "m_exp": "拿到经验", "m_level": "升到 2 级",
-    "m_party": "有人入队", "m_book": "拿到秘笈",
+    "m_party": "有人入队", "m_book": "拿到秘笈", "m_compass": "拿到罗盘",
     "b_books": "秘笈", "b_party": "队伍",
-    "b_n_ladder": "七个可验证里程碑，除了第一个之外全部读自游戏自己的存档与角色数值。"
+    "b_n_ladder": "八个可验证里程碑，除了第一个之外全部读自游戏自己的存档与角色数值。"
                   "它们展示取得的成果，不假定所有里程碑都必须按同一顺序发生。"
                   "空心的一格表示那一局跑的时候还没开始统计这项，不是没做到。",
     "b_progress": "养成", "b_level": "等级", "b_char": "等级 · 武功 · 物品", "b_exp": "经验",
@@ -147,6 +148,7 @@ EN = {
                 "that ran the model (the provider's meter, not the model's claim), "
                 "and shown on the run record.",
     "b_usage": "token usage", "b_usage_unit": "tokens", "b_usage_turn": "turns",
+    "b_usage_think": "thinking",
     "b_n_speed": "Faster is not better: the baseline leads because it does not think.",
     "b_n_effort": "More decision calls is not better: the baseline leads because it never "
                   "stops to look.",
@@ -165,8 +167,9 @@ EN = {
     "m_act": "acted", "m_move": "screen responded", "m_item": "picked something up",
     "m_exp": "gained experience", "m_level": "reached level 2",
     "m_party": "recruited a companion", "m_book": "holds one of the fourteen",
+    "m_compass": "holds the compass",
     "b_books": "books", "b_party": "party",
-    "b_n_ladder": "Seven verifiable milestones. All but the first are the "
+    "b_n_ladder": "Eight verifiable milestones. All but the first are the "
                   "game's own numbers, read from its save and its character "
                   "records rather than inferred from the picture. They show "
                   "what a run achieved without assuming every milestone must "
@@ -983,9 +986,13 @@ const RUNGS = [
   // flag they were scored with.
   {{k: "m_map",   at: r => r.saved_at !== undefined ? r.saved_at != null
       : (r.bigmap == null ? null : !!r.bigmap)}},
+  // The compass sits in the hermit's cabinet and is read from the same live
+  // bag as the books. It and the companion close the opening, which needs no
+  // fight; experience and levels need one, so they follow.
+  {{k: "m_compass", at: r => r.compass == null ? null : !!r.compass}},
+  {{k: "m_party", at: r => r.team_size == null ? null : r.team_size > 1}},
   {{k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0}},
   {{k: "m_level", at: r => r.level == null ? null : r.level > 1}},
-  {{k: "m_party", at: r => r.team_size == null ? null : r.team_size > 1}},
   {{k: "m_book",  at: r => r.books == null ? null : r.books > 0}},
 ]; 
 
@@ -1018,6 +1025,7 @@ function usageFull(r) {{
   let s = `${{u.totalTokens.toLocaleString()}} ${{T.b_usage_unit}}`
         + ` \u00b7 ${{u.turns ?? "-"}} ${{T.b_usage_turn}}`;
   if (u.cost > 0) s += ` \u00b7 $${{u.cost.toFixed(4)}}`;
+  if (u.thinkingLevel) s += ` \u00b7 ${{T.b_usage_think}} ${{u.thinkingLevel}}`;
   return s;
 }}
 
@@ -1147,6 +1155,8 @@ function boardRows() {{
         ? Math.max(...rs.map(r => r.inventory_distinct ?? 0)) : null,
       picked_item: rs.some(r => r.picked_item != null)
         ? rs.some(r => r.picked_item === true) : null,
+      compass: rs.some(r => r.compass != null)
+        ? rs.some(r => r.compass === true) : null,
       // From the game's own save slot. A run that never crossed the world map
       // never had one written, which is why these are null and not nought.
       books: rs.some(r => r.books != null)

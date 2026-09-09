@@ -88,10 +88,21 @@ bool retro_serialize(void *data, size_t size) {
     if (size < 16 || atomic_load(&fail_serialize)) return false;
     memset(data, 0, size);
     ((unsigned char *)data)[0] = 123;
+    if (getenv("PROBE_STATEFUL")) {
+        int value = atomic_load(&keydowns);
+        memcpy((unsigned char *)data + 4, &value, sizeof(value));
+    }
     return true;
 }
 bool retro_unserialize(const void *data, size_t size) {
-    (void)data; touch_core(); return size == 16;
+    touch_core();
+    if (size != 16) return false;
+    if (getenv("PROBE_STATEFUL")) {
+        int value;
+        memcpy(&value, (const unsigned char *)data + 4, sizeof(value));
+        atomic_store(&keydowns, value);
+    }
+    return true;
 }
 size_t retro_get_memory_size(unsigned id) { (void)id; touch_core(); return 16; }
 void *retro_get_memory_data(unsigned id) {

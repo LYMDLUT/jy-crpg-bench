@@ -22,6 +22,7 @@ import sys
 import threading
 import time
 import traceback
+import uuid
 import zlib
 
 from aiohttp import WSMsgType, web
@@ -30,6 +31,9 @@ from PIL import Image
 import warden
 from state_reader import decode_inventory, inventory_gained
 import save_state
+from activity import ActivityStore
+from saved_history import SavedHistory
+from video_export import VideoExports
 
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
@@ -45,6 +49,7 @@ CORE = os.environ.get("QUNXIA_CORE", str(ROOT.parent / "cores" / "dosbox_pure_li
 GAME = os.environ.get("QUNXIA_GAME", str(ROOT.parent / "game" / "PLAY.BAT"))
 SAVES = os.environ.get("QUNXIA_SAVES", str(ROOT.parent / "saves"))
 PORT = int(os.environ.get("PORT", "8080"))
+HOST = os.environ.get("QUNXIA_HOST", "0.0.0.0")
 SEND_HZ = float(os.environ.get("QUNXIA_SEND_HZ", "20"))
 
 LIB.core_set_option.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
@@ -197,11 +202,59 @@ SCREEN_FORMATS = ("", "png", "webp", "jpeg")
 # 注音 IME, which is a puzzle about input methods and not about the game.
 START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT.parent / "saves" / "start.state"))
 STATE_DIR = os.environ.get("QUNXIA_STATE_DIR", str(ROOT.parent / "saves" / "states"))
+# Long-lived play is opt-in. A scored run must never read or update a previous
+# interactive checkpoint, even if its launcher inherited these variables.
+RESUME_STATE = "" if warden.ON else os.environ.get("QUNXIA_RESUME_STATE", "")
+
+
+def _checkpoint_setting(name, default, parse):
+    # A typo in an operator's environment should end in one sentence naming
+    # the variable, not in a traceback from import time.
+    value = os.environ.get(name, default)
+    try:
+        return parse(value)
+    except ValueError:
+        raise SystemExit(f"{name} must be a number, not {value!r}") from None
+
+
+AUTOSAVE_SECONDS = _checkpoint_setting("QUNXIA_AUTOSAVE_SECONDS", "30", float) if RESUME_STATE else 0
+# 1500 frames is where bench/repro.py (BOOT_MIN_FRAMES) finds the title
+# parked at the pinned cycle setting; a restore before that lands mid-boot.
+RESUME_WARMUP_FRAMES = _checkpoint_setting("QUNXIA_RESUME_WARMUP_FRAMES", "1500", int) if RESUME_STATE else 0
+checkpoint = {"enabled": bool(RESUME_STATE), "state": "warming" if RESUME_STATE else "disabled",
+              "restored": False, "saves": 0, "last_saved": None, "error": None}
 
 # Everything anyone does to this session, so the page can show who is doing
 # what. The game is shared, so this doubles as "why did the screen just move".
 history: collections.deque = collections.deque(maxlen=300)
 _seq = [0]
+activity_store = None
+
+
+def restore_activity():
+    global activity_store
+    # Persistent UI history is explicitly opt-in and never enters formal runs.
+    if warden.ON or os.environ.get("QUNXIA_PERSIST_HISTORY", "0") != "1":
+        return
+    store = ActivityStore(pathlib.Path(SAVES) / "activity.json")
+    try:
+        entries = store.load()
+    except (OSError, ValueError) as exc:
+        # Preserve malformed/unreadable snapshots for inspection, not overwrite.
+        print(f"activity history disabled: {exc}", flush=True)
+        return
+    history.extend(entries)
+    _seq[0] = entries[-1]["id"] if entries else 0
+    activity_store = store
+
+
+def persist_activity():
+    if activity_store is not None:
+        try:
+            activity_store.save(history)
+        except (OSError, ValueError) as exc:
+            print(f"activity history write failed: {exc}", flush=True)
+
 # Counted per game, so a reset starts a fresh session rather than continuing one.
 session = {"started": time.time(), "actions": 0, "key_events": 0,
            "input_frames": 0, "wait_calls": 0, "by_api": 0, "by_web": 0}
@@ -271,7 +324,10 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          # The game's own semantics, read from the working copy: how many of
          # the fourteen books are held, and which. This is the score the
          # benchmark is for, and no agent can reach it.
-         "books": None, "book_ids": None, "items_total": None}
+         "books": None, "book_ids": None, "items_total": None,
+         # The compass the hermit's cabinet holds, read from the same bag:
+         # the first gated event of the opening.
+         "compass": None}
 
 
 # --------------------------------------------------- the game's own save slot
@@ -550,6 +606,7 @@ def read_stats():
         held = save_state.books_held(inventory, [carried] if carried else [])
         hero["books"] = len(held)
         hero["book_ids"] = held
+        hero["compass"] = inventory.get(save_state.COMPASS_ID, 0) > 0
         opening = hero["inventory_baseline"]
         if opening is None:
             hero["inventory_baseline"] = dict(inventory)
@@ -564,7 +621,7 @@ def read_stats():
 # back showing DOSBox Pure's "DOS Crashed" menu and stopped responding to keys
 # - which is far too high a price for one column. Distance then reports as
 # unmeasured, which the page already draws as a dash rather than a nought.
-CALIBRATE = os.environ.get("QUNXIA_CALIBRATE") == "1"
+CALIBRATE = os.environ.get("QUNXIA_CALIBRATE") == "1" and not RESUME_STATE
 
 world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": False,
          "dark": False, "miss": 0, "tried": False,
@@ -696,6 +753,32 @@ def make_thumb():
     return "data:image/webp;base64," + base64.b64encode(out.getvalue()).decode()
 
 
+def disk_history_enabled():
+    return (not warden.ON and recording_store is not None
+            and os.environ.get("QUNXIA_PERSIST_HISTORY", "0") == "1")
+
+
+def record_activity(entry):
+    # The JSONL retains every marker; the deque and activity.json are only a
+    # small reconnect cache. GETs must survive after their cache entries age out.
+    if not disk_history_enabled() or entry["verb"] not in ("GET", "KEY", "KEYS", "WAIT", "TEXT"):
+        return
+    event = {"t": round(entry["at"] - rec["started"], 3),
+             "act": entry["verb"], "who": entry["src"], "on": entry["target"],
+             "detail": entry["detail"], "ok": entry["ok"], "history": 1}
+    if entry.get("thumb"):
+        event["thumb"] = entry["thumb"]
+    try:
+        ok = recording_store.append(event)
+    except (OSError, BufferError) as exc:
+        recording_store.error = str(exc)
+        ok = False
+    if not ok:
+        block_recording()
+        raise RecordingUnavailable(recording_store.error)
+    rec["bytes"] = recording_store.committed_size
+
+
 def log_action(src, verb, target, detail="", ok=True, thumb=False,
                key_events=None, input_frames=0, wait_call=False):
     _seq[0] += 1
@@ -721,7 +804,9 @@ def log_action(src, verb, target, detail="", ok=True, thumb=False,
         session["wait_calls"] += int(wait_call or verb == "WAIT")
         session["by_web" if src == "web" else "by_api"] += 1
         agents[src] += 1
+    record_activity(entry)
     history.append(entry)
+    persist_activity()
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -1006,6 +1091,7 @@ def session_summary():
             "picked_item": hero["picked_item"],
             "items_total": hero["items_total"],
             "books": hero["books"],
+            "compass": hero["compass"],
             # From the game's own save slot: the party and the world square are
             # true only there. Books and items stay on the live reading above,
             # which is fresher than the last save.
@@ -1053,7 +1139,7 @@ async def ws_handler(request):
     except BaseException:
         peers[ws].drop()
         raise
-    peers[ws].put(json.dumps({"t": "log", "e": list(history)[-80:],
+    peers[ws].put(json.dumps({"t": "log", "e": list(history),
                                   "s": session_summary(), "c": list(curve)}), text=True)
     # code -> (name, core tick at keydown). Browser automation can emit keydown
     # and keyup within one emulated frame, so remember when each press reached
@@ -1071,6 +1157,8 @@ async def ws_handler(request):
             if not isinstance(d, dict):
                 continue
             t = d.get("t")
+            if checkpoint["enabled"] and checkpoint["state"] != "ready" and t in ("key", "tap"):
+                continue
             if recording_blocked and not (t == "key" and not d.get("down")):
                 continue
             if warden.ON and t in ("key", "tap"):
@@ -1442,7 +1530,8 @@ async def run_action(request, steps, note, verb="KEY"):
         log_action(rec["actor"], verb, note, detail=held_note(steps),
                    key_events=len(key_steps), input_frames=input_frames,
                    wait_call=not key_steps)
-        rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
+        if not disk_history_enabled():
+            rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         if warden.ON:
             # Only key steps carry a name at index 2; "wait" and "frames" are
             # pairs. Filtering by kind broke the moment a new pause kind was
@@ -1494,7 +1583,7 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential", "inventory_distinct",
-                      "picked_item", "items_total", "books"):
+                      "picked_item", "items_total", "books", "compass"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -1831,6 +1920,11 @@ def base_url(request):
             scheme = value
             break
     base = f"{scheme}://{host}"
+    # Only the multiuser gateway sets this header, and a scored session never
+    # sits behind that gateway, so a client's own value is ignored there.
+    prefix = request.headers.get("X-Forwarded-Prefix", "").rstrip("/")
+    if not warden.ON and re.fullmatch(r"/u/[A-Za-z0-9_-]{20,64}", prefix):
+        return base + prefix
     sid = os.environ.get("QUNXIA_BENCH_SID", "")
     if os.environ.get("QUNXIA_BENCH") == "1" and sid:
         base = f"{base.rstrip('/')}/s/{sid}"
@@ -1897,6 +1991,85 @@ async def api_save(request):
         action_lock().release()
     log_action(actor(request), "SAVE", name, ok=ok)
     return web.json_response(result, status=200 if result.get("ok") else 500)
+
+
+async def checkpoint_core(path, *, saving):
+    """Drain native work before releasing the pause, including cancellation."""
+    try:
+        await pause_emulator()
+        def operation():
+            LIB.core_release_all_keys()
+            if saving:
+                return bool(LIB.core_save_state(str(path).encode()))
+            ok = bool(LIB.core_load_state(str(path).encode()))
+            if ok:
+                LIB.fb_reset()
+            return ok
+
+        task = asyncio.create_task(asyncio.to_thread(operation))
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # A cancelled await cannot stop ctypes. Keep the lease and pause
+            # until that call has actually returned.
+            await task
+            raise
+    finally:
+        resume_emulator()
+
+
+async def save_checkpoint():
+    if warden.ON or not RESUME_STATE or checkpoint["state"] != "ready":
+        return False
+    async with action_lock():
+        # Keep the old checkpoint until execution is healthy on both sides
+        # of serialization; the file itself is staged in its own directory.
+        await wait_core_frames(2)
+        path = pathlib.Path(RESUME_STATE)
+        pending = path.with_name(path.name + "." + uuid.uuid4().hex + ".pending")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if not await checkpoint_core(pending, saving=True):
+                raise RuntimeError(core_error("checkpoint save failed"))
+            await wait_core_frames(2)
+            os.replace(pending, path)
+            checkpoint.update(saves=checkpoint["saves"] + 1, last_saved=time.time(), error=None)
+            return True
+        finally:
+            pending.unlink(missing_ok=True)
+
+
+async def resume_and_autosave():
+    if warden.ON or not RESUME_STATE:
+        return
+    try:
+        async with action_lock():
+            checkpoint["state"] = "warming"
+            await wait_core_frames(RESUME_WARMUP_FRAMES)
+            if LIB.core_width() <= 0 or LIB.core_height() <= 0:
+                raise RuntimeError("the core has not produced a frame")
+            path = pathlib.Path(RESUME_STATE)
+            if path.exists():
+                checkpoint["state"] = "restoring"
+                if not await checkpoint_core(path, saving=False):
+                    raise RuntimeError(core_error("checkpoint restore failed"))
+                await wait_core_frames(2)
+                checkpoint["restored"] = True
+                await send_keyframe(None)
+            checkpoint.update(state="ready", error=None)
+    except Exception as exc:
+        # Do not accept input or overwrite an unreadable previous session
+        # with the newly booted machine. An operator must resolve the file.
+        checkpoint.update(state="failed", error=str(exc))
+        stats["last_error"] = "resume: " + str(exc)
+        return
+    while AUTOSAVE_SECONDS > 0:
+        await asyncio.sleep(AUTOSAVE_SECONDS)
+        try:
+            await save_checkpoint()
+        except Exception as exc:
+            checkpoint["error"] = str(exc)
+            stats["last_error"] = "autosave: " + str(exc)
 
 
 async def api_load(request):
@@ -1980,6 +2153,7 @@ async def api_reset(request):
         finally:
             resume_emulator()
         history.clear()
+        persist_activity()
         _seq[0] = 0
         session.update(started=time.time(), actions=0, key_events=0,
                        input_frames=0, wait_calls=0, by_api=0, by_web=0)
@@ -1992,7 +2166,7 @@ async def api_reset(request):
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
                     potential=None, inventory_distinct=None, picked_item=None,
-                    items_total=None, books=None,
+                    items_total=None, books=None, compass=None,
                     inventory_baseline=None)
         agents.clear()
         rec_reset()
@@ -2124,12 +2298,30 @@ async def api_help(request):
                         content_type="text/plain", charset="utf-8")
 
 
+async def saved_history_script(_request):
+    return web.FileResponse(ROOT / "saved-history.js", headers={"Cache-Control": "no-store"})
+
+
 async def recording_script(_request):
     return web.FileResponse(ROOT / "recording.js")
 
 
+async def video_export_script(_request):
+    return web.FileResponse(ROOT / "video-export.js", headers={"Cache-Control": "no-store"})
+
+
+async def replay_script(_request):
+    return web.FileResponse(ROOT / "replay.js")
+
+
 async def index(_request):
-    return web.FileResponse(ROOT / "index.html")
+    # The benchmark deliberately has no saved-history endpoints. Let its
+    # observer page choose the available live log without probing a 404.
+    page = (ROOT / "index.html").read_text(encoding="utf-8").replace(
+        'data-history-enabled="auto"',
+        f'data-history-enabled="{str(not warden.ON).lower()}"')
+    return web.Response(text=page, content_type="text/html",
+                        headers={"Cache-Control": "no-store"})
 
 
 async def progress(request):
@@ -2150,7 +2342,7 @@ async def progress(request):
         # save is not the only source of.
         "live": {k: hero[k] for k in ("level", "exp", "hp", "maxhp", "skills",
                                       "books", "book_ids", "items_total",
-                                      "inventory_distinct")},
+                                      "inventory_distinct", "compass")},
     })
 
 
@@ -2159,7 +2351,7 @@ async def progress(request):
 # the agent never does.
 SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
                  "potential", "inventory_distinct", "picked_item",
-                 "items_total", "books", "meaningful", "oscillation",
+                 "items_total", "books", "compass", "meaningful", "oscillation",
                  "scenes", "frontier", "bigmap", "exit_acts", "exit_secs",
                  "team_size", "team_level", "team", "saved_at", "saved_why")
 
@@ -2194,6 +2386,7 @@ async def status(_request):
         **(health.snapshot() if health else {}),
         "recording": {"cache_bytes": 0, "pending_bytes": recording_store.pending_bytes if recording_store else 0,
                       "error": recording_store.error if recording_store else ""},
+        "checkpoint": dict(checkpoint),
     })
 
 
@@ -2206,6 +2399,10 @@ async def json_errors(request, handler):
     bad request.
     """
     try:
+        if (checkpoint["enabled"] and checkpoint["state"] != "ready"
+                and request.method == "POST" and request.path.startswith("/api/")):
+            return web.json_response({"ok": False, "error": "session_not_ready",
+                                      "checkpoint": dict(checkpoint)}, status=503)
         if recording_blocked and request.method == "POST" and request.path.startswith("/api/"):
             raise RecordingUnavailable(recording_store.error)
         if health:
@@ -2237,7 +2434,10 @@ async def startup(app):
     api_lock = asyncio.Lock()
     app["pump"] = asyncio.create_task(pump())
     app["reaper"] = asyncio.create_task(reap())
-    app["snapshotter"] = asyncio.create_task(snapshotter())
+    if RESUME_STATE:
+        app["checkpoint"] = asyncio.create_task(resume_and_autosave())
+    else:
+        app["snapshotter"] = asyncio.create_task(snapshotter())
     if health:
         app["heartbeat"] = asyncio.create_task(pulse_health())
         health.set_phase("running")
@@ -2286,6 +2486,14 @@ async def pulse_health():
 
 
 async def cleanup(app):
+    saving = app.get("checkpoint")
+    if saving:
+        saving.cancel()
+        await asyncio.gather(saving, return_exceptions=True)
+        try:
+            await asyncio.wait_for(save_checkpoint(), timeout=10)
+        except Exception as exc:
+            stats["last_error"] = "shutdown checkpoint: " + str(exc)
     for task in app.values():
         if isinstance(task, asyncio.Task):
             task.cancel()
@@ -2303,12 +2511,16 @@ async def cleanup(app):
 
 def main():
     global health, recording_store, recording_api
+    if RESUME_STATE and (not math.isfinite(AUTOSAVE_SECONDS) or AUTOSAVE_SECONDS < 0
+                         or RESUME_WARMUP_FRAMES < 1):
+        raise SystemExit("checkpoint interval must be finite and non-negative; warmup frames must be positive")
+    restore_activity()
     directory = os.environ.get("QUNXIA_RECORDING_DIR", str(ROOT.parent / "recordings"))
     validate_recording_directory(directory)
     path = pathlib.Path(os.environ.get("QUNXIA_RECORDING_FILE", str(pathlib.Path(directory) / f"{PORT}.jsonl")))
     validate_recording_directory(path.parent)
     recording_store = RecordingStore(path)
-    recording_api = RecordingAPI(recording_store)
+    recording_api = RecordingAPI(recording_store, archives=not warden.ON)
     rec.update(started=recording_store.started, events=[], bytes=recording_store.committed_size)
     health = Health(LIB.core_ticks, paused.is_set, os.environ.get("QUNXIA_HEALTH_DIR", str(pathlib.Path(SAVES) / ".health")))
     health.start()
@@ -2328,9 +2540,12 @@ def main():
     threading.Thread(target=emulate, daemon=True).start()
 
     app = web.Application(middlewares=[json_errors])
+    app.router.add_get("/saved-history.js", saved_history_script)
     app.add_routes([
         web.get("/", index),
         web.get("/recording.js", recording_script),
+        web.get("/replay.js", replay_script),
+        web.get("/video-export.js", video_export_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
         web.get("/progress", progress),
@@ -2348,11 +2563,15 @@ def main():
         web.post("/api/save", api_save),
         web.post("/api/load", api_load),
     ])
+    recording_api.install(app)
     # Startup handlers are awaited, so the workers are detached tasks rather
     # than returned, or startup would block on loops that never end.
+    pin_provider = getattr(recording_api, "pin", None)
+    SavedHistory(recording_store, pin_provider=pin_provider).install(app, enabled=not warden.ON)
+    VideoExports(recording_store, pin_provider=pin_provider).install(app, enabled=not warden.ON)
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
-    web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
+    web.run_app(app, host=HOST, port=PORT, access_log=None)
 
 
 if __name__ == "__main__":

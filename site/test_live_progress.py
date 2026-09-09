@@ -93,12 +93,22 @@ class ScoringBehaviorTests(unittest.TestCase):
 
     def test_the_party_and_the_books_are_rungs(self):
         party, books = self.evaluate(
-            "[rungs(runs[0]).slice(5), rungs(runs[1]).slice(5)]", [
+            "[runs.map(r => rungs(r)[4]), runs.map(r => rungs(r)[7])]", [
                 {"agent": "a", "team_size": 3, "books": 0},
                 {"agent": "b", "team_size": 1, "books": 2},
             ])
         self.assertEqual(party, [True, False])
         self.assertEqual(books, [False, True])
+
+    def test_the_compass_is_a_rung_read_from_the_bag(self):
+        # Fourth rung, after the world map: held, not held, or never measured
+        # for a run recorded before the bag was read for it.
+        result = self.evaluate("runs.map(r => rungs(r)[3])", [
+            {"agent": "a", "compass": True},
+            {"agent": "b", "compass": False},
+            {"agent": "c"},
+        ])
+        self.assertEqual(result, [True, False, None])
 
     def test_the_character_board_puts_a_book_above_a_level(self):
         keys = self.evaluate(
@@ -222,7 +232,7 @@ class ScoringBehaviorTests(unittest.TestCase):
              "bigmap": True, "exp": 5, "saved_at": 1788909476,
              "team_size": 1, "books": 0},
         ])
-        self.assertIn("<b>5/7</b>", result[0]["outerHTML"])
+        self.assertIn("<b>5/8</b>", result[0]["outerHTML"])
         self.assertEqual([cell["textContent"] for cell in result[1:]],
                          ["2 · 3 · 4", "1 · 2 · 20", "2 · ✓"])
 

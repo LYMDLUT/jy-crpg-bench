@@ -1,21 +1,18 @@
 """Regenerate the canonical input script from the committed start state.
 
-The paper's reproducibility statement is that a run regenerates
-byte-identically: committed start state plus committed inputs, and the
-frames follow.  This file is that claim made executable: it boots the real
-core with no server and no browser, loads the committed start state,
-replays a fixed input schedule frame by frame, and reports the signature
-of the result.
+The driver boots the real core, loads the committed start state and replays
+fixed inputs. Reproducibility checks compare the DETERMINISTIC projection:
+input identity, host frame counters, final picture and decoded game state.
+Intermediate pictures and serialized machine bytes remain diagnostics; they
+can vary with native-core scheduling even on the same build.
 
   python3 bench/repro.py                 # one regeneration, signature to stdout
   python3 bench/repro.py --check bench/golden/repro-darwin.json
 
-The signature carries the whole machine state after the script (sha256 of
-the core's own savestate) plus sampled frame hashes, so any
-nondeterminism anywhere in the pipeline - emulator, game, filesystem,
-build - shows up as a difference.  The test in bench/test_repro.py
-regenerates twice in fresh processes and requires the two, and on the
-platform of the committed golden that, to agree.
+The signature also carries the whole machine state hash and intermediate
+frame hashes, preserving evidence of timing differences rather than asserting
+that every byte must match. test_repro.py compares fresh processes and the
+committed golden using the same deterministic-output contract.
 
 Three invariants make the start state a well-defined origin, and all are
 pinned here:
@@ -33,8 +30,9 @@ pinned here:
   result is no longer reproducible.  One frame per 1/fps wall clock
   leaves the thread idle between frames, so each press lands in exactly
   one frame and every count in the signature is exact.
-* Once the game is running, how long it was parked must not matter: the
-  load lands on the same machine state no matter when it arrives.
+* Once the game is running, the decoded game and destination picture must
+  agree after loading at different park lengths. Emulator-private state bytes
+  need not agree.
 
 Nothing here needs the live service: CoreHost and the standard library
 only.  Where the real core, game, or start state is absent (CI builds no
@@ -243,8 +241,7 @@ def regenerate(lib, core, game, start, extra=0):
 
 # What a regeneration must reproduce, and what it need not.
 #
-# The whole machine image is reproducible only for identical inputs on one
-# build: the emulator carries counters its own serialiser does not restore, so
+# Identical inputs on one build do not guarantee identical machine bytes: the emulator carries counters its own serialiser does not restore, so
 # how long the title screen ran before the load, and how long that took in real
 # seconds, both change bytes that never reach the game. Measured: at two park
 # lengths the image differs immediately after the load while the picture and
