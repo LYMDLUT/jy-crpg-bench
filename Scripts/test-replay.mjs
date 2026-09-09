@@ -87,3 +87,20 @@ test('closing during decode releases the source and prevents a late frame', asyn
   assert.equal(f.source.closed,true);
   assert.deepEqual(f.colors,['red']);
 });
+
+test('default browser timers are not invoked with the player as their receiver', async () => {
+  const originalSet=globalThis.setTimeout, originalClear=globalThis.clearTimeout;
+  function browserTimer() {
+    assert.ok(this===undefined || this===globalThis, 'Window timer called with an invalid receiver');
+    return 1;
+  }
+  globalThis.setTimeout=browserTimer; globalThis.clearTimeout=browserTimer;
+  try {
+    const f=fixture();
+    const player=new ReplayPlayer(f.source, {decode:async e=>e.d,paint:()=>{},
+      complete:()=>true,reset:()=>{},update:()=>{},error:e=>{throw e;}});
+    await player.start(); await player.pause(); player.close();
+  } finally {
+    globalThis.setTimeout=originalSet; globalThis.clearTimeout=originalClear;
+  }
+});

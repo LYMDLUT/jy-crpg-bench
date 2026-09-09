@@ -2,7 +2,8 @@
 // painted yet; pause/resume keeps the cursor and anchors a new playback clock.
 class ReplayPlayer {
   constructor(source, {decode, paint, complete, reset, update, error,
-                       now=()=>performance.now(), schedule=setTimeout, cancel=clearTimeout}) {
+                       now=()=>performance.now(), schedule=(fn, delay)=>setTimeout(fn, delay),
+                       cancel=timer=>clearTimeout(timer)}) {
     Object.assign(this, {source, decode, paint, complete, reset, update, error, now, schedule, cancel});
     this.position = this.origin = this.duration = this.floor = 0;
     this.speed = 4;
