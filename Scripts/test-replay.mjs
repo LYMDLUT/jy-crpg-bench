@@ -3,7 +3,7 @@ import test from 'node:test';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-const {ReplayPlayer, ReplayKeys} = createRequire(import.meta.url)('../server/replay.js');
+const {ReplayPlayer, ActionReplayPlayer, ReplayKeys} = createRequire(import.meta.url)('../server/replay.js');
 
 function fixture(decode = async event => event.d) {
   let now = 0, current, i = 0;
@@ -242,12 +242,12 @@ test('opening a replay twice pins one reader, focuses close, and can reopen duri
   const end=html.indexOf('// ---- export the recording', begin);
   assert.ok(begin>=0 && end>begin, 'Real playback initialization must be present');
   const dom=replayDOM(), opens=[], players=[];
-  const context=vm.createContext({document:dom.document, addEventListener(){},
+  const context=vm.createContext({document:dom.document, addEventListener(){}, AbortController,
     ReplayKeys, GLYPH:{}, ARROW:new Set(), colorOf:()=>'',
-    ReplayRecording:{open(name) {
+    StepReplaySource:{open(name) {
       const pending=deferred(); opens.push({name,...pending}); return pending.promise;
     }},
-    ReplayPlayer:class {
+    ActionReplayPlayer:class {
       constructor(source) { this.source=source; players.push(this); }
       async start() {}
       close() { this.source.close(); }
@@ -400,4 +400,284 @@ test('reopening the recordings menu ignores an older list response and reports u
   pending[2].resolve({ok:false,status:404});
   await missing;
   assert.match(links.textContent,/暂不支持录像列表/);
+});
+
+function actionFixture({count=3, frame=async index=>({index})} = {}) {
+  let now=0, timer, current;
+  const pictures=[], states=[], prefetched=[];
+  const source={steps:count, duration:113*3600,
+    step:async index=>({t:index*3600,who:index%2 ? 'agent-b' : 'agent-a',act:'KEY',on:'up'}),
+    frame,
+    prefetch(index,signal) { prefetched.push({index,signal}); },
+    close() {this.closed=true;},
+  };
+  const player=new ActionReplayPlayer(source, {
+    now:()=>now,
+    schedule:(callback,delay)=>{ timer={callback,delay}; return timer; },
+    cancel:handle=>{ if(handle===timer) timer=null; },
+    paint:(image,step)=>{ current=image.index; pictures.push({index:image.index,step}); },
+    update:state=>states.push(state), error:error=>{throw error;},
+  });
+  return {source,player,pictures,states,prefetched,advance:ms=>{now+=ms;},
+    current:()=>current, timer:()=>timer};
+}
+
+test('action playback starts immediately and maps 10820 actions to 27 minutes at 4x, independent of wall time', async () => {
+  const f=actionFixture({count:10820});
+  await f.player.start();
+  assert.equal(f.current(),0);
+  assert.equal(f.player.duration/4,1623);
+  assert.equal(f.timer().delay,150);
+  assert.equal(f.states.at(-1).step.t,0);
+  f.advance(150); await f.player.tick();
+  assert.equal(f.current(),1);
+  assert.equal(f.states.at(-1).step.t,3600);
+  assert.equal(f.states.at(-1).step.who,'agent-b');
+  f.player.pause();
+  for (const index of [127,128,9000,1,0,10819]) {
+    await f.player.seek(index*.6);
+    assert.equal(f.current(),index);
+    assert.equal(f.player.wantPlaying,false);
+  }
+  await f.player.seek(f.player.duration);
+  assert.equal(f.current(),10819);
+  assert.equal(f.player.wantPlaying,false);
+  await f.player.play();
+  assert.equal(f.current(),0);
+  f.player.close();
+});
+
+test('action pause and speed changes preserve the displayed action and its remaining hold time', async () => {
+  const f=actionFixture(); await f.player.start();
+  f.advance(50); f.player.pause();
+  assert.ok(Math.abs(f.player.position-.2)<1e-9);
+  f.advance(90000); await f.player.tick();
+  assert.equal(f.current(),0);
+  f.player.setSpeed(2); f.player.play();
+  assert.ok(Math.abs(f.timer().delay-200)<1e-9);
+  f.advance(200); await f.player.tick();
+  assert.equal(f.current(),1);
+  assert.ok(Math.abs(f.timer().delay-300)<1e-9);
+  f.player.close(); assert.equal(f.source.closed,true);
+});
+
+test('slow action frames do not skip actions and pausing during a pending frame remains paused', async () => {
+  const wait=deferred(), began=deferred();
+  const f=actionFixture({frame:async index=>{
+    if(index===1) {began.resolve(); await wait.promise;}
+    return {index};
+  }});
+  await f.player.start();
+  f.advance(150); const pending=f.player.tick(); await began.promise;
+  f.advance(900000); f.player.pause();
+  assert.equal(f.current(),0);
+  wait.resolve(); await pending;
+  assert.equal(f.current(),0,'A paused viewer must keep its last visible picture');
+  assert.equal(f.player.playing,false);
+  assert.equal(f.player.wantPlaying,false);
+  assert.equal(f.player.position,.6);
+  f.player.play(); assert.equal(f.timer().delay,0);
+  await f.player.tick(); assert.equal(f.current(),1);
+  assert.equal(f.timer().delay,150);
+  f.player.close();
+});
+
+test('a new action seek paints without waiting for a slow obsolete seek, which is aborted and cannot overwrite it', async () => {
+  const wait=deferred(), began=deferred(); let oldSignal;
+  const f=actionFixture({frame:async (index,signal)=>{
+    if(index===1) {oldSignal=signal; began.resolve(); await wait.promise;}
+    return {index};
+  }});
+  await f.player.start(); f.player.pause();
+  const stale=f.player.seek(.6); await began.promise;
+  await f.player.seek(1.2);
+  assert.equal(oldSignal.aborted,true);
+  assert.equal(f.current(),2,'The latest request must not queue behind a stale decode');
+  wait.resolve(); await stale;
+  assert.deepEqual(f.pictures.map(p=>p.index),[0,2]);
+  f.player.close();
+});
+
+test('closing or pausing during the first action frame never causes a late autoplay', async () => {
+  for (const close of [false,true]) {
+    const wait=deferred(), began=deferred();
+    const f=actionFixture({frame:async index=>{began.resolve(); await wait.promise; return {index};}});
+    const opening=f.player.start(); await began.promise;
+    if(close) f.player.close(); else f.player.pause();
+    await f.player.seek(1.2);
+    wait.resolve(); await opening;
+    assert.equal(f.player.wantPlaying,false);
+    assert.equal(f.player.playing,false);
+    assert.equal(f.current(),close ? undefined : 0);
+    f.player.close();
+  }
+});
+
+test('action playback holds the last frame before stopping and restarts from the first frame', async () => {
+  const f=actionFixture({count:1}); await f.player.start();
+  assert.equal(f.player.wantPlaying,true);
+  assert.equal(f.timer().delay,150);
+  f.advance(150); await f.player.tick();
+  assert.equal(f.player.position,.6);
+  assert.equal(f.player.wantPlaying,false);
+  assert.equal(f.source.closed,undefined);
+  await f.player.play(); assert.equal(f.current(),0);
+  assert.equal(f.player.position,0);
+  assert.equal(f.player.wantPlaying,true);
+  f.player.close();
+});
+
+test('action key display preserves actor switches, repeated keys, arrows, and failed actions', () => {
+  const dom=replayDOM(), container=dom.document.getElementById('keys');
+  const keys=new ReplayKeys(container,{glyphs:{up:'↗',enter:'⏎'},arrows:new Set(['up']),colorOf:who=>who});
+  keys.showStep({who:'agent-a',act:'KEYS',on:'up up enter'});
+  assert.deepEqual(container.children.map(x=>x.textContent),['agent-a','↗','↗','⏎']);
+  assert.equal(container.children[1].className,'k arrow');
+  keys.showStep({who:'agent-b',act:'WAIT',on:'100',ok:false});
+  assert.deepEqual(container.children.map(x=>x.textContent),['agent-b','等待',' · 未执行 / 失败']);
+  keys.showStep({who:'<img>',act:'GET'});
+  assert.equal(container.children[0].textContent,'<img>');
+  assert.equal(container.children[0].children.length,0);
+});
+
+function stepSourceVM(fetch, extra={}) {
+  const requests=[], intervals=[], pictures=[], disposed=[];
+  const context=vm.createContext({module:{exports:{}}, URL, URLSearchParams, AbortController, AbortSignal,
+    setTimeout:(callback)=>setTimeout(callback,0),clearTimeout,
+    setInterval:callback=>{intervals.push(callback); return intervals.length;},clearInterval(){},
+    createImageBitmap:async blob=>{
+      const image={index:blob.index,close(){disposed.push(this.index);}};
+      pictures.push(image); return image;
+    },
+    fetch:async (url,options={})=>{
+      requests.push({url,options});
+      return fetch(new URL(url,'http://local/u/test/'),options);
+    }, ...extra});
+  vm.runInContext(readFileSync(new URL('../server/recording.js',import.meta.url),'utf8'),context);
+  return {Source:context.module.exports.StepReplaySource,requests,intervals,pictures,disposed};
+}
+const jsonReply = (body,status=200)=>({ok:status<400,status,json:async()=>body});
+function stepResponse(url) {
+  const number=Number(url.searchParams.get('step'));
+  if(url.pathname.endsWith('/frame')) return {ok:true,status:200,blob:async()=>({index:number})};
+  if(url.pathname.endsWith('/steps')) {
+    const start=Number(url.searchParams.get('start'));
+    return jsonReply({start,total:10820,steps:Array.from({length:128},(_,offset)=>({t:(start+offset)*3600,act:'KEY',on:'up'}))});
+  }
+  return jsonReply({token:'pinned-archive',steps:10820,duration:113*3600});
+}
+
+test('action source polls one pinned archive, pages 128 steps, caches four pictures, and deletes its token', async () => {
+  let opening=true;
+  const f=stepSourceVM(url=>{
+    if(opening) {opening=false; return jsonReply({token:'pinned-archive',indexing:true,scanned:1,total:2},202);}
+    return stepResponse(url);
+  });
+  const progress=[];
+  const source=await f.Source.open('archive &?.jsonl',{progress:meta=>progress.push(meta)});
+  assert.equal(progress.length,1);
+  assert.equal(source.steps,10820);
+  assert.equal(new URL(f.requests[0].url,'http://local/').searchParams.get('recording'),'archive &?.jsonl');
+  for(const number of [0,127,128,256,128]) await source.step(number);
+  const pages=f.requests.filter(r=>r.url.includes('/steps')).map(r=>new URL(r.url,'http://local/'));
+  assert.deepEqual(pages.map(url=>url.searchParams.get('start')),['0','128','256']);
+  assert.ok(pages.every(url=>url.searchParams.get('count')==='128'));
+  assert.equal(source.pages.size,2);
+  for(let number=0;number<6;number++) await source.frame(number);
+  assert.equal(source.frames.size,4);
+  assert.deepEqual(f.disposed,[0,1]);
+  const count=f.requests.length; await source.frame(5);
+  assert.equal(f.requests.length,count);
+  await f.intervals[0](); source.close();
+  assert.equal(f.requests.at(-1).options.method,'DELETE');
+  assert.equal(f.requests.at(-1).options.signal,undefined);
+  assert.equal(f.disposed.length,6);
+  assert.equal(source.frames.size,0);
+  assert.ok(f.requests.slice(1).every(r=>r.url.startsWith('api/replay/pinned-archive')));
+});
+
+test('action source prefetches only the next two pictures and closes a cancelled late decode', async () => {
+  const wait=deferred(), began=deferred(), closed=[];
+  const f=stepSourceVM(stepResponse,{createImageBitmap:async blob=>{
+    if(blob.index===1) {began.resolve(); await wait.promise;}
+    return {index:blob.index,close(){closed.push(blob.index);}};
+  }});
+  const source=await f.Source.open();
+  const abort=new AbortController();
+  source.prefetch(0,abort.signal); await began.promise;
+  assert.deepEqual(f.requests.filter(r=>r.url.includes('/frame')).map(r=>new URL(r.url,'http://local/').searchParams.get('step')),['1','2']);
+  abort.abort(); wait.resolve();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(closed.includes(1));
+  assert.equal(source.frames.has(1),false);
+  source.close();
+});
+
+test('closing while the action token is opening still releases the late token and does not poll it', async () => {
+  const wait=deferred();
+  const f=stepSourceVM((url,options)=>options.method==='DELETE' ? jsonReply({ok:true}) : wait.promise);
+  const abort=new AbortController(), pending=f.Source.open('current',{signal:abort.signal});
+  abort.abort(); wait.resolve(jsonReply({token:'late',indexing:true},202));
+  await assert.rejects(pending);
+  assert.equal(f.requests.length,2);
+  assert.equal(f.requests[1].url,'api/replay/late');
+  assert.equal(f.requests[1].options.method,'DELETE');
+});
+
+test('missing action history gives an explicit full-recording choice without falling back to a long replay', async () => {
+  const f=stepSourceVM(()=>jsonReply({},404));
+  await assert.rejects(f.Source.open(),/选择.*完整录制/);
+  assert.equal(f.requests.length,1);
+});
+
+test('action source fallback decoding revokes object URLs even when decoding fails', async () => {
+  const revoked=[], made=[];
+  const f=stepSourceVM(stepResponse,{createImageBitmap:undefined,
+    URL:{createObjectURL:()=>{made.push('blob:frame'); return 'blob:frame';},revokeObjectURL:url=>revoked.push(url)},
+    Image:class {async decode(){throw Error('bad image');}},
+  });
+  await assert.rejects(f.Source.decode({}),/bad image/);
+  assert.deepEqual(revoked,made);
+});
+
+test('the playback mode selector retains the selected archive and explicitly opens the complete recording', async () => {
+  const html=readFileSync(new URL('../server/index.html',import.meta.url),'utf8');
+  const begin=html.indexOf('const vcr = document.getElementById("vcr")');
+  const end=html.indexOf('// ---- export the recording',begin);
+  const dom=replayDOM(), opened=[], closed=[];
+  class Player {async start(){} close(){}}
+  const context=vm.createContext({document:dom.document,addEventListener(){},AbortController,
+    ReplayKeys,GLYPH:{},ARROW:new Set(),colorOf:()=>'',ActionReplayPlayer:Player,ReplayPlayer:Player,
+    StepReplaySource:{open:async name=>{opened.push(['actions',name]);return {close:()=>closed.push(name)};}},
+    ReplayRecording:{open:async name=>{opened.push(['full',name]);return {close:()=>closed.push(name)};}},
+  });
+  vm.runInContext(html.slice(begin,end)+'\n'+namedHTMLFunction(html,'openPlayback'),context);
+  await context.openPlayback('archive.jsonl');
+  assert.equal(dom.document.getElementById('vcrmode').value,'actions');
+  dom.document.getElementById('vcrmode').value='full';
+  await dom.document.getElementById('vcrmode').dispatch('change');
+  assert.deepEqual(opened,[['actions','archive.jsonl'],['full','archive.jsonl']]);
+  assert.ok(closed.includes('archive.jsonl'));
+  assert.match(dom.document.getElementById('vcrstatus').textContent,/保留原始空闲/);
+  assert.equal(dom.document.activeElement,dom.document.getElementById('vcrclose'));
+  context.vcrClose();
+});
+
+test('unsupported action playback leaves the mode selector available and reports the actionable error in the viewer', async () => {
+  const html=readFileSync(new URL('../server/index.html',import.meta.url),'utf8');
+  const begin=html.indexOf('const vcr = document.getElementById("vcr")');
+  const end=html.indexOf('// ---- export the recording',begin);
+  const dom=replayDOM();
+  const context=vm.createContext({document:dom.document,addEventListener(){},AbortController,
+    ReplayKeys,GLYPH:{},ARROW:new Set(),colorOf:()=>'',
+    StepReplaySource:{open:async ()=>{throw Error('请先升级动作历史接口，或选择“完整录制”。');}},
+    ReplayRecording:{open:()=>{throw Error('Automatic fallback is forbidden');}},
+  });
+  vm.runInContext(html.slice(begin,end)+'\n'+namedHTMLFunction(html,'openPlayback'),context);
+  await context.openPlayback();
+  assert.match(dom.document.getElementById('vcrstatus').textContent,/选择.*完整录制/);
+  assert.equal(dom.document.getElementById('vcrseek').disabled,true);
+  assert.notEqual(dom.document.getElementById('vcrmode').disabled,true);
+  assert.equal(dom.document.getElementById('vcrtime').textContent,'读取失败');
+  context.vcrClose();
 });

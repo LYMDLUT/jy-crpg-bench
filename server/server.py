@@ -2128,6 +2128,10 @@ async def recording_script(_request):
     return web.FileResponse(ROOT / "recording.js")
 
 
+async def video_export_script(_request):
+    return web.FileResponse(ROOT / "video-export.js", headers={"Cache-Control": "no-store"})
+
+
 async def replay_script(_request):
     return web.FileResponse(ROOT / "replay.js")
 
@@ -2336,6 +2340,7 @@ def main():
         web.get("/", index),
         web.get("/recording.js", recording_script),
         web.get("/replay.js", replay_script),
+        web.get("/video-export.js", video_export_script),
         web.get("/ws", ws_handler),
         web.get("/status", status),
         web.get("/progress", progress),

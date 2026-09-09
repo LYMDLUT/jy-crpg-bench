@@ -157,6 +157,117 @@ class ReplayPlayer {
   }
 }
 
+// Action playback holds each recorded result for .6 / speed seconds. A slow
+// picture extends its wait instead of skipping actions or replaying idle hours.
+class ActionReplayPlayer {
+  constructor(source, {paint, update, error, now=()=>performance.now(),
+                       schedule=(fn, delay)=>setTimeout(fn, delay), cancel=timer=>clearTimeout(timer)}) {
+    Object.assign(this, {source, paint, update, error, now, schedule, cancel});
+    this.beat = .6;
+    this.duration = source.steps * this.beat;
+    this.position = this.index = this.epoch = 0;
+    this.speed = 4;
+    this.controller = new AbortController();
+    this.playing = this.wantPlaying = this.ready = this.closed = false;
+    this.loading = true;
+  }
+  current() {
+    return this.playing && !this.loading ? Math.min(this.duration, (this.index + 1) * this.beat,
+      this.anchorPosition + (this.now() - this.anchorTime) / 1000 * this.speed) : this.position;
+  }
+  emit() {
+    this.update({position:this.position, duration:this.duration, index:this.index, total:this.source.steps,
+      step:this.step, playing:this.wantPlaying, loading:this.loading, ready:this.ready, speed:this.speed});
+  }
+  async start() {
+    if (this.closed) return;
+    this.wantPlaying = true;
+    await this.show(0);
+  }
+  arm() {
+    this.cancel(this.timer);
+    if (!this.wantPlaying || this.loading || this.closed) return;
+    this.playing = true;
+    this.anchorPosition = this.position;
+    this.anchorTime = this.now();
+    const remaining = Math.max(0, Math.min(this.duration, (this.index + 1) * this.beat) - this.position);
+    this.timer = this.schedule(()=>this.tick(), remaining * 1000 / this.speed);
+  }
+  async show(index, advancing = false) {
+    const epoch = this.epoch, signal = this.controller.signal;
+    this.advancing = advancing;
+    this.loading = true;
+    this.playing = false;
+    this.emit();
+    try {
+      const [step, image] = await Promise.all([this.source.step(index, signal), this.source.frame(index, signal)]);
+      if (this.closed || epoch !== this.epoch || signal.aborted) return;
+      this.index = index; this.step = step;
+      this.paint(image, step);
+      this.loading = false; this.ready = true;
+      this.source.prefetch(index, signal);
+      this.emit();
+      this.arm();
+    } catch (error) {
+      if (!this.closed && epoch === this.epoch && !signal.aborted) this.fail(error);
+    }
+  }
+  async tick() {
+    if (!this.playing || this.loading || this.closed) return;
+    this.position = Math.min(this.duration, (this.index + 1) * this.beat);
+    if (this.index + 1 >= this.source.steps) {
+      this.wantPlaying = this.playing = false;
+      this.emit();
+    } else await this.show(this.index + 1, true);
+  }
+  play() {
+    if (this.closed) return;
+    this.wantPlaying = true;
+    if (this.position >= this.duration) return this.seek(0);
+    this.emit(); this.arm();
+  }
+  pause() {
+    this.position = this.current();
+    this.playing = this.wantPlaying = false;
+    this.cancel(this.timer);
+    // Freeze the currently visible action even if its successor is slow.
+    // An explicit seek still finishes at the requested picture while paused.
+    if (this.ready && this.loading && this.advancing) {
+      this.epoch++;
+      this.controller.abort(); this.controller = new AbortController();
+      this.loading = this.advancing = false;
+    }
+    this.emit();
+  }
+  setSpeed(speed) {
+    if (![1,2,4,8].includes(speed) || this.closed) return;
+    this.position = this.current();
+    this.speed = speed;
+    this.emit(); this.arm();
+  }
+  seek(position) {
+    if (!this.ready || this.closed) return Promise.resolve();
+    this.position = Math.max(0, Math.min(this.duration, Number(position) || 0));
+    const index = Math.min(this.source.steps - 1, Math.floor(this.position / this.beat + 1e-9));
+    this.epoch++;
+    this.controller.abort(); this.controller = new AbortController();
+    this.cancel(this.timer);
+    if (this.position >= this.duration) this.wantPlaying = false;
+    // A fresh seek starts immediately. It never queues behind a stale decode.
+    return this.show(index);
+  }
+  fail(error) { this.close(); this.error(error); }
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    this.playing = this.wantPlaying = false;
+    this.epoch++;
+    this.controller.abort();
+    this.cancel(this.timer);
+    this.source.close();
+  }
+}
+
 // Keep actor ownership when restoring held keys from a seek snapshot.
 class ReplayKeys {
   constructor(container, {glyphs, arrows, colorOf}) {
@@ -175,6 +286,25 @@ class ReplayKeys {
     if (event.down) this.held.set(event.key, event.who || this.actor);
     else this.held.delete(event.key);
     this.render();
+  }
+  showStep(step) {
+    this.reset({});
+    this.actor = step.who || '';
+    this.render();
+    const document = this.container.ownerDocument;
+    const tokens = /^KEYS?$/.test(step.act) ? String(step.on || '').split(/\s+/).filter(Boolean)
+      : [({GET:'截图',WAIT:'等待'})[step.act] || step.act || '动作'];
+    for (const key of tokens) {
+      const chip = document.createElement('span');
+      chip.className = 'k' + (this.arrows.has(key) ? ' arrow' : '');
+      chip.textContent = this.glyphs[key] ?? key;
+      this.container.appendChild(chip);
+    }
+    if (step.ok === false) {
+      const failed = document.createElement('span');
+      failed.textContent = ' · 未执行 / 失败';
+      this.container.appendChild(failed);
+    }
   }
   render() {
     const groups = new Map();
@@ -202,4 +332,4 @@ class ReplayKeys {
     }
   }
 }
-if (typeof module !== 'undefined') module.exports = {ReplayPlayer, ReplayKeys};
+if (typeof module !== 'undefined') module.exports = {ReplayPlayer, ActionReplayPlayer, ReplayKeys};
