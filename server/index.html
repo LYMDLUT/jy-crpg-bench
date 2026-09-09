@@ -320,14 +320,14 @@
 <div id="vcr">
   <canvas id="vcv" width="320" height="200"></canvas>
   <div id="vcrkeys"></div>
-  <div id="vcrrecorded"></div>
+  <div id="vcrrecorded" title="原始时间从这份录像开始计时，播放进度已跳过空闲。"></div>
   <div id="vcrstatus" role="status"></div>
   <div id="vcrbar">
-    <select id="vcrmode" aria-label="回放模式"><option value="actions">动作回放（跳过空闲）</option><option value="full">完整录制（含空闲）</option></select>
     <span id="vcrtime">0:00</span>
-    <input id="vcrseek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Replay position">
+    <input id="vcrseek" type="range" min="0" max="0" step="0.1" value="0" aria-label="动作回放进度">
     <span id="vcrduration">0:00</span>
     <button id="vcrpause">pause</button>
+    <button id="vcrretry" hidden>重试</button>
     <select id="vcrspeed" aria-label="Replay speed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option></select>
     <button id="vcrclose">close</button>
   </div>
@@ -453,7 +453,7 @@ addEventListener("keydown", e => {
 
 // ---- export the recording in the background (video-export.js) --------------
 
-async function openPlayback(recording = 'current', mode = 'actions') {
+async function openPlayback(recording = 'current') {
   // A focused Play button can be activated again before its first fetch ends.
   // Keep exactly one owner of the canvas and of the pinned replay reader.
   if (vcrStop || vcr.classList.contains("on")) return;
@@ -464,27 +464,32 @@ async function openPlayback(recording = 'current', mode = 'actions') {
   document.getElementById("vcrclose").focus();
   let source, player, closed = false;
   const lifetime = new AbortController();
-  const cache = {};
   const keys = new ReplayKeys(vcrKeys, {glyphs:GLYPH, arrows:ARROW, colorOf});
   const seek = document.getElementById("vcrseek"), pause = document.getElementById("vcrpause");
-  const speed = document.getElementById("vcrspeed"), modeSelect = document.getElementById("vcrmode");
+  const speed = document.getElementById("vcrspeed"), retry = document.getElementById("vcrretry");
   const status = document.getElementById("vcrstatus"), recorded = document.getElementById("vcrrecorded");
-  const actions = mode !== 'full';
-  modeSelect.value = actions ? 'actions' : 'full';
-  modeSelect.onchange = () => { const selected = modeSelect.value; vcrClose(); openPlayback(recording, selected); };
+  retry.hidden = true;
+  retry.onclick = () => { vcrClose(); return openPlayback(recording); };
+  const formatRecordedTime = seconds => {
+    if (!Number.isFinite(Number(seconds)) || seconds == null) return '—';
+    const millis = Math.max(0, Math.round(Number(seconds) * 1000));
+    const hours = Math.floor(millis / 3600000);
+    const minutes = Math.floor(millis / 60000) % 60;
+    const wholeSeconds = Math.floor(millis / 1000) % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(wholeSeconds).padStart(2, '0')}.${String(millis % 1000).padStart(3, '0')}`;
+  };
   seek.disabled = pause.disabled = speed.disabled = true;
   seek.max = seek.value = "0";
   seek.setAttribute("aria-valuetext", "0:00 / 0:00");
   document.getElementById("vcrtime").textContent = "loading…";
   document.getElementById("vcrduration").textContent = "0:00";
   recorded.textContent = '';
-  status.textContent = actions ? '正在读取动作记录…' : '完整录制保留原始空闲，播放时间可能很长。';
+  status.textContent = '正在读取动作记录…';
   pause.textContent = "pause";
   speed.value = "4";
   vcrStop = () => { closed = true; lifetime.abort(); player?.close(); source?.close(); };
   const reset = held => {
     vctx.fillStyle = "#000"; vctx.fillRect(0, 0, vcv.width, vcv.height);
-    cache.img = null;
     keys.reset(held);
   };
   const failed = error => {
@@ -493,60 +498,45 @@ async function openPlayback(recording = 'current', mode = 'actions') {
     playBtn.title = error.message;
     status.textContent = error.message;
     document.getElementById("vcrtime").textContent = '读取失败';
+    retry.hidden = false;
     seek.disabled = pause.disabled = speed.disabled = true;
   };
   reset({});
   try {
-    source = actions ? await StepReplaySource.open(recording, {
+    source = await StepReplaySource.open(recording, {
       signal:lifetime.signal,
       progress:meta => {
         if (closed) return;
         const percent = meta.total ? ' ' + Math.min(100, Math.floor(100 * meta.scanned / meta.total)) + '%' : '';
         status.textContent = '正在准备磁盘动作索引' + percent + '，完成后开始回放。';
       },
-    }) : await ReplayRecording.open(recording);
+    });
     if (closed) { source.close(); return; }
     const callbacks = {
-      decode: ev => inflate(b64bytes(ev.d)),
-      complete: d => {
-        const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
-        return d.length >= 13 && v.getUint16(11, true) === v.getUint16(7, true) * v.getUint16(9, true);
-      },
-      reset,
       paint: (decoded, ev) => {
-        if (actions) {
-          vcv.width = decoded.width; vcv.height = decoded.height;
-          vctx.imageSmoothingEnabled = false;
-          vctx.drawImage(decoded, 0, 0);
-          keys.showStep(ev);
-        } else {
-          if (decoded) paintDelta(decoded, vcv, vctx, cache);
-          keys.apply(ev);
-          recorded.textContent = '原时间 ' + fmt(ev.t || 0);
-        }
+        vcv.width = decoded.width; vcv.height = decoded.height;
+        vctx.imageSmoothingEnabled = false;
+        vctx.drawImage(decoded, 0, 0);
+        keys.showStep(ev);
       },
       update: state => {
         if (closed) return;
         seek.max = String(state.duration); seek.value = String(state.position);
         seek.disabled = pause.disabled = speed.disabled = !state.ready;
-        const scale = actions ? state.speed : 1;
-        const clock = fmt(state.position / scale), duration = fmt(state.duration / scale);
-        seek.setAttribute("aria-valuetext", actions
-          ? `动作 ${state.index + 1} / ${state.total}，原时间 ${fmt(state.step?.t || 0)}`
-          : clock + " / " + duration);
-        document.getElementById("vcrtime").textContent = state.loading ? "loading…" : clock;
+        const clock = fmt(state.position / state.speed), duration = fmt(state.duration / state.speed);
+        const original = formatRecordedTime(state.step?.recorded_t ?? state.step?.t);
+        seek.setAttribute("aria-valuetext", `播放 ${clock} / ${duration}，动作 ${state.index + 1} / ${state.total}，原始时间 ${original}`);
+        document.getElementById("vcrtime").textContent = state.loading ? "loading…" : '播放 ' + clock;
         document.getElementById("vcrduration").textContent = duration;
-        if (actions) {
-          recorded.textContent = `动作 ${state.index + 1} / ${state.total} · 原时间 ${fmt(state.step?.t || 0)}`;
-          status.textContent = state.loading ? '正在读取动作画面…' : `每步 ${(0.6 / state.speed).toFixed(2)} 秒 · 已跳过动作间空闲`;
-        }
+        recorded.textContent = `动作 ${state.index + 1} / ${state.total} · 原始时间 ${original}`;
+        status.textContent = state.loading ? '正在读取动作画面…' : `每步 ${(0.6 / state.speed).toFixed(2)} 秒 · 已跳过动作间空闲`;
         pause.textContent = state.playing ? "pause" : "resume";
         speed.value = String(state.speed);
         playBtn.textContent = "replay";
       },
       error:failed,
     };
-    player = actions ? new ActionReplayPlayer(source, callbacks) : new ReplayPlayer(source, callbacks);
+    player = new ActionReplayPlayer(source, callbacks);
     pause.onclick = () => player.wantPlaying ? player.pause() : player.play();
     seek.oninput = () => player.seek(Number(seek.value));
     speed.onchange = e => player.setSpeed(Number(e.target.value));

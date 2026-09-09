@@ -223,7 +223,7 @@ function replayDOM() {
       await this['on'+type]?.(event);
     }
     focus() { document.activeElement=this; this.focusCalls=(this.focusCalls || 0)+1; }
-    getContext() { return {fillRect(){}}; }
+    getContext() { const canvas=this; return {fillRect(){},drawImage(image){canvas.image=image;}}; }
   }
   return {document, elements};
 }
@@ -624,9 +624,9 @@ test('closing while the action token is opening still releases the late token an
   assert.equal(f.requests[1].options.method,'DELETE');
 });
 
-test('missing action history gives an explicit full-recording choice without falling back to a long replay', async () => {
+test('missing action history gives a retryable error without falling back to a long replay', async () => {
   const f=stepSourceVM(()=>jsonReply({},404));
-  await assert.rejects(f.Source.open(),/选择.*完整录制/);
+  await assert.rejects(f.Source.open(),/动作历史.*请重试/);
   assert.equal(f.requests.length,1);
 });
 
@@ -640,44 +640,91 @@ test('action source fallback decoding revokes object URLs even when decoding fai
   assert.deepEqual(revoked,made);
 });
 
-test('the playback mode selector retains the selected archive and explicitly opens the complete recording', async () => {
+test('all current and archived playback uses actions with no continuous recording option or fallback', async () => {
   const html=readFileSync(new URL('../server/index.html',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/vcrmode|完整录制|ReplayRecording\.open|new ReplayPlayer/);
   const begin=html.indexOf('const vcr = document.getElementById("vcr")');
   const end=html.indexOf('// ---- export the recording',begin);
   const dom=replayDOM(), opened=[], closed=[];
   class Player {async start(){} close(){}}
   const context=vm.createContext({document:dom.document,addEventListener(){},AbortController,
-    ReplayKeys,GLYPH:{},ARROW:new Set(),colorOf:()=>'',ActionReplayPlayer:Player,ReplayPlayer:Player,
-    StepReplaySource:{open:async name=>{opened.push(['actions',name]);return {close:()=>closed.push(name)};}},
-    ReplayRecording:{open:async name=>{opened.push(['full',name]);return {close:()=>closed.push(name)};}},
+    ReplayKeys,GLYPH:{},ARROW:new Set(),colorOf:()=>'',ActionReplayPlayer:Player,
+    ReplayPlayer:class {constructor(){throw Error('Continuous replay is forbidden');}},
+    StepReplaySource:{open:async name=>{opened.push(name);return {close:()=>closed.push(name)};}},
+    ReplayRecording:{open:()=>{throw Error('Raw recording API fallback is forbidden');}},
   });
   vm.runInContext(html.slice(begin,end)+'\n'+namedHTMLFunction(html,'openPlayback'),context);
+  await context.openPlayback();
+  context.vcrClose();
   await context.openPlayback('archive.jsonl');
-  assert.equal(dom.document.getElementById('vcrmode').value,'actions');
-  dom.document.getElementById('vcrmode').value='full';
-  await dom.document.getElementById('vcrmode').dispatch('change');
-  assert.deepEqual(opened,[['actions','archive.jsonl'],['full','archive.jsonl']]);
-  assert.ok(closed.includes('archive.jsonl'));
-  assert.match(dom.document.getElementById('vcrstatus').textContent,/保留原始空闲/);
+  assert.deepEqual(opened,['current','archive.jsonl']);
+  assert.ok(closed.includes('current'));
   assert.equal(dom.document.activeElement,dom.document.getElementById('vcrclose'));
   context.vcrClose();
 });
 
-test('unsupported action playback leaves the mode selector available and reports the actionable error in the viewer', async () => {
+test('unsupported action playback shows a retryable error and retries the same archive without a raw API fallback', async () => {
+  const html=readFileSync(new URL('../server/index.html',import.meta.url),'utf8');
+  const begin=html.indexOf('const vcr = document.getElementById("vcr")');
+  const end=html.indexOf('// ---- export the recording',begin);
+  const dom=replayDOM(), opened=[];
+  const context=vm.createContext({document:dom.document,addEventListener(){},AbortController,
+    ReplayKeys,GLYPH:{},ARROW:new Set(),colorOf:()=>'',
+    ActionReplayPlayer:class {async start(){} close(){}},
+    StepReplaySource:{open:async name=>{
+      opened.push(name);
+      if(opened.length===1) throw Error('动作历史暂不可用，请重试。');
+      return {close(){}};
+    }},
+    ReplayRecording:{open:()=>{throw Error('Automatic fallback is forbidden');}},
+  });
+  vm.runInContext(html.slice(begin,end)+'\n'+namedHTMLFunction(html,'openPlayback'),context);
+  await context.openPlayback('archive.jsonl');
+  assert.match(dom.document.getElementById('vcrstatus').textContent,/动作历史.*请重试/);
+  assert.doesNotMatch(dom.document.getElementById('vcrstatus').textContent,/完整录制/);
+  assert.equal(dom.document.getElementById('vcrseek').disabled,true);
+  assert.equal(dom.document.getElementById('vcrretry').hidden,false);
+  assert.equal(dom.document.getElementById('vcrtime').textContent,'读取失败');
+  await dom.document.getElementById('vcrretry').dispatch('click');
+  assert.deepEqual(opened,['archive.jsonl','archive.jsonl']);
+  assert.equal(dom.document.getElementById('vcrretry').hidden,true);
+  context.vcrClose();
+});
+
+test('original time keeps milliseconds and long hours through action seeks independently of compressed progress', async () => {
   const html=readFileSync(new URL('../server/index.html',import.meta.url),'utf8');
   const begin=html.indexOf('const vcr = document.getElementById("vcr")');
   const end=html.indexOf('// ---- export the recording',begin);
   const dom=replayDOM();
+  const times={0:1.234,1:86399.9996,128:407160.789,10819:864001.005};
+  const source={steps:10820,step:async index=>({t:index===0 ? 1.25 : times[index],
+    ...(index===0 ? {recorded_t:90061.234} : {}),who:'agent-a',act:'KEY',on:'up'}),
+    frame:async index=>({index,width:320,height:200}),prefetch(){},close(){}};
   const context=vm.createContext({document:dom.document,addEventListener(){},AbortController,
     ReplayKeys,GLYPH:{},ARROW:new Set(),colorOf:()=>'',
-    StepReplaySource:{open:async ()=>{throw Error('请先升级动作历史接口，或选择“完整录制”。');}},
-    ReplayRecording:{open:()=>{throw Error('Automatic fallback is forbidden');}},
+    ActionReplayPlayer:class extends ActionReplayPlayer {
+      constructor(source,callbacks){super(source,{...callbacks,schedule:()=>0,cancel:()=>{},now:()=>0});}
+    },
+    StepReplaySource:{open:async ()=>source},
   });
-  vm.runInContext(html.slice(begin,end)+'\n'+namedHTMLFunction(html,'openPlayback'),context);
+  const format=html.match(/function fmt\(s\) \{[\s\S]*?\n\}/)[0];
+  vm.runInContext(html.slice(begin,end)+'\n'+format+'\n'+namedHTMLFunction(html,'openPlayback'),context);
   await context.openPlayback();
-  assert.match(dom.document.getElementById('vcrstatus').textContent,/选择.*完整录制/);
-  assert.equal(dom.document.getElementById('vcrseek').disabled,true);
-  assert.notEqual(dom.document.getElementById('vcrmode').disabled,true);
-  assert.equal(dom.document.getElementById('vcrtime').textContent,'读取失败');
+  const get=id=>dom.document.getElementById(id);
+  assert.equal(get('vcrtime').textContent,'播放 0:00');
+  assert.equal(get('vcrduration').textContent,'27:03');
+  assert.equal(get('vcrrecorded').textContent,'动作 1 / 10820 · 原始时间 25:01:01.234');
+  await get('vcrpause').dispatch('click');
+  for(const [index,expected] of [[128,'113:06:00.789'],[1,'24:00:00.000'],[0,'25:01:01.234'],[10819,'240:00:01.005']]) {
+    get('vcrseek').value=String(index*.6);
+    await get('vcrseek').dispatch('input');
+    assert.equal(get('vcv').image.index,index);
+    assert.equal(get('vcrrecorded').textContent,`动作 ${index+1} / 10820 · 原始时间 ${expected}`);
+    assert.ok(get('vcrseek').getAttribute('aria-valuetext').endsWith('原始时间 '+expected));
+    assert.equal(get('vcrpause').textContent,'resume');
+  }
+  get('vcrspeed').value='2'; await get('vcrspeed').dispatch('change');
+  assert.equal(get('vcrduration').textContent,'54:06');
+  assert.match(get('vcrrecorded').textContent,/原始时间 240:00:01\.005$/);
   context.vcrClose();
 });

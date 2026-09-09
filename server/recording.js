@@ -81,7 +81,7 @@ class StepReplaySource {
       let response = await fetch('api/replay?' + new URLSearchParams({recording}), {cache:'no-store'});
       let meta = await source.json(response);
       source.token = meta.token;
-      if (!source.token) throw Error('动作回放未能开始，可选择“完整录制”。');
+      if (!source.token) throw Error('动作回放未能开始，请重试。');
       if (source.closed) { source.release(); throw source.abort.signal.reason; }
       while (response.status === 202 || meta.indexing) {
         progress(meta);
@@ -90,7 +90,7 @@ class StepReplaySource {
         meta = await source.json(response);
       }
       if (!Number.isSafeInteger(meta.steps) || meta.steps < 1)
-        throw Error('该录像没有可回放的动作，可选择“完整录制”。');
+        throw Error('该录像暂无可回放的动作，稍后可以重试。');
       source.steps = meta.steps;
       source.duration = Number(meta.duration) || 0;
       source.beat = .6;
@@ -100,8 +100,8 @@ class StepReplaySource {
   }
   async json(response) {
     if (!response.ok) throw Error(response.status === 404
-      ? '该录像暂不支持动作回放，请选择“完整录制”。'
-      : '动作回放读取失败，请重试或选择“完整录制”。');
+      ? '该录像的动作历史暂不可用，请重试。'
+      : '动作回放读取失败，请重试。');
     return response.json();
   }
   request(path, signal) {
