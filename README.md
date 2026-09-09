@@ -475,7 +475,11 @@ or 8. When the recording archive provider is installed, its safe archive names
 are also accepted by video export and `/api/replay?recording=...`.
 
 Exports use the same action index and screenshot cutoff rules as disk history,
-including failed actions and explicit after-action frames. Each action occupies
+including failed actions and explicit after-action frames. Each action retains
+its original journal timestamp as `recorded_t`, separately from the normalized
+history and compressed playback clocks. Playback and MP4 captions show original
+time to the millisecond without wrapping at 24 hours. Existing sparse indexes
+backfill only action timestamps without rescanning frame payloads. Each action occupies
 `0.6 / speed` seconds; ffmpeg encodes off the event loop without waiting through
 idle recording time. Source snapshots remain pinned through reset. Completed
 MP4s are cached under the recording directory's `.video-cache`, including across

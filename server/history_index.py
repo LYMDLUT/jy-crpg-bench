@@ -14,7 +14,7 @@ import sqlite3
 import threading
 
 from history_frames import complete_frame
-from recording import Snapshot
+from recording import MAX_LINE, Snapshot
 
 INDEX_LOCK = threading.Lock()
 SCHEMA = 2
@@ -112,6 +112,9 @@ class HistoryIndex:
             last = state.get('last', 0.0)
             events, damaged = state.get('events', 0), state.get('damaged', 0)
             checkpoint = start
+            if not self._backfill_recorded_times(min(start, self.total)):
+                db.execute('ROLLBACK')
+                return
             if start < self.total:
                 for offset, line in source.lines(start):
                     if self.cancelled.is_set():
@@ -137,6 +140,7 @@ class HistoryIndex:
                     mark = normalize(event)
                     if mark:
                         kind, data = mark
+                        data['recorded_t'] = when
                         db.execute('INSERT OR REPLACE INTO marks VALUES (?,?,?,?)',
                                    (offset, last, kind, json.dumps(data, ensure_ascii=False)))
                     if self.scanned - checkpoint >= 1 << 20:
@@ -170,6 +174,52 @@ class HistoryIndex:
                 except (ValueError, TypeError, KeyError):
                     damaged += 1
         self.summary.update(events=events, damaged_lines=damaged)
+
+    def _recorded_time(self, offset):
+        """Read one cached action using small chunks from its pinned prefix."""
+        fd, end, line = self.source.fd, self.source.end, bytearray()
+        while offset + len(line) < end:
+            if self.cancelled.is_set():
+                return None
+            chunk = os.pread(fd, min(512, end - offset - len(line),
+                                    MAX_LINE + 1 - len(line)), offset + len(line))
+            if not chunk:
+                raise ValueError('recording was truncated')
+            newline = chunk.find(b'\n')
+            line.extend(chunk if newline < 0 else chunk[:newline + 1])
+            if len(line) > MAX_LINE:
+                raise ValueError('recording event is too large')
+            if newline >= 0:
+                event = json.loads(line)
+                when = float(event['t'])
+                if not math.isfinite(when) or when < 0:
+                    raise ValueError('invalid recording event')
+                return when
+        raise ValueError('recording has an incomplete trailing event')
+
+    def _backfill_recorded_times(self, end):
+        """Upgrade existing v2 action metadata in place, keeping the frame index."""
+        offset = self.source.begin - 1
+        while True:
+            if self.cancelled.is_set():
+                return False
+            rows = self.db.execute('SELECT off,data FROM marks WHERE off>? AND off<? '
+                                   'ORDER BY off LIMIT 256', (offset, end)).fetchall()
+            if not rows:
+                return True
+            updates = []
+            for offset, payload in rows:
+                if self.cancelled.is_set():
+                    return False
+                data = json.loads(payload)
+                if 'recorded_t' not in data:
+                    when = self._recorded_time(offset)
+                    if when is None:
+                        return False
+                    data['recorded_t'] = when
+                    updates.append((json.dumps(data, ensure_ascii=False), offset))
+            if updates:
+                self.db.executemany('UPDATE marks SET data=? WHERE off=?', updates)
 
     def _steps(self):
         db, end = self.db, self.source.end

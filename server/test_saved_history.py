@@ -117,6 +117,142 @@ class SavedHistoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.service.states[second['token']]['index'].path, index_path)
         self.assertEqual((await self.picture(second['token'], 0)).getpixel((0, 0)), (0, 0, 7))
 
+    async def test_recorded_time_preserves_fraction_and_backward_time_without_changing_frames(self):
+        original_times = [250.375123456789, 240.123456789012]
+        for event in [frame(250.25, (10, 20, 30)),
+                      {'t': original_times[0], 'act': 'GET', 'who': 'agent'},
+                      frame(300.75, (40, 50, 60)),
+                      {'t': original_times[1], 'act': 'GET', 'who': 'agent'}]:
+            self.store.append(event)
+        original = self.path.read_bytes()
+        meta = await self.opened()
+        page = await (await self.client.get(f'/api/replay/{meta["token"]}/steps')).json()
+        self.assertEqual([step['recorded_t'] for step in page['steps']], original_times)
+        self.assertEqual([step['t'] for step in page['steps']], [.125, 50.5])
+        self.assertEqual([step['cutoff'] for step in page['steps']], [.125, 50.5])
+        self.assertEqual((await self.picture(meta['token'], 0)).getpixel((0, 0)), (10, 20, 30))
+        self.assertEqual((await self.picture(meta['token'], 1)).getpixel((0, 0)), (40, 50, 60))
+        self.assertEqual(self.path.read_bytes(), original)
+
+    async def test_v2_cache_backfills_only_action_offsets_in_small_reads_once(self):
+        times = [51.1234567890123, 49.2345678901234]
+        self.store.append(frame(50, (1, 2, 3)))
+        for when in times:
+            self.store.append({'t': when, 'act': 'GET', 'who': 'agent', 'history': 1,
+                               'detail': 'long action ' * 150})
+            large_frame = frame(60, (4, 5, 6))
+            large_frame['padding'] = 'x' * (128 << 10)
+            self.store.append(large_frame)
+        original = self.path.read_bytes()
+        first = HistoryIndex(self.store.pin())
+        try:
+            first.build()
+            path = first.path
+            cached_frames = first.db.execute('SELECT * FROM frames ORDER BY off').fetchall()
+            cached_marks = first.db.execute('SELECT off,t,kind FROM marks ORDER BY off').fetchall()
+            cached_state = first.db.execute('SELECT * FROM state').fetchall()
+            rows = first.db.execute('SELECT off,data FROM marks').fetchall()
+            for offset, payload in rows:
+                data = json.loads(payload)
+                del data['recorded_t']
+                first.db.execute('UPDATE marks SET data=? WHERE off=?', (json.dumps(data), offset))
+        finally:
+            first.close()
+
+        second = HistoryIndex(self.store.pin())
+        try:
+            with mock.patch('history_index.complete_frame', side_effect=AssertionError('frame rescanned')), \
+                 mock.patch.object(second.source, 'lines', side_effect=AssertionError('source rescanned')), \
+                 mock.patch('history_index.os.pread', wraps=os.pread) as reads:
+                second.build()
+            self.assertEqual(second.path, path)
+            self.assertTrue(path.name.startswith('v2-'))
+            self.assertEqual([step['recorded_t'] for step in second.page(0, 2)], times)
+            self.assertEqual(second.db.execute('SELECT * FROM frames ORDER BY off').fetchall(), cached_frames)
+            self.assertEqual(second.db.execute('SELECT off,t,kind FROM marks ORDER BY off').fetchall(), cached_marks)
+            self.assertEqual(second.db.execute('SELECT * FROM state').fetchall(), cached_state)
+            action_bounds = [(offset, offset + original[offset:].index(b'\n') + 1)
+                             for offset, _ in rows]
+            self.assertGreater(reads.call_count, 2)
+            for call in reads.call_args_list:
+                descriptor, size, offset = call.args
+                self.assertEqual(descriptor, second.source.fd)
+                self.assertLessEqual(size, 512)
+                self.assertLessEqual(offset + size, second.source.end)
+                self.assertTrue(any(begin <= offset < end for begin, end in action_bounds))
+            self.assertLess(sum(call.args[1] for call in reads.call_args_list), 8192)
+        finally:
+            second.close()
+
+        third = HistoryIndex(self.store.pin())
+        try:
+            with mock.patch.object(third.source, 'lines', side_effect=AssertionError('source rescanned')), \
+                 mock.patch('history_index.os.pread', side_effect=AssertionError('action read twice')):
+                third.build()
+            self.assertEqual(third.path, path)
+            self.assertEqual([step['recorded_t'] for step in third.page(0, 2)], times)
+        finally:
+            third.close()
+        self.assertEqual(self.path.read_bytes(), original)
+
+    async def test_cancelled_v2_backfill_rolls_back_already_updated_batches(self):
+        self.write(260)
+        original = self.path.read_bytes()
+        first = HistoryIndex(self.store.pin())
+        try:
+            first.build()
+            rows = first.db.execute('SELECT off,data FROM marks').fetchall()
+            for offset, payload in rows:
+                data = json.loads(payload)
+                del data['recorded_t']
+                first.db.execute('UPDATE marks SET data=? WHERE off=?', (json.dumps(data), offset))
+        finally:
+            first.close()
+
+        second = HistoryIndex(self.store.pin())
+        read_time = second._recorded_time
+        count = 0
+
+        def cancel_during_second_batch(offset):
+            nonlocal count
+            count += 1
+            if count == 258:
+                second.cancelled.set()
+            return read_time(offset)
+
+        try:
+            with mock.patch.object(second, '_recorded_time', side_effect=cancel_during_second_batch):
+                second.build()
+            self.assertEqual(count, 258)
+            self.assertFalse(second.db.in_transaction)
+            self.assertEqual(second.steps, 0)
+            for (payload,) in second.db.execute('SELECT data FROM marks'):
+                self.assertNotIn('recorded_t', json.loads(payload))
+        finally:
+            second.close()
+        self.assertEqual(self.path.read_bytes(), original)
+
+    async def test_cached_action_read_obeys_line_limit_and_pinned_end(self):
+        self.store.append(frame(0, (1, 2, 3)))
+        action_offset = self.store.committed_size
+        self.store.append({'t': 1.123456789, 'act': 'GET', 'who': 'agent', 'detail': 'x' * 1024})
+        index = HistoryIndex(self.store.pin())
+        pinned_end = index.source.end
+        self.store.append({'t': 2, 'act': 'GET', 'who': 'agent'})
+        original = self.path.read_bytes()
+        try:
+            with mock.patch('history_index.MAX_LINE', 64), \
+                 mock.patch('history_index.os.pread', wraps=os.pread) as reads:
+                with self.assertRaisesRegex(ValueError, 'event is too large'):
+                    index._recorded_time(action_offset)
+            self.assertEqual(sum(call.args[1] for call in reads.call_args_list), 65)
+            with mock.patch('history_index.os.pread', side_effect=AssertionError('read beyond pinned end')):
+                with self.assertRaisesRegex(ValueError, 'incomplete trailing event'):
+                    index._recorded_time(pinned_end)
+        finally:
+            index.close()
+        self.assertEqual(self.path.read_bytes(), original)
+
     async def test_open_snapshot_survives_append_and_reset(self):
         self.write(4)
         old = await self.opened()

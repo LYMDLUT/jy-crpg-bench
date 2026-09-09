@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 import functools
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -72,6 +73,13 @@ def caption_font():
     return ImageFont.load_default()
 
 
+def recorded_clock(step):
+    """Original journal time, independent of the compressed video position."""
+    when = step.get('recorded_t', step.get('_when', step['t']))
+    seconds, milliseconds = divmod(math.floor(max(0, when) * 1000 + .5), 1000)
+    return f'{seconds // 3600}:{seconds // 60 % 60:02}:{seconds % 60:02}.{milliseconds:03}'
+
+
 def captioned(picture, step, number, total, speed, size=None):
     """Keep the whole picture on resolution changes, with a bounded caption."""
     if size is None:
@@ -97,9 +105,9 @@ def captioned(picture, step, number, total, speed, size=None):
     result = ' [failed]' if step.get('ok') is False else ''
     label = f"{step.get('who') or 'web'}  {step['act']} {step.get('on', '')}{result}"
     line(label, height - BAR + 5, (143, 203, 247) if not result else (247, 143, 143))
-    when = max(0, int(step['t']))
-    clock = f'{when // 3600}:{when // 60 % 60:02}:{when % 60:02}'
-    line(f'{number + 1} / {total}   {speed}x   {clock}', height - BAR + 33, (158, 158, 174))
+    # Put source time first so narrow recordings cannot crop it behind counters.
+    line(f'Original {recorded_clock(step)}   {number + 1} / {total}   {speed}x',
+         height - BAR + 33, (158, 158, 174))
     return canvas
 
 

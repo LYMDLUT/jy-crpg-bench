@@ -14,14 +14,26 @@ from unittest import mock
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
+from PIL import Image
 
 from history_index import INDEX_LOCK
 from recording_store import RecordingStore
 from test_saved_history import frame
-from video_export import VideoExports
+from video_export import VideoExports, captioned, recorded_clock
 
 
 class VideoExportTests(unittest.IsolatedAsyncioTestCase):
+    def test_caption_preserves_original_time_and_milliseconds_over_a_day(self):
+        step = {'act': 'GET', 't': 1.234, 'recorded_t': 90061.234}
+        self.assertEqual(recorded_clock(step), '25:01:01.234')
+        self.assertEqual(recorded_clock({'t': 0, 'recorded_t': 3599.9996}), '1:00:00.000')
+        draw = mock.Mock()
+        draw.textlength.side_effect = lambda text, **kwargs: len(text) * 8
+        with mock.patch('video_export.ImageDraw.Draw', return_value=draw):
+            captioned(Image.new('RGB', (2, 1)), step, 12345, 99999, 4)
+        displayed = [call.args[1] for call in draw.text.call_args_list]
+        self.assertTrue(any(text.startswith('Original 25:01:01.234') for text in displayed))
+
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.path = Path(self.temp.name) / 'recording.jsonl'
