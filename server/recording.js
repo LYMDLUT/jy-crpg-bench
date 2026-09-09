@@ -8,7 +8,7 @@ class ReplayRecording {
   }
   async request(extra) {
     const query = new URLSearchParams({view:'paged', ...(this.token ? {token:this.token} : {}), ...extra});
-    const response = await fetch('/api/recording?' + query);
+    const response = await fetch('api/recording?' + query);
     const page = await response.json();
     if (!response.ok) throw new Error(page.error || 'Recording unavailable');
     return page;
