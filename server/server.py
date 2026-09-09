@@ -32,6 +32,7 @@ from state_reader import decode_inventory, inventory_gained
 import save_state
 from activity import ActivityStore
 from saved_history import SavedHistory
+from video_export import VideoExports
 
 from prompt import system_prompt
 from health import Health, EnvironmentFailure
@@ -2421,7 +2422,9 @@ def main():
     ])
     # Startup handlers are awaited, so the workers are detached tasks rather
     # than returned, or startup would block on loops that never end.
-    SavedHistory(recording_store).install(app, enabled=not warden.ON)
+    pin_provider = getattr(recording_api, "pin", None)
+    SavedHistory(recording_store, pin_provider=pin_provider).install(app, enabled=not warden.ON)
+    VideoExports(recording_store, pin_provider=pin_provider).install(app, enabled=not warden.ON)
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)

@@ -61,8 +61,9 @@ class SavedHistoryTests(unittest.IsolatedAsyncioTestCase):
             self.store.append(frame(number * 2, (number % 256, number // 256, 7)))
             self.store.append({'t': number * 2 + .1, 'act': 'GET', 'who': 'agent', 'on': 'screen'})
 
-    async def opened(self):
-        response = await self.client.get('/api/replay')
+    async def opened(self, recording=None):
+        params = {} if recording is None else {'recording': recording}
+        response = await self.client.get('/api/replay', params=params)
         self.assertIn(response.status, (200, 202))
         meta = await response.json()
         for _ in range(500):
@@ -131,6 +132,83 @@ class SavedHistoryTests(unittest.IsolatedAsyncioTestCase):
         new = await self.opened()
         self.assertEqual(new['steps'], 1)
         self.assertEqual((await self.picture(new['token'], 0)).getpixel((0, 0)), (0, 255, 0))
+
+    async def test_archive_provider_pins_original_history_across_current_reset(self):
+        self.write(3)
+        last_timestamp = self.store.last_timestamp
+        archive = self.store.reset(200)
+        original = archive.read_bytes()
+        self.store.append(frame(0, (255, 0, 0)))
+        self.store.append({'t': .1, 'act': 'GET', 'who': 'agent'})
+
+        def pin_recording(name):
+            if name == 'current':
+                return self.store.pin()
+            self.assertEqual(name, archive.name)
+            descriptor = os.open(archive, os.O_RDONLY)
+            return {'path': archive, 'fd': descriptor,
+                    'end': os.fstat(descriptor).st_size,
+                    'last_timestamp': last_timestamp}
+
+        provider = mock.Mock(side_effect=pin_recording)
+        await self.client.close()
+        self.service = SavedHistory(self.store, pin_provider=provider)
+        self.client = await self.client_for(self.service)
+        saved = await self.opened(archive.name)
+        provider.assert_called_once_with(archive.name)
+        self.assertEqual(saved['started'], 100)
+        self.assertEqual(saved['steps'], 3)
+        self.assertEqual(saved['events'], 6)
+
+        self.store.reset(300)
+        self.store.append(frame(0, (0, 0, 255)))
+        self.store.append({'t': .1, 'act': 'GET', 'who': 'agent'})
+        current = await self.opened()
+        self.assertEqual(current['started'], 300)
+        self.assertEqual(current['steps'], 1)
+        self.assertEqual((await self.picture(current['token'], 0)).getpixel((0, 0)), (0, 0, 255))
+
+        info = await (await self.client.get('/api/replay/' + saved['token'])).json()
+        self.assertEqual(info, saved)
+        page = await (await self.client.get(f'/api/replay/{saved["token"]}/steps')).json()
+        self.assertEqual(page['total'], 3)
+        self.assertEqual([step['t'] for step in page['steps']], [.1, 2.1, 4.1])
+        for number in (2, 0):
+            self.assertEqual((await self.picture(saved['token'], number)).getpixel((0, 0)), (number, 0, 7))
+        self.assertEqual(provider.call_args_list, [mock.call(archive.name), mock.call('current')])
+
+        reopened = await self.opened(archive.name)
+        self.assertEqual(reopened['started'], 100)
+        self.assertEqual(reopened['steps'], 3)
+        self.assertEqual((await self.picture(reopened['token'], 1)).getpixel((0, 0)), (1, 0, 7))
+        self.assertEqual(archive.read_bytes(), original)
+
+    async def test_invalid_archive_names_are_rejected_before_calling_provider(self):
+        provider = mock.Mock(side_effect=AssertionError('invalid name reached provider'))
+        await self.client.close()
+        self.service = SavedHistory(self.store, pin_provider=provider)
+        self.client = await self.client_for(self.service)
+        name = '20260909-120000-abcdef123456.jsonl'
+        for invalid in ('', '../' + name, '/etc/passwd', 'recordings/' + name,
+                        name + '/..', name + '\n', name + '\x00',
+                        name.replace('abcdef', 'ABCDEF'), name.replace('abcdef', 'abcdeg'),
+                        name.replace('123456', '12345'), name.replace('20260909', '２０２６０９０９')):
+            with self.subTest(recording=invalid):
+                response = await self.client.get('/api/replay', params={'recording': invalid})
+                self.assertEqual(response.status, 404)
+        provider.assert_not_called()
+        self.assertFalse(self.service.states)
+
+    async def test_missing_archive_from_provider_returns_not_found(self):
+        provider = mock.Mock(side_effect=FileNotFoundError('archive has been removed'))
+        await self.client.close()
+        self.service = SavedHistory(self.store, pin_provider=provider)
+        self.client = await self.client_for(self.service)
+        name = '20260909-120000-abcdef123456.jsonl'
+        response = await self.client.get('/api/replay', params={'recording': name})
+        self.assertEqual(response.status, 404)
+        provider.assert_called_once_with(name)
+        self.assertFalse(self.service.states)
 
     async def test_get_never_includes_a_frame_after_its_marker_at_the_same_time(self):
         self.store.append(frame(0, (10, 20, 30)))
@@ -336,10 +414,16 @@ class SavedHistoryTests(unittest.IsolatedAsyncioTestCase):
         meta = await self.opened()
         for endpoint in ('steps?start=bad', 'frame?step=-1', 'frame?step=999', 'frame?step=nan'):
             self.assertEqual((await self.client.get(f'/api/replay/{meta["token"]}/{endpoint}')).status, 400)
-        disabled = await self.client_for(SavedHistory(self.store), enabled=False)
+        provider = mock.Mock(side_effect=AssertionError('disabled history reached provider'))
+        disabled = await self.client_for(SavedHistory(self.store, pin_provider=provider), enabled=False)
         try:
             self.assertEqual((await disabled.get('/api/replay')).status, 404)
-            self.assertEqual((await disabled.get('/api/replay/anything/steps')).status, 404)
+            response = await disabled.get('/api/replay', params={'recording': '20260909-120000-abcdef123456.jsonl'})
+            self.assertEqual(response.status, 404)
+            for endpoint in ('anything', 'anything/steps', 'anything/frame'):
+                self.assertEqual((await disabled.get('/api/replay/' + endpoint)).status, 404)
+            self.assertEqual((await disabled.delete('/api/replay/anything')).status, 404)
+            provider.assert_not_called()
         finally:
             await disabled.close()
 

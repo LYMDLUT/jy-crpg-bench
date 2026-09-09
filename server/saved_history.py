@@ -3,6 +3,7 @@ import asyncio
 from collections import OrderedDict
 import contextlib
 import secrets
+import re
 import time
 
 from aiohttp import web
@@ -26,8 +27,9 @@ class SavedHistory:
     MAX_OPEN = 2
     TTL = 300
 
-    def __init__(self, store):
+    def __init__(self, store, pin_provider=None):
         self.store = store
+        self.pin_provider = pin_provider
         self.states = OrderedDict()
         self.lock = asyncio.Lock()
         self.reaper = None
@@ -76,7 +78,8 @@ class SavedHistory:
 
     async def open(self, request):
         # No user-supplied filesystem paths, including archived filenames.
-        if request.query.get('recording', 'current') != 'current':
+        recording = request.query.get('recording', 'current')
+        if recording != 'current' and (self.pin_provider is None or not re.fullmatch(r'[0-9]{8}-[0-9]{6}-[a-f0-9]{12}\.jsonl', recording)):
             raise web.HTTPNotFound()
         async with self.lock:
             if self.closed:
@@ -86,7 +89,10 @@ class SavedHistory:
                 _, state = self.states.popitem(last=False)
                 await self._close(state)
             try:
-                index = HistoryIndex(self.store.pin())
+                pin = self.pin_provider(recording) if self.pin_provider else self.store.pin()
+                index = HistoryIndex(pin)
+            except FileNotFoundError:
+                raise web.HTTPNotFound()
             except (ValueError, TypeError, KeyError, OSError) as error:
                 raise web.HTTPUnprocessableEntity(reason='saved recording cannot be opened: ' + str(error))
             token = secrets.token_urlsafe(18)
