@@ -64,6 +64,32 @@ test('a truncated creation response retries with the same idempotency token',asy
   assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job1'});
 });
 
+test('a hung creation body times out, retries with the same token, and ignores the late first body',async()=>{
+  let releaseFirst, posts=0;
+  const firstBody=new Promise(resolve=>releaseFirst=resolve);
+  const f=setup(call=>{
+    if(call.method!=='POST')return response(row('encoding',{id:'job2'}));
+    if(++posts===1)return {...response(null,202),json:async()=>firstBody};
+    return response(row('encoding',{id:'job2'}),202);
+  });
+  const first=f.elements.save.onclick();
+  await flush();
+  assert.deepEqual([...f.delays.values()],[15000]);
+  await f.tick();
+  await first;
+  assert.equal(f.elements.save.textContent,'重试导出');
+  const token=JSON.parse(f.storage.get(key)).requestId;
+  await f.elements.save.onclick();
+  assert.equal(posts,2);
+  assert.equal(f.calls[1].options.headers['X-Video-Request-Id'],token);
+  assert.equal(f.elements.save.textContent,'生成 50%');
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job2'});
+  releaseFirst(row('ready',{id:'job1',download:'api/video/job1/file'}));
+  await flush();
+  assert.equal(f.elements.save.textContent,'生成 50%');
+  assert.deepEqual(JSON.parse(f.storage.get(key)),{id:'job2'});
+});
+
 test('a pending request token survives reload and is reused by the next submit',async()=>{
   const original=setup(call=>({...response(null,202),json:async()=>{throw new TypeError('response body interrupted');}}));
   await original.elements.save.onclick();
