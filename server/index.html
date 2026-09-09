@@ -52,6 +52,7 @@
   #vcrkeys { display: flex; gap: 4px; min-height: 20px; align-items: center; }
   #vcrtrack { width: 260px; height: 4px; background: #26262c; border-radius: 2px; overflow: hidden; }
   #vcrfill { display: block; height: 4px; width: 0; background: #6cb6ff; }
+  #image-jump { margin: 0 12px 8px; align-self: flex-start; font: inherit; font-size: 11px; padding: 4px 8px; }
   #logrows { overflow-y: auto; padding: 6px 0 10px; flex: 1; }
   .r { display: flex; gap: 7px; padding: 2px 12px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
   .r:hover { background: #17171c; }
@@ -338,6 +339,7 @@
     <span>web <b id="m-web">0</b></span>
   </div>
   <div id="bars"></div>
+  <button id="image-jump" hidden>Show latest image</button>
   <div id="logrows"><div id="empty">nothing yet. keys you press here, and calls
     to /api/*, both show up.</div></div>
 </aside>
@@ -672,6 +674,16 @@ function connect() {
 const rows = document.getElementById("logrows");
 const empty = document.getElementById("empty");
 const logcount = document.getElementById("logcount");
+const imageJump = document.getElementById("image-jump");
+imageJump.onclick = () => {
+  const shots = rows.querySelectorAll(".shot");
+  shots[shots.length - 1]?.scrollIntoView({block: "center"});
+};
+function updateImageJump() {
+  const count = rows.querySelectorAll(".shot").length;
+  imageJump.hidden = !count;
+  imageJump.textContent = `Show latest image (${count})`;
+}
 let logged = 0, lastId = 0;
 
 const GLYPH = { up: "↗", down: "↙", left: "↖", right: "↘", enter: "⏎",
@@ -993,6 +1005,7 @@ function clearLog() {
   lastId = 0;                 // ids restart after a reset, so the dedupe must too
   logged = 0;
   logcount.textContent = "";
+  updateImageJump();
 }
 
 function addLog(e) {
@@ -1039,7 +1052,9 @@ function addLog(e) {
     box.className = "shot";
     const img = new Image();
     img.src = e.thumb;
-    img.title = "what the API returned";
+    img.title = e.thumb_source === "recording"
+      ? "Nearest recorded frame before this action" + (e.thumb_at ? " · " + new Date(e.thumb_at * 1000).toLocaleString() : "")
+      : "what the API returned";
     img.onclick = () => window.open(e.thumb, "_blank");
     img.onload = () => { rows.scrollTop = rows.scrollHeight; };
     box.append(img);
@@ -1048,6 +1063,7 @@ function addLog(e) {
   while (rows.children.length > 400) rows.firstChild.remove();
   rows.scrollTop = rows.scrollHeight;
   logcount.textContent = ++logged;
+  updateImageJump();
 }
 
 const send = o => {

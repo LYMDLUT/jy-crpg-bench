@@ -32,6 +32,14 @@ def clean_entries(entries):
         thumb = entry.get("thumb")
         if isinstance(thumb, str) and len(thumb) <= MAX_THUMB and thumb.startswith("data:image/webp;base64,"):
             row["thumb"] = thumb
+            if entry.get("thumb_source") == "recording":
+                row["thumb_source"] = "recording"
+                at_frame = entry.get("thumb_at")
+                if type(at_frame) in (int, float) and math.isfinite(at_frame):
+                    row["thumb_at"] = at_frame
+        offset, started = entry.get("recording_offset"), entry.get("recording_started")
+        if type(offset) is int and offset >= 0 and type(started) in (int, float) and math.isfinite(started):
+            row.update(recording_offset=offset, recording_started=started)
         result.append(row)
         last_id = seq
     # Match the live panel's thumbnail budget.

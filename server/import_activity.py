@@ -1,30 +1,41 @@
 """Import legacy recording action markers while the target server is stopped."""
 import argparse
-from collections import deque
+from contextlib import nullcontext
+from collections import deque, defaultdict
 import json
 import math
 from pathlib import Path
 
 from activity import ActivityStore, MAX_ENTRIES
+from activity_thumbnails import restore_thumbnails
 
 
 def read_actions(path):
-    """Scan a fixed file prefix with bounded memory, without decoding frames."""
+    """Scan a fixed prefix and retain offsets for the latest action markers."""
     rows = deque(maxlen=MAX_ENTRIES)
     count = 0
-    with Path(path).open('rb') as stream:
+    with (nullcontext(path) if hasattr(path, 'read') else Path(path).open('rb')) as stream:
         end = stream.seek(0, 2)
         stream.seek(0)
-        header = json.loads(stream.readline())
+        header_line = stream.readline(65537)
+        if len(header_line) > 65536 or not header_line.endswith(b'\n'):
+            raise ValueError('invalid recording header')
+        header = json.loads(header_line)
         started = header.get('started')
         if type(started) not in (int, float) or not math.isfinite(started):
             raise ValueError('recording has no valid start time')
+        keyframe = None
         while stream.tell() < end:
+            offset = stream.tell()
             line = stream.readline(min(end - stream.tell(), 4 * 1024 * 1024))
             if not line.endswith(b'\n'):
                 if stream.tell() == end:
                     break  # an uncommitted final append
                 raise ValueError('recording line exceeds size limit')
+            if b'"d"' in line and b'"k"' in line:
+                event = json.loads(line)
+                if event.get('d') and event.get('k'):
+                    keyframe = offset
             if b'"act"' not in line:
                 continue
             event = json.loads(line)
@@ -37,24 +48,46 @@ def read_actions(path):
             rows.append(dict(id=count, at=started + timestamp,
                              src=event.get('who', ''), verb=event['act'],
                              target=event.get('on', ''),
-                             detail='from recording; result unknown', ok=None))
+                             detail='from recording; result unknown', ok=None,
+                             recording_offset=offset, recording_started=started,
+                             _keyframe_offset=keyframe))
     return list(rows), count
 
 
 def import_recording(recording, history):
     if Path(recording).resolve() == Path(history).resolve():
         raise ValueError('recording and history must be different files')
-    rows, count = read_actions(recording)
-    store = ActivityStore(history)
-    existing = store.load()
-    # Existing richer entries win if the same marker was imported previously.
-    merged = {(r['at'], r['src'], r['verb'], r['target']): r for r in rows + existing}
-    retained = sorted(merged.values(), key=lambda r: r['at'])[-MAX_ENTRIES:]
-    for seq, row in enumerate(retained, 1):
-        row['id'] = seq
-    store.save(retained)
+    with Path(recording).open('rb') as source:
+        rows, count = read_actions(source)
+        store = ActivityStore(history)
+        existing = store.load()
+        # Use the action's byte offset, not its rounded timestamp, as identity.
+        # Upgrade earlier imports without this identity by matching each old row once.
+        by_origin = {(r['recording_started'], r['recording_offset']): i for i, r in enumerate(rows)}
+        by_content = defaultdict(deque)
+        for i, row in enumerate(rows):
+            by_content[(row['at'], row['src'], row['verb'], row['target'])].append(i)
+        used = set()
+        for old in existing:
+            origin = old.get('recording_started'), old.get('recording_offset')
+            index = by_origin.get(origin)
+            if origin == (None, None):
+                matches = by_content[(old['at'], old['src'], old['verb'], old['target'])]
+                while matches and matches[0] in used:
+                    matches.popleft()
+                index = matches.popleft() if matches else None
+            if index is None:
+                rows.append(old)
+            else:
+                rows[index].update(old)
+                used.add(index)
+        retained = sorted(rows, key=lambda r: r['at'])[-MAX_ENTRIES:]
+        thumbnails = restore_thumbnails(source, retained)
+        for seq, row in enumerate(retained, 1):
+            row['id'] = seq
+        store.save(retained)
     return {'recording_actions': count, 'existing_entries': len(existing),
-            'retained_entries': len(retained)}
+            'retained_entries': len(retained), 'restored_thumbnails': thumbnails}
 
 
 if __name__ == '__main__':

@@ -211,5 +211,8 @@ python server/import_activity.py --recording /path/recording.jsonl --history /pa
 merges its latest action markers with existing activity, and keeps the newest
 300 entries. It never changes the recording or scans it during normal startup.
 Imported markers retain timestamps, actors, verbs and targets; unavailable
-results are marked unknown. Original thumbnail/detail fields cannot be recovered
-from action markers. Re-importing the same recording does not duplicate rows.
+results are marked unknown. For the latest 40 screen reads, the importer reconstructs a thumbnail from the
+last recorded frame preceding each action marker. Hover a thumbnail to see its
+recorded time and origin. These replay previews may differ from the original
+API screenshot; unavailable frame data stays without an image. Original extra
+detail and execution outcomes cannot be recovered from action markers. Re-importing the same recording does not duplicate rows.
