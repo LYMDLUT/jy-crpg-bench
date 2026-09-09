@@ -343,7 +343,7 @@
 </aside>
 </div>
 
-<script src="/recording.js"></script>
+<script src="recording.js"></script>
 <script>
 const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d", { alpha: false });
@@ -633,7 +633,9 @@ playBtn.onclick = async () => {
 };
 
 function connect() {
-  sock = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  const socketUrl = new URL("ws", location.href);
+  socketUrl.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  sock = new WebSocket(socketUrl);
   sock.binaryType = "arraybuffer";
   sock.onmessage = e => {
     if (typeof e.data === "string") {
@@ -916,7 +918,7 @@ async function openSlot() {
   const body = document.getElementById("slotbody");
   body.replaceChildren(el("div", "kind", "reading the slot…"));
   try {
-    const r = await fetch("/progress" + location.search);
+    const r = await fetch("progress" + location.search);
     slotData = r.ok ? await r.json() : {why: "hidden while the run is scored"};
   } catch (e) {
     slotData = {why: "could not read the slot"};
@@ -1095,7 +1097,7 @@ cv.addEventListener("click", () => cv.focus());
 const promptEl = document.getElementById("prompt");
 let lang = "en";
 function loadSkill() {
-  fetch("/api/help?lang=" + lang).then(r => r.text()).then(t => promptEl.value = t)
+  fetch("api/help?lang=" + lang).then(r => r.text()).then(t => promptEl.value = t)
     .catch(() => promptEl.value = "could not load /api/help");
 }
 for (const b of document.querySelectorAll(".lang button")) {
@@ -1118,7 +1120,7 @@ document.getElementById("copy").onclick = async () => {
   c.classList.add("on");
   setTimeout(() => c.classList.remove("on"), 1400);
 };
-document.getElementById("open").onclick = () => window.open("/api/help?lang=" + lang, "_blank");
+document.getElementById("open").onclick = () => window.open("api/help?lang=" + lang, "_blank");
 
 fit();
 connect();

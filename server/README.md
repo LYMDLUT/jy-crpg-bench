@@ -206,3 +206,9 @@ execution lock. A time-limit ending still validates core health before it can
 be scored as valid. Input/environment failures remain invalid. The broker
 stores diagnostics under `<result-dir>/<session-id>.diagnostics` and archives
 the last heartbeat, fault and exit status before reclaiming worker scratch.
+
+The multiuser lobby lists games by their latest `live.state` save time and offers
+name search, creation-time/name sorting, and a new-game dialog. Reading the lobby
+only inspects user metadata and save-file timestamps; it does not start game
+workers or read recordings. The displayed time is explicitly a save time, since
+a running game may autosave without player input.

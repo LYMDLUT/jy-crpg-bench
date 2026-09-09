@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>金庸群侠传 · 游戏大厅</title>
+<style>
+:root{color-scheme:dark;--bg:#0c0e10;--panel:#14171a;--line:#292d30;--text:#e9e8e1;--muted:#92968f;--accent:#d4b883;--green:#9bb89b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+button,input,select{font:inherit}button,a,input,select{-webkit-tap-highlight-color:transparent}
+a{color:inherit;text-decoration:none}button{cursor:pointer}button:disabled{cursor:wait;opacity:.55}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+button{border:0}main{max-width:1080px;padding:0 34px 44px;margin:auto}
+.topbar{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:20px}
+.brand{display:flex;align-items:center;gap:11px}.seal{display:grid;place-items:center;width:34px;height:38px;border:1px solid #7c6b4c;color:var(--accent);font:23px "Songti SC","STSong",serif;border-radius:3px}
+.brand-name{font-weight:600;letter-spacing:.14em}.brand-sub{font-size:11px;letter-spacing:.16em;color:var(--muted)}
+.top-note{color:var(--muted);font-size:12px;display:flex;gap:8px;align-items:center}.dot{width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block}
+.intro{display:flex;justify-content:space-between;align-items:center;gap:28px;padding:42px 0 32px}
+.eyebrow{margin:0 0 10px;color:var(--accent);font-size:11px;letter-spacing:.2em}
+h1{font-family:"Songti SC","STSong",serif;font-weight:600;font-size:36px;line-height:1.3;letter-spacing:.08em;margin:0 0 12px}
+.subtitle{color:var(--muted);margin:0;font-size:13px}.primary{background:var(--accent);color:#232219;padding:11px 19px;border-radius:5px;font-weight:600;white-space:nowrap;transition:background .15s}.primary:hover{background:#e3c995}
+.plus{font-size:18px;margin-right:8px;font-weight:400;vertical-align:-1px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 0 18px}
+.section-label{font-size:14px;font-weight:600;white-space:nowrap}.count{font-size:12px;font-weight:400;color:var(--muted);margin-left:9px}
+.filters{display:flex;align-items:center;gap:10px}.search-wrap{position:relative}.search-wrap svg{position:absolute;left:11px;top:12px;width:14px;height:14px;color:var(--muted);pointer-events:none}
+#search{height:38px;width:200px;border:1px solid var(--line);background:#121517;color:var(--text);padding:8px 12px 8px 33px;border-radius:5px;font-size:12px}#search::placeholder{color:#93958e}
+select{height:38px;color:#c7c9c2;background:#121517;border:1px solid var(--line);border-radius:5px;padding:0 10px;font-size:12px}
+.games{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.game-card{position:relative;min-width:0;padding:17px 19px 0;background:var(--panel);border:1px solid var(--line);border-radius:7px;transition:border-color .15s,background .15s}
+.game-card:hover{border-color:#605842;background:#181b1d}.card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.slot-number{font:11px ui-monospace,SFMono-Regular,monospace;letter-spacing:.05em;color:#9b937e}.state{font-size:10px;color:#a3a79f;letter-spacing:.05em}.state.is-active{color:#b6d2ab;display:flex;align-items:center;gap:5px}.state.is-active:before{content:"";width:5px;height:5px;background:#b6d2ab;border-radius:50%}
+.game-card h2{font-size:15px;line-height:1.5;font-weight:550;margin:0 0 10px;min-height:23px;overflow-wrap:anywhere}.game-card h2 a:hover{color:var(--accent)}
+.saved-at{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);margin-bottom:17px}.saved-at time{color:#b2b4ac}
+.card-actions{border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:44px}.continue{display:flex;align-items:center;gap:14px;color:var(--accent);font-size:12px;font-weight:550;padding:10px 0}.continue span{font-size:15px}.continue:hover{color:#efd3a0}
+.session-tools a{font-size:11px;color:var(--muted);padding:10px 0;display:inline-block}.session-tools a:hover{color:var(--text)}
+#empty{padding:65px 20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:7px}#empty strong{display:block;color:var(--text);font-size:17px;font-weight:500;margin-bottom:8px}
+footer{border-top:1px solid var(--line);margin-top:28px;padding-top:17px;display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:11px}.footer-mark{color:#b4a37f;letter-spacing:.14em}
+dialog{background:#171a1d;color:var(--text);width:min(430px,calc(100% - 32px));border:1px solid #42443d;border-radius:10px;padding:27px;box-shadow:0 25px 100px #0008}dialog::backdrop{background:#0009;backdrop-filter:blur(3px)}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:15px}dialog h2{margin:0;font-size:21px;font-weight:550}.close{background:transparent;color:var(--muted);font-size:25px;width:30px;height:36px}dialog p{color:var(--muted);font-size:13px;margin:10px 0 23px}label{display:block;color:#bfc2b8;font-size:12px;margin-bottom:8px}#name{background:#101315;border:1px solid #42473e;border-radius:5px;width:100%;padding:11px 12px;color:var(--text)}#message{font-size:12px;color:#ebba94;min-height:20px;margin:10px 0}.dialog-actions{display:flex;justify-content:flex-end;gap:10px}.cancel{background:transparent;color:var(--muted);padding:10px 13px}
+[hidden]{display:none!important}
+@media(min-width:1300px){main{max-width:1160px}.games{gap:16px}.game-card{padding:18px 21px 0}}
+@media(max-width:780px){main{padding:0 22px 30px}.games{grid-template-columns:repeat(2,minmax(0,1fr))}.intro{padding:32px 0 27px}h1{font-size:30px}.topbar{height:70px}.top-note{font-size:11px}.filters{gap:7px}#search{width:164px}.toolbar{gap:10px}}
+@media(max-width:520px){main{padding:0 16px 25px}.brand-sub{display:none}.top-note{font-size:10px}.intro{align-items:flex-start;gap:14px;padding:27px 0 25px}h1{font-size:26px}.subtitle{font-size:12px;max-width:210px}.eyebrow{font-size:10px}.intro>.primary{padding:9px 11px;font-size:12px;margin-top:23px}.plus{margin-right:3px}.toolbar{flex-wrap:wrap;gap:11px}.filters{width:100%}.search-wrap{flex:1}#search{width:100%}.games{grid-template-columns:1fr;gap:11px}.game-card{padding:15px 17px 0}.card-top{margin-bottom:8px}.saved-at{margin-bottom:12px}.game-card h2{margin-bottom:8px}footer{align-items:flex-start;gap:16px}footer>span:first-child{max-width:220px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<header class="topbar"><div class="brand"><span class="seal" aria-hidden="true">侠</span><div><div class="brand-name">金庸群侠传</div><div class="brand-sub">群侠 · 游戏大厅</div></div></div><span class="top-note"><span class="dot" aria-hidden="true"></span>__RUNNING_COUNT__ 个游戏运行中</span></header>
+<section class="intro"><div><p class="eyebrow">每一段江湖，都值得继续</p><h1>再入江湖</h1><p class="subtitle">选择你的游戏，接着上次的故事。</p></div><button class="primary" id="new-game"><span class="plus" aria-hidden="true">＋</span>新建游戏</button></section>
+<section aria-label="游戏存档">
+<div class="toolbar"><div class="section-label">我的游戏<span class="count" id="count">__SESSION_COUNT__ 个</span></div><div class="filters"><div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input id="search" type="search" aria-label="搜索游戏名称" placeholder="搜索游戏名称"></div><select id="sort" aria-label="游戏排序"><option value="saved">最近保存</option><option value="created">最近创建</option><option value="name">名称排序</option></select></div></div>
+<div class="games" id="games"><!-- SESSION_CARDS --></div>
+<div id="empty" hidden><strong>没有找到游戏</strong><span>试试其他名称，或开始一段新的江湖。</span></div>
+</section>
+<footer><span>每个游戏的进度、存档与活动记录分别保存。</span><span class="footer-mark">江湖未远 · 故事未完</span></footer>
+</main>
+<dialog id="create-dialog" aria-labelledby="create-title"><div class="dialog-head"><h2 id="create-title">开启一段新江湖</h2><button class="close" id="close-dialog" aria-label="关闭">×</button></div><p>取个便于辨认的名字，以后从这里继续。</p><form id="create"><label for="name">游戏名称</label><input id="name" name="name" maxlength="40" required placeholder="例如：我的江湖 / 模型实验" autocomplete="off"><div id="message" role="alert"></div><div class="dialog-actions"><button type="button" class="cancel" id="cancel">取消</button><button class="primary" id="create-submit" type="submit">创建并进入</button></div></form></dialog>
+<script>
+const games=document.getElementById('games'), cards=Array.from(games.children), search=document.getElementById('search'), sort=document.getElementById('sort'), count=document.getElementById('count'), empty=document.getElementById('empty');
+const dates=new Intl.DateTimeFormat('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+for(const time of document.querySelectorAll('time[data-time]')){const date=new Date(Number(time.dataset.time)*1000);time.textContent=dates.format(date);time.title=date.toLocaleString('zh-CN');}
+function update(){const query=search.value.trim().toLocaleLowerCase();let shown=0;const key=sort.value;
+ cards.sort((a,b)=>key==='name'?a.dataset.name.localeCompare(b.dataset.name,'zh-CN'):Number(b.dataset[key])-Number(a.dataset[key]));
+ for(const card of cards){card.hidden=!card.dataset.name.toLocaleLowerCase().includes(query);if(!card.hidden)shown++;games.append(card);}
+ count.textContent=query?`${shown} / ${cards.length} 个`:`${cards.length} 个`;empty.hidden=shown>0;
+}
+search.addEventListener('input',update);sort.addEventListener('change',update);update();
+const dialog=document.getElementById('create-dialog'), form=document.getElementById('create'), message=document.getElementById('message'), submit=document.getElementById('create-submit');
+document.getElementById('new-game').onclick=()=>{message.textContent='';dialog.showModal();document.getElementById('name').focus();};
+for(const id of ['close-dialog','cancel'])document.getElementById(id).onclick=()=>dialog.close();
+form.onsubmit=async event=>{event.preventDefault();submit.disabled=true;message.textContent='正在创建游戏…';try{
+ const response=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:new FormData(form).get('name')})});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'创建失败，请稍后再试。');location.href=result.url;
+}catch(error){message.textContent=error.message||'暂时无法连接，请稍后再试。';submit.disabled=false;}};
+</script>
+</body></html>

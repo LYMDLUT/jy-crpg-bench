@@ -46,6 +46,7 @@ CORE = os.environ.get("QUNXIA_CORE", str(ROOT.parent / "cores" / "dosbox_pure_li
 GAME = os.environ.get("QUNXIA_GAME", str(ROOT.parent / "game" / "PLAY.BAT"))
 SAVES = os.environ.get("QUNXIA_SAVES", str(ROOT.parent / "saves"))
 PORT = int(os.environ.get("PORT", "8080"))
+HOST = os.environ.get("QUNXIA_HOST", "0.0.0.0")
 SEND_HZ = float(os.environ.get("QUNXIA_SEND_HZ", "20"))
 
 LIB.core_set_option.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
@@ -1841,6 +1842,9 @@ def base_url(request):
             scheme = value
             break
     base = f"{scheme}://{host}"
+    prefix = request.headers.get("X-Forwarded-Prefix", "").rstrip("/")
+    if re.fullmatch(r"/u/[A-Za-z0-9_-]{20,64}", prefix):
+        return base + prefix
     sid = os.environ.get("QUNXIA_BENCH_SID", "")
     if os.environ.get("QUNXIA_BENCH") == "1" and sid:
         base = f"{base.rstrip('/')}/s/{sid}"
@@ -2460,7 +2464,7 @@ def main():
     # than returned, or startup would block on loops that never end.
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
-    web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
+    web.run_app(app, host=HOST, port=PORT, access_log=None)
 
 
 if __name__ == "__main__":
