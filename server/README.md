@@ -75,6 +75,26 @@ on-demand PNG/WebP observations and activity thumbnails.
 
 ## Several agents on one session
 
+For long-lived interactive play, set `QUNXIA_RESUME_STATE` to a checkpoint on
+persistent storage. The server waits for 1500 emulated frames and a nonempty
+framebuffer before loading it, then verifies that frames continue advancing.
+`QUNXIA_RESUME_WARMUP_FRAMES` can tune that initial warmup for another core.
+`/status.checkpoint.state` is `warming`, `restoring`, `ready` or `failed`;
+input is refused until ready. An unreadable checkpoint remains untouched and
+blocks input instead of silently starting a new game.
+
+`QUNXIA_AUTOSAVE_SECONDS` defaults to 30; zero disables periodic saves. A clean
+shutdown also saves. Serialization and its before/after frame checks share the
+action lock. Cancellation and failures discard only the staged new checkpoint,
+so the previous one remains available. Abrupt process termination can lose
+progress since the last successful checkpoint. Recordings continue through the
+existing RecordingStore and are not scanned for replay during startup.
+
+This mode disables the game's automatic menu-save macro and optional position
+calibration, whose reload of the opening state would undo resumed progress.
+`QUNXIA_BENCH=1` ignores all resume/autosave settings and keeps the normal
+benchmark startup, action limits and save/load restrictions.
+
 REST actions and browser key holds share one single-player lease, so a browser
 release cannot cancel an API press (or another browser's hold). The queue is
 FIFO. Measured against the deployed e2-micro, each

@@ -22,6 +22,7 @@ import sys
 import threading
 import time
 import traceback
+import uuid
 import zlib
 
 from aiohttp import WSMsgType, web
@@ -197,6 +198,13 @@ SCREEN_FORMATS = ("", "png", "webp", "jpeg")
 # 注音 IME, which is a puzzle about input methods and not about the game.
 START_STATE = os.environ.get("QUNXIA_START_STATE", str(ROOT.parent / "saves" / "start.state"))
 STATE_DIR = os.environ.get("QUNXIA_STATE_DIR", str(ROOT.parent / "saves" / "states"))
+# Long-lived play is opt-in. A scored run must never read or update a previous
+# interactive checkpoint, even if its launcher inherited these variables.
+RESUME_STATE = "" if warden.ON else os.environ.get("QUNXIA_RESUME_STATE", "")
+AUTOSAVE_SECONDS = float(os.environ.get("QUNXIA_AUTOSAVE_SECONDS", "30")) if RESUME_STATE else 0
+RESUME_WARMUP_FRAMES = int(os.environ.get("QUNXIA_RESUME_WARMUP_FRAMES", "1500")) if RESUME_STATE else 0
+checkpoint = {"enabled": bool(RESUME_STATE), "state": "warming" if RESUME_STATE else "disabled",
+              "restored": False, "saves": 0, "last_saved": None, "error": None}
 
 # Everything anyone does to this session, so the page can show who is doing
 # what. The game is shared, so this doubles as "why did the screen just move".
@@ -564,7 +572,7 @@ def read_stats():
 # back showing DOSBox Pure's "DOS Crashed" menu and stopped responding to keys
 # - which is far too high a price for one column. Distance then reports as
 # unmeasured, which the page already draws as a dash rather than a nought.
-CALIBRATE = os.environ.get("QUNXIA_CALIBRATE") == "1"
+CALIBRATE = os.environ.get("QUNXIA_CALIBRATE") == "1" and not RESUME_STATE
 
 world = {"scenes": 1, "banked": 0, "origin": None, "far": 0, "ok": False,
          "dark": False, "miss": 0, "tried": False,
@@ -1071,6 +1079,8 @@ async def ws_handler(request):
             if not isinstance(d, dict):
                 continue
             t = d.get("t")
+            if checkpoint["enabled"] and checkpoint["state"] != "ready" and t in ("key", "tap"):
+                continue
             if recording_blocked and not (t == "key" and not d.get("down")):
                 continue
             if warden.ON and t in ("key", "tap"):
@@ -1899,6 +1909,85 @@ async def api_save(request):
     return web.json_response(result, status=200 if result.get("ok") else 500)
 
 
+async def checkpoint_core(path, *, saving):
+    """Drain native work before releasing the pause, including cancellation."""
+    await pause_emulator()
+    try:
+        def operation():
+            LIB.core_release_all_keys()
+            if saving:
+                return bool(LIB.core_save_state(str(path).encode()))
+            ok = bool(LIB.core_load_state(str(path).encode()))
+            if ok:
+                LIB.fb_reset()
+            return ok
+
+        task = asyncio.create_task(asyncio.to_thread(operation))
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # A cancelled await cannot stop ctypes. Keep the lease and pause
+            # until that call has actually returned.
+            await task
+            raise
+    finally:
+        resume_emulator()
+
+
+async def save_checkpoint():
+    if warden.ON or not RESUME_STATE or checkpoint["state"] != "ready":
+        return False
+    async with action_lock():
+        # Keep the old checkpoint until execution is healthy on both sides
+        # of serialization; the file itself is staged in its own directory.
+        await wait_core_frames(2)
+        path = pathlib.Path(RESUME_STATE)
+        pending = path.with_name(path.name + "." + uuid.uuid4().hex + ".pending")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if not await checkpoint_core(pending, saving=True):
+                raise RuntimeError(core_error("checkpoint save failed"))
+            await wait_core_frames(2)
+            os.replace(pending, path)
+            checkpoint.update(saves=checkpoint["saves"] + 1, last_saved=time.time(), error=None)
+            return True
+        finally:
+            pending.unlink(missing_ok=True)
+
+
+async def resume_and_autosave():
+    if warden.ON or not RESUME_STATE:
+        return
+    try:
+        async with action_lock():
+            checkpoint["state"] = "warming"
+            await wait_core_frames(RESUME_WARMUP_FRAMES)
+            if LIB.core_width() <= 0 or LIB.core_height() <= 0:
+                raise RuntimeError("the core has not produced a frame")
+            path = pathlib.Path(RESUME_STATE)
+            if path.exists():
+                checkpoint["state"] = "restoring"
+                if not await checkpoint_core(path, saving=False):
+                    raise RuntimeError(core_error("checkpoint restore failed"))
+                await wait_core_frames(2)
+                checkpoint["restored"] = True
+                await send_keyframe(None)
+            checkpoint.update(state="ready", error=None)
+    except Exception as exc:
+        # Do not accept input or overwrite an unreadable previous session
+        # with the newly booted machine. An operator must resolve the file.
+        checkpoint.update(state="failed", error=str(exc))
+        stats["last_error"] = "resume: " + str(exc)
+        return
+    while AUTOSAVE_SECONDS > 0:
+        await asyncio.sleep(AUTOSAVE_SECONDS)
+        try:
+            await save_checkpoint()
+        except Exception as exc:
+            checkpoint["error"] = str(exc)
+            stats["last_error"] = "autosave: " + str(exc)
+
+
 async def api_load(request):
     if warden.ON:
         # A scored run has no out-of-band rewind. Hidden, like reset.
@@ -2194,6 +2283,7 @@ async def status(_request):
         **(health.snapshot() if health else {}),
         "recording": {"cache_bytes": 0, "pending_bytes": recording_store.pending_bytes if recording_store else 0,
                       "error": recording_store.error if recording_store else ""},
+        "checkpoint": dict(checkpoint),
     })
 
 
@@ -2206,6 +2296,10 @@ async def json_errors(request, handler):
     bad request.
     """
     try:
+        if (checkpoint["enabled"] and checkpoint["state"] != "ready"
+                and request.method == "POST" and request.path.startswith("/api/")):
+            return web.json_response({"ok": False, "error": "session_not_ready",
+                                      "checkpoint": dict(checkpoint)}, status=503)
         if recording_blocked and request.method == "POST" and request.path.startswith("/api/"):
             raise RecordingUnavailable(recording_store.error)
         if health:
@@ -2237,7 +2331,10 @@ async def startup(app):
     api_lock = asyncio.Lock()
     app["pump"] = asyncio.create_task(pump())
     app["reaper"] = asyncio.create_task(reap())
-    app["snapshotter"] = asyncio.create_task(snapshotter())
+    if RESUME_STATE:
+        app["checkpoint"] = asyncio.create_task(resume_and_autosave())
+    else:
+        app["snapshotter"] = asyncio.create_task(snapshotter())
     if health:
         app["heartbeat"] = asyncio.create_task(pulse_health())
         health.set_phase("running")
@@ -2286,6 +2383,14 @@ async def pulse_health():
 
 
 async def cleanup(app):
+    saving = app.get("checkpoint")
+    if saving:
+        saving.cancel()
+        await asyncio.gather(saving, return_exceptions=True)
+        try:
+            await asyncio.wait_for(save_checkpoint(), timeout=10)
+        except Exception as exc:
+            stats["last_error"] = "shutdown checkpoint: " + str(exc)
     for task in app.values():
         if isinstance(task, asyncio.Task):
             task.cancel()
@@ -2303,6 +2408,9 @@ async def cleanup(app):
 
 def main():
     global health, recording_store, recording_api
+    if RESUME_STATE and (not math.isfinite(AUTOSAVE_SECONDS) or AUTOSAVE_SECONDS < 0
+                         or RESUME_WARMUP_FRAMES < 1):
+        raise SystemExit("checkpoint interval must be finite and non-negative; warmup frames must be positive")
     directory = os.environ.get("QUNXIA_RECORDING_DIR", str(ROOT.parent / "recordings"))
     validate_recording_directory(directory)
     path = pathlib.Path(os.environ.get("QUNXIA_RECORDING_FILE", str(pathlib.Path(directory) / f"{PORT}.jsonl")))
