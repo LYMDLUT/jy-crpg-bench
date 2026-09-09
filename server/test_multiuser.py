@@ -99,6 +99,14 @@ class MultiuserTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(backend.process.returncode, 0)
         self.assertTrue((self.store.paths(self.user["id"])[2] / "clean-exit").is_file())
 
+    async def test_shutdown_closes_active_websockets_before_request_drain(self):
+        ws = await self.client.ws_connect(f'/u/{self.user["id"]}/ws')
+        await ws.send_str("still open")
+        self.assertEqual((await ws.receive(timeout=1)).data, "still open")
+        await asyncio.wait_for(self.client.server.app.shutdown(), timeout=3)
+        self.assertEqual((await ws.receive(timeout=1)).type, WSMsgType.CLOSE)
+        await ws.close()
+
     async def test_foreign_live_pid_is_never_terminated(self):
         marker = self.store.paths(self.user["id"])[0] / "backend.json"
         marker.write_text(json.dumps({"pid": os.getpid(), "port": 1}))

@@ -265,6 +265,7 @@ async def relay(source, destination):
 def build_app(store, manager, public_origin=None):
     app = web.Application(client_max_size=4 << 20)
     create_lock = asyncio.Lock()
+    connections = set()
 
     async def lobby(_request):
         rows = "".join(f'<li><a href="/u/{u["id"]}/">{html.escape(u["name"])}</a></li>' for u in store.all())
@@ -315,12 +316,18 @@ if(r.ok)location.href=d.url;else document.querySelector('#message').textContent=
             upstream = await manager.client.ws_connect(target, headers=headers, max_msg_size=4 << 20,
                                                         compress=0)
             downstream = web.WebSocketResponse(max_msg_size=4096, compress=False)
-            await downstream.prepare(request)
-            tasks = [asyncio.create_task(relay(a, b)) for a, b in
-                     ((downstream, upstream), (upstream, downstream))]
+            pair = (downstream, upstream, request.transport)
+            connections.add(pair)
+            tasks = []
             try:
+                if manager.closing:
+                    raise web.HTTPServiceUnavailable()
+                await downstream.prepare(request)
+                tasks = [asyncio.create_task(relay(a, b)) for a, b in
+                         ((downstream, upstream), (upstream, downstream))]
                 await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             finally:
+                connections.discard(pair)
                 for task in tasks:
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -350,6 +357,22 @@ if(r.ok)location.href=d.url;else document.querySelector('#message').textContent=
     async def close(_app):
         await manager.close()
 
+    async def shutdown(_app):
+        # on_cleanup is too late: aiohttp first waits for open request handlers,
+        # including these long-lived WebSockets. End both halves before drain.
+        manager.closing = True
+        active = list(connections)
+        try:
+            await asyncio.wait_for(asyncio.gather(
+                *(socket.close() for pair in active for socket in pair[:2]),
+                return_exceptions=True), timeout=2)
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            for _downstream, _upstream, transport in active:
+                if transport:
+                    transport.close()
+
     app.router.add_get("/", lobby)
     app.router.add_get("/health", users)
     app.router.add_get("/api/users", users)
@@ -357,6 +380,7 @@ if(r.ok)location.href=d.url;else document.querySelector('#message').textContent=
     app.router.add_get("/u/{identity}", proxy)
     app.router.add_route("*", "/u/{identity}/{tail:.*}", proxy)
     app.on_startup.append(start)
+    app.on_shutdown.append(shutdown)
     app.on_cleanup.append(close)
     return app
 
