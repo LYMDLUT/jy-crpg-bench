@@ -131,6 +131,14 @@ class WithholdingTests(unittest.TestCase):
                       "team", "saved_at", "saved_why"):
             self.assertIn(field, game_server.SCORED_FIELDS)
 
+    def test_the_compass_is_scored_withheld_and_published(self):
+        # A rung a live run could read about itself is a rung it could play
+        # to, so it is withheld like the rest, and it leaves with the run.
+        self.assertIn("compass", game_server.SCORED_FIELDS)
+        self.assertIn("compass", game_server.warden.run)
+        self.assertIn("compass", game_server.warden.metrics())
+        self.assertIn("compass", game_server.session_summary())
+
 
 class DisabledTests(unittest.TestCase):
     def test_zero_switches_the_macro_off(self):

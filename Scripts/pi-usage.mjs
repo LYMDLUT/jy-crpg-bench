@@ -103,10 +103,14 @@ if (metered !== turns) {
 
 let model = null;
 let piVersion = null;
+let thinkingLevel = null;
 try {
   const manifest = JSON.parse(await readFile(join(runDir, "run.json"), "utf8"));
   model = manifest.model?.ref ?? null;
   piVersion = manifest.piVersion ?? null;
+  // The level the run was declared at, in the launcher's own words, so the
+  // published record says how hard the model was asked to think.
+  thinkingLevel = manifest.model?.thinkingLevel ?? null;
 } catch {
   // A usage capture without a manifest is still worth keeping.
 }
@@ -116,6 +120,7 @@ const usage = {
   cost: Math.round(totals.cost * 1e6) / 1e6,
   turns,
   model,
+  thinkingLevel,
   piVersion,
   session: sessionId,
   capturedAt: new Date().toISOString(),

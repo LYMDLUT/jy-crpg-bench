@@ -324,7 +324,10 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          # The game's own semantics, read from the working copy: how many of
          # the fourteen books are held, and which. This is the score the
          # benchmark is for, and no agent can reach it.
-         "books": None, "book_ids": None, "items_total": None}
+         "books": None, "book_ids": None, "items_total": None,
+         # The compass the hermit's cabinet holds, read from the same bag:
+         # the first gated event of the opening.
+         "compass": None}
 
 
 # --------------------------------------------------- the game's own save slot
@@ -603,6 +606,7 @@ def read_stats():
         held = save_state.books_held(inventory, [carried] if carried else [])
         hero["books"] = len(held)
         hero["book_ids"] = held
+        hero["compass"] = inventory.get(save_state.COMPASS_ID, 0) > 0
         opening = hero["inventory_baseline"]
         if opening is None:
             hero["inventory_baseline"] = dict(inventory)
@@ -1087,6 +1091,7 @@ def session_summary():
             "picked_item": hero["picked_item"],
             "items_total": hero["items_total"],
             "books": hero["books"],
+            "compass": hero["compass"],
             # From the game's own save slot: the party and the world square are
             # true only there. Books and items stay on the live reading above,
             # which is fresher than the last save.
@@ -1578,7 +1583,7 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential", "inventory_distinct",
-                      "picked_item", "items_total", "books"):
+                      "picked_item", "items_total", "books", "compass"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -2161,7 +2166,7 @@ async def api_reset(request):
         hero.update(base=None, found=False, level=None, exp=None, hp=None,
                     maxhp=None, skills=None, items=None, reputation=None,
                     potential=None, inventory_distinct=None, picked_item=None,
-                    items_total=None, books=None,
+                    items_total=None, books=None, compass=None,
                     inventory_baseline=None)
         agents.clear()
         rec_reset()
@@ -2337,7 +2342,7 @@ async def progress(request):
         # save is not the only source of.
         "live": {k: hero[k] for k in ("level", "exp", "hp", "maxhp", "skills",
                                       "books", "book_ids", "items_total",
-                                      "inventory_distinct")},
+                                      "inventory_distinct", "compass")},
     })
 
 
@@ -2346,7 +2351,7 @@ async def progress(request):
 # the agent never does.
 SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
                  "potential", "inventory_distinct", "picked_item",
-                 "items_total", "books", "meaningful", "oscillation",
+                 "items_total", "books", "compass", "meaningful", "oscillation",
                  "scenes", "frontier", "bigmap", "exit_acts", "exit_secs",
                  "team_size", "team_level", "team", "saved_at", "saved_why")
 
