@@ -1051,7 +1051,7 @@ def rec_add(kind, payload=None, key=None, down=None, keyframe=False):
         rec["bytes"] = recording_store.committed_size
 
 
-def record_trajectory(sample, screen_changed):
+def record_trajectory(sample, screen_changed, action_at=None):
     """Persist the post-action observation beside the raw input marker.
 
     The action marker is written before input is sent. This second event is
@@ -1068,6 +1068,10 @@ def record_trajectory(sample, screen_changed):
              "scene": sample.get("scene", world["scenes"]),
              "frontier": sample.get("frontier"),
              "screen_changed": bool(screen_changed)}
+    if type(action_at) in (int, float) and math.isfinite(action_at):
+        # The per-worker action counter resets after a restart; this timestamp
+        # lets an offline reader join the observation to the older marker.
+        event["action_t"] = action_at
     if type(sample.get("x")) is int and type(sample.get("y")) is int:
         event["x"], event["y"] = sample["x"], sample["y"]
     try:
@@ -1686,9 +1690,9 @@ async def run_action(request, steps, note, verb="KEY"):
         rec["actor"] = actor(request)
         key_steps = [step for step in steps if len(step) > 2]
         input_frames = sum(int(step[1]) for step in key_steps)
-        log_action(rec["actor"], verb, note, detail=held_note(steps),
-                   key_events=len(key_steps), input_frames=input_frames,
-                   wait_call=not key_steps)
+        action_entry = log_action(rec["actor"], verb, note, detail=held_note(steps),
+                                  key_events=len(key_steps), input_frames=input_frames,
+                                  wait_call=not key_steps)
         if not disk_history_enabled():
             rec_add("a", key=session["actions"], down=f"{verb} {note}"[:32])
         if warden.ON:
@@ -1726,7 +1730,8 @@ async def run_action(request, steps, note, verb="KEY"):
         waited, changed = await settle(baseline, **settle_args)
         trajectory = note_move()
         screen_changed = note_screen()
-        record_trajectory(trajectory, screen_changed)
+        record_trajectory(trajectory, screen_changed,
+                          action_at=action_entry["at"] - rec["started"])
         # Inventory can increase and be consumed between sparse samples.  The
         # read is ~1.2 ms against hundreds of ms per action, so sample every
         # action and latch gains relative to the opening state.

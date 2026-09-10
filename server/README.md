@@ -306,7 +306,9 @@ Every completed input action now has a post-action `trajectory` event in the
 JSONL recording. It carries the action number, original recording time, scene,
 frontier, and whether the settled picture changed. When position offsets have
 been calibrated for that worker it also carries the game's `x` and `y`; a
-missing coordinate is explicit and is never interpreted as zero distance.
+missing coordinate is explicit and is never interpreted as zero distance. The
+event also stores the source action timestamp, so analysis remains correct
+when a worker restarts and its local action counter starts over.
 
 The raw recording can be analyzed without starting the game:
 
