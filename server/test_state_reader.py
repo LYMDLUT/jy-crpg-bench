@@ -34,11 +34,18 @@ class InventoryDecoderTests(unittest.TestCase):
         self.assertTrue(inventory_gained(opening, {0: 3, 2: 4}))
         self.assertTrue(inventory_gained(opening, {0: 3, 2: 3, 182: 1}))
 
+    def test_a_hole_left_by_an_emptied_slot_is_read_through(self):
+        mem, base = memory_with_inventory([(0, 3)])
+        holed = bytearray(mem)
+        struct.pack_into("<hh", holed, len(b"prefix") + 8, 182, 1)
+        self.assertEqual(decode_inventory(bytes(holed), base), {0: 3, 182: 1})
+
     def test_rejects_non_inventory_blocks(self):
         mem, base = memory_with_inventory([(0, 3)])
-        broken = bytearray(mem)
-        struct.pack_into("<hh", broken, len(b"prefix") + 8, 182, 1)
-        self.assertIsNone(decode_inventory(bytes(broken), base))
+        for bad in ((250, 1), (5, 0), (0, 2)):
+            broken = bytearray(mem)
+            struct.pack_into("<hh", broken, len(b"prefix") + 4, *bad)
+            self.assertIsNone(decode_inventory(bytes(broken), base), bad)
 
 
 if __name__ == "__main__":

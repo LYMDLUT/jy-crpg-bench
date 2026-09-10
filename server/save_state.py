@@ -123,18 +123,19 @@ def decode_position(base_block):
 def decode_bag(base_block):
     """``{item_id: count}`` for the shared bag, or None when implausible.
 
-    Occupied slots are packed at the front, so a gap followed by an entry
-    means this is not a bag and some unrelated region matched.
+    Empty slots are skipped wherever they sit: a count that reaches zero can
+    leave a hole in the middle of the bag, and a hole is not a reason to
+    refuse the whole bag. An id outside the item table, a count outside the
+    game's range or a repeated id is, since no bag the game writes has one.
     """
     values = struct.unpack_from(f"<{BAG_SLOTS * 2}h", base_block, BAG_AT)
-    bag, empty_seen = {}, False
+    bag = {}
     for slot in range(BAG_SLOTS):
         item_id, count = values[slot * 2], values[slot * 2 + 1]
         if item_id == -1 and count == 0:
-            empty_seen = True
             continue
-        if (empty_seen or not 0 <= item_id <= MAX_ITEM_ID
-                or not 0 < count <= 32767 or item_id in bag):
+        if (not 0 <= item_id <= MAX_ITEM_ID or not 0 < count <= 32767
+                or item_id in bag):
             return None
         bag[item_id] = count
     return bag
@@ -243,6 +244,36 @@ def books_held(bag, team_records=()):
 # layout moves between runs.
 CHAR_ANCHOR = ("程靈素", 2)
 CHAR_CONFIRM = (("胡斐", 1), ("苗人鳳", 3))
+
+
+# The game's live party and world square, as it keeps them while playing.
+# The 836-byte base block that precedes the character records is the image
+# the game loaded, and it does not follow the player: the party array and the
+# world coordinates below are where the running game writes them, found by
+# walking the character and watching which words moved. The offset is taken
+# from the character array, which is located by name, so it holds wherever
+# the serialised image puts guest memory.
+LIVE_REL = 0x24ED4          # from the start of the character records
+LIVE_TEAM_AT, LIVE_X_AT, LIVE_Y_AT = 0, 16, 20
+WORLD_SIDE = 512
+
+
+def read_live(mem, char_base):
+    """``{"x", "y", "party"}`` from the running game, or None if the words
+    there do not read as a party led by the protagonist on the map."""
+    if char_base is None:
+        return None
+    at = char_base + LIVE_REL
+    if at < 0 or at + LIVE_Y_AT + 4 > len(mem):
+        return None
+    team = struct.unpack_from(f"<{TEAM_SLOTS}h", mem, at + LIVE_TEAM_AT)
+    x = struct.unpack_from("<i", mem, at + LIVE_X_AT)[0]
+    y = struct.unpack_from("<i", mem, at + LIVE_Y_AT)[0]
+    if team[0] != 0 or any(not -1 <= t < CHAR_SLOTS for t in team):
+        return None
+    if not (0 <= x < WORLD_SIDE and 0 <= y < WORLD_SIDE):
+        return None
+    return {"x": x, "y": y, "party": [t for t in team if t >= 0]}
 
 
 def locate_characters(mem):

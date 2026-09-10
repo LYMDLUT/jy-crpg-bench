@@ -18,16 +18,15 @@ def decode_inventory(mem: bytes, character_base: int):
 
     values = struct.unpack_from(f"<{INVENTORY_SLOTS * 2}h", mem, start)
     inventory = {}
-    empty_seen = False
     for slot in range(INVENTORY_SLOTS):
         item_id, amount = values[slot * 2:slot * 2 + 2]
         if item_id == -1 and amount == 0:
-            empty_seen = True
+            # an emptied slot can sit anywhere once a count has reached zero
             continue
-        # The original game keeps occupied slots packed at the front.  These
-        # checks prevent an unrelated 800-byte region being accepted as a bag.
-        if (empty_seen or not 0 <= item_id <= MAX_ITEM_ID
-                or not 0 < amount <= 32767 or item_id in inventory):
+        # An id outside the item table, an impossible count or a repeated id
+        # means this is not a bag; a hole does not.
+        if (not 0 <= item_id <= MAX_ITEM_ID or not 0 < amount <= 32767
+                or item_id in inventory):
             return None
         inventory[item_id] = amount
     return inventory

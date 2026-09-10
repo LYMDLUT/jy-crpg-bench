@@ -333,7 +333,13 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "compass": None,
          # Played seconds at the first read that found all fourteen held: the
          # completion event the benchmark times. Latched once, never cleared.
-         "completion_secs": None}
+         "completion_secs": None,
+         # The party and the world square the running game keeps, read beside
+         # the character records; moved_on_map says the last action changed the
+         # square, which only walking on the world map does, and world_map_at is
+         # the played time of the first such change.
+         "world_x": None, "world_y": None, "party_size": None,
+         "moved_on_map": False, "world_map_at": None}
 
 
 # --------------------------------------------------- the game's own save slot
@@ -468,7 +474,15 @@ async def game_snapshot(reason=""):
         return None, "busy"
     snap["tries"] += 1
     try:
+        if menu_rows():
+            # the player left a menu open; an escape now would close it under them
+            return None, "a menu is open"
         await meta_tap(KEYS["escape"])
+        # This walk's one escape-tap is now spent whatever the menu turns out to
+        # be: if the party has just stepped into a scene the tap opens a scene
+        # menu, not the world menu, and the attempt below aborts; the macro must
+        # not keep tapping until the party walks out onto the world map again.
+        hero["moved_on_map"] = False
         rows = menu_rows()
         if rows != WORLD_MENU_ROWS:
             await close_menus()
@@ -502,6 +516,7 @@ async def game_snapshot(reason=""):
             return None, "the slot the game wrote would not decode"
         summary["saved_at"] = time.time()
         summary["reason"] = reason
+        absorb_archive(summary)
         snap["archive"] = summary
         snap["at"] = summary["saved_at"]
         if snap["first_at"] is None:
@@ -553,6 +568,14 @@ async def snapshotter():
         if time.time() - snap["last_action"] < SNAPSHOT_IDLE:
             continue
         if stats["queued"]:                # somebody is waiting to play
+            continue
+        if not hero["moved_on_map"]:
+            # The escape that opens the save menu is a key into the game, and
+            # in a scene it would advance a dialogue or move a battle cursor.
+            # Only a party that has just walked on the world map is somewhere
+            # that key is harmless, so the save waits for such an action, and
+            # one action pays for at most one save: a player who stands and
+            # thinks is not interrupted again until they walk again.
             continue
         try:
             summary, why = await game_snapshot("last call" if last_call
@@ -626,6 +649,45 @@ def read_stats():
             hero["picked_item"] = False
         elif inventory_gained(opening, inventory):
             hero["picked_item"] = True
+    live = save_state.read_live(mem, base)
+    if live is None:
+        hero["moved_on_map"] = False
+        return
+    was = (hero["world_x"], hero["world_y"])
+    moved = was != (None, None) and was != (live["x"], live["y"])
+    hero["moved_on_map"] = moved
+    hero["world_x"], hero["world_y"] = live["x"], live["y"]
+    hero["party_size"] = len(live["party"])
+    if moved and hero["world_map_at"] is None:
+        hero["world_map_at"] = played_now()
+
+
+def played_now(now=None):
+    """Seconds of play so far: from the playable moment under the warden,
+    from the session start otherwise."""
+    now = time.time() if now is None else now
+    start = (warden.run["playable"] if warden.ON and warden.run["playable"]
+             else session["started"])
+    return round(now - start, 1)
+
+
+def absorb_archive(summary):
+    """Fold the bag the game itself wrote into the live reading.
+
+    The bag beside the character records is the game's own working copy, but
+    an item a script hands over was seen to reach it late, after the next
+    save or scene change, while the archive the game writes carries it at
+    once. Where the archive says more than the live copy, the archive wins;
+    nothing here can take a rung away.
+    """
+    bag = summary.get("bag") or {}
+    if bag.get(save_state.COMPASS_ID, 0) > 0:
+        hero["compass"] = True
+    hero["books"] = max(hero["books"] or 0, summary.get("books") or 0)
+    opening = hero["inventory_baseline"]
+    if opening is not None and bag and inventory_gained(opening, bag):
+        hero["picked_item"] = True
+    latch_completion()
 
 
 def latch_completion(now=None):
@@ -638,10 +700,7 @@ def latch_completion(now=None):
     """
     if hero["completion_secs"] is not None or (hero["books"] or 0) < len(save_state.BOOK_IDS):
         return None
-    now = time.time() if now is None else now
-    start = (warden.run["playable"] if warden.ON and warden.run["playable"]
-             else session["started"])
-    hero["completion_secs"] = round(now - start, 1)
+    hero["completion_secs"] = played_now(now)
     return hero["completion_secs"]
 
 
@@ -1123,6 +1182,7 @@ def session_summary():
             "books": hero["books"],
             "compass": hero["compass"],
             "completion_secs": hero["completion_secs"],
+            "party_size": hero["party_size"], "world_map_at": hero["world_map_at"],
             # From the game's own save slot: the party and the world square are
             # true only there. Books and items stay on the live reading above,
             # which is fresher than the last save.
@@ -1632,7 +1692,7 @@ async def run_action(request, steps, note, verb="KEY"):
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential", "inventory_distinct",
                       "picked_item", "items_total", "books", "compass",
-                      "completion_secs"):
+                      "completion_secs", "party_size", "world_map_at"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -1896,7 +1956,17 @@ async def api_screen(request):
         warden.note_read()
     if not watching:
         log_action(actor(request), "GET", "screen", thumb=True)
-    data, w, h, mime = snapshot(fmt if fmt in ("webp", "jpeg") else "png")
+    # The lock an action holds is the lock the benchmark's own save holds, so
+    # a look waits like a key does and never shows a menu the player did not
+    # open. A spectator's look takes the frame as it is.
+    held = (not watching and api_lock is not None
+            and await acquire_action_lock(f"{actor(request)} look"[:60]))
+    try:
+        data, w, h, mime = snapshot(fmt if fmt in ("webp", "jpeg") else "png")
+    finally:
+        if held:
+            action_lock().release()
+            stats["holder"] = ""
     if not data:
         return web.json_response({"ok": False, "error": "no frame"}, status=503)
     if fmt in ("png", "webp", "jpeg"):
@@ -2184,7 +2254,9 @@ async def api_reset(request):
                     maxhp=None, skills=None, items=None, reputation=None,
                     potential=None, inventory_distinct=None, picked_item=None,
                     items_total=None, books=None, compass=None,
-                    completion_secs=None, inventory_baseline=None)
+                    completion_secs=None, inventory_baseline=None,
+                    world_x=None, world_y=None, party_size=None,
+                    moved_on_map=False, world_map_at=None)
         agents.clear()
         rec_reset()
         await asyncio.sleep(0.4 if restored else 1.5)
@@ -2371,6 +2443,7 @@ async def progress(request):
 SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
                  "potential", "inventory_distinct", "picked_item",
                  "items_total", "books", "compass", "completion_secs",
+                 "party_size", "world_map_at",
                  "meaningful", "oscillation",
                  "scenes", "frontier", "bigmap", "exit_acts", "exit_secs",
                  "team_size", "team_level", "team", "saved_at", "first_saved_at",

@@ -81,6 +81,9 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "compass": None,
        # played seconds at the first read with all fourteen books held
        "completion_secs": None,
+       # the running game's own party and world square, and the played time of
+       # the first change of square, which only walking on the world map makes
+       "party_size": None, "world_map_at": None,
        # how many times the brief was fetched in each language: the server's
        # own record of which brief a run read
        "help_langs": {},
@@ -245,7 +248,7 @@ def metrics():
                                "items", "reputation", "potential",
                                "inventory_distinct", "picked_item",
                                "books", "items_total", "compass",
-                               "completion_secs",
+                               "completion_secs", "party_size", "world_map_at",
                                "team_size", "team_level", "saved_at",
                                "first_saved_at")},
         # There is no count of distinct places here on purpose. It was

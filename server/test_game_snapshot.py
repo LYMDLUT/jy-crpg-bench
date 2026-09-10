@@ -134,7 +134,8 @@ class WithholdingTests(unittest.TestCase):
     def test_the_compass_is_scored_withheld_and_published(self):
         # A rung a live run could read about itself is a rung it could play
         # to, so it is withheld like the rest, and it leaves with the run.
-        for field in ("compass", "completion_secs", "first_saved_at"):
+        for field in ("compass", "completion_secs", "first_saved_at",
+                      "party_size", "world_map_at"):
             self.assertIn(field, game_server.SCORED_FIELDS)
             self.assertIn(field, game_server.warden.run)
             self.assertIn(field, game_server.warden.metrics())
@@ -151,6 +152,21 @@ class WithholdingTests(unittest.TestCase):
             self.assertEqual(warden.metrics()["help_langs"], {"zh": 2, "en": 2})
         finally:
             warden.run["help_langs"] = was
+
+    def test_the_archive_fills_in_what_the_live_bag_lags_on(self):
+        hero = game_server.hero
+        was = {k: hero[k] for k in ("compass", "books", "picked_item", "inventory_baseline", "completion_secs")}
+        try:
+            game_server.warden.ON = False
+            hero.update(compass=False, books=0, picked_item=False, completion_secs=None,
+                        inventory_baseline={0: 3, 2: 3})
+            game_server.absorb_archive({"bag": {0: 3, 2: 3, 182: 1, 144: 1}, "books": 1})
+            self.assertEqual((hero["compass"], hero["books"], hero["picked_item"]), (True, 1, True))
+            # nothing the archive says can take a rung away
+            game_server.absorb_archive({"bag": {0: 3}, "books": 0})
+            self.assertEqual((hero["compass"], hero["books"], hero["picked_item"]), (True, 1, True))
+        finally:
+            hero.update(**was)
 
     def test_completion_latches_at_fourteen_books_and_stays(self):
         hero = game_server.hero

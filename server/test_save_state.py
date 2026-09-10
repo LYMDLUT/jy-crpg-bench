@@ -202,12 +202,29 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(s["books"], 2)
         self.assertEqual(s["book_ids"], [144, 157])
 
-    def test_a_region_that_is_not_a_bag_is_refused(self):
+    def test_a_hole_in_the_bag_is_read_through_and_a_bad_id_is_refused(self):
         mem, base = self.image({0: 3})
-        # a gap followed by an entry is not a packed bag
+        holed = bytearray(mem)
+        struct.pack_into("<4h", holed, base - S.BAG_SLOTS * 4, -1, 0, 5, 1)
+        self.assertEqual(S.from_memory(bytes(holed), base)["bag"], {5: 1})
         broken = bytearray(mem)
-        struct.pack_into("<4h", broken, base - S.BAG_SLOTS * 4, -1, 0, 5, 1)
+        struct.pack_into("<2h", broken, base - S.BAG_SLOTS * 4, 250, 1)
         self.assertIsNone(S.from_memory(bytes(broken), base))
+
+    def test_the_live_party_and_square_are_read_beside_the_records(self):
+        mem, base = self.image({0: 3})
+        live = bytearray(mem) + bytes(S.LIVE_REL + 64)
+        struct.pack_into("<6h", live, base + S.LIVE_REL, 0, 29, -1, -1, -1, -1)
+        struct.pack_into("<i", live, base + S.LIVE_REL + 12, 256)
+        struct.pack_into("<ii", live, base + S.LIVE_REL + S.LIVE_X_AT, 385, 306)
+        self.assertEqual(S.read_live(bytes(live), base), {"x": 385, "y": 306, "party": [0, 29]})
+        struct.pack_into("<i", live, base + S.LIVE_REL + S.LIVE_X_AT, 9000)
+        self.assertIsNone(S.read_live(bytes(live), base))
+        struct.pack_into("<ii", live, base + S.LIVE_REL + S.LIVE_X_AT, 385, 306)
+        struct.pack_into("<h", live, base + S.LIVE_REL, 7)          # not led by the protagonist
+        self.assertIsNone(S.read_live(bytes(live), base))
+        self.assertIsNone(S.read_live(mem, base))                    # image too short: no reading
+        self.assertIsNone(S.read_live(mem, None))
 
     def test_an_offset_with_no_room_for_a_bag_is_refused(self):
         mem, base = self.image({0: 3})
