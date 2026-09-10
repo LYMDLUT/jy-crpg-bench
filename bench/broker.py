@@ -350,6 +350,25 @@ async def wait_healthy(port, timeout=90, proc=None):
     return False
 
 
+# The game keeps its three save slots as files beside its data (R<n>, S<n>,
+# D<n> for the base block, the scenes and the events), so a copy of the game
+# directory carries whatever the operator last saved there, and the game's own
+# load menu would hand it to the run. Every slot is reset to the new-game
+# archives the release ships, so no run inherits progress from anywhere.
+SLOT_SOURCES = (("RANGER", "R"), ("ALLSIN", "S"), ("ALLDEF", "D"))
+
+
+def reset_save_slots(game_dir):
+    game_dir = pathlib.Path(game_dir)
+    for source_name, prefix in SLOT_SOURCES:
+        for ext in ("GRP", "IDX"):
+            source = game_dir / f"{source_name}.{ext}"
+            if not source.exists():
+                continue
+            for slot in (1, 2, 3):
+                shutil.copyfile(source, game_dir / f"{prefix}{slot}.{ext}")
+
+
 def make_workdir(sid):
     """A private, writable game directory for one run."""
     root = WORK / sid
@@ -357,6 +376,7 @@ def make_workdir(sid):
     (root / "saves").mkdir(parents=True, exist_ok=True)
     src = pathlib.Path(GAME).parent
     shutil.copytree(src, root / "game", dirs_exist_ok=True)
+    reset_save_slots(root / "game")
     return root / "game" / pathlib.Path(GAME).name, root / "saves"
 
 

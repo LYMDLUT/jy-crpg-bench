@@ -327,7 +327,10 @@ hero = {"base": None, "buf": None, "cap": 0, "read": 0, "found": False,
          "books": None, "book_ids": None, "items_total": None,
          # The compass the hermit's cabinet holds, read from the same bag:
          # the first gated event of the opening.
-         "compass": None}
+         "compass": None,
+         # Played seconds at the first read that found all fourteen held: the
+         # completion event the benchmark times. Latched once, never cleared.
+         "completion_secs": None}
 
 
 # --------------------------------------------------- the game's own save slot
@@ -607,12 +610,31 @@ def read_stats():
         hero["books"] = len(held)
         hero["book_ids"] = held
         hero["compass"] = inventory.get(save_state.COMPASS_ID, 0) > 0
+        latch_completion()
+
         opening = hero["inventory_baseline"]
         if opening is None:
             hero["inventory_baseline"] = dict(inventory)
             hero["picked_item"] = False
         elif inventory_gained(opening, inventory):
             hero["picked_item"] = True
+
+
+def latch_completion(now=None):
+    """Record the played time at which the fourteenth book was first seen.
+
+    The archive records every book held, so the count of books is what
+    carries the ladder to the ending; this turns the first read at fourteen
+    into the completion time the benchmark ranks by. The clock is the run's
+    playable moment under the warden and the session start otherwise.
+    """
+    if hero["completion_secs"] is not None or (hero["books"] or 0) < len(save_state.BOOK_IDS):
+        return None
+    now = time.time() if now is None else now
+    start = (warden.run["playable"] if warden.ON and warden.run["playable"]
+             else session["started"])
+    hero["completion_secs"] = round(now - start, 1)
+    return hero["completion_secs"]
 
 
 # Off by default, and it stays off until there is a way to find the
@@ -1092,6 +1114,7 @@ def session_summary():
             "items_total": hero["items_total"],
             "books": hero["books"],
             "compass": hero["compass"],
+            "completion_secs": hero["completion_secs"],
             # From the game's own save slot: the party and the world square are
             # true only there. Books and items stay on the live reading above,
             # which is fresher than the last save.
@@ -1583,7 +1606,8 @@ async def run_action(request, steps, note, verb="KEY"):
             warden.run["exit_secs"] = world["exit_secs"]
             for k in ("level", "exp", "hp", "maxhp", "skills", "items",
                       "reputation", "potential", "inventory_distinct",
-                      "picked_item", "items_total", "books", "compass"):
+                      "picked_item", "items_total", "books", "compass",
+                      "completion_secs"):
                 warden.run[k] = hero[k]
             warden.run["frontier"] = ((world["banked"] + world["far"])
                                       if world["ok"] else None)
@@ -2167,7 +2191,7 @@ async def api_reset(request):
                     maxhp=None, skills=None, items=None, reputation=None,
                     potential=None, inventory_distinct=None, picked_item=None,
                     items_total=None, books=None, compass=None,
-                    inventory_baseline=None)
+                    completion_secs=None, inventory_baseline=None)
         agents.clear()
         rec_reset()
         await asyncio.sleep(0.4 if restored else 1.5)
@@ -2351,7 +2375,8 @@ async def progress(request):
 # the agent never does.
 SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
                  "potential", "inventory_distinct", "picked_item",
-                 "items_total", "books", "compass", "meaningful", "oscillation",
+                 "items_total", "books", "compass", "completion_secs",
+                 "meaningful", "oscillation",
                  "scenes", "frontier", "bigmap", "exit_acts", "exit_secs",
                  "team_size", "team_level", "team", "saved_at", "saved_why")
 

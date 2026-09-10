@@ -10,7 +10,7 @@ objectives, and has to find fourteen books in an open world.
 |---|---|
 | Environment | 金庸群俠傳 (河洛工作室, 1996), DOS, unmodified binary under DOSBox Pure |
 | Observation | raw VGA frames, 320x200, Traditional Chinese text |
-| Action | 4 diagonal movement keys and 5 interaction keys; the API accepts the full DOS keyboard (119 named keys) |
+| Action | 4 diagonal movement keys and 5 interaction keys; the API accepts the full DOS keyboard (130 named keys) |
 | Horizon | open world, no fixed episode length |
 | Objective | recover fourteen books and return to the present |
 | Interfaces | HTTP API, MCP server, built-in Pi harness, browser |
@@ -304,10 +304,10 @@ Chinese at `/` and English at `/en/`. It is a static page that reads
 The board: the totals, the brief, and one card per recorded run.
 
 Each card is one run: model name, the MP4 replay with the keys composited in,
-how the run ended, and a seven-rung progress ladder: acted, picked something
-up, reached the world map, gained experience, reached level 2, recruited a
-companion, holds one of the fourteen books. Only the first rung is about the
-harness. The other six are the game's own numbers, read out of its character
+how the run ended, and an eight-rung progress ladder: acted, picked something
+up, reached the world map, holds the compass, recruited a companion, gained
+experience, reached level 2, holds one of the fourteen books. Only the first
+rung is about the harness. The other seven are the game's own numbers, read out of its character
 records and out of a save the game itself wrote - not inferred from the
 picture and never from a model's own report. The character board ranks by
 those numbers, books first, since fourteen of them end the game. The board

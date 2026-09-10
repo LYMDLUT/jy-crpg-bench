@@ -982,10 +982,11 @@ const RUNGS = [
   {{k: "m_item",  at: r => r.picked_item == null ? null : !!r.picked_item}},
   // The game only offers to save from the world map, so a save it wrote is
   // its own record of having stood there. Runs from before the benchmark
-  // could ask the game carry no saved_at at all, and keep the fingerprint
-  // flag they were scored with.
+  // could ask the game carry no saved_at at all and keep the fingerprint
+  // flag they were scored with, credited only when the fade to black that
+  // every scene change draws corroborates it.
   {{k: "m_map",   at: r => r.saved_at !== undefined ? r.saved_at != null
-      : (r.bigmap == null ? null : !!r.bigmap)}},
+      : (r.bigmap == null ? null : !!r.bigmap && r.exit_secs != null)}},
   // The compass sits in the hermit's cabinet and is read from the same live
   // bag as the books. It and the companion close the opening, which needs no
   // fight; experience and levels need one, so they follow.
@@ -1429,6 +1430,11 @@ function entries() {{
             skills: s.skills ?? null,
             inventory_distinct: s.inventory_distinct ?? null,
             picked_item: s.picked_item ?? null,
+            compass: s.compass ?? null,
+            // the save the game wrote is the world-map rung; a snapshot that
+            // never carried the field keeps the fingerprint verdict instead
+            ...("saved_at" in s ? {{saved_at: s.saved_at}} : {{}}),
+            team_size: s.team_size ?? null, books: s.books ?? null,
             // these are known from the first keypress, so a running card
             // shows them rather than dashes; oscillation is not, it is only
             // assembled at teardown

@@ -79,17 +79,19 @@ class ScoringBehaviorTests(unittest.TestCase):
     def test_a_save_the_game_wrote_is_the_world_map_rung(self):
         # The game only offers to save from the world map, so the save it
         # wrote is its own record of standing there.
-        saved, unsaved, legacy = self.evaluate(
+        saved, unsaved, legacy, solo = self.evaluate(
             "runs.map(r => rungs(r)[2])", [
                 {"agent": "a", "saved_at": 1788909476, "team_size": 1,
                  "books": 0, "bigmap": False},
                 {"agent": "b", "saved_at": None, "team_size": None,
                  "books": None, "bigmap": True},
-                {"agent": "c", "bigmap": True},
+                {"agent": "c", "bigmap": True, "exit_secs": 300.0},
+                {"agent": "d", "bigmap": True},
             ])
         self.assertTrue(saved)
         self.assertFalse(unsaved)
-        self.assertTrue(legacy)          # recorded before saves existed
+        self.assertTrue(legacy)          # recorded before saves existed, fade seen
+        self.assertFalse(solo)           # the fingerprint alone is not credited
 
     def test_the_party_and_the_books_are_rungs(self):
         party, books = self.evaluate(

@@ -112,7 +112,9 @@ def rungs_of(row):
         (row.get("key_events") if row.get("key_events") is not None
          else row["actions"]) > 0,
         bool(row.get("picked_item")),
-        (row.get("saved_at") is not None) if saved else bool(row.get("bigmap")),
+        # a legacy fingerprint latch is credited only with the fade to black
+        (row.get("saved_at") is not None) if saved
+        else bool(row.get("bigmap")) and row.get("exit_secs") is not None,
         bool(row.get("compass")),
         (row.get("team_size") or 0) > 1,
         (row.get("exp") or 0) > 0,

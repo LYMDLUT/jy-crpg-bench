@@ -68,10 +68,9 @@ human player tens of hours. The environment lies far outside the training distri
 current vision encoders, with a $320\times200$ framebuffer, a $45^\circ$
 isometric projection in which no key moves straight up the screen, Traditional
 Chinese rendered as 16-pixel bitmap glyphs, and objectives stated only inside
-its fiction. Every model plays through the same minimal harness, with the
-brief as its instructions, the frame as its observation and keys as its
-actions, and with no memory scaffold and no access to game state, so a run
-measures the model. Progress is read
+its fiction. Every model plays through the same brief and control surface,
+with the frame as its observation and keys as its actions, and with no memory
+scaffold and no access to game state, so a run measures the model. Progress is read
 from the memory of the emulated machine and from the save the game writes for
 itself, so every milestone is an event that pixel similarity cannot
 manufacture, and one instrument spans the whole distance: a ladder of
@@ -158,9 +157,10 @@ the hard end of all five. Control
 is projected. The world is drawn in a $45^\circ$ isometric projection, so the
 four movement keys run along screen diagonals, and a model that reasons in
 screen coordinates walks in circles. Progress is self-directed. The game
-keeps no quest log, draws no objective marker and reports no score, so
-deciding that the chest is worth searching and that the compass gates the
-rest of the world is part of the problem. ARC-AGI-3 places the same
+keeps no quest log, draws no objective marker and reports no score. The brief
+supplies the opening route, from the first room to the compass, and a manual
+of the controls; from the compass on, deciding where to go and what is worth
+doing is part of the problem. ARC-AGI-3 places the same
 goal-setting requirement at the centre of agency \citep{arc2026arcagi3}.
 
 Measuring such an environment from the screen is unreliable, and the field
@@ -356,9 +356,9 @@ something the model must infer.
 \label{sec:interface}
 
 The model observes the raw framebuffer at $320\times200$ and acts by pressing
-keys. Frames are upscaled without interpolation when a larger image is
-requested, so no information is added and none is smoothed away, and nothing
-is annotated: there is no set-of-marks overlay and no accessibility tree
+keys. A scored session serves the native frame and nothing else, so no
+information is added or smoothed away, and nothing is annotated: there is no
+set-of-marks overlay and no accessibility tree
 \citep[cf.][]{xie2024osworld}. The action space is the DOS keyboard,
 \MkeyNames{} names over \MkeyCodes{} distinct keys, and \cref{fig:keymap}
 shows how few of them the game answers. Movement runs along the four numpad
@@ -376,26 +376,30 @@ the side the door is on.
 \centering
 \includegraphics[width=0.94\linewidth]{figures/keymap.pdf}
 \caption{The action space. The API accepts \MkeyNames{} key names over
-\MkeyCodes{} distinct keys; the game answers the nine picked out here, and
-a model has to find them.}
+\MkeyCodes{} distinct keys; outside dialogue the game answers the nine picked
+out here, any key advances a dialogue, and a model has to find them.}
 \label{fig:keymap}
 \end{figure}
 
-An action holds a key for a fixed number of emulated frames, waits for the
-screen to react and then to hold still, and returns, so the frame a model
+An action holds a key for a requested number of emulated frames, ten by
+default, waits for the screen to react and then to hold still, and returns, so the frame a model
 receives is the consequence of the key it sent. The hold is counted in frames
 because the game samples its keyboard once per game-loop iteration and a
 shorter pulse can be consumed without registering. The control surface is
 nine HTTP calls, listed in \cref{app:brief}. A scored session withholds the
 emulator snapshot calls, since a run with an out-of-band rewind is not a run.
+The save and load menu of the game itself stays open to the model, as it is
+to a human player, and the slot the benchmark saves into is one of its three,
+so a model that loses a fight can reload the last save the game wrote; that
+is a rewind within the run, and the recording shows it.
 
 \subsection{Harness and Session Protocol}
 \label{sec:protocol}
 
 The benchmark supplies the harness, and the harness is minimal. The brief is
-the whole instruction the model receives: how a session runs, the calls that constitute play,
-the rules of a run, and orientation advice equivalent to the first page of a
-game manual, served in English and Chinese with the on-screen Traditional
+the whole instruction the model receives: the calls that constitute play, the
+rules of a run, the opening route as far as the compass, and a manual of the
+controls and systems of the game, served in English and Chinese with the on-screen Traditional
 terms of the game kept verbatim, so the language a model reasons in is not
 itself a handicap. The model reaches the game through four tools, which look
 at the screen, press one key, press a sequence of keys, and let the game run,
@@ -407,17 +411,19 @@ runs, where the harness translated RAM into text and did the perception
 models: harness choice moves game results
 \citep{hu2026lmgame,karten2026harness}, and on long-horizon tasks the
 variance a harness induces can exceed the variance between models
-\citep{zhang2026harness}. A scored run declares its model and a thinking
-level, one of seven from off to max, when the launcher creates its session,
-and both travel with the run into the public record through the usage report
-of \cref{sec:metrics}.
+\citep{zhang2026harness}. A session is created under a declared name; the
+reference harness requires a thinking level, one of seven from off to max, at
+launch, and files model and level with the usage report of
+\cref{sec:metrics}.
 
 A session is created with a playtime, \NbudgetMin{} minutes by default and up
 to twenty-four hours, and the clock starts at the first playable moment. Each
 session is a separate emulator process with a private copy of the game,
-which every host supplies itself as described in \cref{app:licence}, so no
-state, filesystem or snapshot is shared between sessions. A model that
-goes ten minutes without pressing a key is torn down and recorded as idle.
+which every host supplies itself as described in \cref{app:licence}, with
+the save slots of the game reset to a new game, so nothing writable is shared
+between sessions and no run inherits the progress of another. A model that
+goes ten minutes without a key or a wait call is torn down and recorded as
+idle, or as never started if it never acted.
 When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
 \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists the
@@ -435,8 +441,8 @@ game writes, on a path no control call reaches.}
 
 Because the control surface is plain HTTP, the harness is small and is
 released with the benchmark, and any client can drive a session for
-development or spectating. Every run keeps its full recording, so the
-behaviour behind a score is auditable.
+development or spectating. Every run publishes a time-compressed video and
+a keypress timeline, so the behaviour behind a score can be reviewed.
 
 \subsection{State-Verifiable Progress}
 \label{sec:measure}
@@ -444,15 +450,17 @@ behaviour behind a score is auditable.
 The game keeps its persistent state in one archive: a base block with the
 world position, the party roster and the shared bag, followed by
 \Mrecords{} character records of \MrecordBytes{} bytes and an item table. We
-validated that layout against the archives the release ships, where only
-\Moverflow{} of \Mrecords{} records violate
+validated that layout against the opening machine image and the archives the
+release ships, where only \Moverflow{} of \Mrecords{} records violate
 $\mathrm{hp}\le\mathrm{maxHp} \wedge \mathrm{mp}\le\mathrm{maxMp}$, and located
 the same array in the live emulated machine by anchoring on one character
 name and confirming the two neighbouring records at the correct stride, since
 the name recurs in the image and the layout moves between runs. The bag in front of that array is the working copy and moves
 the moment an item is taken, so the item count and the books held are
-current. Measurement is read-only: the benchmark serialises the machine but
-never loads state into it, so observing a run cannot alter it.
+current. Reading is passive: the benchmark serialises the machine but never
+loads state into it. The one thing it presses for itself is the save
+described next, which costs the game a few seconds of menu time outside the
+accounting of the run and leaves the screen as it found it.
 
 The party roster and the world position are not live in memory; the copies
 there are the ones the game loaded when the run began. The benchmark
@@ -496,15 +504,15 @@ Rung & Evidence & Source \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{The opening, reached without a fight}} \\
 acted & a key event was sent & session record \\
-picked something up & an item count above the opening bag & bag in memory \\
-reached the world map & the game wrote its save & save \\
+picked something up & any item count above its opening count & bag in memory \\
+reached the world map & the game wrote its save, or a fade-corroborated map signature & save, screen \\
 holds the compass & the compass in the bag & bag in memory \\
 recruited a companion & a party roster longer than one & save \\
 \addlinespace
 \multicolumn{3}{@{}l}{\emph{The campaign, from the first fight on}} \\
 gained experience & experience above zero & character record \\
 reached level 2 & level above one & character record \\
-holds one of the fourteen & a book in the bag or carried & bag and record \\
+holds one of the fourteen & a book in the bag or carried by the protagonist & bag and record \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -513,9 +521,10 @@ The ladder points at the ending of the game. The fourteen books are what the
 game requires before its final sequence can be played, and the archive
 records every book held, so the count of books carries the ladder from its
 last rung to the threshold of that sequence, and the fourteenth book is the
-completion event the benchmark times. Sessions run to twenty-four hours on
-the same protocol, and a session that completes carries a completion time,
-which orders a field in which every entrant passes. One instrument therefore
+completion event the benchmark times: the first read that finds all fourteen
+held latches the played time. Sessions run to twenty-four hours on the same
+protocol, and a session that completes carries that time, which orders a
+field in which every entrant passes. One instrument therefore
 covers both horizons, and the benchmark keeps measuring after the first model
 finishes.
 
@@ -534,8 +543,8 @@ following the effective-versus-redundant distinction of GVGAI-LLM
 whether a model looks before it acts, think-time percentiles taken from
 inter-action gaps, time to first action, and action-space coverage as the
 count of distinct keys used. The ratio is a binomial proportion, so we report
-95\% Wilson intervals \citep{wilson1927probable} and group configurations
-whose intervals overlap. Ratio alone rewards near-inaction, since a single
+95\% Wilson intervals \citep{wilson1927probable} and read overlapping
+intervals as a tie. Ratio alone rewards near-inaction, since a single
 considered action scores 1.0, and count alone rewards pressing keys as fast
 as the protocol allows, so the two are read together.
 
@@ -545,19 +554,20 @@ screen read, so turns, reads and think time are measured on the server for
 any client. Token consumption is a property of the client, so the reference
 harness meters it: after a run it sums the usage the provider reported for
 every assistant turn on the active branch of its session, as input, output,
-cache read, cache write and cost, and files the total once, with the model
+cache-read and cache-write tokens with a cost at the rates the operator
+declared, and files the total once, with the model
 identifier and the declared thinking level, under the name the session was
 created with. A run with any unmetered turn files nothing, so the record
 carries the whole meter or none, and cost is shown beside a run rather than
 used to rank it.
 
-A seeded random policy anchors these quantities. It draws from the key
-vocabulary the brief teaches, at a cadence within the range models achieve,
-and never reads the screen, following the convention that anchors a score
-on random and human play
-\citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. It fixes
-the reactivity of the environment for every behavioural metric, and every
-detector is audited against it before its numbers are reported.
+A seeded random policy anchors these quantities. It draws from thirteen keys
+the brief teaches, weighted towards movement and confirmation, at a fixed
+seed and a cadence within the range models achieve, and never reads the
+screen, following the convention that anchors a score on random and human
+play \citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. It
+fixes the reactivity of the environment for every behavioural metric and is
+the negative control the detectors were checked against.
 
 \section{Evaluation}
 \label{sec:results}
@@ -595,8 +605,8 @@ reported as flagged and not credited, and the other \Sstayed{} spend the
 whole budget in the scene they started in. The \Sread{} sessions that expose
 a readable character record all stand at level \Slevel{} with \SexpSum{}
 experience and \Sskills{} skill, the state the session booted into, so the
-rungs that require the character to change are open. The item, compass and
-companion rungs post-date every run in the field and are reported as
+rungs that require the character to change are open. The item, compass,
+companion and book rungs post-date every run in the field and are reported as
 unmeasured. \Cref{fig:ladder} shows the ladder by vendor family. Comparable instruments place their fields at a
 similar point: BALROG reports its best model at $1.5\%$ progression on
 NetHack \citep{paglieri2025balrog} and VideoGameBench reports the best
@@ -665,8 +675,8 @@ measurement that separates a slow model from a stuck one.}
 \label{sec:conclusion}
 
 We presented \bench{}, a long-horizon benchmark that runs an unmodified 1996
-open-world role-playing game, gives every model the same minimal harness, and
-scores it in the terms the game keeps about itself. The environment is adversarial in ways that are named and
+open-world role-playing game, gives every model the same brief and control
+surface, and scores it in the terms the game keeps about itself. The environment is adversarial in ways that are named and
 checkable: an out-of-distribution $320\times200$ isometric frame,
 Traditional Chinese as the only channel through which objectives are stated,
 and a world that supplies no score. Progress read from the memory of the environment and from a save the
@@ -676,7 +686,7 @@ ending of the game: recovering the fourteen books is a state the archive
 records, so a model that finishes leaves proof of it, and the benchmark then
 ranks by the time it took. Both scales exist from the start, so the first
 finishing model changes what the leaderboard measures, and the run that gets
-there is on record and replayable frame by frame.
+there is on record with its video and every key it pressed.
 
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
@@ -688,16 +698,21 @@ there is on record and replayable frame by frame.
 
 \section{The Brief and the Control Surface}
 \label{app:brief}
-The complete onboarding surface is the brief served at \texttt{agents.md}:
-session creation, the calls that constitute play, the rules of a run covering
-budget, idle teardown, recording and publication, the isometric key mapping
-with an explicit warning that arrow-key intuitions do not hold, orientation
-advice equivalent to the first page of a game manual, and the note that any
-starting name is acceptable. It is generated from the same source the game
-server serves at \texttt{/api/help}, so the documentation cannot drift from
-the behaviour. The English and Chinese versions are equivalent in rules, with
-the on-screen Traditional terms preserved in both. \Cref{tab:api} lists the
-control surface; a scored session answers the last three calls with 404. A
+A reference-harness run receives the tool adapter note and the text the game
+server serves at \texttt{/api/help}: the calls that constitute play, the
+rules of a run covering budget, idle teardown, recording and publication, the
+isometric key mapping with an explicit warning that arrow-key intuitions do
+not hold, the opening route as far as the compass, and a manual of the
+controls, menus, combat and attributes of the game. The page at
+\texttt{agents.md} is generated from the same source for clients that create
+their own sessions, and adds session creation and the note that any starting
+name is acceptable. The English and Chinese versions are equivalent in rules,
+with the on-screen Traditional terms preserved in both; the reference harness
+serves the Chinese brief by default, and the language of a run is not yet
+recorded in the catalogue. \Cref{tab:api} lists the control surface; a
+scored session answers the last three calls with 404, can read its remaining
+time and its own action counters, and is refused every progress field until
+the run ends. A
 tenth call, \texttt{POST /usage}, belongs to the broker that creates sessions
 rather than to a session: after a run, the harness files the usage meter of
 \cref{sec:metrics} under the name the session was created with, and the
@@ -727,7 +742,8 @@ Call & Body & Meaning \\
 
 \section{Metric Definitions and Detector Calibration}
 \label{app:metrics}
-For a run with actions $a_1,\dots,a_n$ at wall-clock times $t_1,\dots,t_n$,
+For a run whose decision calls, waits included, are $a_1,\dots,a_n$ at
+wall-clock times $t_1,\dots,t_n$,
 playable-from time $t_0$, and post-settle screen fingerprints
 $f_1,\dots,f_n$: the meaningful-step ratio is
 $\frac{1}{n}\sum_i \mathbf{1}[f_i \neq f_{i-1}]$; the oscillation rate is
@@ -737,18 +753,21 @@ $\{t_i - t_{i-1}\}$; reads per action is the count of screen reads over $n$;
 and action-space coverage is the number of distinct keys used. Fingerprints
 are $12\times8$ three-bit-quantised grayscale downsamples with the
 camera-locked sprite region masked, and they are used for behaviour only.
-Wilson intervals use $z=1.96$ \citep{wilson1927probable}.
+Wilson intervals use $z=1.96$ \citep{wilson1927probable}. A key is held for
+a requested 5 to 1200 frames, 10 by default.
 
 Scene transitions are detected from the fade to black the renderer performs
 on every transition. Mean framebuffer luminance is sampled each frame while
 the screen settles; the opening scene reads 92, a transition reads 0, and
-the threshold of 12 sits far from anything the game otherwise draws. The
-world-map rung uses a fingerprint reference captured just outside the
-compound exit, where the first world-map frame of every run lands: frames on
-the map near the spawn sit within four cells of the reference, interior
-frames sixteen or more away, and the accepted distance is eight. A run whose
-opening frame already matches the reference disables the latch for itself and
-is reported as unmeasured. The save attempt reads the height of the menu the
+the threshold of 12 sits far from anything the game otherwise draws. For
+runs recorded before the benchmark could ask the game to save, the world-map
+rung uses a fingerprint reference captured just outside the compound exit,
+where the first world-map frame of every run lands: frames on the map near
+the spawn sit within four cells of the reference, interior frames sixteen or
+more away, and the accepted distance is eight. A run whose opening frame
+already matches the reference disables the latch for itself and is reported
+as unmeasured, and a latch without a fade to black before it is not credited.
+The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
 entry through which the game saves. Attempts wait for a two-second gap
@@ -764,15 +783,17 @@ test suite.
 \section{Session and Infrastructure Parameters}
 \label{app:infra}
 The default budget is \Nbudget{}\,s and is configurable to 24\,h; idle
-teardown is 600\,s; the concurrency cap is 24 sessions per 8-vCPU, 8\,GiB
-host, measured at 32 sessions holding native 70.09\,fps with memory binding
-before CPU, at about 123\,MB of game copy per run. Emulation is DOSBox Pure
+teardown is 600\,s; the concurrency cap is 24 sessions per 8-vCPU host, set
+from a measurement of 32 sessions holding native 70.09\,fps on 8\,GiB with
+memory binding before CPU, at about 123\,MB of game copy per run, and the
+service runs on 16\,GiB. Emulation is DOSBox Pure
 through libretro at a fixed 26800 cycles, the speed of a 486DX2-66 and
 period-correct for the game, with no sound card, so the observation is visual
 only, and with per-session private copies of the game and save directories.
 Recordings are stored as $16\times10$-tile zlib deltas; published video is
 the native $320\times200$ frame above a 32-pixel strip naming the actor, the
-action and the clock, with a timeline sidecar of a few kilobytes carrying
+action number, the keys held and the clock, played at four times speed or
+faster for long runs, with a timeline sidecar of a few kilobytes carrying
 every keypress and its hold duration for the scrubbable replay. A
 character-state read costs about 1.2\,ms through serialisation into a reused
 buffer and is taken after every action, with gains latched against the
@@ -780,19 +801,21 @@ opening bag, so an item picked up and later consumed still credits its rung;
 a luminance sample costs about a microsecond per frame while the screen
 settles. Outside scored runs the server can checkpoint and resume a session
 and serve many visitors from private workers behind one gateway; a scored run
-has neither. The leaderboard is a static page polling published JSON, so
-spectators place no load on game hosts.
+has neither. The leaderboard is a static page polling published JSON; only
+the live viewers of a running session, capped at twelve, reach its worker.
 
 \section{Release and Licensing}
 \label{app:licence}
 The harness code is released under MIT. The emulation core
-(\texttt{dosbox\_pure\_libretro}) is GPLv2, built from
-\texttt{schellingb/dosbox-pure} at \texttt{7f6e8fb}, loaded at runtime through
-the libretro C API and redistributed unmodified. The game is the 1996
+(\texttt{dosbox\_pure\_libretro}) is GPLv2, loaded at runtime through the
+libretro C API and redistributed unmodified; the bundled macOS core is built
+from \texttt{schellingb/dosbox-pure} at \texttt{7f6e8fb}, and the hosted
+service downloads the libretro buildbot Linux build current at its image
+date. The game is the 1996
 commercial release, copyright \game{智冠科技} and \game{河洛工作室}. It is not
 redistributable, it is not tracked in the repository, and every host supplies
 its own copy. The public catalogue therefore carries our own measurement
-output, meaning metrics, event recordings and replay sidecars, and nothing
+output, meaning metrics, videos and replay timelines, and nothing
 that substitutes for the game data. The \game{金庸群俠傳} frames in this paper
 identify the interface under study, in the same spirit as prior work showing
 frames of copyrighted games \citep{paglieri2025balrog}; if the rights holders
@@ -802,8 +825,9 @@ object, they will be removed.
 \label{app:books}
 The ending requires the \BookCount{} books, which the game stores as item
 records \BookFirst{} to \BookLast{} of its item table, named after the
-novels: \booklist. A book counts as held when it is in the shared bag or
-carried by a party member, which is how the final rung of the ladder is read.
+novels: \booklist. A book counts as held when it is in the shared bag or in
+the four carried slots of the protagonist, which is how the final rung of
+the ladder is read.
 With all fourteen in hand and sufficient reputation, the game opens its final
 sequence at a shrine on the far side of the map, where the books are placed
 and a last battle decides the ending \citep{bahamut2023walkthrough}.

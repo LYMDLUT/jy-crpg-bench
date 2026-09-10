@@ -134,10 +134,29 @@ class WithholdingTests(unittest.TestCase):
     def test_the_compass_is_scored_withheld_and_published(self):
         # A rung a live run could read about itself is a rung it could play
         # to, so it is withheld like the rest, and it leaves with the run.
-        self.assertIn("compass", game_server.SCORED_FIELDS)
-        self.assertIn("compass", game_server.warden.run)
-        self.assertIn("compass", game_server.warden.metrics())
-        self.assertIn("compass", game_server.session_summary())
+        for field in ("compass", "completion_secs"):
+            self.assertIn(field, game_server.SCORED_FIELDS)
+            self.assertIn(field, game_server.warden.run)
+            self.assertIn(field, game_server.warden.metrics())
+            self.assertIn(field, game_server.session_summary())
+
+    def test_completion_latches_at_fourteen_books_and_stays(self):
+        hero = game_server.hero
+        was = dict(books=hero["books"], completion_secs=hero["completion_secs"])
+        started = game_server.session["started"]
+        try:
+            game_server.warden.ON = False
+            hero.update(books=13, completion_secs=None)
+            self.assertIsNone(game_server.latch_completion(now=started + 50))
+            hero["books"] = 14
+            self.assertEqual(game_server.latch_completion(now=started + 61.26), 61.3)
+            # a later read does not move the time, and a book put down does
+            # not clear it: the game's ending was reached once
+            hero["books"] = 13
+            self.assertIsNone(game_server.latch_completion(now=started + 90))
+            self.assertEqual(hero["completion_secs"], 61.3)
+        finally:
+            hero.update(**was)
 
 
 class DisabledTests(unittest.TestCase):
