@@ -125,12 +125,25 @@ def build(base, token, log=print):
             break
         g.wait(3000)
 
+    # Name the character through the 注音 IME. The name does not matter, only
+    # that one is entered so the game leaves the name screen. The syllable ㄨㄤˊ
+    # is j ; 6, then 1 picks 王 and enter confirms. Each key is sent on its own
+    # with a hold and a pause, not as one fast list: on the deployed core the
+    # list arrived faster than the IME could take each symbol and the name came
+    # out empty, leaving the game on the name screen where every later key is
+    # then lost.
     log("naming the character through the 注音 IME")
-    g.keys(["j", ";", "6"])        # ㄨㄤˊ
-    g.wait(1500)                   # let the IME register the syllable
-    g.keys(["1", "enter"])         # pick 王, confirm
-    g.wait(2500)                   # let the name commit and the roll appear
-    log("named; screen: data:image/png;base64," + base64.b64encode(g.png()).decode())
+    g.wait(1500)                       # let the name screen settle first
+    before = sha(g.png())
+    for k in ("j", ";", "6"):          # ㄨㄤˊ, one symbol at a time
+        g.key(k, hold=25)
+        g.wait(700)
+    log("syllable %s; screen: data:image/png;base64,%s"
+        % ("changed the screen" if sha(g.png()) != before else "did NOT show",
+           base64.b64encode(g.png()).decode()))
+    g.key("1", hold=25); g.wait(700)   # pick 王
+    g.key("enter", hold=25); g.wait(2500)   # confirm the name
+    log("post-name screen: data:image/png;base64," + base64.b64encode(g.png()).decode())
 
     # The attribute roll takes y and n and nothing else. A y that arrives
     # before the prompt is simply lost, and every enter after it is ignored,
