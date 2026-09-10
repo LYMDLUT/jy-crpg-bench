@@ -150,6 +150,21 @@ class RecordingApiTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 api.close();store.close()
 
+    async def test_benchmark_view_can_hide_recorder_only_trajectory_events(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            store = RecordingStore(Path(directory) / 'run.jsonl', started=10)
+            api = RecordingAPI(store)
+            try:
+                store.append({'t': 1, 'act': 'KEY', 'on': 'right'})
+                store.append({'t': 1.1, 'trajectory': True, 'x': 4, 'y': 5})
+                request = SimpleNamespace(query={'view': 'paged'})
+                page = json.loads((await api.handle(request, include_trajectory=False)).body)
+                self.assertEqual([event.get('act') for event in page['events']], ['KEY'])
+                self.assertFalse(any(event.get('trajectory') for event in page['events']))
+            finally:
+                api.close(); store.close()
+
 
 class RecordingWorkerTests(unittest.TestCase):
     @classmethod
