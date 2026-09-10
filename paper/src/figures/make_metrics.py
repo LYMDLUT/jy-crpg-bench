@@ -72,14 +72,16 @@ def pct(values, q):
     return float(xs[lo] + (xs[hi] - xs[lo]) * (pos - lo))
 
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import field
 rows = json.load(open(CAT, encoding="utf-8"))
 probes = [r for r in rows if r["agent"].startswith("probe-")]
-data = [r for r in rows if not r["agent"].startswith("probe-")]
-play = [r for r in data if r["budget"] == 1200 and (r["actions"] or 0) > 0]
+data = field.load_runs()
+play = field.played(data)
 never = [r for r in data if not (r["actions"] or 0)]
-other = [r for r in data if r["budget"] != 1200]
+other = [r for r in data if r["budget"] != field.DEFAULT_BUDGET]
 models = [r for r in play if vendor(r["agent"]) != "random"]
-randoms = [r for r in play if vendor(r["agent"]) == "random"]
+randoms = field.random_rows(data)   # at the default budget when run there, else every random run
 
 # ---- integrity assertion 1: per-run numerator/denominator round trip -------
 bad = []

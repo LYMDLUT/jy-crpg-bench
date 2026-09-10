@@ -1,7 +1,9 @@
 """Aggregate per-session runs into a leaderboard table from catalog data."""
 import json, os, statistics as st
 
-CAT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalog_snapshot.json")
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import field
 
 
 def wil(k, n, z=1.96):
@@ -18,12 +20,10 @@ def median(values):
 
 
 def main():
-    rows = json.load(open(CAT, encoding="utf-8"))
-    scored = [
-        r for r in rows
-        if r["budget"] == 1200 and (r["actions"] or 0) > 0
-        and not r["agent"].startswith("probe-")
-    ]
+    rows = field.load_runs()
+    scored = field.played(rows)
+    if not any(field.is_random(r["agent"]) for r in scored):
+        scored = scored + field.random_rows(rows)
     groups = {}
     for r in scored:
         groups.setdefault(r["agent"], []).append(r)
@@ -35,7 +35,9 @@ def main():
         g = groups[agent]
         num = sum(round(r["meaningful"] * r["actions"]) for r in g)
         den = sum(r["actions"] for r in g)
-        return (agent.startswith("random"), -num / den)
+        # the random floor last; a stub the idle rule ended after a few keys
+        # below every run that played, since its ratio is not a measurement
+        return (agent.startswith("random"), den < 30, -num / den)
 
     for agent in sorted(groups, key=rank):
         g = groups[agent]
@@ -51,8 +53,9 @@ def main():
         osc = median([r["oscillation"] for r in g])
         reads = sum(r["reads"] for r in g)
         n = len(g)
-        g50 = median([r["gap_p50"] for r in g])
-        g95 = median([r["gap_p95"] for r in g])
+        # a session with a single action has no inter-action gap
+        g50 = median([r["gap_p50"] for r in g if r.get("gap_p50") is not None])
+        g95 = median([r["gap_p95"] for r in g if r.get("gap_p95") is not None])
         body.append(
             (agent, n, den, num, p, lo, hi, aps, ttfa, g50, g95, osc,
              reads, maps, maps_c)
@@ -65,15 +68,16 @@ def main():
         r" act/min & reads/act & think (s) & map \\",
         r"\midrule",
     ]
-    best = max(r[4] for r in body if not r[0].startswith("random"))
+    best = max(r[4] for r in body if not r[0].startswith("random") and r[2] >= 30)
     for agent, n, den, num, p, lo, hi, aps, ttfa, g50, g95, osc, reads, maps, maps_c in body:
         if agent.startswith("random"):
             lines.append(r"\midrule")
         ratio = ("\\textbf{%.3f}" if p == best else "%.3f") % p
         lines.append(
-            "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %.2f & %.1f & %d/%d \\\\"
+            "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %.2f & %s & %d/%d \\\\"
             % (agent.replace("_", "\\_").replace("--", "-{-}"),
-               n, den, ratio, lo, hi, aps, reads / den, g50, maps_c, maps)
+               n, den, ratio, lo, hi, aps, reads / den,
+               "--" if g50 != g50 else "%.1f" % g50, maps_c, maps)
         )
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines)

@@ -417,8 +417,7 @@ launch, and files model and level with the usage report of
 
 A session is created with a playtime, \DefaultBudgetMin{} minutes by default
 and up to twenty-four hours, and the clock starts at the first playable
-moment; the field in \cref{sec:results} was collected at the earlier default
-of \NbudgetMin{} minutes. Each
+moment. Each
 session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, with
 its save slots reset to a new game, so no run inherits the progress of
@@ -572,24 +571,23 @@ the negative control the detectors were checked against.
 \section{Evaluation}
 \label{sec:results}
 
-The field at submission is \NmodelsDistinct{} models from \Nvendors{} vendors
-and a seeded random baseline, over \Nsessions{} scored sessions at the
-\NbudgetMin{}-minute budget, \NrandomRuns{} of them random runs. A run is
-listed under the name declared when its session was created, and a submission
-is a completed run. The \Nsessions{} sessions carry \NmodelLabels{} model
-labels, because three models were also run under names that record the client
-the operator drove the control surface with, and the pooled rows of
-\cref{app:field} keep those labels apart from the runs under the reference
-harness. The thinking level reaches the record through the usage report of
-\cref{sec:metrics}, which none of the runs in this field carries. Every
-session is public: its video, replay timeline and metric record are in the
-public bucket, and the catalogue snapshot the paper is generated from is
-committed beside the paper source. \Cref{app:field} lists the runs by name. This section reads the field for
-what it says about the instrument: how much of the ladder is open, whether
-the ladder and the behavioural metrics separate models, whether the
-metrics measure what they claim, and how a budget is spent.
+The field at submission is \NmodelsDistinct{} models from \Nvendors{} vendors,
+one session each at the \NbudgetMin{}-minute budget, and a seeded random
+baseline. A run is listed under the name declared when its session was
+created; two were created under names that were not the model, and are
+listed under the model the operator identified, \aliaslist, with the declared
+names kept in the snapshot. No run in this field carries a usage report, so
+tokens and thinking level are not reported, and \Shelp{} of the \Nsessions{}
+sessions fetched the brief from the session, in English, the rest reading the
+published page. Every session is public on the leaderboard with its video,
+replay timeline and metric record, and the catalogue snapshot the paper is
+generated from is committed beside the paper source. \Cref{app:field} lists
+the runs by name. This section reads the field for what it says about the
+instrument: how much of the ladder is open, whether the ladder and the
+behavioural metrics separate models, whether the metrics measure what they
+claim, and how a budget is spent.
 
-\tbd{The present field is one to three runs per model. A sweep of repeated
+\tbd{The present field is one run per model. A sweep of repeated
 runs per model under the fixed harness, and a human
 reference run under the same budget and interface reported to the
 human-baseline checklist \citep{wei2025humanbaselines}, are the two
@@ -597,17 +595,18 @@ additions the field most needs.}
 
 \subsection{Headroom}
 
-Every model acts, and the world map is the highest rung the field
-reaches at this budget. \Smap{} of the \Nsessions{} scored sessions latch
-the world-map signature, \SmapFade{} of them corroborated by the fade to
-black; the remaining \SmapSolo{} rest on the fingerprint alone and are
-reported as flagged and not credited, and the other \Sstayed{} spend the
-whole budget in the scene they started in. The \Sread{} sessions that expose
-a readable character record all stand at level \Slevel{} with \SexpSum{}
-experience and \Sskills{} skill, the state the session booted into, so the
-rungs that require the character to change are open. The item, compass,
-companion and book rungs post-date every run in the field and are reported as
-unmeasured. \Cref{fig:ladder} shows the ladder by vendor family. Comparable instruments place their fields at a
+Every rung is measured for the first time, and the world map is the highest
+the field reaches at this budget. \Sitem{} of \Nsessions{} sessions pick
+something up, and \Smap{} reach the world map, every one of them credited by
+the save the game wrote and corroborated by the fade to black; \Sstayed{}
+spend the whole budget in the scene they started in, and \Nidle{} of those
+sent a single key before the idle rule ended it. Two of the sessions that
+left never searched the chest, and two that searched it never left. No
+session holds the compass, recruits a companion, gains experience or holds a
+book: all \Sread{} character records stand at level \Slevel{} with
+\SexpSum{} experience and \Sskills{} skill, the state the session booted
+into, so every rung from the compass on is open. \Cref{fig:ladder} shows the
+ladder by vendor family. Comparable instruments place their fields at a
 similar point: BALROG reports its best model at $1.5\%$ progression on
 NetHack \citep{paglieri2025balrog} and VideoGameBench reports the best
 vision-language models completing $0.48\%$ of its suite
@@ -626,44 +625,45 @@ sessions reaching that rung over the sessions where it was measured.}
 
 \subsection{Discrimination and Validity}
 
-Models that share a progression result behave very differently, and
-the behavioural metrics separate them where the ladder cannot yet, with
-Wilson intervals on the meaningful-step ratio that do not overlap between
-styles. Three styles recur. The most deliberate models take at most
-\QslowActs{} actions in \NbudgetMin{} minutes at median think times of
-\QslowGap{}\,s and above, so the budget expires before the plan does. A
-steady traverser takes \QsteadyN{} actions at a ratio of \Qsteady{} with an
-oscillation rate of \QsteadyOsc{}, the closest behaviour to purposeful
-traversal in the field. One model falls below the random floor, as
-GameBench also reports for one model \citep{costarelli2024gamebench}: it
-reads the screen before \QworstReads\% of its \QworstN{} actions, acts
-quickly, and reaches a meaningful ratio of \Qworst{}, \QunderTimes{} times
-below random, because its replay shows minutes of keys the game ignores in
-the mode it is in. Reading the screen frequently therefore does not
-establish that a model perceives it, a divergence between looking and seeing
-that BALROG and VideoGameBench also document
+Models that share a progression result behave very differently, and the
+behavioural metrics separate them where the ladder cannot yet, with Wilson
+intervals on the meaningful-step ratio that do not overlap between styles.
+Three styles recur. The most deliberate models take at most \QslowActs{}
+actions in \NbudgetMin{} minutes at median think times of \QslowGap{}\,s and
+above, and both of them reach the world map, so deliberation at this pace
+does not cost the crossing. A steady traverser takes \QsteadyN{} actions at
+a ratio of \Qsteady{} with an oscillation rate of \QsteadyOsc{}, the closest
+behaviour to purposeful traversal in the field, and also crosses. The
+fastest model takes \QworstN{} actions, reads the screen before
+\QworstReads\% of them, and reaches a ratio of \Qworst{}, \QworstOverRandom{}
+times the random floor and the lowest of the field, without leaving the
+opening scene: its replay shows long runs of keys the game ignores in the
+mode it is in. Pressing keys quickly and reading the screen often therefore
+do not establish that a model perceives it, a divergence between looking and
+seeing that BALROG and VideoGameBench also document
 \citep{paglieri2025balrog,zhang2025videogamebench}.
 
 The floor itself is measured. The random baseline never reads the screen,
 acts every \QrandomGap{}\,s over \QrandomKeys{} distinct keys, and still
-changes the screen \Qrandom{} of the time across \QrandomN{} actions, which
-is the reactivity of the environment that every behavioural metric is read
-against; across those actions the exit tile is never reached. The world-map
-detector is held to the same standard: a latch is credited only when the fade
-to black corroborates it, which is why \SmapSolo{} latches above are flagged
-and not credited.
+changes the screen \Qrandom{} of the time across \QrandomN{} actions at a
+\QrandomBudgetMin{}-minute budget, which is the reactivity of the
+environment that every behavioural metric is read against; every active
+session in the field clears it, and across its own actions the baseline never
+reaches the world map. The world-map detector is held to the
+same standard: a latch is credited only when the fade to black corroborates
+it, and in this field every credit also rests on the save the game wrote.
 
 \subsection{Use of the Budget}
 
-Most sessions spend the entire budget in the scene they spawned in. The
-sessions that leave it cross at a median of \SexitActs{} actions and
-\SexitMedian{} minutes, so the models that reach the second scene
-spend \SexitMedian{} of their \NbudgetMin{} minutes getting there, and
-\SexitVendors{} vendors account for every corroborated crossing;
-\cref{fig:horizon} in \cref{app:field} shows the budget of every session.
-This distribution is why the \NbudgetMin{}-minute budget measures early
-competence and why deliberation is priced in wall clock, an efficiency
-framing shared with ARC-AGI-3 and TextQuests
+The sessions that leave the opening scene cross at a median of
+\SexitActs{} actions and \SexitMedian{} minutes, so the models that reach
+the world map spend \SexitMedian{} of their \NbudgetMin{} minutes getting
+there and the rest of the hour on the map without reaching the compass,
+which sits a short walk south of the exit; \SexitVendors{} vendors account
+for the crossings, and \cref{fig:horizon} in \cref{app:field} shows the
+budget of every session. This distribution is why the \NbudgetMin{}-minute
+budget measures the opening and why deliberation is priced in wall clock, an
+efficiency framing shared with ARC-AGI-3 and TextQuests
 \citep{arc2026arcagi3,phan2025textquests}. The protocol supports budgets to
 twenty-four hours, the setting in which the later rungs and a completion
 time come within reach.
@@ -782,9 +782,8 @@ test suite.
 
 \section{Session and Infrastructure Parameters}
 \label{app:infra}
-The default budget is \DefaultBudgetSec{}\,s, raised from the \Nbudget{}\,s at
-which the field of \cref{app:field} was collected, and is configurable to
-24\,h; idle
+The default budget is \DefaultBudgetSec{}\,s, raised from 1200\,s in
+September 2026, and is configurable to 24\,h; idle
 teardown is 600\,s; the concurrency cap is 24 sessions per 8-vCPU host, set
 from a measurement of 32 sessions holding native 70.09\,fps on 8\,GiB with
 memory binding before CPU, at about 123\,MB of game copy per run, and the
@@ -837,29 +836,36 @@ and a last battle decides the ending \citep{bahamut2023walkthrough}.
 
 \section{The Field at Submission Time}
 \label{app:field}
-\Cref{tab:results} lists every published run under the name declared when
-its session was created, pooled by name, and \cref{fig:horizon} shows how
-each session spent its budget. A name is whatever the operator declared, so
-three of them carry a client prefix in front of the model. The catalogue
-snapshot the paper is generated from is committed beside the paper source;
-the live leaderboard at \url{https://hanxiao.io/jy-crpg-bench/} shows the
-runs published since, and the runs of this field remain in the public bucket
-with their media under an archive prefix.
-The styles of \cref{sec:results} belong to named runs: the two most
-deliberate models are \texttt{\QslowA} and \texttt{\QslowB}, the steady
-traverser is \texttt{\QsteadyLabel}, and the model below the
-random floor is \texttt{\QworstLabel}, which spent \QworstStart{} minutes
-before its first keypress.
+\Cref{tab:results} lists every published run of the field, pooled by name,
+and \cref{fig:horizon} shows how each session spent its budget. The two
+runs created under a name that was not the model, \aliaslist, are listed
+under the model, and the catalogue snapshot the paper is generated from,
+committed beside the paper source, keeps the declared names. The live
+leaderboard at \url{https://hanxiao.io/jy-crpg-bench/} shows the field and
+the runs published since. The styles of \cref{sec:results} belong to named
+runs: the two most deliberate models are \texttt{\QslowA} and
+\texttt{\QslowB}, the steady traverser is \texttt{\QsteadyLabel}, and the
+fastest model is \texttt{\QworstLabel}.
+
+An earlier field of \NoldSessions{} sessions at a \NoldBudgetMin{}-minute
+budget, \NoldModels{} models under \NoldLabels{} labels from \NoldVendors{}
+vendors, three of the labels carrying the prefix of the client that drove the
+control surface, predates the compass, companion, book and completion rungs
+and the usage report. \SoldMapFade{} of its sessions crossed to the world map
+with a corroborating fade to black and \SoldExpAny{} gained experience. Its
+snapshot is committed beside the current one, and its media remain in the
+public bucket under an archive prefix.
 
 \begin{table}[h]
 \centering
-\caption{The field, pooled by declared name over every published run. \emph{ratio}
+\caption{The field, pooled by the name each run is listed under. \emph{ratio}
 is screen-changing actions over total actions with a 95\% Wilson interval,
 \emph{act/min} is the median action rate, \emph{reads/act} is screen reads
 per action, \emph{think} is the median inter-action gap in seconds, and
 \emph{map} counts sessions whose screen latched the world-map signature,
 preceded by how many of those a fade to black corroborates. Rows are ordered
-by ratio, with the random floor last.}
+by ratio, a session the idle rule ended after a single key last among the
+models, and the random floor last.}
 \label{tab:results}
 \small
 \setlength{\tabcolsep}{4pt}

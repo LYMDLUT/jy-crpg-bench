@@ -50,13 +50,12 @@ ORDER = ["Claude", "GPT", "Gemini", "Qwen", "GLM", "Grok", "Random"]
 
 
 def load():
-    with open(os.path.join(HERE, "catalog_snapshot.json")) as fh:
-        rows = json.load(fh)
+    sys.path.insert(0, HERE)
+    import field
+    rows = field.load_runs()
     out = []
     for r in rows:
         name = r["agent"]
-        if name.startswith("probe-"):
-            continue
         low = name.lower()
         for pre in ("codex-cli--", "vista-codex-", "vista-", "codex-"):
             low = low.replace(pre, "")
@@ -79,7 +78,8 @@ def wilson(k, n, z=1.96):
 
 
 RUNS = load()
-PLAY = sorted([r for r in RUNS if r["budget"] == 1200 and (r["actions"] or 0) > 0],
+import field as _field
+PLAY = sorted([r for r in RUNS if r["budget"] == _field.DEFAULT_BUDGET and (r["actions"] or 0) > 0],
               key=lambda r: (ORDER.index(r["family"]) if r["family"] in ORDER else 9,
                              -(r["actions"] or 0)))
 DEFINITION = ("acted", "picked\nsomething up", "reached\nworld map",
@@ -199,7 +199,7 @@ def check_overlaps(fig, ax, texts, points=(), name="", anchors=()):
 def figure_ladder():
     fams = [f for f in ORDER if any(r["family"] == f for r in PLAY)]
     fig, ax = plt.subplots(figsize=(6.0, 0.30 * len(fams) + 1.0))
-    notes, boxes = [], []
+    notes, cells = [], []
     for row, fam in enumerate(fams):
         frows = [r for r in PLAY if r["family"] == fam]
         for col in range(len(DEFINITION)):
@@ -218,8 +218,7 @@ def figure_ladder():
                 sval = 46.0
                 ax.scatter(col, row, s=sval, marker="o", facecolors="white",
                           edgecolors="#8c8c90", linewidths=1.1, zorder=3)
-            cell_pt = sval ** 0.5
-            boxes.append(box_at(ax, col, row, cell_pt))
+            cells.append((col, row, sval ** 0.5))
             if known > 1:
                 notes.append(ax.annotate(f"{hit}/{known}", (col, row),
                                          xytext=(7, 0), textcoords="offset points",
@@ -227,14 +226,14 @@ def figure_ladder():
                                          color="#67676b"))
     # the two horizons: the opening needs no fight, the campaign begins with one
     ax.axvspan(OPENING - 0.5, len(DEFINITION) - 0.5, color="#f5f5f6", zorder=1)
-    heads = [ax.text((OPENING - 1) / 2, -0.62, "the opening", ha="center",
+    heads = [ax.text((OPENING - 1) / 2, -0.82, "the opening", ha="center",
                      va="center", fontsize=6.5, color="#67676b"),
-             ax.text((OPENING + len(DEFINITION) - 1) / 2, -0.62, "the campaign",
+             ax.text((OPENING + len(DEFINITION) - 1) / 2, -0.82, "the campaign",
                      ha="center", va="center", fontsize=6.5, color="#67676b")]
     ax.set_yticks(range(len(fams)), fams, fontsize=8)
     ax.set_xticks(range(len(DEFINITION)), DEFINITION, fontsize=7)
     ax.set_xlim(-0.55, len(DEFINITION) - 0.35)
-    ax.set_ylim(len(fams) - 0.42, -0.9)
+    ax.set_ylim(len(fams) - 0.42, -1.12)
     ax.spines["left"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.tick_params(length=0)
@@ -249,6 +248,9 @@ def figure_ladder():
                    fontsize=7, frameon=False, ncol=3, handletextpad=0.2,
                    columnspacing=1.1)
     fig.tight_layout(pad=0.3)
+    # marker boxes are measured after the limits and layout are final, so the
+    # check compares what the reader sees
+    boxes = [box_at(ax, c, r, size) for c, r, size in cells]
     check_overlaps(fig, ax, list(ax.get_xticklabels()) + list(ax.get_yticklabels())
                    + notes + heads + list(leg.get_texts()), boxes, name="ladder")
     fig.savefig(os.path.join(HERE, "ladder.pdf"), bbox_inches="tight", pad_inches=0.04)
@@ -302,12 +304,7 @@ def place_labels(fig, ax, anchors, obstacles=(), fontsize=6.8, name="labels"):
 # the best quality with a machine-confirmed crossing, the largest number of
 # meaningful actions, the quietest deliberate run, and the run whose screen
 # almost never changes.
-LABELLED = {
-    "gpt-5.6-sol (pi)": ["d1468967"],
-    "claude-fable-5-1": ["468e2872"],
-    "gemini-3.7-flash": ["f22647a1"],
-    "random": ["72cd8319", "09a2c7a9"],
-}
+LABELLED = {}   # points are labelled from the data below, never by session id
 
 
 def figure_pareto():
@@ -334,7 +331,7 @@ def figure_pareto():
         for rid in ids:
             r = next((q for q in PLAY if q["id"].startswith(rid)), None)
             if r is None:
-                sys.exit(f"figure_pareto: session {rid} is not in the snapshot")
+                continue
             coords.append((round((r["meaningful"] or 0) * r["actions"]),
                            r["meaningful"]))
         anchors.append((lab, max(coords, key=lambda c: c[0])))
@@ -379,22 +376,24 @@ def figure_horizon():
         if exit_at is not None:
             ax.barh(row, max(span - exit_at, 2), left=exit_at, height=0.55,
                    color=ACCENT, zorder=3)
+            # the label sits inside the grey stretch before the crossing, so
+            # neighbouring rows with similar crossings cannot collide
             texts.append(ax.annotate(f"act {r['exit_acts']}", (exit_at, row),
-                                     xytext=(0, 7.5), textcoords="offset points",
-                                     ha="left", fontsize=6.1, color="#33506e"))
+                                     xytext=(-3, 0), textcoords="offset points",
+                                     ha="right", va="center", fontsize=6.1, color="#33506e"))
         elif r.get("bigmap") is True:
             ax.barh(row, span, left=0, height=0.55, color="none", zorder=3,
                    hatch="///", edgecolor=ACCENT, linewidth=0.0)
-        if span < 1180:
+        if r.get("reason") == "idle":
             texts.append(ax.annotate("idle stop", (span, row), xytext=(4, 0),
                                      textcoords="offset points", fontsize=6.1,
                                      va="center", color="#8b8b8f"))
-    ax.axvline(1200, lw=0.9, color="#8f8f93", zorder=4)
-    ax.annotate("budget", (1200, -0.78), xytext=(-3, 0), textcoords="offset points",
+    ax.axvline(_field.DEFAULT_BUDGET, lw=0.9, color="#8f8f93", zorder=4)
+    ax.annotate("budget", (_field.DEFAULT_BUDGET, -0.78), xytext=(-3, 0), textcoords="offset points",
                 ha="right", fontsize=6.4, color="#6d6d70")
     ax.set_yticks(range(len(PLAY)), [r["short"] for r in PLAY], fontsize=6.6)
     ax.set_xlabel("seconds of play")
-    ax.set_xlim(0, 1290)
+    ax.set_xlim(0, _field.DEFAULT_BUDGET * 1.075)
     ax.set_ylim(len(PLAY) - 0.45, -0.95)
     ax.spines["left"].set_visible(False)
     ax.tick_params(axis="y", length=0)
@@ -447,7 +446,7 @@ if __name__ == "__main__":
     figure_horizon()
     figure_behaviour()
     cross = [r for r in PLAY if r.get("exit_secs") is not None]
-    print(f"{len(RUNS)} sessions, {len(PLAY)} at the 20-minute budget")
+    print(f"{len(RUNS)} sessions, {len(PLAY)} at the {_field.DEFAULT_BUDGET // 60}-minute budget")
     print(f"world map by fingerprint: {sum(1 for r in PLAY if r.get('bigmap') is True)}"
           f" | corroborated by a black frame: {len(cross)}"
           f" | unmeasured: {sum(1 for r in PLAY if r.get('bigmap') is None)}")

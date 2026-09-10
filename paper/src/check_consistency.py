@@ -18,8 +18,12 @@ CAT = os.path.join(SRC, "figures", "catalog_snapshot.json")
 MAIN = os.path.join(SRC, "main.tex")
 
 
+sys.path.insert(0, os.path.join(SRC, "figures"))
+import field
+
+
 def load_rows():
-    return json.load(open(CAT, encoding="utf-8"))
+    return field.load_runs()
 
 
 def claim(name, condition, fact):
@@ -30,8 +34,7 @@ def claim(name, condition, fact):
 
 def main():
     rows = load_rows()
-    scored = [r for r in rows if r["budget"] == 1200 and (r["actions"] or 0) > 0
-              and not r["agent"].startswith("probe-")]
+    scored = field.played(rows)
     read = [r for r in scored if r.get("bigmap") is not None]
     main_tex = open(MAIN, encoding="utf-8").read()
     ok = True
@@ -71,6 +74,45 @@ def main():
         cited.update(x.strip() for x in grp.split(","))
     ghost = sorted(cited - keys)
     ok &= claim("citations resolve", not ghost, "missing: %s" % ghost)
+
+    # Typed claims about named runs in Section 4, each tied to the phrase that
+    # makes it, so a regenerated field that no longer supports a sentence fails
+    # here instead of going out in print.
+    flat = re.sub(r"\s+", " ", main_tex)
+    models = [r for r in scored if not field.is_random(r["agent"])]
+    active = [r for r in models if r["actions"] >= 30]
+    randoms = field.random_rows(rows)
+    rk = sum(round(r["meaningful"] * r["actions"]) for r in randoms)
+    rn = sum(r["actions"] for r in randoms)
+    floor = rk / rn if rn else None
+    if "every active session in the field clears it" in flat:
+        ok &= claim("active sessions clear the floor",
+                    floor is not None and all(r["meaningful"] >= floor for r in active),
+                    "floor %.3f, lowest active %.3f" % (floor or 0, min((r["meaningful"] for r in active), default=0)))
+    if "the baseline never reaches the world map" in flat:
+        ok &= claim("random never on the map", not any(r.get("bigmap") is True for r in randoms),
+                    "%d random runs" % len(randoms))
+    if active:
+        slow = sorted((r for r in active if r.get("gap_p50") is not None), key=lambda r: -r["gap_p50"])[:2]
+        if "both of them reach the world map" in flat:
+            ok &= claim("deliberate runs cross", all(r.get("bigmap") is True for r in slow),
+                        ", ".join(r["agent"] for r in slow))
+        med = sorted(r["actions"] for r in active)[len(active) // 2]
+        steady = max((r for r in active if r["actions"] >= med), key=lambda r: r["meaningful"])
+        if "and also crosses" in flat:
+            ok &= claim("steady run crosses", steady.get("bigmap") is True, steady["agent"])
+        worst = min(active, key=lambda r: r["meaningful"])
+        if "without leaving the opening scene" in flat:
+            ok &= claim("lowest run stayed", worst.get("bigmap") is not True, worst["agent"])
+    if "Two of the sessions that left never searched the chest, and two that searched it never left" in flat:
+        left_no_item = sum(1 for r in scored if r.get("bigmap") is True and r.get("picked_item") is False)
+        item_no_left = sum(1 for r in scored if r.get("picked_item") and r.get("bigmap") is not True)
+        ok &= claim("chest and exit split", (left_no_item, item_no_left) == (2, 2),
+                    "%d left without the chest, %d searched without leaving" % (left_no_item, item_no_left))
+    if "sent a single key before the idle rule" in flat:
+        idle = [r for r in scored if r["reason"] == "idle"]
+        ok &= claim("idle stub sent one key", bool(idle) and all(r["actions"] == 1 for r in idle),
+                    "%d idle runs, actions %s" % (len(idle), [r["actions"] for r in idle]))
 
     print("\n%d runs scored, %d sessions with a map verdict, %d maps latched"
           % (len(scored), len(read), latched))

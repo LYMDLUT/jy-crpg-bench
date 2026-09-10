@@ -77,14 +77,18 @@ def wil(k, n, z=1.96):
 
 
 # ------------------------------------------------------------------ field sets
+import field
 raw = json.load(open(SNAPSHOT, encoding="utf-8"))
 probes = [r for r in raw if r["agent"].startswith("probe-")]
-rows = [r for r in raw if not r["agent"].startswith("probe-")]
-PLAY = [r for r in rows if r["budget"] == 1200 and (r["actions"] or 0) > 0]
+rows = field.load_runs()
+BUDGET = field.DEFAULT_BUDGET
+PLAY = field.played(rows)
 never = [r for r in rows if (r["actions"] or 0) == 0]
-other_budget = [r for r in rows if r["budget"] != 1200]
+other_budget = [r for r in rows if r["budget"] != BUDGET]
 MODELS = [r for r in PLAY if fam(r["agent"]) != "random"]
-RANDOM = [r for r in PLAY if fam(r["agent"]) == "random"]
+RANDOM = field.random_rows(rows)
+if not PLAY or not RANDOM:
+    sys.exit("no scored sessions or no random floor in the snapshot")
 
 emit("NsessionsTotal", len(raw), "catalogue entries in the snapshot")
 emit("Nsessions", len(PLAY), "sessions at the default budget that played")
@@ -112,8 +116,13 @@ emit("NmodelsDistinct", len({base(r["agent"]) for r in MODELS}),
 emit("Nnever", len(never), "sessions that never sent a key")
 emit("NotherBudget", len(other_budget), "sessions at another playtime")
 emit("Nprobes", len(probes), "service probes, excluded")
-emit("Nbudget", PLAY[0]["budget"], "default playtime, seconds")
-emit("NbudgetMin", PLAY[0]["budget"] // 60, "default playtime, minutes")
+emit("Nbudget", BUDGET, "default playtime, seconds")
+emit("NbudgetMin", BUDGET // 60, "default playtime, minutes")
+emit("Naliased", len(field.aliased(rows)), "runs listed under a corrected model name")
+_pairs = [f"\\texttt{{{d}}} as \\texttt{{{m}}}" for d, m in field.aliased(rows)]
+lines.append(("% the runs created under a name that was not the model, declared as listed",
+              "\\newcommand{\\aliaslist}{" + (" and ".join(_pairs) if _pairs else "none") + "}"))
+emit("Nidle", sum(1 for r in PLAY if r["reason"] == "idle"), "scored sessions ended by the idle rule")
 
 # ------------------------------------------------------------------- behaviour
 acts = [r["actions"] for r in PLAY]
@@ -141,7 +150,11 @@ emit("EkeysEnter", hist.get("enter", 0))
 emit("EkeysSpace", hist.get("space", 0))
 
 best = max(PLAY, key=lambda r: r["meaningful"])
-worst = min(PLAY, key=lambda r: r["meaningful"])
+# Behavioural styles are read from sessions that played: a run the idle rule
+# ended after a handful of keys has no ratio worth naming.
+ACTIVE = [r for r in MODELS if r["actions"] >= 30]
+emit("Nactive", len(ACTIVE), "model sessions with at least thirty actions")
+worst = min(ACTIVE, key=lambda r: r["meaningful"])
 lo_b, p_b, hi_b = wil(round(best["meaningful"] * best["actions"]), best["actions"])
 lo_w, p_w, hi_w = wil(round(worst["meaningful"] * worst["actions"]), worst["actions"])
 emit("Qbest", p_b)
@@ -166,17 +179,22 @@ emit("QrandomLow", lo_r)
 emit("QrandomHigh", hi_r)
 emit("QrandomN", rn)
 emit("QrandomKeys", RANDOM[0]["distinct_keys"])
-sub = [r for r in MODELS if r["meaningful"] < p_r]
-emit("NbelowFloor", len(sub), "model sessions under the random floor")
-emit("QunderVsRandom", min(r["meaningful"] for r in sub) / p_r)
-emit("QunderTimes", p_r / min(r["meaningful"] for r in sub),
+emit("QrandomBudgetMin", RANDOM[0]["budget"] // 60, "budget the random floor ran at, minutes")
+emit("QrandomAtDefault", int(RANDOM[0]["budget"] == BUDGET), "1 when the floor ran at the default budget")
+sub = [r for r in ACTIVE if r["meaningful"] < p_r]
+emit("NbelowFloor", len(sub), "active model sessions under the random floor")
+_low = min((r["meaningful"] for r in sub), default=worst["meaningful"])
+emit("QunderVsRandom", _low / p_r)
+emit("QunderTimes", p_r / _low if _low else 0.0,
      "how many times below the random floor the lowest run sits", fmt="%.1f")
+emit("QworstOverRandom", worst["meaningful"] / p_r,
+     "the lowest active ratio as a multiple of the random floor", fmt="%.1f")
 emit("QrandomGap", st.median(r["gap_p50"] for r in RANDOM),
      "median inter-action gap of the random baseline, seconds", fmt="%.1f")
 
 # The two model sessions that deliberate longest between actions, so the
 # prose can name them and their pace without typing either.
-_slow = sorted((r for r in MODELS if r.get("gap_p50") is not None),
+_slow = sorted((r for r in ACTIVE if r.get("gap_p50") is not None),
                key=lambda r: -r["gap_p50"])[:2]
 emit("QslowA", _slow[0]["agent"])
 emit("QslowB", _slow[1]["agent"])
@@ -189,8 +207,7 @@ emit("QslowActs", max(r["actions"] for r in _slow),
 read = [r for r in PLAY if r.get("level") is not None]
 emit("Sread", len(read), "sessions whose character record was read")
 emit("Sunread", len(PLAY) - len(read))
-if len({r["level"] for r in read}) != 1 or len({r["skills"] for r in read}) != 1:
-    sys.exit("level or skills vary between runs; the prose is stale")
+emit("SlevelKinds", len({r["level"] for r in read}), "distinct levels among read records")
 emit("Slevel", st.mode([r["level"] for r in read]))
 emit("SexpSum", sum(r["exp"] for r in read), "experience accumulated by every run")
 emit("Sskills", st.mode([r["skills"] for r in read]))
@@ -204,10 +221,12 @@ emit("Smap", len(cross), "sessions whose screen latched the world-map signature"
 emit("Sstayed", len(PLAY) - len(cross),
      "scored sessions with no world-map contact of any kind")
 
-# The steady-traversal example the behaviour section names, so its ratio and
-# oscillation are read from the catalogue rather than typed into the prose.
-_steady = max((r for r in PLAY if r["agent"] == "claude-fable-5"),
-              key=lambda r: r["actions"], default=None)
+# The steady-traversal example the behaviour section names: among the model
+# sessions that acted at least as often as the median, the one whose actions
+# changed the screen most often. Read from the catalogue, never typed.
+_median_acts = st.median(r["actions"] for r in ACTIVE)
+_steady = max((r for r in ACTIVE if r["actions"] >= _median_acts),
+              key=lambda r: r["meaningful"], default=None)
 if _steady:
     emit("Qsteady", round(_steady["meaningful"], 3), "ratio of the steady-traversal run")
     emit("QsteadyOsc", round(_steady["oscillation"], 3), "its oscillation rate")
@@ -222,6 +241,35 @@ emit("SexitLast", max(r["exit_secs"] for r in fade) / 60.0, fmt="%.1f")
 emit("SexitActs", st.median(r["exit_acts"] for r in fade), "median keys before a crossing", fmt="%.0f")
 emit("SexitVendors", len({fam(r["agent"]) for r in fade}),
      "vendor families with a corroborated crossing")
+
+# The game's own rungs, now that the field carries them.
+def _known(key):
+    return [r for r in PLAY if r.get(key) is not None]
+emit("Sitem", sum(1 for r in _known("picked_item") if r["picked_item"]), "sessions that picked something up")
+emit("SitemKnown", len(_known("picked_item")))
+emit("Scompass", sum(1 for r in _known("compass") if r["compass"]), "sessions holding the compass")
+emit("ScompassKnown", len(_known("compass")))
+emit("Ssaved", sum(1 for r in PLAY if r.get("saved_at")), "sessions whose save the game wrote")
+emit("Steam", sum(1 for r in _known("team_size") if r["team_size"] > 1), "sessions with a companion")
+emit("SteamKnown", len(_known("team_size")))
+emit("Sbooks", sum(1 for r in _known("books") if r["books"] > 0), "sessions holding a book")
+emit("SbooksKnown", len(_known("books")))
+emit("Sdone", sum(1 for r in PLAY if r.get("completion_secs") is not None), "sessions that completed")
+emit("Susage", sum(1 for r in PLAY if r.get("usage")), "sessions with a usage report")
+emit("Shelp", sum(1 for r in PLAY if r.get("help_langs")), "sessions that fetched the brief from the session")
+
+# The earlier field at the previous default, kept for the record.
+_old = field.load_runs(field.EARLIER)
+_old_play = field.played(_old, 1200)
+_old_models = [r for r in _old_play if fam(r["agent"]) != "random"]
+emit("NoldSessions", len(_old_play), "scored sessions of the earlier twenty-minute field")
+emit("NoldBudgetMin", 20)
+emit("NoldModels", len({base(r["agent"]) for r in _old_models}))
+emit("NoldLabels", len({r["agent"] for r in _old_models}))
+emit("NoldVendors", len({fam(r["agent"]) for r in _old_models}))
+emit("SoldMapFade", sum(1 for r in _old_play if r.get("bigmap") is True and r.get("exit_secs") is not None),
+     "earlier sessions with a corroborated world-map crossing")
+emit("SoldExpAny", sum(1 for r in _old_play if (r.get("exp") or 0) > 0))
 
 # ---------------------------------------------------- shipped character records
 mem = open(START_STATE, "rb").read()

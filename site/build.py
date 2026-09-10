@@ -807,7 +807,8 @@ TEMPLATE = r"""<!doctype html>
     <span class="tc mono" id="tc">0:00</span>
     <select id="rate" class="mono" title="{speed}" aria-label="{speed}">
       <option value="0.5">0.5x</option><option value="1">1x</option>
-      <option value="2">2x</option><option value="4" selected>4x</option>
+      <option value="2">2x</option><option value="4">4x</option>
+      <option value="8" selected>8x</option>
     </select>
     <a class="ico" id="dl" title="{download}" download>
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
