@@ -16,21 +16,26 @@ SCHEMA_VERSION = 1
 BOOK_IDS = frozenset(range(144, 158))
 DEFAULT_TARGETS = {
     "locations": 8,
-    "quests": 12,
+    "story_nodes": 12,
 }
 
-# These are long-run gates.  The first seven mirror the existing benchmark's
-# vocabulary for comparability; the last two are only long-horizon additions.
-MILESTONES = (
-    "acted",
-    "picked_item",
-    "world_map",
-    "experience",
-    "level_2",
-    "companion",
-    "book",
-    "all_books",
-    "ending",
+# Stable evidence-backed route nodes.  A deployment may extend this registry,
+# but a free-form string is never counted as a story node.
+STORY_NODE_IDS = frozenset({
+    "opening", "compass", "flying_fox", "snowy_fox", "liancheng",
+    "tianlong", "shediao", "baima", "luding", "xiaoyao", "shujian",
+    "shendiao", "xiake", "yitian", "bixue", "yuanyang",
+})
+
+HORIZON_BANDS = (
+    ("short", 0, 20 * 60),
+    ("medium", 30 * 60, 2 * 60 * 60),
+    ("long", 24 * 60 * 60, 48 * 60 * 60),
+)
+
+SHORT_MILESTONES = (
+    "acted", "picked_item", "world_map", "experience", "level_2",
+    "companion", "book",
 )
 
 # Long-horizon additions are deliberately separate from the short-run ladder.
@@ -38,11 +43,29 @@ MILESTONES = (
 # labels.  The short tier is a pointer to the frozen paper score, never a
 # recomputation of it.
 TIER_MILESTONES = {
-    "short": ("acted", "picked_item", "world_map", "experience", "level_2",
-               "companion", "book"),
+    "short": SHORT_MILESTONES,
     "medium": ("inn", "nanxian", "compass", "second_location"),
     "long": ("battle_won", "skill_gain", "book", "all_books", "ending"),
 }
+
+# These prerequisites express only hard, instrumentable dependencies from the
+# walkthrough.  Optional route choices remain independent gates.
+PREREQUISITES = {
+    "nanxian": ("inn",),
+    "compass": ("nanxian",),
+    "all_books": ("book",),
+    "ending": ("all_books",),
+}
+
+
+def _horizon(budget_seconds):
+    budget = _number(budget_seconds)
+    if budget is None:
+        return None
+    for name, low, high in HORIZON_BANDS:
+        if low <= budget <= high:
+            return name
+    return "extended"
 
 
 def _number(value, *, integer=False):
@@ -91,20 +114,24 @@ def _max_value(checkpoints: Sequence[Mapping], key: str) -> tuple[float | None, 
     return (max(values), True) if values else (None, False)
 
 
-def _milestones(checkpoints: Sequence[Mapping]) -> tuple[set[str], bool]:
+def _milestones(checkpoints: Sequence[Mapping]) -> tuple[set[str], bool, set[str]]:
     reached, measured = set(), False
-    valid = set(MILESTONES)
-    valid.update(gate for gates in TIER_MILESTONES.values() for gate in gates)
+    valid = set(gate for gates in TIER_MILESTONES.values() for gate in gates)
+    measured_tiers = set()
     for checkpoint in checkpoints:
         if "milestones" not in checkpoint:
             continue
         measured = True
+        tiers = checkpoint.get("measured_tiers", ["short"])
+        if isinstance(tiers, str):
+            tiers = [tiers]
+        measured_tiers.update(tier for tier in tiers if tier in TIER_MILESTONES)
         values = checkpoint["milestones"]
         if isinstance(values, str):
             values = [values]
         if isinstance(values, Sequence):
             reached.update(v for v in values if v in valid)
-    return reached, measured
+    return reached, measured, measured_tiers
 
 
 def _component(points, value, measured, evidence):
@@ -118,7 +145,7 @@ def _component(points, value, measured, evidence):
     }
 
 
-def _tier_report(reached, measured):
+def _tier_report(reached, measured, measured_tiers):
     """Report additive medium/long gates without touching short metrics."""
     reports = {}
     for tier, gates in TIER_MILESTONES.items():
@@ -131,7 +158,12 @@ def _tier_report(reached, measured):
                 "measured": measured,
             }
             continue
-        known = [gate for gate in gates if gate in measured]
+        if tier not in measured_tiers:
+            reports[tier] = {"status": "unmeasured", "score": None,
+                             "reached": [], "gates": list(gates),
+                             "measured_gates": []}
+            continue
+        known = list(gates)
         reached_known = [gate for gate in known if gate in reached]
         reports[tier] = {
             "status": "measured" if known else "unmeasured",
@@ -148,9 +180,9 @@ def score_long_horizon(checkpoints: Iterable[Mapping], *, budget_seconds=None,
     """Return an additive secondary score for a checkpoint trajectory.
 
     Checkpoints are harness-produced records.  Useful keys are ``at``,
-    ``milestones`` (a list from :data:`MILESTONES`), ``location``,
-    ``quest_flags``, ``books`` (item ids), ``level``, ``team_size``,
-    ``inventory_distinct``, ``recoveries`` and ``state_loss_events``.
+    ``milestones`` (tier-specific gate ids), ``measured_tiers``, ``location``,
+    ``story_nodes``, ``books`` (item ids), ``level``, ``team_size``,
+    ``key_items``, ``recoveries`` and ``state_loss_events``.
     ``budget_seconds`` is metadata and never changes the frozen short score.
     """
     rows = _checkpoint_list(checkpoints)
@@ -158,59 +190,63 @@ def score_long_horizon(checkpoints: Iterable[Mapping], *, budget_seconds=None,
     if any(_number(targets.get(k), integer=True) in (None, 0) for k in DEFAULT_TARGETS):
         raise ValueError("long-horizon targets must be positive integers")
 
-    milestones, milestone_measured = _milestones(rows)
+    milestones, milestone_measured, measured_tiers = _milestones(rows)
     # A milestone list is a complete read of the milestone instrument at that
     # checkpoint: omitted ids are known false, not silently unmeasured. Runs
     # that never provide the key keep every milestone unmeasured.
     all_measured_milestones = set()
     if any("milestones" in checkpoint for checkpoint in rows):
-        all_measured_milestones = set(MILESTONES)
-        all_measured_milestones.update(gate for gates in TIER_MILESTONES.values()
-                                       for gate in gates)
+        all_measured_milestones = set(gate for tier in measured_tiers
+                                      for gate in TIER_MILESTONES[tier])
     locations, location_measured = _union(rows, "locations")
     if not locations:
         locations, location_measured = _union(rows, "location")
-    quests, quest_measured = _union(rows, "quest_flags")
+    story_nodes, story_measured = _union(rows, "story_nodes")
+    story_nodes = {node for node in story_nodes if node in STORY_NODE_IDS}
     books, books_measured = _union(rows, "books")
     books = {book for book in books if book in BOOK_IDS}
 
     level, level_measured = _max_value(rows, "level")
     team, team_measured = _max_value(rows, "team_size")
+    key_items, key_items_measured = _union(rows, "key_items")
+    # Keep the old field readable for diagnostics, but do not award growth for
+    # arbitrary inventory size. Key items are the guide's actual prerequisites.
     inventory, inventory_measured = _max_value(rows, "inventory_distinct")
     recoveries, recoveries_measured = _max_value(rows, "recoveries")
     losses, losses_measured = _max_value(rows, "state_loss_events")
 
-    # The ordered-gate component gives credit for a journey that has not yet
-    # reached a book.  It is separate from the frozen short-run score.
-    prefix = 0
-    for milestone in MILESTONES:
-        if milestone not in milestones:
-            break
-        prefix += 1
-    growth_values = (
-        min(1.0, (level or 0) / 10) if level_measured else 0,
-        min(1.0, (team or 0) / 6) if team_measured else 0,
-        min(1.0, (inventory or 0) / 20) if inventory_measured else 0,
-    )
-    growth_measured = any((level_measured, team_measured, inventory_measured))
+    # Medium and long gates are scored as a dependency-aware set.  The frozen
+    # short ladder is reported separately and is never recomputed here.
+    long_gates = tuple(gate for tier in ("medium", "long")
+                       if tier in measured_tiers for gate in TIER_MILESTONES[tier])
+    valid_gates = list(dict.fromkeys(long_gates))
+    valid_reached = {gate for gate in milestones if gate in valid_gates}
+    for gate in list(valid_reached):
+        if any(pre not in valid_reached for pre in PREREQUISITES.get(gate, ())):
+            valid_reached.remove(gate)
+    gate_fraction = len(valid_reached) / len(valid_gates) if valid_gates else 0
     components = {
         "milestone_progress": _component(
-            30, prefix / len(MILESTONES), milestone_measured,
-            {"reached": [m for m in MILESTONES if m in milestones],
-             "next": MILESTONES[prefix] if prefix < len(MILESTONES) else None}),
+            25, gate_fraction, bool(valid_gates),
+            {"reached": sorted(valid_reached), "measured_gates": valid_gates,
+             "prerequisites": PREREQUISITES}),
         "exploration": _component(
-            20, min(1.0, len(locations) / targets["locations"]),
+            15, min(1.0, len(locations) / targets["locations"]),
             location_measured, {"unique_locations": len(locations), "target": targets["locations"]}),
         "growth": _component(
-            20, sum(growth_values) / sum((level_measured, team_measured, inventory_measured))
-            if growth_measured else 0,
-            growth_measured,
-            {"level": level, "team_size": team, "inventory_distinct": inventory}),
+            15, sum((min(1.0, (level or 0) / 10) if level_measured else 0,
+                     min(1.0, (team or 0) / 6) if team_measured else 0,
+                     min(1.0, len(key_items) / 8) if key_items_measured else 0))
+            / sum((level_measured, team_measured, key_items_measured))
+            if any((level_measured, team_measured, key_items_measured)) else 0,
+            any((level_measured, team_measured, key_items_measured)),
+            {"level": level, "team_size": team, "key_items": sorted(key_items),
+             "inventory_distinct_diagnostic": inventory}),
         "story": _component(
-            15, min(1.0, len(quests) / targets["quests"]), quest_measured,
-            {"unique_quest_flags": len(quests), "target": targets["quests"]}),
+            15, min(1.0, len(story_nodes) / targets["story_nodes"]), story_measured,
+            {"unique_story_nodes": len(story_nodes), "target": targets["story_nodes"]}),
         "book_collection": _component(
-            10, len(books) / len(BOOK_IDS), books_measured,
+            25, len(books) / len(BOOK_IDS), books_measured,
             {"books": sorted(books), "count": len(books), "total": len(BOOK_IDS)}),
     }
 
@@ -229,14 +265,16 @@ def score_long_horizon(checkpoints: Iterable[Mapping], *, budget_seconds=None,
     points = sum(c["points"] for c in measured)
     return {
         "schema_version": SCHEMA_VERSION,
-        "score": round(points / maximum * 100, 3) if maximum else None,
+        "score": round(points, 3) if maximum else None,
         "points": round(points, 3),
         "maximum_measured": maximum,
         "maximum_total": 100,
+        "coverage": round(maximum / 100, 6),
         "budget_seconds": _number(budget_seconds),
+        "horizon": _horizon(budget_seconds),
         "checkpoints": len(rows),
         "elapsed_seconds": rows[-1]["at"],
         "components": components,
-        "tiers": _tier_report(milestones, all_measured_milestones),
+        "tiers": _tier_report(milestones, all_measured_milestones, measured_tiers),
         "short_metrics_unchanged": True,
     }

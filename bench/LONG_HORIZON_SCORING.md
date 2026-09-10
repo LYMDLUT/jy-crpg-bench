@@ -25,8 +25,8 @@ a failure.
 | Horizon | Wall-clock budget | What it asks | Examples of evidence |
 | --- | ---: | --- | --- |
 | Short | 20 minutes | Can the agent operate and make early progress? | Existing paper metrics: acted, picked something up, reached the world map, experience, level, companion, and book fields |
-| Medium | 30 minutes to 2 hours | Can it establish a plan and carry dependencies across several locations? | Inn, Nan Xian, compass, a second meaningful location, first battle, companion, skill or quest flags |
-| Long | 24 to 48 hours | Can it sustain a coherent route through the game's story? | Repeated battles, durable growth, multiple quest chains, books held with evidence, all fourteen books, ending state |
+| Medium | 30 minutes to 2 hours | Can it establish a plan and carry dependencies across several locations? | Inn, Nan Xian, compass, a second meaningful location, first battle, companion, skill or story nodes |
+| Long | 24 to 48 hours | Can it sustain a coherent route through the game's story? | Repeated battles, durable growth, multiple story chains, books held with evidence, all fourteen books, ending state |
 
 The medium horizon has two natural checkpoints. **M1** is the opening route:
 leave the home, reach the inn, find Nan Xian and obtain the compass. **M2** is
@@ -48,17 +48,23 @@ elapsed `at` time and may contain the following fields:
 ```json
 {
   "at": 7200,
+  "measured_tiers": ["medium", "long"],
   "milestones": ["inn", "nanxian", "compass", "battle_won"],
   "locations": ["home", "inn", "nanxian", "kunlun"],
-  "quest_flags": ["opening", "kunlun_intro"],
+  "story_nodes": ["opening", "tianlong"],
   "books": [],
   "level": 4,
   "team_size": 3,
+  "key_items": ["compass", "jade_seal"],
   "inventory_distinct": 14,
   "recoveries": 1,
   "state_loss_events": 0
 }
 ```
+
+`measured_tiers` is required for medium and long scoring. If omitted, a
+`milestones` list is treated as short-tier data only. This prevents an old
+short run from being interpreted as a measured long-run failure.
 
 `milestones` uses these stable ids:
 
@@ -69,7 +75,8 @@ The existing short ids may also be present for cross-referencing, but the
 short score remains owned by the existing scorer: `acted`, `picked_item`,
 `world_map`, `experience`, `level_2`, `companion`, and `book`.
 
-Every claim needs state evidence. A location should be emitted only after an
+`story_nodes` is restricted to the registered book and opening nodes. Unknown
+free-form strings are ignored. A location should be emitted only after an
 entry, coordinate checkpoint, or reliable dialogue/event record. A book should
 be emitted from the game's item or story state and not from a model's text.
 The scorer treats checkpoint times as ordered and rejects a backwards clock.
@@ -81,17 +88,18 @@ separate in the JSON so a reader can see why a run scored as it did:
 
 | Component | Points | Measurement |
 | --- | ---: | --- |
-| Milestone progression | 30 | Ordered gates from operation through ending; the next unmet gate is reported |
-| Exploration | 20 | Unique evidence-backed locations against a configurable target (default 8) |
-| Growth | 20 | The best observed level, team size, and distinct inventory, averaged only over measured fields |
-| Story coverage | 15 | Unique evidence-backed quest flags against a configurable target (default 12) |
-| Book collection | 10 | Verified book ids out of 14 |
+| Medium/long gate progression | 25 | Dependency-aware gates; the frozen short ladder is reported separately |
+| Exploration | 15 | Unique evidence-backed locations against a configurable target (default 8) |
+| Growth | 15 | The best observed level, team size, and key-item set; arbitrary inventory size is diagnostic only |
+| Story coverage | 15 | Unique registered story nodes against a configurable target (default 12) |
+| Book collection | 25 | Verified book ids out of 14 |
 | Reliability | 5 | Recovery events divided by recovery plus state-loss events, when both are measured |
 
-The report also returns `maximum_measured`. Its displayed score is normalized
-over measured components, while the missing components remain explicit. This
-prevents a run from being punished for an instrument that did not yet exist.
-The `short_metrics_unchanged` marker makes the separation machine-checkable.
+The displayed `score` uses a fixed 100-point denominator. The report also
+returns `maximum_measured` and `coverage`; a run with only a partial instrument
+cannot receive a falsely high normalized score. Missing components remain
+explicit and should not be compared across runs with different coverage. The
+`short_metrics_unchanged` marker makes the separation machine-checkable.
 
 This weighting is a secondary analysis convention, not a new claim about the
 paper's short benchmark. For scientific comparisons, publish the component
