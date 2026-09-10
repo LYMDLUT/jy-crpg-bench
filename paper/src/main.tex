@@ -24,10 +24,10 @@
 \definecolor{pending}{HTML}{9A3B3B}
 \newcommand{\tbd}[1]{{\color{pending}\small[\,#1\,]}}
 
-% NOTE: ICLR review is double blind. \iclrfinalcopy is enabled for this
-% working draft so the author block renders; comment it out before
-% submission, and de-anonymise the URLs (hanxiao.io) into an anonymous
-% mirror for the review copy.
+% arXiv preprint build. \iclrfinalcopy keeps the author block and drops the
+% review ruler; the conference running head is cleared after \maketitle. For a
+% blind conference copy, comment \iclrfinalcopy out and replace the hanxiao.io
+% URLs with an anonymous mirror.
 \iclrfinalcopy
 
 \title{\raggedright\bench{}: Long-Horizon Agency in an \\
@@ -42,6 +42,9 @@ Yiming Liu \\
 \begin{document}
 
 \maketitle
+% No conference running head on the preprint.
+\lhead{}
+\renewcommand{\headrulewidth}{0pt}
 % Figure 1 is placed in the introduction and belongs at the top of page 2;
 % this keeps the title page free of top floats.
 \suppressfloats[t]
@@ -444,9 +447,9 @@ world position, the party roster and the shared bag, followed by
 validated that layout against the archives the release ships, where only
 \Moverflow{} of \Mrecords{} records violate
 $\mathrm{hp}\le\mathrm{maxHp} \wedge \mathrm{mp}\le\mathrm{maxMp}$, and located
-the same array in the live emulated machine by anchoring on a character name
-that occurs exactly once and confirming two neighbouring records at the
-correct stride. The bag in front of that array is the working copy and moves
+the same array in the live emulated machine by anchoring on one character
+name and confirming the two neighbouring records at the correct stride, since
+the name recurs in the image and the layout moves between runs. The bag in front of that array is the working copy and moves
 the moment an item is taken, so the item count and the books held are
 current. Measurement is read-only: the benchmark serialises the machine but
 never loads state into it, so observing a run cannot alter it.
@@ -562,8 +565,10 @@ detector is audited against it before its numbers are reported.
 The field at submission is \NmodelLabels{} models from \Nvendors{} vendors
 and a seeded random baseline, over \Nsessions{} scored sessions at the
 \NbudgetMin{}-minute budget, \NrandomRuns{} of them random runs. A run is
-listed under the model and reasoning-effort level declared when its session
-was created, and a submission is a completed run. Every session is public, with its video,
+listed under the name declared when its session was created, and a submission
+is a completed run; the thinking level reaches the record through the usage
+report of \cref{sec:metrics}, which none of the runs in this field carries.
+Every session is public, with its video,
 replay timeline and metric record reachable from the leaderboard, and
 \cref{app:field} lists the runs by name. This section reads the field for
 what it says about the instrument: how much of the ladder is open, whether
@@ -670,15 +675,6 @@ ranks by the time it took. Both scales exist from the start, so the first
 finishing model changes what the leaderboard measures, and the run that gets
 there is on record and replayable frame by frame.
 
-\section*{AI use statement}
-We used large language model assistants in preparing this work: to draft and
-edit the text, to write and refactor the analysis and figure-generation code,
-and to search the literature. Every sentence was reviewed by the authors, the
-code was tested, and every citation and claim was checked against its source.
-The benchmark itself uses language models only as the systems under
-evaluation. We take responsibility for the final content of this work,
-including text, claims and artifacts produced with the aid of generative AI.
-
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
 
@@ -768,15 +764,21 @@ The default budget is \Nbudget{}\,s and is configurable to 24\,h; idle
 teardown is 600\,s; the concurrency cap is 24 sessions per 8-vCPU, 8\,GiB
 host, measured at 32 sessions holding native 70.09\,fps with memory binding
 before CPU, at about 123\,MB of game copy per run. Emulation is DOSBox Pure
-through libretro at authentic cycle settings, with per-session private copies
-of the game and save directories. Recordings are stored as $16\times10$-tile
-zlib deltas; published video is native $320\times200$ with a timeline
-sidecar of 7--13\,KB carrying every keypress and its hold duration for the
-scrubbable replay. A character-state read costs 1.2\,ms through
-serialisation into a reused buffer and is sampled every fifth action; a
-luminance sample costs 1.1\,$\mu$s per frame while the screen settles. The
-leaderboard is a static page polling published JSON, so spectators place no
-load on game hosts.
+through libretro at a fixed 26800 cycles, the speed of a 486DX2-66 and
+period-correct for the game, with no sound card, so the observation is visual
+only, and with per-session private copies of the game and save directories.
+Recordings are stored as $16\times10$-tile zlib deltas; published video is
+the native $320\times200$ frame above a 32-pixel strip naming the actor, the
+action and the clock, with a timeline sidecar of a few kilobytes carrying
+every keypress and its hold duration for the scrubbable replay. A
+character-state read costs about 1.2\,ms through serialisation into a reused
+buffer and is taken after every action, with gains latched against the
+opening bag, so an item picked up and later consumed still credits its rung;
+a luminance sample costs about a microsecond per frame while the screen
+settles. Outside scored runs the server can checkpoint and resume a session
+and serve many visitors from private workers behind one gateway; a scored run
+has neither. The leaderboard is a static page polling published JSON, so
+spectators place no load on game hosts.
 
 \section{Release and Licensing}
 \label{app:licence}
