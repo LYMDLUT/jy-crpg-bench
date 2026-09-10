@@ -299,3 +299,47 @@ The optional `server/import_activity.py` command can seed that **realtime
 cache** while the server is stopped. This import is optional and not needed to browse complete disk history.
 It preserves the recording and labels reconstructed previews with their source
 and frame time; existing original thumbnails take priority.
+
+### Trajectory analysis
+
+Every completed input action now has a post-action `trajectory` event in the
+JSONL recording. It carries the action number, original recording time, scene,
+frontier, and whether the settled picture changed. When position offsets have
+been calibrated for that worker it also carries the game's `x` and `y`; a
+missing coordinate is explicit and is never interpreted as zero distance.
+
+The raw recording can be analyzed without starting the game:
+
+```sh
+python3 Scripts/analyze_trajectory.py /path/to/recording.jsonl --window 25
+```
+
+The JSON result includes per-action rows, early/later windows, action gaps,
+long pauses, reversals, screen-change ratio, and position distance/frontier
+regressions when coordinates are available. Comparing the windows shows
+whether later movement is becoming steadier; the `position-unmeasured` status
+marks runs where only action-level smoothness can be assessed.
+
+
+## Recording files and reset archives
+
+Interactive servers expose `GET /api/recordings` with a `files` list containing
+the current recording and reset archives, including their IDs, filenames and
+byte sizes. `GET /api/recordings/{id}` downloads the original JSONL as an
+attachment. Single byte ranges, open-ended ranges, suffix ranges and `If-Range`
+are supported so a large download can resume. Each response pins its file
+descriptor and byte length before streaming; a concurrent reset or append does
+not change the bytes in that response.
+
+To replay an archive, start the existing paged reader with
+`/api/recording?view=paged&recording={id}`. Continue with the returned token and
+cursor as usual; subsequent requests keep the same snapshot. `current` remains
+the default. Archive IDs must match `YYYYMMDD-HHMMSS-<12 lowercase hex>.jsonl`
+inside the recording's `recordings/` directory. Symbolic links and other file
+types are refused. Archives are opened read-only, and their replay duration is
+recovered from a bounded file tail without opening another recording writer.
+
+In benchmark mode, the file-list and download routes are absent and archive
+selection is rejected. The existing current-recording endpoint and benchmark
+accounting remain unchanged. These file selectors do not change the source of
+the right-hand screenshot history.
