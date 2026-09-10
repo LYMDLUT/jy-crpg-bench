@@ -42,6 +42,18 @@ class TrajectoryTests(unittest.TestCase):
         self.assertEqual(result["summary"]["distance"], None)
         self.assertEqual(result["summary"]["reverse_steps"], 1)
 
+    def test_timestamp_join_survives_worker_action_counter_reset(self):
+        events = [
+            {"t": 10.0, "act": "KEY", "on": "right"},
+            # This worker restarted and emitted its local action number 1.
+            {"t": 10.1, "trajectory": True, "action": 1, "action_t": 10.0,
+             "x": 42, "y": 7, "frontier": 3, "screen_changed": True},
+        ]
+        result = summarize(events)
+        self.assertEqual(result["status"], "measured")
+        self.assertEqual(result["actions"][0]["x"], 42)
+        self.assertEqual(result["actions"][0]["y"], 7)
+
 
 if __name__ == "__main__":
     unittest.main()

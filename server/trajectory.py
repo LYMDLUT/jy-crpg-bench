@@ -85,7 +85,7 @@ def _window(rows):
 def summarize(events, *, window_size=25):
     """Summarize parsed recording events without loading frame payloads."""
     actions = []
-    observations = {}
+    observations = []
     previous_direction = None
     for event in events:
         if not isinstance(event, dict):
@@ -96,14 +96,16 @@ def summarize(events, *, window_size=25):
         if event.get("trajectory") is True:
             action = event.get("action")
             if type(action) is int and action > 0:
-                observations[action] = {
+                observations.append({
+                    "action": action,
                     "t": timestamp,
+                    "action_t": _number(event.get("action_t")),
                     "x": event.get("x") if type(event.get("x")) is int else None,
                     "y": event.get("y") if type(event.get("y")) is int else None,
                     "frontier": _number(event.get("frontier")),
                     "screen_changed": (event.get("screen_changed")
                                        if type(event.get("screen_changed")) is bool else None),
-                }
+                })
             continue
         name = _action_name(event)
         if name is None:
@@ -120,7 +122,23 @@ def summarize(events, *, window_size=25):
     rows = []
     for action in actions:
         row = dict(action)
-        observation = observations.get(action["number"], {})
+        observation = {}
+        # Prefer the full recording timestamp because the worker-local action
+        # counter starts over after a restart. A small tolerance covers the
+        # marker's historical three-decimal timestamp rounding.
+        timed = [(abs(action["t"] - item["action_t"]), item)
+                 for item in observations if item["action_t"] is not None]
+        if timed:
+            distance, candidate = min(timed, key=lambda pair: pair[0])
+            if distance <= 0.02:
+                observation = candidate
+                observations.remove(candidate)
+        if not observation:
+            for candidate in list(observations):
+                if candidate["action"] == action["number"] and candidate["action_t"] is None:
+                    observation = candidate
+                    observations.remove(candidate)
+                    break
         row.update({"x": observation.get("x"), "y": observation.get("y"),
                     "frontier": observation.get("frontier"),
                     "screen_changed": observation.get("screen_changed")})
@@ -161,4 +179,3 @@ def read_events(path):
 
 def analyze(path, *, window_size=25):
     return summarize(read_events(path), window_size=window_size)
-
