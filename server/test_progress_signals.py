@@ -111,6 +111,41 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(changed)
         self.assertEqual(waited, 6)
 
+    async def test_settle_holds_the_reply_through_a_black_transition(self):
+        # The screen goes black on a scene change and is redrawn a moment
+        # later: the reply waits for the redraw, then for it to hold still.
+        frames = {"n": 0}
+
+        async def tick(count=1):
+            frames["n"] += count
+
+        # black from the first settled frame until 40 frames have passed
+        fake_lib = SimpleNamespace(
+            core_fps=lambda: 60.0,
+            fb_luma=lambda: 0 if frames["n"] < 40 else 100,
+            core_frame_hash=lambda: 2 if frames["n"] < 40 else 3 + frames["n"] // 1000,
+        )
+        with (patch.object(game_server, "LIB", fake_lib),
+              patch.object(game_server, "wait_core_frames", tick)):
+            waited, changed = await game_server.settle(1, react=30, stable=5, maxframes=1)
+        self.assertTrue(changed)
+        self.assertGreaterEqual(frames["n"], 40)         # waited out the black
+        self.assertGreaterEqual(waited, frames["n"] - 1)  # and reported the frames it took
+
+    async def test_a_screen_that_stays_black_is_still_answered(self):
+        frames = {"n": 0}
+
+        async def tick(count=1):
+            frames["n"] += count
+
+        fake_lib = SimpleNamespace(core_fps=lambda: 60.0, fb_luma=lambda: 0,
+                                   core_frame_hash=lambda: 2)
+        with (patch.object(game_server, "LIB", fake_lib),
+              patch.object(game_server, "wait_core_frames", tick)):
+            waited, _ = await game_server.settle(1, react=30, stable=5, maxframes=1)
+        self.assertLessEqual(waited, 6 + game_server.TRANSITION_FRAMES)
+        self.assertGreaterEqual(waited, game_server.TRANSITION_FRAMES)
+
     async def test_benchmark_hides_snapshots_and_counts_in_action_looks(self):
         with patch.object(game_server.warden, "ON", True):
             for handler, body in ((game_server.api_slots, None),
