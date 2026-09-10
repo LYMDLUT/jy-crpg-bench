@@ -36,7 +36,7 @@ RUN tar xzf /app/assets/game-data.tar.gz -C /app && rm /app/assets/game-data.tar
 # code was exercised against. Pillow is held below 14, which removes
 # Image.getdata, used by the progress reader.
 RUN pip install --no-cache-dir \
-      aiohttp==3.14.3 pillow==12.3.0 numpy==2.5.3 google-cloud-storage==3.14.1
+      aiohttp==3.14.3 pillow==12.3.0 numpy==2.2.6 google-cloud-storage==3.14.1
 
 # Stamped at build time so the running backend can say which build it is, and
 # the leaderboard can show it. Defaults to "dev" for a local image.
