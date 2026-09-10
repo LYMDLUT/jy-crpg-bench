@@ -1,0 +1,164 @@
+"""Bounded action and trajectory analysis for a JSONL recording.
+
+The recording remains the source of truth.  This module only reads it and
+returns measurements that can be compared between windows of one run or
+between runs.  A recording can be useful without calibrated coordinates:
+action timing, pauses, reversals, and screen response are still reported, but
+the position section is explicitly marked as unmeasured.
+"""
+from collections import defaultdict
+import json
+import math
+from pathlib import Path
+
+
+PAUSE_SECONDS = 5.0
+MAX_LINE = 4 << 20
+
+_DIRECTION = {
+    "up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0),
+    "kp1": (-1, 1), "kp2": (0, 1), "kp3": (1, 1), "kp4": (-1, 0),
+    "kp6": (1, 0), "kp7": (-1, -1), "kp8": (0, -1), "kp9": (1, -1),
+}
+
+
+def _number(value):
+    return value if type(value) in (int, float) and math.isfinite(value) else None
+
+
+def _action_name(event):
+    value = event.get("act")
+    if isinstance(value, str) and value:
+        return value
+    label = event.get("label")
+    if isinstance(label, str) and label:
+        return label.split(" ", 1)[0]
+    return None
+
+
+def _direction(event):
+    target = event.get("on") or event.get("key")
+    if not isinstance(target, str):
+        label = event.get("label")
+        target = label.split(" ", 1)[-1] if isinstance(label, str) else ""
+    return _DIRECTION.get(target.lower())
+
+
+def _window(rows):
+    if not rows:
+        return {"actions": 0, "elapsed_s": 0.0, "actions_per_min": 0.0,
+                "screen_change_ratio": None, "long_pauses": 0,
+                "reverse_steps": 0, "position_samples": 0,
+                "distance": None, "frontier_gain": None,
+                "frontier_regressions": None}
+    first, last = rows[0], rows[-1]
+    elapsed = max(0.0, last["t"] - first["t"])
+    gaps = [b["t"] - a["t"] for a, b in zip(rows, rows[1:])]
+    changes = [row["screen_changed"] for row in rows
+               if row["screen_changed"] is not None]
+    positions = [(row["x"], row["y"]) for row in rows
+                 if row["x"] is not None and row["y"] is not None]
+    distance = None
+    if len(positions) >= 2:
+        distance = sum(max(abs(x2 - x1), abs(y2 - y1))
+                       for (x1, y1), (x2, y2) in zip(positions, positions[1:]))
+    frontiers = [row["frontier"] for row in rows if row["frontier"] is not None]
+    gain = regressions = None
+    if len(frontiers) >= 2:
+        gain = max(0, frontiers[-1] - frontiers[0])
+        regressions = sum(b < a for a, b in zip(frontiers, frontiers[1:]))
+    return {
+        "actions": len(rows),
+        "elapsed_s": round(elapsed, 3),
+        "actions_per_min": round(len(rows) * 60 / elapsed, 3) if elapsed else 0.0,
+        "screen_change_ratio": (round(sum(changes) / len(changes), 3)
+                                 if changes else None),
+        "long_pauses": sum(gap >= PAUSE_SECONDS for gap in gaps),
+        "reverse_steps": sum(row["reverse"] for row in rows),
+        "position_samples": len(positions),
+        "distance": distance,
+        "frontier_gain": gain,
+        "frontier_regressions": regressions,
+    }
+
+
+def summarize(events, *, window_size=25):
+    """Summarize parsed recording events without loading frame payloads."""
+    actions = []
+    observations = {}
+    previous_direction = None
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        timestamp = _number(event.get("t"))
+        if timestamp is None or timestamp < 0:
+            continue
+        if event.get("trajectory") is True:
+            action = event.get("action")
+            if type(action) is int and action > 0:
+                observations[action] = {
+                    "t": timestamp,
+                    "x": event.get("x") if type(event.get("x")) is int else None,
+                    "y": event.get("y") if type(event.get("y")) is int else None,
+                    "frontier": _number(event.get("frontier")),
+                    "screen_changed": (event.get("screen_changed")
+                                       if type(event.get("screen_changed")) is bool else None),
+                }
+            continue
+        name = _action_name(event)
+        if name is None:
+            continue
+        direction = _direction(event)
+        reverse = bool(direction and previous_direction
+                       and direction[0] == -previous_direction[0]
+                       and direction[1] == -previous_direction[1])
+        if direction:
+            previous_direction = direction
+        actions.append({"number": len(actions) + 1, "t": timestamp,
+                        "name": name, "reverse": reverse})
+
+    rows = []
+    for action in actions:
+        row = dict(action)
+        observation = observations.get(action["number"], {})
+        row.update({"x": observation.get("x"), "y": observation.get("y"),
+                    "frontier": observation.get("frontier"),
+                    "screen_changed": observation.get("screen_changed")})
+        rows.append(row)
+    overall = _window(rows)
+    windows = [_window(rows[start:start + window_size])
+               for start in range(0, len(rows), window_size)]
+    coordinate_samples = sum(row["x"] is not None and row["y"] is not None
+                             for row in rows)
+    return {
+        "version": 1,
+        "status": "measured" if coordinate_samples else "position-unmeasured",
+        "actions": rows,
+        "summary": overall,
+        "windows": windows,
+        "window_size": window_size,
+        "position_samples": coordinate_samples,
+        "analysis": {
+            "smoothness_comparison": (
+                "Compare later windows with earlier windows using pause, reverse, "
+                "screen_change_ratio, and frontier/distance fields; missing "
+                "coordinates are not treated as zero."
+            )
+        },
+    }
+
+
+def read_events(path):
+    """Read a recording while rejecting oversized or incomplete lines."""
+    with Path(path).open("rb") as stream:
+        for line in stream:
+            if len(line) > MAX_LINE:
+                raise ValueError("recording event is too large")
+            if not line.endswith(b"\n"):
+                raise ValueError("recording has an incomplete trailing event")
+            yield json.loads(line)
+
+
+def analyze(path, *, window_size=25):
+    return summarize(read_events(path), window_size=window_size)
+
