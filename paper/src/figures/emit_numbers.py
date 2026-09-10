@@ -96,6 +96,19 @@ emit("NlabelsPlay", len({r["agent"] for r in PLAY}),
      "distinct agent labels among the scored sessions")
 emit("NmodelLabels", len({r["agent"] for r in PLAY if fam(r["agent"]) != "random"}),
      "distinct model labels among the scored sessions")
+
+
+def base(agent):
+    """The model name once the client prefixes an operator declared are gone,
+    so runs of one model through two clients count as one model."""
+    low = agent.lower()
+    for pre in ("codex-cli--", "vista-codex-", "vista-", "codex-"):
+        low = low.replace(pre, "")
+    return low.replace("--pi", "").replace("-codex", "")
+
+
+emit("NmodelsDistinct", len({base(r["agent"]) for r in MODELS}),
+     "distinct model names among the scored sessions")
 emit("Nnever", len(never), "sessions that never sent a key")
 emit("NotherBudget", len(other_budget), "sessions at another playtime")
 emit("Nprobes", len(probes), "service probes, excluded")

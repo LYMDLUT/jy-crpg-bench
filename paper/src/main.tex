@@ -76,7 +76,7 @@ from the memory of the emulated machine and from the save the game writes for
 itself, so every milestone is an event that pixel similarity cannot
 manufacture, and one instrument spans the whole distance: a ladder of
 machine-verified milestones while models learn to move, and completion time
-once they finish. We report \NmodelLabels{} frontier models from
+once they finish. We report \NmodelsDistinct{} frontier models from
 \Nvendors{} vendors against a seeded random baseline under a
 \NbudgetMin{}-minute budget, and release \bench{} as a live, replayable
 public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
@@ -191,7 +191,7 @@ ships, and measurement never writes to the machine it observes. Every rung of
 the ladder is an event the model has to cause, and the terminal rung is the
 ending the game defines.
 
-\item We evaluate \NmodelLabels{} frontier models from \Nvendors{} vendors
+\item We evaluate \NmodelsDistinct{} frontier models from \Nvendors{} vendors
 under the same harness and against a seeded random baseline under a
 wall-clock budget, with a behavioural profile beside the ladder, and release
 the benchmark, its harness and every recorded run as a public, replayable
@@ -562,15 +562,19 @@ detector is audited against it before its numbers are reported.
 \section{Evaluation}
 \label{sec:results}
 
-The field at submission is \NmodelLabels{} models from \Nvendors{} vendors
+The field at submission is \NmodelsDistinct{} models from \Nvendors{} vendors
 and a seeded random baseline, over \Nsessions{} scored sessions at the
 \NbudgetMin{}-minute budget, \NrandomRuns{} of them random runs. A run is
 listed under the name declared when its session was created, and a submission
-is a completed run; the thinking level reaches the record through the usage
-report of \cref{sec:metrics}, which none of the runs in this field carries.
-Every session is public, with its video,
-replay timeline and metric record reachable from the leaderboard, and
-\cref{app:field} lists the runs by name. This section reads the field for
+is a completed run. The \Nsessions{} sessions carry \NmodelLabels{} model
+labels, because three models were also run under names that record the client
+the operator drove the control surface with, and the pooled rows of
+\cref{app:field} keep those labels apart from the runs under the reference
+harness. The thinking level reaches the record through the usage report of
+\cref{sec:metrics}, which none of the runs in this field carries. Every
+session is public: its video, replay timeline and metric record are in the
+public bucket, and the catalogue snapshot the paper is generated from is
+committed beside the paper source. \Cref{app:field} lists the runs by name. This section reads the field for
 what it says about the instrument: how much of the ladder is open, whether
 the ladder and the behavioural metrics separate models, whether the
 metrics measure what they claim, and how a budget is spent.
@@ -808,9 +812,12 @@ and a last battle decides the ending \citep{bahamut2023walkthrough}.
 \label{app:field}
 \Cref{tab:results} lists every published run under the name declared when
 its session was created, pooled by name, and \cref{fig:horizon} shows how
-each session
-spent its budget. The live leaderboard at
-\url{https://hanxiao.io/jy-crpg-bench/} supersedes both as runs are added.
+each session spent its budget. A name is whatever the operator declared, so
+three of them carry a client prefix in front of the model. The catalogue
+snapshot the paper is generated from is committed beside the paper source;
+the live leaderboard at \url{https://hanxiao.io/jy-crpg-bench/} shows the
+runs published since, and the runs of this field with their media under its
+archive prefix.
 The styles of \cref{sec:results} belong to named runs: the two most
 deliberate models are \texttt{\QslowA} and \texttt{\QslowB}, the steady
 traverser is \texttt{\QsteadyLabel}, and the model below the
