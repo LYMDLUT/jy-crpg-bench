@@ -45,9 +45,9 @@ class InputValidationTest(unittest.IsolatedAsyncioTestCase):
             self.assertIn(str(server.MIN_HOLD_FRAMES),
                           response_json(response)["error"])
 
-    async def test_keys_rejects_a_hold_the_game_can_miss(self):
-        response = await server.api_keys(
-            FakeRequest({"keys": ["right"], "hold": 1}))
+    async def test_a_list_of_keys_rejects_a_hold_the_game_can_miss(self):
+        response = await server.api_key(
+            FakeRequest({"key": ["right"], "hold": 1}))
         self.assertEqual(response.status, 400)
         self.assertIn(str(server.MIN_HOLD_FRAMES),
                       response_json(response)["error"])
@@ -57,7 +57,7 @@ class InputValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 400)
         self.assertIn("integer", response_json(response)["error"])
 
-    async def test_keys_honours_requested_gap(self):
+    async def test_a_list_of_keys_is_pressed_in_order_with_the_fixed_gap(self):
         captured = {}
 
         async def fake_run(_request, steps, note, verb="KEY"):
@@ -65,39 +65,33 @@ class InputValidationTest(unittest.IsolatedAsyncioTestCase):
             return object()
 
         with mock.patch.object(server, "run_action", fake_run):
-            marker = await server.api_keys(
-                FakeRequest({"keys": ["up", "enter"], "hold": 10, "gap": 17})
+            marker = await server.api_key(
+                FakeRequest({"key": ["up", "enter"], "hold": 10})
             )
 
         self.assertIsNotNone(marker)
         self.assertEqual(
             captured["steps"],
-            [(server.KEYS["up"], 10, "up"), ("frames", 17),
+            [(server.KEYS["up"], 10, "up"), ("frames", server.BETWEEN_TAPS_FRAMES),
              (server.KEYS["enter"], 10, "enter")],
         )
+        self.assertEqual((captured["note"], captured["verb"]), ("up enter", "KEYS"))
 
     async def test_oversized_action_is_rejected(self):
         response = await server.api_key(
-            FakeRequest({"key": "right", "times": 100, "hold": 100})
+            FakeRequest({"key": ["right"] * 100, "hold": 100})
         )
         self.assertEqual(response.status, 400)
         self.assertIn("too long", response_json(response)["error"])
 
-    async def test_zero_gap_does_not_insert_a_frame(self):
-        captured = {}
-
-        async def fake_run(_request, steps, _note, verb="KEY"):
-            captured["steps"] = steps
-            return object()
-
-        with mock.patch.object(server, "run_action", fake_run):
-            await server.api_keys(
-                FakeRequest({"keys": ["up", "enter"], "gap": 0})
-            )
-        self.assertEqual(len(captured["steps"]), 2)
+    async def test_a_list_must_hold_key_names(self):
+        for body in ({"key": []}, {"key": ["right"] * 101}, {"key": ["right", 5]},
+                     {"key": ["right", "no-such-key"]}, {"key": 7}):
+            response = await server.api_key(FakeRequest(body))
+            self.assertEqual(response.status, 400, body)
 
     async def test_non_object_json_is_rejected(self):
-        response = await server.api_wait(FakeRequest([1000]))
+        response = await server.api_key(FakeRequest([1000]))
         self.assertEqual(response.status, 400)
 
 
@@ -141,8 +135,9 @@ class UnknownFieldTest(unittest.IsolatedAsyncioTestCase):
     async def test_each_call_names_the_field_it_cannot_use(self):
         for handler, body, unknown in (
                 (server.api_key, {"key": "right", "frames": 70}, "frames"),
-                (server.api_keys, {"keys": ["right"], "times": 3}, "times"),
-                (server.api_wait, {"ms": 100, "frames": 70}, "frames"),
+                (server.api_key, {"key": ["right"], "times": 3}, "times"),
+                (server.api_key, {"key": ["right", "enter"], "gap": 0}, "gap"),
+                (server.api_key, {"keys": ["right"]}, "keys"),
                 (server.api_save, {"name": "x", "slot": 1}, "slot"),
                 (server.api_load, {"name": "x", "slot": 1}, "slot"),
         ):
@@ -159,7 +154,7 @@ class UnknownFieldTest(unittest.IsolatedAsyncioTestCase):
 
         with mock.patch.object(server, "run_action", fake_run):
             await server.api_key(
-                FakeRequest({"key": "right", "hold": 12, "times": 2, "gap": 3}))
+                FakeRequest({"key": ["right", "right"], "hold": 12}))
         self.assertEqual(len(seen["steps"]), 3)   # tap, gap, tap
 
 
@@ -232,26 +227,6 @@ class SettleOptionsTest(unittest.TestCase):
         self.assertEqual(options, {"react": 30,
                                    "stable": server.DEFAULT_STABLE_FRAMES,
                                    "maxframes": server.DEFAULT_SETTLE_MAX_FRAMES})
-
-
-class WaitTest(unittest.IsolatedAsyncioTestCase):
-    """A wait is milliseconds. There is no second spelling of it."""
-
-    async def test_milliseconds_become_a_wall_clock_step(self):
-        seen = {}
-
-        async def fake_run(_request, steps, note, verb="KEY"):
-            seen.update(steps=steps, note=note, verb=verb)
-            return object()
-
-        with mock.patch.object(server, "run_action", fake_run):
-            await server.api_wait(FakeRequest({"ms": 500}))
-        self.assertEqual(seen, {"steps": [("wait", 0.5)], "note": "500ms",
-                                "verb": "WAIT"})
-
-    async def test_wait_is_bounded(self):
-        response = await server.api_wait(FakeRequest({"ms": 999999}))
-        self.assertEqual(response.status, 400)
 
 
 class KeyVocabularyTest(unittest.TestCase):

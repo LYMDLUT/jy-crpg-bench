@@ -81,39 +81,28 @@ class PressContractTests(unittest.TestCase):
     def test_omitted_hold_uses_http_server_default(self):
         with patch.object(SERVER, "_act", return_value=[]) as act:
             SERVER.press("esc")
-        act.assert_called_once_with(
-            "/key", {"key": "esc"}, note="esc", stable=None,
-        )
+        act.assert_called_once_with("/key", {"key": "esc"}, note="esc")
 
     def test_explicit_hold_is_forwarded(self):
-        """A repeat of one key is /key's "times", not a /keys sequence.
-
-        Both reach the game as the same presses, but only one of them is what
-        the call means, and the activity log reads "kp3 x2" rather than
-        "kp3 kp3".
-        """
+        """A repeat is a list of the same key, and the hold applies to each."""
         with patch.object(SERVER, "_act", return_value=[]) as act:
-            SERVER.press("kp3", times=2, hold=14, stable=8)
+            SERVER.press(["kp3", "kp3"], hold=14)
         act.assert_called_once_with(
-            "/key", {"key": "kp3", "hold": 14, "times": 2},
-            note="kp3 x2", stable=8,
+            "/key", {"key": ["kp3", "kp3"], "hold": 14}, note="kp3 kp3",
         )
 
-    def test_a_sequence_of_different_keys_still_uses_keys(self):
+    def test_a_sequence_of_different_keys_is_one_press(self):
         with patch.object(SERVER, "_act", return_value=[]) as act:
-            SERVER.press_sequence(["esc", "down", "enter"], gap=8)
+            SERVER.press(["esc", "down", "enter"])
         act.assert_called_once_with(
-            "/keys", {"keys": ["esc", "down", "enter"], "gap": 8},
-            note="esc down enter", stable=None,
+            "/key", {"key": ["esc", "down", "enter"]}, note="esc down enter",
         )
 
-    def test_locally_expanded_action_batches_are_bounded(self):
-        with self.assertRaisesRegex(
-                ValueError, "times must be an integer from 1 to 100"):
-            SERVER.press("kp3", times=101)
-        with self.assertRaisesRegex(
-                ValueError, "steps must be an integer from 1 to 100"):
-            SERVER.move("right", steps=101)
+    def test_action_batches_are_bounded(self):
+        with self.assertRaisesRegex(ValueError, "list of 1 to 100"):
+            SERVER.press(["kp3"] * 101)
+        with self.assertRaisesRegex(ValueError, "list of 1 to 100"):
+            SERVER.press([])
 
     def test_broker_end_payload_keeps_played_seconds(self):
         result = SERVER._result({"ended": True, "played": 42})
@@ -133,14 +122,11 @@ class PressContractTests(unittest.TestCase):
         self.assertEqual(
             standalone,
             {
-                "guide", "look", "press", "press_sequence", "move", "wait",
+                "guide", "look", "press",
                 "save_state", "load_state", "list_states", "reset_game",
             },
         )
-        self.assertEqual(
-            tool_names(benchmark),
-            {"look", "press", "press_sequence", "wait"},
-        )
+        self.assertEqual(tool_names(benchmark), {"look", "press"})
         self.assertNotIn("interact", standalone)
         self.assertNotIn("open_menu", standalone)
 
@@ -163,9 +149,8 @@ class MCPHTTPContractTests(unittest.TestCase):
         for profile in ("standalone", "benchmark"):
             server = load_server(profile)
             for name, arguments, expected_body in (
-                ("press", {"key": "esc", "hold": None, "stable": None}, {"key": "esc"}),
-                ("press_sequence", {"keys": ["esc"], "stable": None},
-                 {"keys": ["esc"], "gap": 6}),
+                ("press", {"key": "esc", "hold": None}, {"key": "esc"}),
+                ("press", {"key": ["esc", "down"], "hold": None}, {"key": ["esc", "down"]}),
             ):
                 with self.subTest(profile=profile, tool=name), patch.object(
                         server, "_call", return_value={"ok": True}) as call:
@@ -220,7 +205,7 @@ class MCPHTTPContractTests(unittest.TestCase):
             with self.subTest(timing=timing), http_fixture([
                     (410, "application/json", json.dumps(ended).encode())]) as (origin, _requests):
                 server = load_server("benchmark", QUNXIA_API=origin + "/api")
-                result = self.call_tool(server, "wait", {"ms": 1500})
+                result = self.call_tool(server, "press", {"key": "enter"})
             self.assertEqual(len(result.content), 1)
             prefix, summary = result.content[0].text.split(" | ", 1)
             self.assertEqual(prefix, "BENCHMARK ENDED")

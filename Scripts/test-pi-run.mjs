@@ -20,9 +20,7 @@ const benchmarkHelp = [
   "# Benchmark help fixture",
   "## API",
   "GET  http://game.invalid/api/screen look, pressing nothing",
-  "POST http://game.invalid/api/key one key",
-  "POST http://game.invalid/api/keys several keys",
-  "POST http://game.invalid/api/wait let the game run",
+  "POST http://game.invalid/api/key one key, or a list of keys",
   "## 移動：請用九宮數字鍵的名稱",
 ].join("\n");
 const benchmarkHelpUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(benchmarkHelp)}`;
@@ -78,9 +76,6 @@ test("new runs have separate state and resolved profiles", async () => {
   assert.deepEqual(a.tools, [
     "game_look",
     "game_press",
-    "game_press_sequence",
-    "game_move",
-    "game_wait",
     "game_save",
     "game_load",
     "game_saves",
@@ -160,12 +155,7 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
   const result = invoke(runsDir, "benchmark-a", "benchmark");
   assert.equal(result.status, 0, result.stderr);
   const manifest = JSON.parse(await readFile(join(runsDir, "benchmark-a", "run.json"), "utf8"));
-  assert.deepEqual(manifest.tools, [
-    "game_look",
-    "game_press",
-    "game_press_sequence",
-    "game_wait",
-  ]);
+  assert.deepEqual(manifest.tools, ["game_look", "game_press"]);
   assert.equal(manifest.scale, 1);
   assert.equal(manifest.observeAfterAction, false);
   assert.equal(manifest.prompt.source, "session-help");
@@ -198,10 +188,10 @@ test("game press leaves the server tap duration authoritative", async () => {
   );
   assert.match(extension, /Omit to use the game server's .*tap default/);
   assert.doesNotMatch(extension, /default 4/);
-  assert.match(extension, /times: Type\.Optional\(Type\.Integer/);
-  assert.match(extension, /maximum: 100, description: "Repeat count/);
-  assert.match(extension, /const times = params\.times \?\? 1/);
-  assert.match(extension, /const steps = params\.steps \?\? 1/);
+  assert.match(extension, /key: Type\.Union\(\[/);
+  assert.match(extension, /minItems: 1, maxItems: 100/);
+  assert.doesNotMatch(extension, /params\.times/);
+  assert.doesNotMatch(extension, /game_wait|game_press_sequence|game_move/);
   assert.doesNotMatch(extension, /boundedInteger/);
   assert.doesNotMatch(extension, /Frames to hold for long movement/);
   assert.match(extension, /res\.played_seconds \?\? res\.played/);

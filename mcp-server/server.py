@@ -47,9 +47,7 @@ DEFAULT_TAP_FRAMES = 10
 MIN_HOLD_FRAMES = 5
 MAX_ARRAY_REPEAT = 100
 MAX_HOLD_FRAMES = 1200
-MAX_GAP_FRAMES = 600
 MAX_STABLE_FRAMES = 600
-MAX_WAIT_MS = 60000
 MAX_ACTION_FRAMES = 2800
 
 
@@ -214,86 +212,31 @@ def guide() -> str:
 # -------------------------------------------------------------------- actions
 
 @mcp.tool()
-def press(key: str, times: int = 1, hold: int | None = None,
-          stable: int | None = None) -> list:
-    """Press one key. In benchmark mode, call look after acting.
+def press(key: str | list[str], hold: int | None = None) -> list:
+    """Press one key, or several in order. In benchmark mode, call look after acting.
 
-    key: kp1, kp3, kp7, kp9 (preferred movement keys), up, down, left, right,
-         enter (or ok), space, esc, y, n, a-z, 0-9, f1-f12, tab,
-         backspace. The native runner also accepts combos like "alt+x".
-    times: repeat the same key this many times (useful for walking or for
-         advancing several dialogue lines).
-    hold: frames to hold the key down, 5 or more. Omit it to use the game server's safe
-         tap default; override it only for an intentional longer press.
-    stable: frames the picture must hold still before the action settles.
+    key: a key name, or a list of names pressed in order. Movement keys are
+         kp1, kp3, kp7, kp9 (or up, down, left, right, the same four axes);
+         other keys: enter, space, esc, y, n, a-z, 0-9, f1-f12, tab,
+         backspace. A repeat is a list of the same key, for example
+         ["kp3", "kp3", "kp3"] to walk three tiles.
+    hold: frames to hold each key down, 5 or more. Omit it for the game
+         server's tap default; a long hold walks several tiles in one press.
 
-    Read the current screen: ordinary dialogue, choices, and animations may
-    respond differently. Do not assume a failed movement means a cutscene.
+    The reply says what was pressed and which frame followed, and nothing
+    about what the screen did: read the picture. An action returns once the
+    screen has settled, a scene transition included.
     """
-    times = _bounded_int("times", times, 1, MAX_ARRAY_REPEAT)
+    keys = key if isinstance(key, list) else [key]
+    if not 1 <= len(keys) <= MAX_ARRAY_REPEAT or not all(isinstance(k, str) and k for k in keys):
+        raise ValueError(f"key must be a key name or a list of 1 to {MAX_ARRAY_REPEAT} names")
     if hold is not None:
         _bounded_int("hold", hold, MIN_HOLD_FRAMES, MAX_HOLD_FRAMES)
-    if stable is not None:
-        _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
-    _action_length(times, hold if hold is not None else DEFAULT_TAP_FRAMES)
-    # One key, repeated, is what /key's "times" is for; /keys is for a sequence
-    # of different keys. Spelling a repeat as a sequence made two calls out of
-    # one and logged "kp3 kp3 kp3" where the game saw "kp3 x3".
-    payload = {"hold": hold} if hold is not None else {}
-    if times > 1:
-        payload["times"] = times          # omitted at 1: the server's default
-    note = f"{key} x{times}" if times > 1 else key
-    return _act("/key", {"key": key, **payload}, note=note, stable=stable)
-
-
-@mcp.tool()
-def press_sequence(keys: list[str], gap: int = 6,
-                   stable: int | None = None) -> list:
-    """Press several different keys in order.
-
-    Use for a known menu path, e.g. ["esc", "down", "down", "enter"]. Prefer
-    single presses when you are unsure what a screen will do, because you only
-    see the result of the last key here.
-    """
-    if not isinstance(keys, list) or not 1 <= len(keys) <= MAX_ARRAY_REPEAT:
-        raise ValueError(f"keys must contain between 1 and {MAX_ARRAY_REPEAT} entries")
-    _bounded_int("gap", gap, 0, MAX_GAP_FRAMES)
-    if stable is not None:
-        _bounded_int("stable", stable, 1, MAX_STABLE_FRAMES)
-    _action_length(len(keys), gap=gap)
-    return _act("/keys", {"keys": keys, "gap": gap},
-                note=" ".join(keys), stable=stable)
-
-
-@expose(not BENCHMARK)
-def move(direction: str, steps: int = 1) -> list:
-    """Walk. direction is kp7, kp9, kp1, kp3, or up, down, left, right.
-
-    Obstacles may prevent movement. For an ordinary person or container, stand
-    adjacent, face the target, then press enter or space to
-    investigate. Stepping on a tile can trigger a separate story event. If
-    movement is unclear, inspect the screen rather than assuming its cause.
-    """
-    direction = str(direction).lower()
-    if direction not in ("up", "down", "left", "right", "kp7", "kp9", "kp1", "kp3"):
-        raise ValueError("direction must be kp7, kp9, kp1, kp3, up, down, left or right")
-    steps = _bounded_int("steps", steps, 1, MAX_ARRAY_REPEAT)
-    _action_length(steps)
-    payload = {"times": steps} if steps > 1 else {}
-    return _act("/key", {"key": direction, **payload},
-                note=f"move {direction} x{steps}")
-
-
-@mcp.tool()
-def wait(ms: int = 1000) -> list:
-    """Let the game run without pressing anything.
-
-    Use it during boot, scene transitions, battle animations, and travel on the
-    world map. Benchmark mode returns metadata only; call look when you need
-    the next visible frame.
-    """
-    _bounded_int("ms", ms, 0, MAX_WAIT_MS)
-    return _act("/wait", {"ms": ms}, note=f"wait {ms}ms")
+    _action_length(len(keys), hold if hold is not None else DEFAULT_TAP_FRAMES)
+    payload = {"key": key}
+    if hold is not None:
+        payload["hold"] = hold
+    return _act("/key", payload, note=" ".join(keys))
 
 
 # ----------------------------------------------------------------- savestates

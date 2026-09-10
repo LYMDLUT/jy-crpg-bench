@@ -70,30 +70,32 @@ class InputContractTests(unittest.IsolatedAsyncioTestCase):
         action = AsyncMock(return_value="ok")
         with patch.object(game_server, "run_action", action):
             response = await game_server.api_key(self.Request({
-                "key": "enter", "times": 1000000, "hold": 1000000,
+                "key": ["enter"] * 101, "hold": 1000000,
             }))
         self.assertEqual(response.status, 400)
         action.assert_not_awaited()
         with patch.object(game_server, "run_action", action):
             await game_server.api_key(self.Request({
-                "key": "enter", "times": 3, "hold": 20,
+                "key": ["enter"] * 3, "hold": 20,
             }))
         steps = action.await_args.args[1]
         self.assertEqual(len(steps), 3 * 2 - 1)
         key_steps = [step for step in steps if len(step) > 2]
         self.assertTrue(all(step[1] == 20 for step in key_steps))
 
-    async def test_sequence_honors_gap_and_stable_parameters(self):
+    async def test_a_sequence_keeps_the_fixed_gap_and_the_stable_query(self):
         action = AsyncMock(return_value="ok")
-        request = self.Request({"keys": ["kp3", "enter"], "gap": 17}, {"stable": "23"})
+        request = self.Request({"key": ["kp3", "enter"]}, {"stable": "23"})
         with patch.object(game_server, "run_action", action):
-            await game_server.api_keys(request)
+            await game_server.api_key(request)
         steps = action.await_args.args[1]
-        self.assertEqual(steps[1], ("frames", 17))
+        self.assertEqual(steps[1], ("frames", game_server.BETWEEN_TAPS_FRAMES))
         self.assertEqual(game_server.settle_options(request)["stable"], 23)
 
-    async def test_sequence_requires_a_list(self):
-        response = await game_server.api_keys(self.Request({"keys": "enter"}))
+    async def test_a_sequence_must_be_key_names(self):
+        response = await game_server.api_key(self.Request({"key": ["kp3", 5]}))
+        self.assertEqual(response.status, 400)
+        response = await game_server.api_key(self.Request({"key": []}))
         self.assertEqual(response.status, 400)
 
     async def test_settle_budget_can_fit_reaction_and_stability(self):

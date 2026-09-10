@@ -186,120 +186,33 @@ export default function (pi: ExtensionAPI) {
     name: "game_press",
     label: "Press",
     description:
-      "Press one key. Movement keys are kp7, kp9, kp1 and kp3 (preferred), with " +
-      "left, up, down and right as equivalent aliases. Other keys: " +
-      "enter, space, esc, y, n, a-z, 0-9, f1-f12, tab, backspace. " +
-      "Use times to repeat the same key, for example walking several tiles or advancing " +
-      "several lines of dialogue. Read the current screen: ordinary dialogue, choices, " +
-      `and animations may respond differently. Do not assume failed movement means a cutscene. ${ACTION_RESULT}`,
-    promptSnippet: "Press a key in the game",
+      "Press one key, or several in order. Movement keys are kp7, kp9, kp1 and kp3 " +
+      "(preferred), with left, up, down and right as the same four axes. Other keys: " +
+      "enter, space, esc, y, n, a-z, 0-9, f1-f12, tab, backspace. A repeat is a list of " +
+      "the same key, for example [\"kp3\", \"kp3\", \"kp3\"] to walk three tiles or " +
+      "[\"enter\", \"enter\"] to advance two lines; a menu path is a list such as " +
+      "[\"esc\", \"down\", \"down\", \"enter\"]. The reply says what was pressed and " +
+      `nothing about what the screen did: read the next picture. ${ACTION_RESULT}`,
+    promptSnippet: "Press one or more keys in the game",
     parameters: Type.Object({
-      key: Type.String({ minLength: 1, maxLength: 32, description: "Key name, e.g. kp3, enter, esc, y" }),
-      times: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Repeat count, default 1" })),
+      key: Type.Union([
+        Type.String({ minLength: 1, maxLength: 32, description: "A key name, e.g. kp3, enter, esc, y" }),
+        Type.Array(Type.String({ minLength: 1, maxLength: 32 }), {
+          minItems: 1, maxItems: 100, description: "Key names pressed in order",
+        }),
+      ]),
       hold: Type.Optional(Type.Integer({ minimum: 5, maximum: 1200,
-        description: "Emulated frames to hold the key, 5 or more. Below five the game can " +
+        description: "Emulated frames to hold each key, 5 or more. Below five the game can " +
           "consume the press and release together and the key never registers. " +
-          "Omit to use the game server's tap default of 10.",
-      })),
-      stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
-        description: "Frames the picture must hold still before the screenshot. Raise if you get a half-written dialogue line.",
+          "Omit to use the game server's tap default of 10; a long hold walks several tiles.",
       })),
     }),
     async execute(_id, params, signal) {
-      // One key, repeated, is what /key's "times" is for; /keys is for a
-      // sequence of different keys. Spelling a repeat as a sequence made two
-      // calls out of one and logged "kp3 kp3 kp3" where the game saw "kp3 x3".
-      const times = params.times ?? 1;
-      const stable = params.stable;
-      const q = stable ? `&stable=${stable}` : "";
-      const note = times > 1 ? `${params.key} x${times}` : params.key;
-      const body: Record<string, unknown> = { key: params.key, hold: params.hold };
-      if (times > 1) body.times = times;   // omitted at 1: the server's default
-      return act("/key", body, note, signal, q);
+      const keys = Array.isArray(params.key) ? params.key : [params.key];
+      const body: Record<string, unknown> = { key: params.key };
+      if (params.hold !== undefined) body.hold = params.hold;
+      return act("/key", body, keys.join(" "), signal);
     },
-  });
-
-  pi.registerTool({
-    name: "game_press_sequence",
-    label: "Press sequence",
-    description:
-      "Press several different keys in order. Use it for " +
-      "a menu path you are sure about, such as ['esc','down','down','enter']. Prefer " +
-      "game_press when you are unsure what a screen will do, because here you do not see " +
-      `the intermediate frames. ${ACTION_RESULT}`,
-    promptSnippet: "Press a sequence of keys in the game",
-    parameters: Type.Object({
-      keys: Type.Array(Type.String({ minLength: 1, maxLength: 32 }), {
-        minItems: 1, maxItems: 100, description: "Key names in order",
-      }),
-      gap: Type.Optional(Type.Integer({ minimum: 0, maximum: 600,
-        description: "Frames between keys, default 6" })),
-      stable: Type.Optional(Type.Integer({ minimum: 1, maximum: 600,
-        description: "Frames the picture must hold still after the sequence",
-      })),
-    }),
-    execute: (_id, params, signal) =>
-      act(
-        "/keys",
-        { keys: params.keys, gap: params.gap },
-        params.keys.join(" "),
-        signal,
-        params.stable ? `&stable=${params.stable}` : "",
-      ),
-  });
-
-  pi.registerTool({
-    name: "game_move",
-    label: "Move",
-    description:
-      "Walk in one direction; obstacles may prevent movement. For an ordinary person " +
-      "or container, stand adjacent, face the target, then use game_press with enter " +
-      "or space to investigate. Stepping on a tile can trigger a separate story event. " +
-      `If movement is unclear, inspect the screen rather than assuming its cause. ${ACTION_RESULT}`,
-    promptSnippet: "Walk in the game world",
-    parameters: Type.Object({
-      direction: Type.String({
-        description: "kp7/kp9/kp1/kp3, or left/up/down/right",
-      }),
-      steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 100,
-        description: "Tiles to walk, default 1" })),
-    }),
-    execute: (_id, params, signal) => {
-      const dir = params.direction.toLowerCase();
-      const aliases: Record<string, string> = {
-        kp7: "kp7", left: "left", upleft: "kp7", nw: "kp7",
-        kp9: "kp9", up: "up", upright: "kp9", ne: "kp9",
-        kp1: "kp1", down: "down", downleft: "kp1", sw: "kp1",
-        kp3: "kp3", right: "right", downright: "kp3", se: "kp3",
-      };
-      const key = aliases[dir];
-      if (!key) {
-        return Promise.resolve({
-          content: [{ type: "text" as const, text: "invalid movement direction" }],
-          details: {},
-          isError: true,
-        });
-      }
-      const steps = params.steps ?? 1;
-      const body: Record<string, unknown> = { key };
-      if (steps > 1) body.times = steps;
-      return act("/key", body, `move ${dir} x${steps}`, signal);
-    },
-  });
-
-  pi.registerTool({
-    name: "game_wait",
-    label: "Wait",
-    description:
-      "Let the game run without pressing anything. Use during boot, " +
-      `scene transitions, battle animations and travel on the world map. ${ACTION_RESULT}`,
-    promptSnippet: "Let the game run for a while",
-    parameters: Type.Object({
-      ms: Type.Optional(Type.Integer({ minimum: 0, maximum: 60000,
-        description: "Milliseconds, default 1000" })),
-    }),
-    execute: (_id, params, signal) =>
-      act("/wait", { ms: params.ms ?? 1000 }, `wait ${params.ms ?? 1000}ms`, signal),
   });
 
   pi.registerTool({

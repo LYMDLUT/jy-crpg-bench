@@ -114,9 +114,8 @@ GET  /api/screen[?format=png]         look; JSON with a base64 PNG, or raw bytes
 GET  /api/help?lang=en|zh[&part=core] the briefing
 GET  /api/keys                        every accepted key name
 GET  /api/slots                       emulator snapshots on disk
-POST /api/key    {"key":"kp3"}        one key; "times" repeats, "hold" frames
-POST /api/keys   {"keys":["kp9","enter"]}   several in order, "gap" frames between
-POST /api/wait   {"ms":1000}          let the game run
+POST /api/key    {"key":"kp3"}        one key; "hold" frames, default 10
+POST /api/key    {"key":["kp9","enter"]}    several in order; a repeat is a list
 POST /api/save   {"name":"before-boss"}     a name of its own, or none
 POST /api/load   {"name":"before-boss"}
 ```
@@ -202,9 +201,8 @@ QUNXIA_API=http://127.0.0.1:8765 uv run --with 'mcp>=1,<3' mcp-server/server.py
 ```
 
 The server sends the briefing as MCP `instructions` at connection time and
-exposes it again through the `guide` tool. Tools: `look`, `press`,
-`press_sequence`, `move`, `wait`, `guide`, `save_state`, `load_state`,
-`list_states`, `reset_game`. Action tools return a status line and the
+exposes it again through the `guide` tool. Tools: `look`, `press` (one key or
+a list), `guide`, `save_state`, `load_state`, `list_states`, `reset_game`. Action tools return a status line and the
 resulting frame as an image. Rejected inputs surface as tool errors.
 
 Register it once:
@@ -221,7 +219,7 @@ claude mcp add qunxia -e QUNXIA_API=http://127.0.0.1:8765 \
 | variable | default | |
 |---|---|---|
 | `QUNXIA_API` | `http://127.0.0.1:8765` | game API base |
-| `QUNXIA_MCP_PROFILE` | `standalone` | `benchmark` exposes only `look`, `press`, `press_sequence`, `wait`; actions return metadata and `look` returns the native frame |
+| `QUNXIA_MCP_PROFILE` | `standalone` | `benchmark` exposes only `look` and `press`; actions return metadata and `look` returns the native frame |
 | `QUNXIA_BENCH_LANG` | `en` | briefing language, `en` or `zh` |
 | `QUNXIA_AGENT` | `mcp` | name in the activity log |
 | `QUNXIA_SCALE` | `2` | action-frame scale, 1 to 6; native runner only (the headless runner returns native-resolution frames) |
@@ -258,8 +256,8 @@ Tool exposure is declared in `pi-agent/profiles.json`:
 
 | profile | prompt | tools | actions |
 |---|---|---|---|
-| `strict` (default) | `pi-agent/SYSTEM.md` | eight `game_*` tools including save and load | return the frame |
-| `benchmark` | the session's `/api/help` | `game_look`, `game_press`, `game_press_sequence`, `game_wait` | metadata only; call `game_look` |
+| `strict` (default) | `pi-agent/SYSTEM.md` | five `game_*` tools including save and load | return the frame |
+| `benchmark` | the session's `/api/help` | `game_look`, `game_press` | metadata only; call `game_look` |
 
 ```sh
 # timed benchmark session: BASE_URL is the base_url returned by POST /session

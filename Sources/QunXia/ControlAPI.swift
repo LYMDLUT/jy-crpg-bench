@@ -242,58 +242,22 @@ final class ControlAPI {
             return respond(200, "application/json", json(["slots": slots]))
 
         case ("POST", "/key"):
-            if let bad = unknownFields(r, ["key", "hold", "times", "gap"]) {
+            // One key or several in order, with an optional hold for every
+            // key. A repeat is a list of the same key; there is no wait call,
+            // because an action returns when the screen has settled.
+            if let bad = unknownFields(r, ["key", "hold"]) {
                 return respond(400, "application/json", json(["ok": false, "error": bad]))
             }
-            guard let name = r.string("key"), let combo = RetroKey.parseCombo(name) else {
-                log.add("KEY", r.string("key") ?? "?", ok: false)
-                return respond(400, "application/json", json(["ok": false, "error": "unknown key", "hint": "GET /keys"]))
+            guard let names = r.strings("key"), 1...Self.maxKeysPerAction ~= names.count else {
+                return respond(400, "application/json", json(["ok": false,
+                    "error": "key must be one key name or a list of 1 to \(Self.maxKeysPerAction)"]))
             }
             guard let hold = bounded(r, "hold", default: Self.defaultTapFrames,
-                                     min: Self.minHoldFrames, max: Self.maxHoldFrames),
-                  let times = bounded(r, "times", default: 1,
-                                      min: 1, max: Self.maxKeysPerAction),
-                  let gap = bounded(r, "gap", default: 6,
-                                    min: 0, max: Self.maxGapFrames) else {
+                                     min: Self.minHoldFrames, max: Self.maxHoldFrames) else {
                 return respond(400, "application/json", json(["ok": false,
-                    "error": "hold must be \(Self.minHoldFrames) to \(Self.maxHoldFrames) frames, times 1 to \(Self.maxKeysPerAction), gap 0 to \(Self.maxGapFrames)"]))
+                    "error": "hold must be \(Self.minHoldFrames) to \(Self.maxHoldFrames) frames"]))
             }
-            let total = times * (hold + 2) + max(0, times - 1) * gap
-            guard total <= Self.maxActionFrames else {
-                return respond(400, "application/json", json(["ok": false, "error": "action exceeds \(Self.maxActionFrames) frames"]))
-            }
-            // Logged before the keys go in, so the pane shows an action
-            // starting rather than reporting one already over.
-            let note = times > 1 ? "\(name) x\(times)" : name
-            log.add("KEY", note)
-            var steps: [Emulator.Step] = []
-            for i in 0..<times {
-                steps.append(.press(combo, frames: hold))
-                if i != times - 1, gap > 0 { steps.append(.wait(gap)) }
-            }
-            let res = emu.submitSync(steps, settle: settle(r), scale: scale,
-                                     wantShot: r.wantsImage, atLeast: 60)
-            let out = reply(r, ok: res.ok,
-                            extra: ["action": note],
-                            shot: res.shot, changed: res.changed, settled: res.waited)
-            saver?.maybeSnapshot()
-            return out
-
-        case ("POST", "/keys"):
-            if let bad = unknownFields(r, ["keys", "hold", "gap"]) {
-                return respond(400, "application/json", json(["ok": false, "error": bad]))
-            }
-            guard let names = r.strings("keys"),
-                  1...Self.maxKeysPerAction ~= names.count else {
-                return respond(400, "application/json", json(["ok": false, "error": "keys must contain 1 to \(Self.maxKeysPerAction) entries"]))
-            }
-            guard let hold = bounded(r, "hold", default: Self.defaultTapFrames,
-                                     min: Self.minHoldFrames, max: Self.maxHoldFrames),
-                  let gap = bounded(r, "gap", default: 6,
-                                    min: 0, max: Self.maxGapFrames) else {
-                return respond(400, "application/json", json(["ok": false,
-                    "error": "hold must be \(Self.minHoldFrames) to \(Self.maxHoldFrames) frames, gap 0 to \(Self.maxGapFrames)"]))
-            }
+            let gap = 6
             let total = names.count * (hold + 2) + max(0, names.count - 1) * gap
             guard total <= Self.maxActionFrames else {
                 return respond(400, "application/json", json(["ok": false, "error": "action exceeds \(Self.maxActionFrames) frames"]))
@@ -303,30 +267,21 @@ final class ControlAPI {
             for (i, n) in names.enumerated() {
                 guard let combo = RetroKey.parseCombo(n) else { bad.append(n); continue }
                 steps.append(.press(combo, frames: hold))
-                if i != names.count - 1, gap > 0 { steps.append(.wait(gap)) }
+                if i != names.count - 1 { steps.append(.wait(gap)) }
             }
             if !bad.isEmpty {
-                log.add("KEYS", names.joined(separator: ","), payload: "bad: \(bad.joined(separator: ","))", ok: false)
-                return respond(400, "application/json", json(["ok": false, "error": "unknown keys", "keys": bad]))
+                log.add("KEY", names.joined(separator: ","), payload: "bad: \(bad.joined(separator: ","))", ok: false)
+                return respond(400, "application/json", json(["ok": false, "error": "unknown key: " + bad.joined(separator: ", "), "hint": "GET /keys"]))
             }
+            // Logged before the keys go in, so the pane shows an action
+            // starting rather than reporting one already over.
             let note = names.joined(separator: " ")
-            log.add("KEYS", names.joined(separator: ","))
-            let res = emu.submitSync(steps, settle: settle(r), scale: scale, wantShot: r.wantsImage, atLeast: 60)
-            return reply(r, ok: res.ok, extra: ["action": note],
-                         shot: res.shot, changed: res.changed, settled: res.waited)
-
-        case ("POST", "/wait"):
-            if let bad = unknownFields(r, ["ms"]) {
-                return respond(400, "application/json", json(["ok": false, "error": bad]))
-            }
-            guard let ms = bounded(r, "ms", default: 1000, min: 0, max: 60000) else {
-                return respond(400, "application/json", json(["ok": false, "error": "ms must be an integer from 0 to 60000"]))
-            }
-            let frames = min(4000, Int(Double(ms) * core_fps() / 1000.0))
-            log.add("WAIT", "\(ms)ms")
-            let res = emu.submitSync([.wait(frames)], settle: settle(r, fallbackMin: 1), scale: scale, wantShot: r.wantsImage, atLeast: 120)
-            return reply(r, ok: res.ok, extra: ["action": "\(ms)ms"],
-                         shot: res.shot, changed: res.changed, settled: res.waited)
+            log.add(names.count == 1 ? "KEY" : "KEYS", note)
+            let res = emu.submitSync(steps, settle: settle(r), scale: scale,
+                                     wantShot: r.wantsImage, atLeast: 60)
+            let out = reply(r, ok: res.ok, extra: ["action": note], shot: res.shot)
+            saver?.maybeSnapshot()
+            return out
 
         case ("POST", "/save"):
             if let bad = unknownFields(r, ["name"]) {
@@ -522,9 +477,8 @@ final class ControlAPI {
     GET  /slots                       savestates on disk
     GET  /help[?lang=en|zh][&part=core]     the full briefing
 
-    POST /key    {"key":"kp3"}        one key; optional "times", "hold", "gap"
-    POST /keys   {"keys":["kp9","enter"]}   several in order; "gap" between
-    POST /wait   {"ms":1000}          let the game run
+    POST /key    {"key":"kp3"}        one key; optional "hold" in frames
+    POST /key    {"key":["kp9","enter"]}    several in order, same "hold"
     POST /save   {"name":"before-boss"}    a name of its own, or none
     POST /load   {"name":"before-boss"}
     POST /reset

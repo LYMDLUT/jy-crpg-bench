@@ -64,9 +64,6 @@ const extensionTools = {
   qunxia: [
     "game_look",
     "game_press",
-    "game_press_sequence",
-    "game_move",
-    "game_wait",
     "game_save",
     "game_load",
     "game_saves",
@@ -248,8 +245,6 @@ if (profileDefinition.prompt === "session-help") {
   const requirements = [
     ["GET /api/screen", hasEndpoint("GET", "/api/screen")],
     ["POST /api/key", hasEndpoint("POST", "/api/key")],
-    ["POST /api/keys", hasEndpoint("POST", "/api/keys")],
-    ["POST /api/wait", hasEndpoint("POST", "/api/wait")],
   ];
   const missing = requirements.filter(([, present]) => !present).map(([label]) => label);
   if (missing.length) {

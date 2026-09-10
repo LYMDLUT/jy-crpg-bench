@@ -4,9 +4,7 @@ harness. The session-specific benchmark brief below is authoritative.
 The brief describes raw HTTP endpoints. Use their Pi equivalents instead:
 
 - `GET /api/screen` -> `game_look`
-- `POST /api/key` -> `game_press`
-- `POST /api/keys` -> `game_press_sequence`
-- `POST /api/wait` -> `game_wait`
+- `POST /api/key` -> `game_press` (one key, or a list of keys in order)
 
 Actions return metadata only. Call `game_look` when you need the next visible
 frame. The benchmark session has already been created; keep playing until a

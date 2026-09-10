@@ -34,9 +34,11 @@ Needs `../cores/dosbox_pure_libretro.so` (libretro buildbot) and `../game/`.
   PNG, or `?format=png` for raw bytes. One endpoint, not two envelopes around
   the same thing, and no scaling knob: upscaling server-side only made a bigger
   PNG out of the same pixels.
-- `/api/key`, `/api/keys`, `/api/wait` apply input and wait for
-  the screen to react and then settle. They return metadata by default; add
-  `?image=1` to capture the settled PNG before another controller can act.
+- `/api/key` presses one key or a list of keys in order and waits for the
+  screen to react and then settle, through a scene transition if one starts.
+  It returns metadata by default; add `?image=1` to capture the settled PNG
+  before another controller can act. There is no wait call: the game moves
+  only on input, and an action already waits for its result.
   Short taps default to ten emulated frames, and
   their down, release and inter-tap phases are fenced by the core frame clock,
   so host scheduling cannot silently collapse repeated movement taps.
@@ -155,12 +157,12 @@ resolves to a different scancode in either direction. `GET /help?lang=&part=`
 serves the same `skills/` briefing from both, with each host's own URLs
 substituted in.
 
-There is one way to do each thing. A wait is `ms`; there is no frame-counted
-spelling of it. A settle is `?react`, `?stable` and `?maxsettle`; there is no
-fourth knob that replaces them. A saved state has a `name`; `slot` was that
-same name spelled a second way. A repeat of one key is `/key` with `times`;
-`/keys` is for a sequence of different keys. A reply says what the action was,
-not what the request said, so the request fields are not echoed back.
+There is one way to do each thing. A press is `/key` with a name or a list of
+names, and a repeat is a list of the same name. A settle is `?react`,
+`?stable` and `?maxsettle`; there is no fourth knob that replaces them. A
+saved state has a `name`; `slot` was that same name spelled a second way. A
+reply says what the action was, not what the request said, so the request
+fields are not echoed back.
 
 A body field a call does not read is a 400 naming it. Ignoring it silently is
 the failure this API exists to avoid: the caller is told 200 and the game does

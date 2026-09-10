@@ -47,8 +47,8 @@ Type the zhuyin letters, then press the digit next to the character you want.
     zㄈ xㄌ cㄏ vㄒ bㄖ nㄙ mㄩ ,ㄝ .ㄡ /ㄥ
 
 Tones: 1st = space, 2nd = 6, 3rd = 3, 4th = 4, neutral = 7.
-Example: 王 is ㄨㄤˊ, so use `game_press_sequence` with `["j", ";", "6"]`,
-then `game_press` with `"1"` to pick 王.
+Example: 王 is ㄨㄤˊ, so use `game_press` with `["j", ";", "6"]`, then
+`game_press` with `"1"` to pick 王.
 
 ## The mission
 
@@ -88,5 +88,5 @@ A warning the game itself gives you: 「你們這些人都是這樣的，自以�
 - An action reply says what was pressed and nothing about what the screen did.
   A blocked character can turn or animate, so confirm movement from the
   background in the next picture.
-- Boot time varies. If the screen is black at the start, wait and observe again
-  rather than assuming the cause or a fixed startup duration.
+- Boot time varies. If the screen is black at the start, look again rather
+  than assuming the cause or a fixed startup duration.

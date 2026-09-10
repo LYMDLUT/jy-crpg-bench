@@ -138,8 +138,8 @@ comparing pixels, distinguish screen coordinates from map coordinates and allow 
 animation or occlusion. A sprite hidden by foreground art does not prove teleportation
 or a fault.
 
-**A fully black screen does not reveal its cause.** Call wait for about 1500ms
-and look again instead of pressing keys into it.
+**A fully black screen is a scene still loading.** An action waits through it;
+look again instead of pressing keys into it.
 
 **Entrances are at specific locations, not across the whole wall.** Use visible
 paths, doors, and other clues, and try short movements from different positions when

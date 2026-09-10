@@ -370,13 +370,19 @@ out here, any key advances a dialogue, and a model has to find them.}
 \label{fig:keymap}
 \end{figure}
 
-An action holds a key for a requested number of emulated frames, ten by
-default, waits for the screen to react and then to hold still, and returns, so the frame a model
-receives is the consequence of the key it sent. The hold is counted in frames
-because the game samples its keyboard once per game-loop iteration and a
-shorter pulse can be consumed without registering. The control surface is
-nine HTTP calls, listed in \cref{app:brief}. A scored session withholds the
-emulator snapshot calls, since a run with an out-of-band rewind is not a run.
+There is one action. It presses a key, or a list of keys in order, holding
+each for a requested number of emulated frames, ten by default, and returns
+once the screen has reacted and held still, waiting through a scene
+transition if one starts, so the frame a model receives is the one to act on.
+A repeat is a list of the same key and a menu path is a list, and there is no
+call that lets the game run without input, because the game only moves on
+input and the action already waits for the result. The hold is counted in
+frames because the game samples its keyboard once per game-loop iteration and
+a shorter pulse can be consumed without registering. A scored session answers
+four HTTP calls, listed in \cref{app:brief}: the screen, the brief, the key
+names and the action. The development runner adds three snapshot calls that a
+scored session answers with 404, since a run with an out-of-band rewind is not
+a run.
 The save and load menu of the game stays open to the model, as to a human
 player, so a model that loses a fight can reload the last save the game
 wrote, a rewind within the run that the recording shows.
@@ -389,10 +395,9 @@ the whole instruction the model receives: the calls that constitute play, the
 rules of a run, the opening route as far as the compass, and a manual of the
 controls and systems of the game, served in English and Chinese with the on-screen Traditional
 terms of the game kept verbatim, so the language a model reasons in is not
-itself a handicap. The model reaches the game through four tools, which look
-at the screen, press one key, press a sequence of keys, and let the game run,
-and an action returns only its metadata, so the model looks when it decides
-to. There is no memory scaffold, no map, no pathfinder and no access to the
+itself a handicap. The model reaches the game through two tools, which look
+at the screen and press one or more keys, and an action returns only its
+metadata, so the model looks when it decides to. There is no memory scaffold, no map, no pathfinder and no access to the
 state of the game. This separates the setting from the public Pok\'emon
 runs, where the harness translated RAM into text and did the perception
 \citep{comanici2025gemini}, and it is what makes the leaderboard a ranking of
@@ -662,15 +667,16 @@ serves the Chinese brief by default, and the record of a run carries the
 language of every brief it fetched. \Cref{tab:api} lists the control surface; a
 scored session answers the last three calls with 404, can read its remaining
 time and its own action counters, and is refused every progress field until
-the run ends. A
-tenth call, \texttt{POST /usage}, belongs to the broker that creates sessions
+the run ends. One
+more call, \texttt{POST /usage}, belongs to the broker that creates sessions
 rather than to a session: after a run, the harness files the usage meter of
 \cref{sec:metrics} under the name the session was created with, and the
 broker merges it into the catalogue entry of that run.
 
 \begin{table}[h]
 \centering
-\caption{The control surface. Nine calls, and one way to do each thing.}
+\caption{The control surface. Seven calls, one way to do each thing, and one
+action; a scored session answers the first four.}
 \label{tab:api}
 \small
 \begin{tabular}{@{}lll@{}}
@@ -680,9 +686,8 @@ Call & Body & Meaning \\
 \texttt{GET /api/screen} & -- & the current frame \\
 \texttt{GET /api/help} & -- & the brief, in English or Chinese \\
 \texttt{GET /api/keys} & -- & every accepted key name \\
-\texttt{POST /api/key} & \texttt{\{"key":"kp3"\}} & one key, with optional repeat and hold \\
-\texttt{POST /api/keys} & \texttt{\{"keys":[...]\}} & several keys in order \\
-\texttt{POST /api/wait} & \texttt{\{"ms":1000\}} & let the game run \\
+\texttt{POST /api/key} & \texttt{\{"key":"kp3"\}} & press one key, with an optional hold \\
+\texttt{POST /api/key} & \texttt{\{"key":["kp9","enter"]\}} & press several keys in order \\
 \texttt{GET /api/slots} & -- & emulator snapshots on disk \\
 \texttt{POST /api/save} & \texttt{\{"name":"..."\}} & take a snapshot \\
 \texttt{POST /api/load} & \texttt{\{"name":"..."\}} & restore a snapshot \\
@@ -692,9 +697,11 @@ Call & Body & Meaning \\
 
 \section{Rung Definitions and the Save Procedure}
 \label{app:metrics}
-A key is held for a requested 5 to 1200 emulated frames, 10 by default, and
-an action returns once the screen has reacted and held still; nothing the
-server observes about the screen enters any score. The recording journal
+A key is held for a requested 5 to 1200 emulated frames, 10 by default, with
+six frames between the keys of a list, and an action returns once the screen
+has reacted and held still, waiting up to 300 frames for a black screen to be
+redrawn when a scene changes; nothing the server observes about the screen
+enters any score. The recording journal
 logs every key the server presses on the core with its hold, and the seeded
 sequence of a random run is recomputed offline and compared with that
 journal: for the random runs reported here the two agree key for key, and on

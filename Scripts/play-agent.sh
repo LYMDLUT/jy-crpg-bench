@@ -201,7 +201,7 @@ if ! curl -sf -m 2 -o /dev/null "$STATUS_URL"; then
   }
   if [[ "$API_SUPPLIED" == "0" ]]; then
     print "waiting for the title screen..."
-    curl -sf -m 60 -X POST "$API/wait?image=0" -d '{"ms":14000}' >/dev/null || true
+    sleep 14
   fi
 fi
 

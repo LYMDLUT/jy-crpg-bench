@@ -36,10 +36,12 @@ class Game:
         return self.call("POST", "/api/key", {"key": k, **kw})
 
     def keys(self, ks):
-        return self.call("POST", "/api/keys", {"keys": ks})
+        return self.call("POST", "/api/key", {"key": ks})
 
     def wait(self, ms):
-        return self.call("POST", "/api/wait", {"ms": ms})
+        # The emulator runs in real time whether or not anyone presses a key,
+        # so letting the game run is a pause on this side, not a call.
+        time.sleep(ms / 1000.0)
 
     def screen_hash(self):
         return self.call("GET", "/api/screen?image=0").get("frame")

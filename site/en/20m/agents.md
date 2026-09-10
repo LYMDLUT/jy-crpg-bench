@@ -98,16 +98,19 @@ happens: objectives, choices, and prompts that expect a specific key.
 ## API
 
     GET  $BASE/api/screen                        look, pressing nothing
-    POST $BASE/api/key   {"key":"kp3"}           one key; +"times", +"hold"
-    POST $BASE/api/keys  {"keys":["kp9","enter"]} several, in order
-    POST $BASE/api/wait  {"ms":1000}             let the game run
+    POST $BASE/api/key   {"key":"kp3"}           press one key; +"hold" frames
+    POST $BASE/api/key   {"key":["kp9","enter"]} press several, in order
     GET  $BASE/api/help                          this skill
 
 `/api/screen` returns JSON with `image`, a base64 PNG data URI; `?format=png`
-returns the raw bytes instead. Action calls return `ok`, `action` and `frame`,
-which names the picture that followed, and say nothing about what the screen
-did: judge every effect from the picture. They return the same `image` when
-called with `?image=1`.
+returns the raw bytes instead. `/api/key` is the only action: `key` is one key
+name or a list of names pressed in order, so a repeat is a list of the same key
+and a menu path is a list. It returns once the screen has settled, a scene
+transition included, with `ok`, `action` and `frame`, which names the picture
+that followed, and says nothing about what the screen did: judge every effect
+from the picture. Add `?image=1` to get that picture in the same reply. There
+is no wait call: the game only moves when you press a key, and an action
+already waits for the result.
 
 Each call reads only the fields shown above. Anything else is refused with a
 400 naming it, rather than ignored, so a call that answers 200 did what you
@@ -204,8 +207,8 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
 - **No progress while alternating keys does not establish its cause.** Check
   whether you are on the map, in a menu, or in dialogue, then use short taps and
   observations to find a passable direction. Do not blindly increase hold time.
-- **A fully black screen does not reveal its cause.** Call `/api/wait` for about
-  1500ms and look again rather than pressing keys into it.
+- **A fully black screen is a scene still loading.** An action waits through
+  it, so look again rather than pressing keys into it.
 - **Entrances are at specific locations; the entire wall is not passable.**
   Use paths, doorways, and story clues. One failed attempt does not establish
   whether the entrance is wrong or a prerequisite is missing.
@@ -367,8 +370,8 @@ comparing pixels, distinguish screen coordinates from map coordinates and allow 
 animation or occlusion. A sprite hidden by foreground art does not prove teleportation
 or a fault.
 
-**A fully black screen does not reveal its cause.** Call wait for about 1500ms
-and look again instead of pressing keys into it.
+**A fully black screen is a scene still loading.** An action waits through it;
+look again instead of pressing keys into it.
 
 **Entrances are at specific locations, not across the whole wall.** Use visible
 paths, doors, and other clues, and try short movements from different positions when

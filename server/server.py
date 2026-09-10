@@ -187,10 +187,8 @@ DEFAULT_SETTLE_MAX_FRAMES = 120
 MAX_STABLE_FRAMES = 600
 MAX_SETTLE_FRAMES = 2000
 MAX_HOLD_FRAMES = 1200
-MAX_GAP_FRAMES = 600
 MAX_KEYS_PER_ACTION = 100
 MAX_ACTION_FRAMES = 2800
-MAX_WAIT_MS = 60000
 MAX_HISTORY_LIMIT = 300
 # Raw-bytes encodings for GET /screen; "" is the default JSON reply. PNG is the
 # one an agent is told about, because it is the one every runner can produce
@@ -298,6 +296,11 @@ _POS_OUT = (ctypes.c_int16 * 2)()
 # and a transition drops it near zero, so the threshold is nowhere near
 # anything the game draws normally.
 DARK = 12
+# How long a reply may wait for a black screen to lift. A scene change blacks
+# the screen out and draws the new scene a moment later; the caller wants the
+# new scene, so an action holds its reply through the black, bounded so a
+# screen that stays black is still answered.
+TRANSITION_FRAMES = 300
 
 # ---------------------------------------------------------------- game stats
 #
@@ -1282,8 +1285,10 @@ def snapshot(fmt="png"):
 
 
 async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
-                 maxframes=DEFAULT_SETTLE_MAX_FRAMES):
-    """Wait for the game to react, then for the picture to hold still.
+                 maxframes=DEFAULT_SETTLE_MAX_FRAMES, depth=0):
+    """Wait for the game to react, then for the picture to hold still, and
+    through a scene transition, so the picture the caller gets is the one to
+    act on.
 
     Three ways to be done. The picture stops changing; or it starts cycling,
     which is what a blinking cursor or an idle sprite loop does and which never
@@ -1324,6 +1329,20 @@ async def settle(baseline, react=30, stable=DEFAULT_STABLE_FRAMES,
             if first is not None and n - first >= stable:
                 break                      # animation loop, it will never settle
             seen.setdefault(h, n)
+    if depth == 0 and LIB.fb_luma() < DARK:
+        # The screen is black: a scene is changing. Wait for it to be drawn,
+        # then for it to hold still, once; a screen that stays black is
+        # returned as it is.
+        waited = 0
+        while waited < TRANSITION_FRAMES and LIB.fb_luma() < DARK:
+            await wait_core_frames(1)
+            waited += 1
+            world["dark"] = True
+        n += waited
+        if LIB.fb_luma() >= DARK:
+            more, _ = await settle(LIB.core_frame_hash(), react=react, stable=stable,
+                                   maxframes=maxframes, depth=1)
+            n += more
     return n, reacted
 
 
@@ -1812,79 +1831,45 @@ def actor(request):
 
 
 async def api_key(request):
+    """Press one key or several in order: ``{"key": "kp3"}`` or
+    ``{"key": ["kp9", "enter"]}``, with an optional ``hold`` in emulated
+    frames for every key. There is no other action call: a repeat is a list
+    of the same key, and there is no "let the game run" because an action
+    already returns when the screen has settled, a scene transition included.
+    """
     d = await body_of(request)
     if d is None:
         return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
     try:
-        only(d, "key", "hold", "times", "gap")
+        only(d, "key", "hold")
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
-    code = keycode(d.get("key", ""))
-    if not code:
-        return web.json_response({"ok": False, "error": "unknown key"}, status=400)
-    try:
-        hold = bounded_int(d.get("hold"), "hold", DEFAULT_TAP_FRAMES,
-                           MIN_HOLD_FRAMES, MAX_HOLD_FRAMES)
-        times = bounded_int(d.get("times"), "times", 1,
-                            1, MAX_KEYS_PER_ACTION)
-        gap = bounded_int(d.get("gap"), "gap", BETWEEN_TAPS_FRAMES,
-                          0, MAX_GAP_FRAMES)
-        validate_action_frames(times, hold, gap)
-    except ValueError as exc:
-        return web.json_response({"ok": False, "error": str(exc)}, status=400)
-    name = str(d.get("key")).strip().lower()
-    steps = []
-    for i in range(times):
-        steps.append((code, hold, name))
-        if i != times - 1 and gap:
-            steps.append(("frames", gap))
-    return await run_action(request, steps, name + (f" x{times}" if times > 1 else ""))
-
-
-async def api_keys(request):
-    d = await body_of(request)
-    if d is None:
-        return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
-    try:
-        only(d, "keys", "hold", "gap")
-    except ValueError as exc:
-        return web.json_response({"ok": False, "error": str(exc)}, status=400)
-    names = d.get("keys") or []
-    if not isinstance(names, list) or not 1 <= len(names) <= MAX_KEYS_PER_ACTION:
+    raw = d.get("key")
+    names = raw if isinstance(raw, list) else [raw]
+    if not 1 <= len(names) <= MAX_KEYS_PER_ACTION:
         return web.json_response(
             {"ok": False,
-             "error": f"keys must contain between 1 and {MAX_KEYS_PER_ACTION} entries"},
-            status=400,
-        )
-    codes = [keycode(k) for k in names]
+             "error": f"key must be one key name or a list of 1 to {MAX_KEYS_PER_ACTION}"},
+            status=400)
+    codes = [keycode(k) if isinstance(k, str) else None for k in names]
     if any(c is None for c in codes):
-        return web.json_response({"ok": False, "error": "unknown key in list"}, status=400)
+        bad = [str(k) for k, c in zip(names, codes) if c is None]
+        return web.json_response({"ok": False, "error": "unknown key: " + ", ".join(bad),
+                                  "hint": "GET /api/keys lists every name"}, status=400)
     try:
         hold = bounded_int(d.get("hold"), "hold", DEFAULT_TAP_FRAMES,
                            MIN_HOLD_FRAMES, MAX_HOLD_FRAMES)
-        gap = bounded_int(d.get("gap"), "gap", BETWEEN_TAPS_FRAMES,
-                          0, MAX_GAP_FRAMES)
-        validate_action_frames(len(names), hold, gap)
+        validate_action_frames(len(names), hold, BETWEEN_TAPS_FRAMES)
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
+    names = [str(k).strip().lower() for k in names]
     steps = []
     for i, c in enumerate(codes):
-        steps.append((c, hold, str(names[i]).strip().lower()))
-        if i != len(codes) - 1 and gap:
-            steps.append(("frames", gap))
-    return await run_action(request, steps, " ".join(map(str, names)), verb="KEYS")
-
-
-async def api_wait(request):
-    d = await body_of(request)
-    if d is None:
-        return web.json_response({"ok": False, "error": "JSON object required"}, status=400)
-    try:
-        only(d, "ms")
-        ms = bounded_int(d.get("ms"), "ms", 1000, 0, MAX_WAIT_MS)
-    except ValueError as exc:
-        return web.json_response({"ok": False, "error": str(exc)}, status=400)
-    return await run_action(request, [("wait", ms / 1000)], f"{ms}ms", verb="WAIT")
+        steps.append((c, hold, names[i]))
+        if i != len(codes) - 1:
+            steps.append(("frames", BETWEEN_TAPS_FRAMES))
+    verb = "KEY" if len(names) == 1 else "KEYS"
+    return await run_action(request, steps, " ".join(names), verb=verb)
 
 
 async def api_screen(request):
@@ -2594,8 +2579,6 @@ def main():
         web.post("/api/reset", api_reset),
         web.post("/api/snapshot", api_snapshot),
         web.post("/api/key", api_key),
-        web.post("/api/keys", api_keys),
-        web.post("/api/wait", api_wait),
         web.post("/api/save", api_save),
         web.post("/api/load", api_load),
     ])

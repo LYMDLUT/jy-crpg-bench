@@ -66,9 +66,11 @@ def main(argv):
     elif cmd == "keys":
         if not args:
             raise ValueError("keys requires at least one key name")
-        res = call("POST", "/keys?image=1", {"keys": args})
+        res = call("POST", "/key?image=1", {"key": args})
     elif cmd == "wait":
-        res = call("POST", "/wait?image=1", {"ms": int(args[0]) if args else 1000})
+        import time
+        time.sleep((int(args[0]) if args else 1000) / 1000.0)
+        res = call("GET", "/screen")
     elif cmd in ("save", "load"):
         key = "name" if args and not args[0].isdigit() else "slot"
         val = args[0] if args else 1

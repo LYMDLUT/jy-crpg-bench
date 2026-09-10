@@ -43,7 +43,7 @@ class MCPProtocolTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(server_info.name, "qunxia")
         self.assertEqual(
             {tool.name for tool in result.tools},
-            {"look", "guide", "press", "press_sequence", "move", "wait",
+            {"look", "guide", "press",
              "save_state", "load_state", "list_states", "reset_game"},
         )
 

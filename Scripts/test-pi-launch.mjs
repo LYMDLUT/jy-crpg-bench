@@ -69,7 +69,7 @@ test("isolated launcher preserves Gemini High through the real Pi CLI and HTTP a
   assert.equal(body.generationConfig.maxOutputTokens, 65536);
   assert.match(JSON.stringify(body.systemInstruction), /Fixture game brief/);
   const names = body.tools.flatMap(group => (group.functionDeclarations ?? []).map(tool => tool.name));
-  assert.deepEqual(names.sort(), ["game_look", "game_press", "game_press_sequence", "game_wait"]);
+  assert.deepEqual(names.sort(), ["game_look", "game_press"]);
   const manifest = JSON.parse(await readFile(join(directory, "high-run", "run.json"), "utf8"));
   assert.equal(manifest.model.thinkingLevel, "high");
   assert.equal(manifest.model.mappedThinkingLevel, "high");
