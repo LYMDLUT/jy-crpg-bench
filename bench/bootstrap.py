@@ -127,22 +127,31 @@ def build(base, token, log=print):
 
     log("naming the character through the 注音 IME")
     g.keys(["j", ";", "6"])        # ㄨㄤˊ
+    g.wait(1500)                   # let the IME register the syllable
     g.keys(["1", "enter"])         # pick 王, confirm
+    g.wait(2500)                   # let the name commit and the roll appear
+    log("named; screen: data:image/png;base64," + base64.b64encode(g.png()).decode())
 
     # The attribute roll takes y and n and nothing else. A y that arrives
     # before the prompt is simply lost, and every enter after it is ignored,
     # so the replay sits on a screen whose white share the opening loop reads
     # as dialogue and never leaves it - which is exactly how a slower machine
     # failed here, for fifteen minutes, with one y and a hope. Press until the
-    # picture moves on. The prompt is drawn over the title art, so its white
-    # share is the art's until the game leaves it.
+    # picture moves on, bounded by the clock rather than a press count so a
+    # slower host has the time it needs. The prompt is drawn over the title
+    # art, so its white share is the art's until the game leaves it.
     art = white_share(g.png())
-    for _ in range(20):
+    deadline = time.time() + float(os.environ.get("QUNXIA_ROLL_SECONDS", "90"))
+    took = False
+    while time.time() < deadline:
         g.key("y")
-        g.wait(1500)
+        g.wait(1200)
         if abs(white_share(g.png()) - art) > 0.005:
+            took = True
             break
-    else:
+    if not took:
+        log("attribute roll stuck on: data:image/png;base64,"
+            + base64.b64encode(g.png()).decode())
         raise RuntimeError("the attribute roll never took y")
     g.wait(9000)
 
