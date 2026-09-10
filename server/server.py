@@ -2423,7 +2423,8 @@ async def calibrate():
 
 async def api_recording(request):
     if recording_api:
-        return await recording_api.handle(request)
+        return await recording_api.handle(
+            request, include_trajectory=not (warden.ON and not operator(request)))
     return web.json_response({"started": rec["started"], "duration": 0, "events": [], "bytes": 0})
 
 

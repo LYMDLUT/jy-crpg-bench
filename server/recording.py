@@ -130,7 +130,7 @@ class RecordingAPI:
             app.add_routes([web.get('/api/recordings', self.list_files),
                             web.get('/api/recordings/{name}', self.download_file)])
 
-    async def handle(self, request):
+    async def handle(self, request, include_trajectory=True):
         from aiohttp import web
         import uuid
         name = request.query.get('recording', 'current')
@@ -185,10 +185,14 @@ class RecordingAPI:
                         location = index.locate(when)
                     except sqlite3.Error as exc:
                         return web.json_response({'error': 'seek index unreadable: ' + str(exc)}, status=503)
-                    return web.json_response(dict(reader.page(location['start']), token=token,
-                                                  seek=location, seek_supported=True))
-                return web.json_response(dict(reader.page(request.query.get('start')), token=token,
-                                              seek_supported=self.archives))
+                    page = reader.page(location['start'])
+                    if not include_trajectory:
+                        page['events'] = [event for event in page['events'] if not event.get('trajectory')]
+                    return web.json_response(dict(page, token=token, seek=location, seek_supported=True))
+                page = reader.page(request.query.get('start'))
+                if not include_trajectory:
+                    page['events'] = [event for event in page['events'] if not event.get('trajectory')]
+                return web.json_response(dict(page, token=token, seek_supported=self.archives))
             except ValueError as exc:
                 return web.json_response({'error': str(exc)}, status=400)
 
@@ -213,6 +217,8 @@ class RecordingAPI:
                 first = True
                 payload_bytes = 0
                 for event in reader:
+                    if not include_trajectory and event.get('trajectory'):
+                        continue
                     data = event.get("d", "")
                     payload_bytes += len(data) * 3 // 4 - (len(data) - len(data.rstrip("=")))
                     await response.write((('' if first else ',')+json.dumps(event, separators=(',', ':'))).encode())
