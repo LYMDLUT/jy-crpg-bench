@@ -61,11 +61,12 @@ OPENING = 5     # the first five close the opening without a fight
 
 def rungs_of(row):
     """(reached | not reached | None for no reading) per rung, as the game
-    records them. The world-map rung is the save the game wrote; a run recorded
-    before the benchmark asked the game to save carries no such field and is
-    credited only from the screen with a corroborating fade, a legacy path the
-    paper does not report."""
-    saved = "saved_at" in row
+    records them. The world-map rung is the game's own account of the party on
+    the overworld: a save the game wrote there, or the live reading of its
+    world square changing, whichever the run carries. A run recorded before the
+    benchmark read either field is credited only from the screen with a
+    corroborating fade, a legacy path the paper does not report."""
+    saved = "saved_at" in row or "world_map_at" in row
     known = [
         True,
         row.get("picked_item") is not None,
@@ -80,7 +81,8 @@ def rungs_of(row):
         (row.get("key_events") if row.get("key_events") is not None
          else row["actions"]) > 0,
         bool(row.get("picked_item")),
-        (row.get("saved_at") is not None) if saved
+        (row.get("saved_at") is not None
+         or row.get("world_map_at") is not None) if saved
         else bool(row.get("bigmap")) and row.get("exit_secs") is not None,
         bool(row.get("compass")),
         (row.get("team_size") or 0) > 1,
