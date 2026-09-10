@@ -130,6 +130,17 @@ framebuffer, and the framebuffer cannot answer it: the menu is an overlay whose
 width follows its contents, so no fixed mask covers it, and a five tile
 corridor reported ten places.
 
+## Long-horizon report
+
+The short run and its published fields remain the benchmark's frozen baseline.
+For runs lasting from tens of minutes through one or two days, an additive
+checkpoint report can score the journey without changing those fields. It has
+separate medium and long horizons for the inn, Nan Xian, the compass, battles,
+growth, quest coverage, the fourteen books and the ending. The checkpoint
+contract, component weights, missing-data rules and examples are documented in
+[`LONG_HORIZON_SCORING.md`](LONG_HORIZON_SCORING.md); the pure scorer is
+`long_horizon.py` and does not read or rewrite the short-run metrics.
+
 ## Recording
 
 A recording is the tile deltas the browser stream already produces, kept with
