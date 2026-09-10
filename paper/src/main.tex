@@ -37,7 +37,7 @@ Out-of-Distribution Open-World RPG}
 \texttt{han.xiao@jina.ai} \\
 \And
 Yiming Liu \\
-\texttt{convliu@tencent.com}}
+\texttt{letusgo126@gmail.com}}
 
 \begin{document}
 
@@ -416,7 +416,7 @@ session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, with
 its save slots reset to a new game, so no run inherits the progress of
 another. A model that
-goes ten minutes without a key or a wait call is torn down and recorded as
+goes ten minutes without a key is torn down and recorded as
 idle, or as never started if it never acted.
 When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
@@ -456,14 +456,15 @@ loads state into it. The one thing it presses for itself is the save
 described next, which costs the game a few seconds of menu time outside the
 accounting of the run and leaves the screen as it found it.
 
-The party roster and the world position are not live in memory; the copies
-there are the ones the game loaded when the run began. The benchmark
-therefore has the game save for itself. The game offers its save menu on the
-world map alone and announces this through the height of the menu, so an
-attempt opens the menu, counts its rows and withdraws where saving is not
-offered, leaving the screen unchanged. The archive the game writes is decoded
-like the shipped ones. Neither the save nor anything read from it is
-reachable through the control surface.
+For the party roster and the world position the benchmark reads the game's
+own save, the archive it writes in the format already validated against the
+shipped ones. The game offers its save menu on the world map alone and
+announces this through the height of the menu, so an attempt opens the menu,
+counts its rows and withdraws where saving is not offered, leaving the screen
+unchanged; a save that lands is itself the evidence that the party has crossed
+onto the world map. The archive the game writes is decoded like the shipped
+ones, and neither it nor anything read from it is reachable through the
+control surface.
 
 Progress is summarised as eight milestones read from this ground truth, in
 the spirit of the achievements of Crafter \citep{hafner2021benchmarking}, and
@@ -709,7 +710,11 @@ the local runner single ten-frame taps of every call shape moved the
 character one tile per tap in the position the game saved. The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
-entry through which the game saves. Attempts wait for a two-second gap
+entry through which the game saves. An attempt is made only after an action
+that moved the party on the world map, so it opens the world-map menu and
+never a scene's, and a look the model takes waits on the same single-player
+lock the attempt holds, so the model never observes the screen mid-save.
+Attempts wait for a two-second gap
 between the keys the model sends, recur every two minutes, and are made once more
 shortly before the budget lapses, into a save slot reserved for the
 benchmark, and the time of the first save is kept as the time of the crossing.
