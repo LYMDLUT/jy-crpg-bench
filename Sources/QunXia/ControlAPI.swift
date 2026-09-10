@@ -461,19 +461,17 @@ final class ControlAPI {
         if r.wantsRawPNG, let shot {
             return respond(status, "image/png", shot.png)
         }
+        // frame names the picture. No hash of the screen and no "changed"
+        // flag: both flip on an idle animation as readily as on a step, and an
+        // agent that trusted them counted steps it never took. What happened
+        // is read from the picture; the headless runner answers the same way.
         var obj: [String: Any] = [
             "ok": ok,
             "width": Int(core_width()),
             "height": Int(core_height()),
-            // frame names the picture; screen is its hash, so polling it tells
-            // "still animating" from "waiting for input".
             "frame": Int(core_frame_serial()),
-            "screen": String(core_frame_hash(), radix: 16),
         ]
-        if let changed { obj["changed"] = changed }
-        // Reported whether or not a picture was captured, so ?image=0 still
-        // says how long the screen took to hold still.
-        if let settled { obj["settled_frames"] = settled }
+        _ = (changed, settled)
         for (k, v) in extra where !((v as? String)?.isEmpty ?? false) { obj[k] = v }
         if let shot {
             obj["image"] = "data:image/png;base64," + shot.png.base64EncodedString()
@@ -531,9 +529,10 @@ final class ControlAPI {
     POST /load   {"name":"before-boss"}
     POST /reset
 
-    A POST waits for the screen to react and then to hold still, so what comes
-    back is the result of the action. "changed":false means nothing visible
-    happened. Add ?format=png for raw bytes, ?image=0 to skip the capture.
+    A POST waits for the screen to react and then to hold still, so the picture
+    that comes back is the result of the action; the reply itself says only
+    what was pressed and which frame followed. Add ?format=png for raw bytes,
+    ?image=0 to skip the capture.
     ?react, ?stable and ?maxsettle tune that wait in frames.
 
     A body field a call does not read is a 400 naming it, not a silent no-op.

@@ -255,6 +255,15 @@ emit("SteamKnown", len(_known("team_size")))
 emit("Sbooks", sum(1 for r in _known("books") if r["books"] > 0), "sessions holding a book")
 emit("SbooksKnown", len(_known("books")))
 emit("Sdone", sum(1 for r in PLAY if r.get("completion_secs") is not None), "sessions that completed")
+_map = lambda r: field.rungs_of(r)[2] is True
+emit("SleftNoItem", sum(1 for r in PLAY if _map(r) and r.get("picked_item") is False),
+     "sessions that reached the map without the chest")
+emit("SitemNoLeft", sum(1 for r in PLAY if r.get("picked_item") and not _map(r)),
+     "sessions that searched the chest without reaching the map")
+emit("Sboth", sum(1 for r in PLAY if r.get("picked_item") and _map(r)), "sessions that did both")
+emit("QrandomRungs", max((field.rungs_reached(r) for r in RANDOM), default=0),
+     "rungs the random floor reached")
+emit("QrandomSaved", sum(1 for r in RANDOM if r.get("saved_at")), "random runs that wrote a save")
 emit("Susage", sum(1 for r in PLAY if r.get("usage")), "sessions with a usage report")
 emit("Shelp", sum(1 for r in PLAY if r.get("help_langs")), "sessions that fetched the brief from the session")
 

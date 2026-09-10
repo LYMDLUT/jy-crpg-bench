@@ -87,6 +87,8 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        # From the game's own save slot, which is the only place the party and
        # the world square are true.
        "team_size": None, "team_level": None, "saved_at": None,
+       # the first save the game wrote on the world map: the crossing time
+       "first_saved_at": None,
        # Retained for metrics compatibility; the fixed deadline grants no credit.
        "credit": 0.0,
        "done": None, "result": None}
@@ -244,7 +246,8 @@ def metrics():
                                "inventory_distinct", "picked_item",
                                "books", "items_total", "compass",
                                "completion_secs",
-                               "team_size", "team_level", "saved_at")},
+                               "team_size", "team_level", "saved_at",
+                               "first_saved_at")},
         # There is no count of distinct places here on purpose. It was
         # measured off the framebuffer and the framebuffer cannot answer it:
         # the menu is an overlay whose size follows where you are, so no fixed

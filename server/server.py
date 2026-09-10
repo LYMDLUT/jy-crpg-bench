@@ -367,7 +367,7 @@ SAVE_ROW = 1                # 讀檔 存檔 離開: 存檔 is the second
 # to catch the party on the world map.
 SNAPSHOT_LAST_CALL = float(os.environ.get("QUNXIA_SNAPSHOT_LAST_CALL", "25"))
 
-snap = {"at": None, "tries": 0, "saves": 0, "why": "not tried yet",
+snap = {"at": None, "first_at": None, "tries": 0, "saves": 0, "why": "not tried yet",
         "archive": None, "last_action": time.time(), "last_call": False}
 
 
@@ -501,11 +501,16 @@ async def game_snapshot(reason=""):
         summary["reason"] = reason
         snap["archive"] = summary
         snap["at"] = summary["saved_at"]
+        if snap["first_at"] is None:
+            # the first save the game wrote is the first time the party stood
+            # on the world map: the crossing, timed by the game and not the screen
+            snap["first_at"] = snap["at"]
         snap["saves"] += 1
         if warden.ON:
             warden.run["team_size"] = summary["team_size"]
             warden.run["team_level"] = summary["team_level"]
             warden.run["saved_at"] = snap["at"]
+            warden.run["first_saved_at"] = snap["first_at"]
         return summary, ""
     finally:
         action_lock().release()
@@ -1121,7 +1126,8 @@ def session_summary():
             "team_size": (snap["archive"] or {}).get("team_size"),
             "team_level": (snap["archive"] or {}).get("team_level"),
             "team": (snap["archive"] or {}).get("team"),
-            "saved_at": snap["at"], "saved_why": snap["why"],
+            "saved_at": snap["at"], "first_saved_at": snap["first_at"],
+            "saved_why": snap["why"],
             "reputation": hero["reputation"], "potential": hero["potential"],
             "frontier": (world["banked"] + world["far"]) if world["ok"] else None,
             # the key histogram, so a card can draw its bars while the run is
@@ -1630,10 +1636,11 @@ async def run_action(request, steps, note, verb="KEY"):
             health.set_input()
         action_lock().release()
 
-    result = {
-        "ok": True, "action": note, "changed": changed,
-        "settled_frames": waited, **core_fields(),
-    }
+    # The response says what was done and names the frame that followed, and
+    # nothing about what the screen did: a hash or a "changed" flag flips on
+    # an idle animation as readily as on a step, and a model that trusted one
+    # counted steps it never took. What happened is read from the picture.
+    result = {"ok": True, "action": note, **core_fields()}
     if image:
         result.update({
             "image_width": image_w, "image_height": image_h,
@@ -1707,14 +1714,15 @@ def core_fields():
     """The description of the machine that every reply carries.
 
     The same set the native runner returns, so one agent loop can read either
-    without knowing which it is talking to. ``frame`` names the picture;
-    ``screen`` is its hash, which tells "still animating" from "waiting for
-    input". Emulated-frame counters and the session's own numbers are not here:
-    they belong to the board, not to the agent playing.
+    without knowing which it is talking to. ``frame`` names the picture. No
+    hash of the screen and no "changed" flag: both flip on an idle animation
+    as readily as on a step, and an agent that trusted them counted steps it
+    never took. Emulated-frame counters and the session's own numbers are not
+    here either: they belong to the board, not to the agent playing.
     """
     return {
         "width": LIB.core_width(), "height": LIB.core_height(),
-        "frame": LIB.core_frame_serial(), "screen": f"{LIB.core_frame_hash():x}",
+        "frame": LIB.core_frame_serial(),
     }
 
 
@@ -2380,7 +2388,8 @@ SCORED_FIELDS = ("level", "exp", "hp", "maxhp", "skills", "reputation",
                  "items_total", "books", "compass", "completion_secs",
                  "meaningful", "oscillation",
                  "scenes", "frontier", "bigmap", "exit_acts", "exit_secs",
-                 "team_size", "team_level", "team", "saved_at", "saved_why")
+                 "team_size", "team_level", "team", "saved_at", "first_saved_at",
+                 "saved_why")
 
 
 def operator(request):

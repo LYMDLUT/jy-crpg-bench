@@ -148,8 +148,8 @@ indefinitely. Override with `QUNXIA_CYCLES`.
 
 The native runner (`Sources/QunXia`) and this one answer the same paths under
 the same names, with and without the `/api` prefix, and return the same reply
-fields: `ok`, `action`, `changed`, `settled_frames`, `width`, `height`, `frame`
-and `screen` (the frame hash). `GET /keys` returns one vocabulary -
+fields: `ok`, `action`, `width`, `height` and `frame`, and no hash or changed
+flag, since neither tells a step from an idle animation. `GET /keys` returns one vocabulary -
 `server/test_api.py::KeyVocabularyTest` parses `Keys.swift` and fails if a name
 resolves to a different scancode in either direction. `GET /help?lang=&part=`
 serves the same `skills/` briefing from both, with each host's own URLs

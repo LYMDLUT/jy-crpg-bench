@@ -52,8 +52,6 @@ Yiming Liu \\
 %% Everything numeric in this paper is generated from the run data. Nothing is
 %% typed. See figures/emit_numbers.py and check_consistency.py.
 \input{figures/numbers.tex}
-\input{tables/runs.tex}
-\input{tables/family.tex}
 \input{tables/books.tex}
 
 \begin{abstract}
@@ -75,9 +73,8 @@ from the memory of the emulated machine and from the save the game writes for
 itself, so every milestone is an event that pixel similarity cannot
 manufacture, and one instrument spans the whole distance: a ladder of
 machine-verified milestones while models learn to move, and completion time
-once they finish. We report \NmodelsDistinct{} frontier models from
-\Nvendors{} vendors against a seeded random baseline under a
-\NbudgetMin{}-minute budget, and release \bench{} as a live, replayable
+once they finish. We report \NmodelsDistinct{} frontier models against a
+seeded random baseline under a \NbudgetMin{}-minute budget, and release \bench{} as a live, replayable
 public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
 \end{abstract}
 
@@ -171,8 +168,7 @@ position and push it into the emulator. The benchmark reads progress out of
 the memory of the running machine, from the character array the game
 maintains, and out of the save file the game writes when asked, which is
 where the party and the world position are true. The model has no call that
-returns any of this, and screen-derived quantities are reported as behaviour
-and never as progress.
+returns any of this, and nothing read from the screen enters a score.
 
 We make three contributions.
 
@@ -191,9 +187,8 @@ ships, and measurement never writes to the machine it observes. Every rung of
 the ladder is an event the model has to cause, and the terminal rung is the
 ending the game defines.
 
-\item We evaluate \NmodelsDistinct{} frontier models from \Nvendors{} vendors
-under the same harness and against a seeded random baseline under a
-wall-clock budget, with a behavioural profile beside the ladder, and release
+\item We evaluate \NmodelsDistinct{} frontier models under the same harness
+and against a seeded random baseline under a wall-clock budget, and release
 the benchmark, its harness and every recorded run as a public, replayable
 arena.
 \end{enumerate}
@@ -288,8 +283,7 @@ specified, automatically graded and short, and call for open-world
 evaluation. Navigation from rendered images is a documented weakness: on
 mazes, one-shot navigation collapses for every model by ten cells a side
 \citep{jiang2026lostaggregation}, and the failures are attributed to looping
-\citep{einarsson2025mazeeval}, which is the behaviour our oscillation metric
-counts.
+\citep{einarsson2025mazeeval}.
 
 Measurement is where long horizons strain evaluation. The ABC checklist
 catalogues task-validity and outcome-validity failures across agentic
@@ -299,14 +293,9 @@ and a survey of the horizon gap finds that the field answers uninformative
 outcome signals by building denser step-level ones
 \citep{chen2026horizongap}. State-based verification has precedent outside
 games, where $\tau$-bench compares the final database state with an
-annotated goal \citep{yao2024taubench}. Our milestone ladder and the
-behavioural profile beneath it are an instance of the same answer, with the
-ladder read from machine state so that dense signals cannot be mistaken for
-progress. For behavioural quantities we follow GVGAI-LLM in distinguishing
-effective from redundant actions \citep{li2025gvgai}, and we report binomial
-proportions with their intervals
-\citep{wilson1927probable,miller2024errorbars}, in the spirit of comparative
-platforms that account for ranking uncertainty \citep{chiang2024chatbot}.
+annotated goal \citep{yao2024taubench}. Our milestone ladder is an instance
+of the same answer, read from machine state so that dense signals cannot be
+mistaken for progress.
 
 \section{\bench{}}
 \label{sec:bench}
@@ -493,8 +482,7 @@ true zero are different claims.
 \caption{The milestone ladder. \emph{Evidence} is the game state that credits
 the rung and \emph{source} is where the benchmark reads it: the session record
 of the harness, the bag and character array in emulator memory, or the save
-the game writes on the world map, where the world-map rung is corroborated by
-the fade to black the renderer draws on every scene transition.}
+the game writes on the world map.}
 \label{tab:ladder}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
@@ -505,7 +493,7 @@ Rung & Evidence & Source \\
 \multicolumn{3}{@{}l}{\emph{The opening, reached without a fight}} \\
 acted & a key event was sent & session record \\
 picked something up & any item count above its opening count & bag in memory \\
-reached the world map & the game wrote its save, or a fade-corroborated map signature & save, screen \\
+reached the world map & the game wrote its save & save \\
 holds the compass & the compass in the bag & bag in memory \\
 recruited a companion & a party roster longer than one & save \\
 \addlinespace
@@ -528,52 +516,34 @@ field in which every entrant passes. One instrument therefore
 covers both horizons, and the benchmark keeps measuring after the first model
 finishes.
 
-\subsection{Behavioural Metrics}
+\subsection{Effort}
 \label{sec:metrics}
 
-Long-horizon failures arise in execution more than in reasoning
-\citep{sinha2025illusion}, so beneath the ladder we record what the model
-did, computed from the traffic of the run itself so that the quantities hold
-for any model and any client. The
-\emph{meaningful-step ratio} is the share of actions that changed the screen
-at all, and \emph{oscillation} is the share that reverse the previous one,
-following the effective-versus-redundant distinction of GVGAI-LLM
-\citep{li2025gvgai} with the operational definitions given in
-\cref{app:metrics}. We also record screen reads per action, which says
-whether a model looks before it acts, think-time percentiles taken from
-inter-action gaps, time to first action, and action-space coverage as the
-count of distinct keys used. The ratio is a binomial proportion, so we report
-95\% Wilson intervals \citep{wilson1927probable} and read overlapping
-intervals as a tie. Ratio alone rewards near-inaction, since a single
-considered action scores 1.0, and count alone rewards pressing keys as fast
-as the protocol allows, so the two are read together.
+The ladder is the score, and nothing read from the screen enters it. Beside
+it the session records effort. The wall clock of every decision call is kept,
+so the played time and the think time between calls are measured on the
+server for any client. The tokens a run spends are a property of the client,
+so the reference harness meters them: after a run it sums the usage the
+provider reported for every assistant turn on the active branch of its
+session, as input, output and cache tokens with a cost at the rates the
+operator declared, and files the total once with the model, thinking level,
+harness version and brief language, under the name the session was created
+with. A run with any unmetered turn files nothing, so the record carries the
+whole meter or none. Effort is shown beside a run and never ranks it.
 
-Effort is recorded beside behaviour. The session records every decision call
-with its wall-clock time, key events and requested hold frames, and every
-screen read, so turns, reads and think time are measured on the server for
-any client. Token consumption is a property of the client, so the reference
-harness meters it: after a run it sums the usage the provider reported for
-every assistant turn on the active branch of its session, as input, output
-and cache tokens with a cost at the rates the operator declared, and files
-the total once with the model, thinking level, harness version and brief
-language, under the name the session was created with. A run with any unmetered turn files nothing, so the record
-carries the whole meter or none, and cost is shown beside a run rather than
-used to rank it.
-
-A seeded random policy anchors these quantities. It draws from thirteen keys
-the brief teaches, weighted towards movement and confirmation, at a fixed
-seed and a cadence within the range models achieve, and never reads the
-screen, following the convention that anchors a score on random and human
-play \citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. It
-fixes the reactivity of the environment for every behavioural metric and is
-the negative control the detectors were checked against.
+A seeded random policy plays the same budget through the same control
+surface, drawing from thirteen keys the brief teaches, weighted towards
+movement and confirmation, and never reading the screen, following the
+convention that anchors a score on random and human play
+\citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. The rungs
+it reaches are what the environment gives away, and they are the floor of the
+ladder.
 
 \section{Evaluation}
 \label{sec:results}
 
-The field at submission is \NmodelsDistinct{} models from \Nvendors{} vendors,
-one session each at the \NbudgetMin{}-minute budget, and a seeded random
-baseline. A run is listed under the name declared when its session was
+The field at submission is \NmodelsDistinct{} models, one session each at the
+\NbudgetMin{}-minute budget, and a seeded random baseline. A run is listed under the name declared when its session was
 created; two were created under names that were not the model, and are
 listed under the model the operator identified, \aliaslist, with the declared
 names kept in the snapshot. No run in this field carries a usage report, so
@@ -583,9 +553,8 @@ published page. Every session is public on the leaderboard with its video,
 replay timeline and metric record, and the catalogue snapshot the paper is
 generated from is committed beside the paper source. \Cref{app:field} lists
 the runs by name. This section reads the field for what it says about the
-instrument: how much of the ladder is open, whether the ladder and the
-behavioural metrics separate models, whether the metrics measure what they
-claim, and how a budget is spent.
+instrument: how much of the ladder is open, how far it separates models, and
+how a budget is spent.
 
 \tbd{The present field is one run per model. A sweep of repeated
 runs per model under the fixed harness, and a human
@@ -598,15 +567,13 @@ additions the field most needs.}
 Every rung is measured for the first time, and the world map is the highest
 the field reaches at this budget. \Sitem{} of \Nsessions{} sessions pick
 something up, and \Smap{} reach the world map, every one of them credited by
-the save the game wrote and corroborated by the fade to black; \Sstayed{}
-spend the whole budget in the scene they started in, and \Nidle{} of those
-sent a single key before the idle rule ended it. Two of the sessions that
-left never searched the chest, and two that searched it never left. No
-session holds the compass, recruits a companion, gains experience or holds a
+the save the game wrote; \Sstayed{} spend the whole budget in the scene they
+started in, and \Nidle{} of those sent a single key before the idle rule
+ended it. No session holds the compass, recruits a companion, gains experience or holds a
 book: all \Sread{} character records stand at level \Slevel{} with
 \SexpSum{} experience and \Sskills{} skill, the state the session booted
 into, so every rung from the compass on is open. \Cref{fig:ladder} shows the
-ladder by vendor family. Comparable instruments place their fields at a
+ladder by model. Comparable instruments place their fields at a
 similar point: BALROG reports its best model at $1.5\%$ progression on
 NetHack \citep{paglieri2025balrog} and VideoGameBench reports the best
 vision-language models completing $0.48\%$ of its suite
@@ -615,58 +582,39 @@ fourteen books is the headroom the benchmark holds.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.66\linewidth]{figures/ladder.pdf}
-\caption{The milestone ladder over all published runs, by vendor family.
-Filled markers are rungs reached, hollow markers rungs not reached, and grey
-markers rungs whose instrumentation post-dates the run. Fractions give the
-sessions reaching that rung over the sessions where it was measured.}
+\includegraphics[width=0.9\linewidth]{figures/ladder.pdf}
+\caption{The milestone ladder, one row per model. Filled markers are rungs
+reached, hollow markers rungs not reached, and grey markers rungs the run
+carries no reading for.}
 \label{fig:ladder}
 \end{figure}
 
-\subsection{Discrimination and Validity}
+\subsection{Discrimination}
 
-Models that share a progression result behave very differently, and the
-behavioural metrics separate them where the ladder cannot yet, with Wilson
-intervals on the meaningful-step ratio that do not overlap between styles.
-Three styles recur. The most deliberate models take at most \QslowActs{}
-actions in \NbudgetMin{} minutes at median think times of \QslowGap{}\,s and
-above, and both of them reach the world map, so deliberation at this pace
-does not cost the crossing. A steady traverser takes \QsteadyN{} actions at
-a ratio of \Qsteady{} with an oscillation rate of \QsteadyOsc{}, the closest
-behaviour to purposeful traversal in the field, and also crosses. The
-fastest model takes \QworstN{} actions, reads the screen before
-\QworstReads\% of them, and reaches a ratio of \Qworst{}, \QworstOverRandom{}
-times the random floor and the lowest of the field, without leaving the
-opening scene: its replay shows long runs of keys the game ignores in the
-mode it is in. Pressing keys quickly and reading the screen often therefore
-do not establish that a model perceives it, a divergence between looking and
-seeing that BALROG and VideoGameBench also document
-\citep{paglieri2025balrog,zhang2025videogamebench}.
-
-The floor itself is measured. The random baseline never reads the screen,
-acts every \QrandomGap{}\,s over \QrandomKeys{} distinct keys, and still
-changes the screen \Qrandom{} of the time across \QrandomN{} actions at a
-\QrandomBudgetMin{}-minute budget, which is the reactivity of the
-environment that every behavioural metric is read against; every active
-session in the field clears it, and across its own actions the baseline never
-reaches the world map. The world-map detector is held to the
-same standard: a latch is credited only when the fade to black corroborates
-it, and in this field every credit also rests on the save the game wrote.
+Two rungs divide the field, and they divide it differently. The chest and
+the exit are both in the first room, and the sessions that searched one are
+not the sessions that found the other: \SleftNoItem{} crossed without the
+chest, \SitemNoLeft{} searched it without crossing, and \Sboth{} did both.
+The count of rungs is therefore a summary of what a run achieved and not a
+position on one path, which is why every rung reached is credited whatever
+the order. The random policy reaches \QrandomRungs{} of the eight rungs in
+\QrandomBudgetMin{} minutes and never writes a save, so the two rungs the
+models divide on are rungs a random walk does not reach. Above them the field is
+undivided: no session reaches the compass, which is where the ladder will
+next separate models.
 
 \subsection{Use of the Budget}
 
-The sessions that leave the opening scene cross at a median of
-\SexitActs{} actions and \SexitMedian{} minutes, so the models that reach
-the world map spend \SexitMedian{} of their \NbudgetMin{} minutes getting
-there and the rest of the hour on the map without reaching the compass,
-which sits a short walk south of the exit; \SexitVendors{} vendors account
-for the crossings, and \cref{fig:horizon} in \cref{app:field} shows the
-budget of every session. This distribution is why the \NbudgetMin{}-minute
-budget measures the opening and why deliberation is priced in wall clock, an
-efficiency framing shared with ARC-AGI-3 and TextQuests
-\citep{arc2026arcagi3,phan2025textquests}. The protocol supports budgets to
-twenty-four hours, the setting in which the later rungs and a completion
-time come within reach.
+The hour is enough for the first room and not for the compass. \Smap{}
+sessions reached the world map and none reached the cabinet a short walk
+south of the exit; \Nidle{} of the \Nsessions{} sessions ended under the idle
+rule, and the rest used their budget. The record now carries the time of the
+first save the game writes on the world map, so the crossing time of later
+fields will be read from the game and not from the screen; the present field
+predates it. The protocol supports budgets to twenty-four hours, the setting
+in which the later rungs and a completion time come within reach, and
+deliberation is priced in wall clock, an efficiency framing shared with
+ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}.
 
 \tbd{Runs at longer budgets, which the protocol already supports, are the
 measurement that separates a slow model from a stuck one.}
@@ -740,40 +688,18 @@ Call & Body & Meaning \\
 \end{tabular}
 \end{table}
 
-\section{Metric Definitions and Detector Calibration}
+\section{Rung Definitions and the Save Procedure}
 \label{app:metrics}
-For a run whose decision calls, waits included, are $a_1,\dots,a_n$ at
-wall-clock times $t_1,\dots,t_n$,
-playable-from time $t_0$, and post-settle screen fingerprints
-$f_1,\dots,f_n$: the meaningful-step ratio is
-$\frac{1}{n}\sum_i \mathbf{1}[f_i \neq f_{i-1}]$; the oscillation rate is
-$\frac{1}{n}\sum_i \mathbf{1}[f_i = f_{i-2} \wedge f_i \neq f_{i-1}]$; time to
-first action is $t_1 - t_0$; think-time percentiles are taken over
-$\{t_i - t_{i-1}\}$; reads per action is the count of screen reads over $n$;
-and action-space coverage is the number of distinct keys used. Fingerprints
-are $12\times8$ three-bit-quantised grayscale downsamples with the
-camera-locked sprite region masked, and they are used for behaviour only.
-Wilson intervals use $z=1.96$ \citep{wilson1927probable}. A key is held for
-a requested 5 to 1200 frames, 10 by default.
-
-Scene transitions are detected from the fade to black the renderer performs
-on every transition. Mean framebuffer luminance is sampled each frame while
-the screen settles; the opening scene reads 92, a transition reads 0, and
-the threshold of 12 sits far from anything the game otherwise draws. For
-runs recorded before the benchmark could ask the game to save, the world-map
-rung uses a fingerprint reference captured just outside the compound exit,
-where the first world-map frame of every run lands: frames on the map near
-the spawn sit within four cells of the reference, interior frames sixteen or
-more away, and the accepted distance is eight. A run whose opening frame
-already matches the reference disables the latch for itself and is reported
-as unmeasured, and a latch without a fade to black before it is not credited.
-The save attempt reads the height of the menu the
+A key is held for a requested 5 to 1200 emulated frames, 10 by default, and
+an action returns once the screen has reacted and held still; nothing the
+server observes about the screen enters any score. The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
 entry through which the game saves. Attempts wait for a two-second gap
 between the keys the model sends, recur every two minutes, and are made once more
 shortly before the budget lapses, into a save slot reserved for the
-benchmark. The item rung compares the live bag with the bag at the first read
+benchmark, and the time of the first save is kept as the time of the crossing.
+The item rung compares the live bag with the bag at the first read
 of the run; the compass rung looks for item \CompassId{} in the live bag,
 whose name in the shipped item table is \CompassName{}; the book rung looks
 for items \BookFirst{}--\BookLast{} in the bag or in the four carried slots of
@@ -799,9 +725,8 @@ kilobytes carrying
 every keypress and its hold duration for the scrubbable replay. A
 character-state read costs about 1.2\,ms through serialisation into a reused
 buffer and is taken after every action, with gains latched against the
-opening bag, so an item picked up and later consumed still credits its rung;
-a luminance sample costs about a microsecond per frame while the screen
-settles. Outside scored runs the server can checkpoint and resume a session
+opening bag, so an item picked up and later consumed still credits its rung.
+Outside scored runs the server can checkpoint and resume a session
 and serve many visitors from private workers behind one gateway; a scored run
 has neither. The leaderboard is a static page polling published JSON; only
 the live viewers of a running session, capped at twelve, reach its worker.
@@ -836,52 +761,35 @@ and a last battle decides the ending \citep{bahamut2023walkthrough}.
 
 \section{The Field at Submission Time}
 \label{app:field}
-\Cref{tab:results} lists every published run of the field, pooled by name,
-and \cref{fig:horizon} shows how each session spent its budget. The two
+\Cref{tab:results} lists every published run of the field, one row per model. The two
 runs created under a name that was not the model, \aliaslist, are listed
 under the model, and the catalogue snapshot the paper is generated from,
 committed beside the paper source, keeps the declared names. The live
 leaderboard at \url{https://hanxiao.io/jy-crpg-bench/} shows the field and
-the runs published since. The styles of \cref{sec:results} belong to named
-runs: the two most deliberate models are \texttt{\QslowA} and
-\texttt{\QslowB}, the steady traverser is \texttt{\QsteadyLabel}, and the
-fastest model is \texttt{\QworstLabel}.
+the runs published since.
 
 An earlier field of \NoldSessions{} sessions at a \NoldBudgetMin{}-minute
-budget, \NoldModels{} models under \NoldLabels{} labels from \NoldVendors{}
-vendors, three of the labels carrying the prefix of the client that drove the
-control surface, predates the compass, companion, book and completion rungs
-and the usage report. \SoldMapFade{} of its sessions crossed to the world map
-with a corroborating fade to black and \SoldExpAny{} gained experience. Its
-snapshot is committed beside the current one, and its media remain in the
-public bucket under an archive prefix.
+budget, \NoldModels{} models under \NoldLabels{} labels, three of them
+carrying the prefix of the client that drove the control surface, predates
+the compass, companion, book and completion rungs and the usage report; its
+world-map verdicts rest on a screen heuristic and are not carried here, and
+\SoldExpAny{} of its sessions gained experience. Its snapshot is committed
+beside the current one, and its media remain in the public bucket under an
+archive prefix.
 
 \begin{table}[h]
 \centering
-\caption{The field, pooled by the name each run is listed under. \emph{ratio}
-is screen-changing actions over total actions with a 95\% Wilson interval,
-\emph{act/min} is the median action rate, \emph{reads/act} is screen reads
-per action, \emph{think} is the median inter-action gap in seconds, and
-\emph{map} counts sessions whose screen latched the world-map signature,
-preceded by how many of those a fade to black corroborates. Rows are ordered
-by ratio, a session the idle rule ended after a single key last among the
-models, and the random floor last.}
+\caption{The field, one row per model. \emph{played} is minutes of play,
+\emph{ended} is how the session ended, \emph{rungs} is the count of rungs
+reached, and the eight columns mark each rung: \checkmark{} reached, $\circ$
+not reached, and -- no reading. Rows are ordered by rungs reached and then
+by played time, with the random floor last.}
 \label{tab:results}
-\small
-\setlength{\tabcolsep}{4pt}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
 \input{tables/aggregate.tex}
 \mktable
 \end{table}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.84\linewidth]{figures/horizon.pdf}
-\caption{One row per scored session. Grey is time inside the opening scene
-and blue is time on the world map, with the action count at which the
-transition happened; hatched rows latched the map signature without a
-corroborating fade. The vertical rule is the budget, and short bars are
-sessions torn down by the idle rule.}
-\label{fig:horizon}
-\end{figure}
 
 \end{document}

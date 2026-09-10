@@ -140,9 +140,10 @@ runner includes the image unless `?image=0`; the headless one omits it unless
 honours `?scale`.
 
 Actions wait for the screen to react and then hold still. Every reply carries
-`ok`, `action`, `changed`, `settled_frames`, `width`, `height`, `frame` - which
-names the picture - and `screen`, its hash, which tells "still animating" from
-"waiting for input". `?image=1` captures the settled frame before the action
+`ok`, `action`, `width`, `height` and `frame`, which names the picture, and
+nothing about what the screen did: a hash or a changed flag flips on an idle
+animation as readily as on a step, so the picture is the only evidence.
+`?image=1` captures the settled frame before the action
 lock is released, so the observation cannot belong to another controller's
 action. `?react`, `?stable` and `?maxsettle` tune the wait in frames.
 
@@ -420,7 +421,7 @@ sequenceDiagram
     S->>E: key down, hold, key up
     E-->>S: frame hashes, 70 fps
     Note over S,E: wait for the picture to change,<br/>then to hold still
-    S-->>A: {"changed": true, "image": "..."} when requested
+    S-->>A: {"ok": true, "frame": 1400, "image": "..."} when requested
 ```
 
 Key down, release and inter-tap phases are fenced by the core frame clock, so

@@ -144,9 +144,6 @@ def _result(res, note=""):
     if res.get("ok", True) is False:
         raise GameAPIError(str(res.get("error") or "game API rejected the action"))
     bits = []
-    if "changed" in res:
-        bits.append("screen changed" if res["changed"] else
-                    "screen did NOT change (the action had no visible effect)")
     if res.get("image_error"):
         bits.append(f'image unavailable: {res["image_error"]}')
     if res.get("observation") == "follow-up":

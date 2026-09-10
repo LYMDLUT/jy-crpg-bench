@@ -82,46 +82,7 @@ import field as _field
 PLAY = sorted([r for r in RUNS if r["budget"] == _field.DEFAULT_BUDGET and (r["actions"] or 0) > 0],
               key=lambda r: (ORDER.index(r["family"]) if r["family"] in ORDER else 9,
                              -(r["actions"] or 0)))
-DEFINITION = ("acted", "picked\nsomething up", "reached\nworld map",
-              "holds the\ncompass", "recruited\na companion",
-              "gained\nexperience", "reached\nlevel 2", "holds one\nof fourteen")
-# The first five close the opening without a fight; the last three need one.
-OPENING = 5
-
-
-def rungs_of(row):
-    """(reached, known) for each rung, exactly as the published ladder computes it.
-
-    The world-map rung reads the save the game wrote, which it only offers on
-    the world map. Runs recorded before the benchmark could ask the game to
-    save carry no such field and keep the fingerprint flag they were scored
-    with.
-    """
-    saved = "saved_at" in row
-    known = [
-        True,
-        row.get("picked_item") is not None,
-        True if saved else row.get("bigmap") is not None,
-        row.get("compass") is not None,
-        row.get("team_size") is not None,
-        row.get("exp") is not None,
-        row.get("level") is not None,
-        row.get("books") is not None,
-    ]
-    got = [
-        (row.get("key_events") if row.get("key_events") is not None
-         else row["actions"]) > 0,
-        bool(row.get("picked_item")),
-        # a legacy fingerprint latch is credited only with the fade to black
-        (row.get("saved_at") is not None) if saved
-        else bool(row.get("bigmap")) and row.get("exit_secs") is not None,
-        bool(row.get("compass")),
-        (row.get("team_size") or 0) > 1,
-        (row.get("exp") or 0) > 0,
-        (row.get("level") or 0) > 1,
-        (row.get("books") or 0) > 0,
-    ]
-    return [(g if k else None) for g, k in zip(got, known)]
+DEFINITION, OPENING, rungs_of = _field.DEFINITION, _field.OPENING, _field.rungs_of
 
 
 def bar_box(ax, x, lo, hi, pad=1.5):
@@ -197,11 +158,14 @@ def check_overlaps(fig, ax, texts, points=(), name="", anchors=()):
 
 # ------------------------------------------------------- Fig: milestone ladder
 def figure_ladder():
-    fams = [f for f in ORDER if any(r["family"] == f for r in PLAY)]
-    fig, ax = plt.subplots(figsize=(6.0, 0.30 * len(fams) + 1.0))
+    # one row per model, the random floor last, models by rungs reached
+    labels = sorted({r["agent"] for r in PLAY if r["family"] != "Random"},
+                    key=lambda a: (-max(rungs_of(r).count(True) for r in PLAY if r["agent"] == a), a.lower()))
+    labels += sorted({r["agent"] for r in PLAY if r["family"] == "Random"})
+    fig, ax = plt.subplots(figsize=(7.6, 0.30 * len(labels) + 1.0))
     notes, cells = [], []
-    for row, fam in enumerate(fams):
-        frows = [r for r in PLAY if r["family"] == fam]
+    for row, fam in enumerate(labels):
+        frows = [r for r in PLAY if r["agent"] == fam]
         for col in range(len(DEFINITION)):
             states = [rungs_of(r)[col] for r in frows]
             hit = sum(1 for s in states if s is True)
@@ -230,10 +194,10 @@ def figure_ladder():
                      va="center", fontsize=6.5, color="#67676b"),
              ax.text((OPENING + len(DEFINITION) - 1) / 2, -0.82, "the campaign",
                      ha="center", va="center", fontsize=6.5, color="#67676b")]
-    ax.set_yticks(range(len(fams)), fams, fontsize=8)
-    ax.set_xticks(range(len(DEFINITION)), DEFINITION, fontsize=7)
+    ax.set_yticks(range(len(labels)), labels, fontsize=7, fontfamily="monospace")
+    ax.set_xticks(range(len(DEFINITION)), DEFINITION, fontsize=6.6)
     ax.set_xlim(-0.55, len(DEFINITION) - 0.35)
-    ax.set_ylim(len(fams) - 0.42, -1.12)
+    ax.set_ylim(len(labels) - 0.42, -1.12)
     ax.spines["left"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.tick_params(length=0)
@@ -442,13 +406,10 @@ def figure_behaviour():
 
 if __name__ == "__main__":
     figure_ladder()
-    figure_pareto()
-    figure_horizon()
-    figure_behaviour()
     cross = [r for r in PLAY if r.get("exit_secs") is not None]
     print(f"{len(RUNS)} sessions, {len(PLAY)} at the {_field.DEFAULT_BUDGET // 60}-minute budget")
     print(f"world map by fingerprint: {sum(1 for r in PLAY if r.get('bigmap') is True)}"
           f" | corroborated by a black frame: {len(cross)}"
           f" | unmeasured: {sum(1 for r in PLAY if r.get('bigmap') is None)}")
     print(f"first crossing median: {sorted(r['exit_secs'] for r in cross)[len(cross)//2]}s")
-    print("wrote ladder.pdf pareto.pdf horizon.pdf behaviour.pdf")
+    print("wrote ladder.pdf")

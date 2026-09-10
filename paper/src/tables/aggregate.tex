@@ -1,19 +1,20 @@
 %% generated from figures/catalog_snapshot.json by figures/emit_table.py
 \newcommand{\mktable}[0]{%
-\begin{tabular}{@{}lrrrrrrr@{}}
+\begin{tabular}{@{}lrrr*{8}{c}@{}}
 \toprule
-Agent & runs & actions & ratio [95\% CI] & act/min & reads/act & think (s) & map \\
+Model & played & ended & rungs & acted & item & map & compass & party & exp & lv 2 & book \\
 \midrule
-claude-sonnet-5 & 1 & 308 & \textbf{0.909} [0.872, 0.936] & 5.8 & 0.84 & 9.3 & 1/1 \\
-grok-4.6 & 1 & 387 & 0.819 [0.778, 0.854] & 6.5 & 0.98 & 8.9 & 1/1 \\
-claude-opus-51m & 1 & 1031 & 0.718 [0.690, 0.744] & 17.2 & 0.78 & 0.6 & 1/1 \\
-gemini-3.8-flash & 1 & 1269 & 0.716 [0.691, 0.740] & 21.1 & 0.28 & 0.5 & 1/1 \\
-grok-4.5 & 1 & 1246 & 0.660 [0.633, 0.685] & 22.6 & 0.97 & 0.8 & 1/1 \\
-Qwen3.8-Flash-Next-oQ4e-mtp & 1 & 808 & 0.660 [0.626, 0.692] & 13.7 & 0.95 & 0.6 & 0/0 \\
-gemini-3.7-flash & 1 & 3788 & 0.477 [0.461, 0.493] & 63.2 & 0.53 & 0.9 & 0/0 \\
-glm-5.3-flash-high & 1 & 1 & 1.000 [0.207, 1.000] & 1.9 & 2.00 & -- & 0/0 \\
+\texttt{gemini-3.8-flash} & 60 & time & 3/8 & \checkmark & \checkmark & \checkmark & $\circ$ & $\circ$ & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{grok-4.6} & 60 & time & 3/8 & \checkmark & \checkmark & \checkmark & $\circ$ & $\circ$ & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{grok-4.5} & 55 & time & 3/8 & \checkmark & \checkmark & \checkmark & $\circ$ & $\circ$ & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{gemini-3.7-flash} & 60 & time & 2/8 & \checkmark & \checkmark & $\circ$ & $\circ$ & -- & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{claude-opus-51m} & 60 & time & 2/8 & \checkmark & $\circ$ & \checkmark & $\circ$ & $\circ$ & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{Qwen3.8-Flash-Next-oQ4e-mtp} & 59 & time & 2/8 & \checkmark & \checkmark & $\circ$ & $\circ$ & -- & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{claude-sonnet-5} & 54 & time & 2/8 & \checkmark & $\circ$ & \checkmark & $\circ$ & $\circ$ & $\circ$ & $\circ$ & $\circ$ \\
+\texttt{glm-5.3-flash-high} & 1 & idle & 1/8 & \checkmark & $\circ$ & $\circ$ & $\circ$ & -- & $\circ$ & $\circ$ & $\circ$ \\
 \midrule
-random-baseline & 2 & 880 & 0.415 [0.383, 0.448] & 34.8 & 0.00 & 1.4 & 0/0 \\
+\texttt{random-baseline} & 20 & time & 1/8 & \checkmark & $\circ$ & $\circ$ & -- & -- & $\circ$ & $\circ$ & -- \\
+\texttt{random-baseline} & 5 & time & 1/8 & \checkmark & $\circ$ & $\circ$ & -- & -- & $\circ$ & $\circ$ & $\circ$ \\
 \bottomrule
 \end{tabular}
 }

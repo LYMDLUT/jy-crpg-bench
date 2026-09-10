@@ -85,8 +85,8 @@ A warning the game itself gives you: 「你們這些人都是這樣的，自以�
   test tied to the current objective.
 - When you are lost, `game_look` and read the screen again rather than pressing
   keys to see what happens.
-- `screen changed` only means some pixels changed. A blocked character can turn
-  or animate, so confirm movement from the background rather than treating that
-  status as success.
+- An action reply says what was pressed and nothing about what the screen did.
+  A blocked character can turn or animate, so confirm movement from the
+  background in the next picture.
 - Boot time varies. If the screen is black at the start, wait and observe again
   rather than assuming the cause or a fixed startup duration.

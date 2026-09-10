@@ -29,56 +29,28 @@ def main():
         groups.setdefault(r["agent"], []).append(r)
 
     body = []
-    # Ordered by the metric the table is read for, best first, with the random
-    # baseline last: it is a floor rather than an entry.
-    def rank(agent):
-        g = groups[agent]
-        num = sum(round(r["meaningful"] * r["actions"]) for r in g)
-        den = sum(r["actions"] for r in g)
-        # the random floor last; a stub the idle rule ended after a few keys
-        # below every run that played, since its ratio is not a measurement
-        return (agent.startswith("random"), den < 30, -num / den)
-
-    for agent in sorted(groups, key=rank):
-        g = groups[agent]
-        # aggregate count of screen-changing actions and actions
-        num = sum(round(r["meaningful"] * r["actions"]) for r in g)
-        den = sum(r["actions"] for r in g)
-        lo, p, hi = wil(num, den)
-        aps = median([r["actions"] / max(1.0, r["played"]) * 60 for r in g])
-        ttfas = [r["ttfa"] for r in g if r.get("ttfa") is not None]
-        ttfa = median(ttfas) if ttfas else float("nan")
-        maps = sum(1 for r in g if r.get("bigmap") is True)
-        maps_c = sum(1 for r in g if r.get("bigmap") is True and r.get("exit_secs") is not None)
-        osc = median([r["oscillation"] for r in g])
-        reads = sum(r["reads"] for r in g)
-        n = len(g)
-        # a session with a single action has no inter-action gap
-        g50 = median([r["gap_p50"] for r in g if r.get("gap_p50") is not None])
-        g95 = median([r["gap_p95"] for r in g if r.get("gap_p95") is not None])
-        body.append(
-            (agent, n, den, num, p, lo, hi, aps, ttfa, g50, g95, osc,
-             reads, maps, maps_c)
-        )
-
+    for r in scored:
+        rungs = field.rungs_of(r)
+        body.append((r["agent"], (r["played"] or 0) / 60.0, r["reason"],
+                     sum(1 for v in rungs if v is True), rungs, field.is_random(r["agent"])))
+    # models by rungs reached and then by played time; the random floor last
+    body.sort(key=lambda b: (b[5], -b[3], -b[1], b[0].lower()))
+    mark = {True: r"\checkmark", False: r"$\circ$", None: "--"}
     lines = [
-        r"\begin{tabular}{@{}lrrrrrrr@{}}",
+        r"\begin{tabular}{@{}lrrr*{8}{c}@{}}",
         r"\toprule",
-        r"Agent & runs & actions & ratio [95\% CI] &"
-        r" act/min & reads/act & think (s) & map \\",
+        r"Model & played & ended & rungs & " + " & ".join(field.SHORT) + r" \\",
         r"\midrule",
     ]
-    best = max(r[4] for r in body if not r[0].startswith("random") and r[2] >= 30)
-    for agent, n, den, num, p, lo, hi, aps, ttfa, g50, g95, osc, reads, maps, maps_c in body:
-        if agent.startswith("random"):
+    floor_started = False
+    for agent, played, reason, count, rungs, is_random in body:
+        if is_random and not floor_started:
             lines.append(r"\midrule")
-        ratio = ("\\textbf{%.3f}" if p == best else "%.3f") % p
-        lines.append(
-            "%s & %d & %d & %s [%.3f, %.3f] & %.1f & %.2f & %s & %d/%d \\\\"
-            % (agent.replace("_", "\\_").replace("--", "-{-}"),
-               n, den, ratio, lo, hi, aps, reads / den,
-               "--" if g50 != g50 else "%.1f" % g50, maps_c, maps)
-        )
+            floor_started = True
+        name = agent.replace("_", "\\_").replace("--", "-{-}")
+        lines.append(r"\texttt{%s} & %.0f & %s & %d/%d & %s \\"
+                     % (name, played, reason, count, len(rungs),
+                        " & ".join(mark[v] for v in rungs)))
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines)
 

@@ -106,9 +106,9 @@ Other attributes not fully listed on the ordinary status screen:
 
 ## Checking actions against the screen
 
-**`changed` does not say whether you moved.** It only reports whether a visible
-screen change was observed. Compare landmarks or compass readings, and distinguish
-walking from menus or story sequences instead of inferring a cause from the flag.
+**A reply does not say whether you moved.** Compare landmarks or compass
+readings between pictures, and distinguish walking from menus or story
+sequences.
 
 **During ordinary walking, the camera follows the character.** Judge movement
 from landmarks or the compass, not just the sprite position. A short tap may cause

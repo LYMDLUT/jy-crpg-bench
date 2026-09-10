@@ -50,3 +50,46 @@ def random_rows(rows, budget=DEFAULT_BUDGET):
 def aliased(rows):
     """(declared, listed) pairs for the rows whose name was corrected."""
     return sorted({(r["declared"], r["agent"]) for r in rows if r["declared"] != r["agent"]})
+
+
+DEFINITION = ("acted", "picked\nsomething up", "reached\nworld map",
+              "holds the\ncompass", "recruited\na companion",
+              "gained\nexperience", "reached\nlevel 2", "holds one\nof fourteen")
+SHORT = ("acted", "item", "map", "compass", "party", "exp", "lv 2", "book")
+OPENING = 5     # the first five close the opening without a fight
+
+
+def rungs_of(row):
+    """(reached | not reached | None for no reading) per rung, as the game
+    records them. The world-map rung is the save the game wrote; a run recorded
+    before the benchmark asked the game to save carries no such field and is
+    credited only from the screen with a corroborating fade, a legacy path the
+    paper does not report."""
+    saved = "saved_at" in row
+    known = [
+        True,
+        row.get("picked_item") is not None,
+        True if saved else row.get("bigmap") is not None,
+        row.get("compass") is not None,
+        row.get("team_size") is not None,
+        row.get("exp") is not None,
+        row.get("level") is not None,
+        row.get("books") is not None,
+    ]
+    got = [
+        (row.get("key_events") if row.get("key_events") is not None
+         else row["actions"]) > 0,
+        bool(row.get("picked_item")),
+        (row.get("saved_at") is not None) if saved
+        else bool(row.get("bigmap")) and row.get("exit_secs") is not None,
+        bool(row.get("compass")),
+        (row.get("team_size") or 0) > 1,
+        (row.get("exp") or 0) > 0,
+        (row.get("level") or 0) > 1,
+        (row.get("books") or 0) > 0,
+    ]
+    return [(g if k else None) for g, k in zip(got, known)]
+
+
+def rungs_reached(row):
+    return sum(1 for v in rungs_of(row) if v is True)

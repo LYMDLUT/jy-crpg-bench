@@ -109,6 +109,9 @@ def main():
         item_no_left = sum(1 for r in scored if r.get("picked_item") and r.get("bigmap") is not True)
         ok &= claim("chest and exit split", (left_no_item, item_no_left) == (2, 2),
                     "%d left without the chest, %d searched without leaving" % (left_no_item, item_no_left))
+    if "never writes a save" in flat:
+        ok &= claim("random floor never saved", not any(r.get("saved_at") for r in randoms),
+                    "%d random runs" % len(randoms))
     if "sent a single key before the idle rule" in flat:
         idle = [r for r in scored if r["reason"] == "idle"]
         ok &= claim("idle stub sent one key", bool(idle) and all(r["actions"] == 1 for r in idle),

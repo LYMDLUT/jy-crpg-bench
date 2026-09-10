@@ -104,10 +104,10 @@ happens: objectives, choices, and prompts that expect a specific key.
     GET  $BASE/api/help                          this skill
 
 `/api/screen` returns JSON with `image`, a base64 PNG data URI; `?format=png`
-returns the raw bytes instead. Action calls return `changed`, `settled_frames`,
-`frame`, and `screen` - the hash of the picture, so two replies carrying the
-same `screen` were looking at the same still image and two different ones were
-not. They return the same `image` when called with `?image=1`.
+returns the raw bytes instead. Action calls return `ok`, `action` and `frame`,
+which names the picture that followed, and say nothing about what the screen
+did: judge every effect from the picture. They return the same `image` when
+called with `?image=1`.
 
 Each call reads only the fields shown above. Anything else is refused with a
 400 naming it, rather than ignored, so a call that answers 200 did what you
@@ -196,9 +196,8 @@ differ, trust your own compass): 主角居 (357,235), 河洛客棧 (359,229),
 
 ## Traps that will cost you the most time
 
-- **`changed` does not say whether you moved.** It only reports whether a visible
-  screen change was observed. Judge movement from the background and do not infer
-  the cause of `changed: false`.
+- **A reply does not say whether you moved.** Judge movement from the
+  background in the next picture; a blocked character can still turn or animate.
 - **Similar terrain can lead you back to a place you have visited.** Record
   landmarks and compare new observations with several recent ones. Once you
   have the compass, use coordinates as well. The recording method is up to you.
@@ -336,9 +335,9 @@ Other attributes not fully listed on the ordinary status screen:
 
 ## Checking actions against the screen
 
-**`changed` does not say whether you moved.** It only reports whether a visible
-screen change was observed. Compare landmarks or compass readings, and distinguish
-walking from menus or story sequences instead of inferring a cause from the flag.
+**A reply does not say whether you moved.** Compare landmarks or compass
+readings between pictures, and distinguish walking from menus or story
+sequences.
 
 **During ordinary walking, the camera follows the character.** Judge movement
 from landmarks or the compass, not just the sprite position. A short tap may cause

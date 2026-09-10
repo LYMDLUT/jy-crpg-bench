@@ -134,7 +134,7 @@ class WithholdingTests(unittest.TestCase):
     def test_the_compass_is_scored_withheld_and_published(self):
         # A rung a live run could read about itself is a rung it could play
         # to, so it is withheld like the rest, and it leaves with the run.
-        for field in ("compass", "completion_secs"):
+        for field in ("compass", "completion_secs", "first_saved_at"):
             self.assertIn(field, game_server.SCORED_FIELDS)
             self.assertIn(field, game_server.warden.run)
             self.assertIn(field, game_server.warden.metrics())

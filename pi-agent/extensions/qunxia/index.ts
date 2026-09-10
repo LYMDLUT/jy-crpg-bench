@@ -109,9 +109,6 @@ function frame(res: Record<string, any>, note: string) {
   }
   const bits: string[] = [];
   if (res.ok === false) bits.push("FAILED");
-  if ("changed" in res) {
-    bits.push(res.changed ? "screen changed" : "screen did NOT change (no visible effect)");
-  }
   if (res.error) bits.push(String(res.error));
   if (res.image_error) bits.push(`image unavailable: ${res.image_error}`);
   if (res.observation === "follow-up") {
@@ -129,7 +126,7 @@ function frame(res: Record<string, any>, note: string) {
   }
   return {
     content,
-    details: { ok: res.ok !== false, changed: res.changed, frame: res.frame },
+    details: { ok: res.ok !== false, frame: res.frame },
   };
 }
 
@@ -160,10 +157,8 @@ export default function (pi: ExtensionAPI) {
       return frame({
         ...screen,
         ok: action.ok !== false && screen.ok !== false,
-        changed: action.changed,
         action: action.action,
         actionFrame: action.frame,
-        settled_frames: action.settled_frames,
       }, note);
     } catch (err) {
       return toolFailure(err);
