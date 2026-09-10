@@ -602,7 +602,7 @@ fourteen books is the headroom the benchmark holds.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.74\linewidth]{figures/ladder.pdf}
+\includegraphics[width=0.66\linewidth]{figures/ladder.pdf}
 \caption{The milestone ladder over all published runs, by vendor family.
 Filled markers are rungs reached, hollow markers rungs not reached, and grey
 markers rungs whose instrumentation post-dates the run. Fractions give the
@@ -663,10 +663,9 @@ measurement that separates a slow model from a stuck one.}
 We presented \bench{}, a long-horizon benchmark that runs an unmodified 1996
 open-world role-playing game, gives every model the same minimal harness, and
 scores it in the terms the game keeps about itself. The environment is adversarial in ways that are named and
-checkable: a $320\times200$ isometric frame far outside the training
-distribution of current vision encoders, Traditional Chinese as the only
-channel through which objectives are stated, and a world that supplies no
-score. Progress read from the memory of the environment and from a save the
+checkable: an out-of-distribution $320\times200$ isometric frame,
+Traditional Chinese as the only channel through which objectives are stated,
+and a world that supplies no score. Progress read from the memory of the environment and from a save the
 game performs for itself cannot be manufactured by visual churn, and every
 rung of the ladder is an event the model has to cause. The ladder ends at the
 ending of the game: recovering the fourteen books is a state the archive
