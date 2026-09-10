@@ -69,6 +69,21 @@ class ValidateUsageTests(unittest.TestCase):
         self.assertEqual(usage["model"], "provider/model-with-newline")
         self.assertNotIn("capturedAt", usage)  # unknown fields never publish
 
+    def test_the_client_and_brief_language_are_kept_when_well_formed(self):
+        base = {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0,
+                "totalTokens": 0}
+        usage = broker._validate_usage(dict(
+            base, harness="pi", piVersion="0.84.4\n", profile="benchmark",
+            language="zh"))
+        self.assertEqual((usage["harness"], usage["piVersion"], usage["profile"],
+                          usage["language"]), ("pi", "0.84.4", "benchmark", "zh"))
+        loose = broker._validate_usage(dict(base, harness="", language="fr",
+                                            profile=7, piVersion="x" * 80))
+        self.assertNotIn("harness", loose)
+        self.assertNotIn("language", loose)
+        self.assertNotIn("profile", loose)
+        self.assertEqual(len(loose["piVersion"]), 40)
+
     def test_the_thinking_level_is_kept_only_when_it_is_a_level(self):
         base = {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0,
                 "totalTokens": 0}

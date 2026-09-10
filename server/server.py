@@ -2317,6 +2317,8 @@ async def api_help(request):
     # logging it fills the panel with entries nobody performed.
     lang = request.query.get("lang", "en")
     core_only = request.query.get("part") == "core"
+    if warden.ON:
+        warden.note_help(lang)      # which brief this run read, on the record
     return web.Response(text=system_prompt(base_url(request), lang, core_only,
                                            benchmark=warden.ON),
                         content_type="text/plain", charset="utf-8")

@@ -104,6 +104,8 @@ if (metered !== turns) {
 let model = null;
 let piVersion = null;
 let thinkingLevel = null;
+let profile = null;
+let language = null;
 try {
   const manifest = JSON.parse(await readFile(join(runDir, "run.json"), "utf8"));
   model = manifest.model?.ref ?? null;
@@ -111,6 +113,10 @@ try {
   // The level the run was declared at, in the launcher's own words, so the
   // published record says how hard the model was asked to think.
   thinkingLevel = manifest.model?.thinkingLevel ?? null;
+  // The profile and the language of the brief this run was handed, so the
+  // record tells a reference run from one through another client.
+  profile = manifest.profile ?? null;
+  language = manifest.prompt?.language ?? null;
 } catch {
   // A usage capture without a manifest is still worth keeping.
 }
@@ -121,7 +127,10 @@ const usage = {
   turns,
   model,
   thinkingLevel,
+  harness: "pi",
   piVersion,
+  profile,
+  language,
   session: sessionId,
   capturedAt: new Date().toISOString(),
 };

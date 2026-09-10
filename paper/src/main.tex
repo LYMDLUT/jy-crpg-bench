@@ -388,10 +388,9 @@ because the game samples its keyboard once per game-loop iteration and a
 shorter pulse can be consumed without registering. The control surface is
 nine HTTP calls, listed in \cref{app:brief}. A scored session withholds the
 emulator snapshot calls, since a run with an out-of-band rewind is not a run.
-The save and load menu of the game itself stays open to the model, as it is
-to a human player, and the slot the benchmark saves into is one of its three,
-so a model that loses a fight can reload the last save the game wrote; that
-is a rewind within the run, and the recording shows it.
+The game's own save and load menu stays open to the model, as to a human
+player, so a model that loses a fight can reload the last save the game
+wrote, a rewind within the run that the recording shows.
 
 \subsection{Harness and Session Protocol}
 \label{sec:protocol}
@@ -416,12 +415,14 @@ reference harness requires a thinking level, one of seven from off to max, at
 launch, and files model and level with the usage report of
 \cref{sec:metrics}.
 
-A session is created with a playtime, \NbudgetMin{} minutes by default and up
-to twenty-four hours, and the clock starts at the first playable moment. Each
+A session is created with a playtime, \DefaultBudgetMin{} minutes by default
+and up to twenty-four hours, and the clock starts at the first playable
+moment; the field in \cref{sec:results} was collected at the earlier default
+of \NbudgetMin{} minutes. Each
 session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, with
-the save slots of the game reset to a new game, so nothing writable is shared
-between sessions and no run inherits the progress of another. A model that
+its save slots reset to a new game, so no run inherits the progress of
+another. A model that
 goes ten minutes without a key or a wait call is torn down and recorded as
 idle, or as never started if it never acted.
 When the budget lapses the session renders its recording
@@ -553,11 +554,10 @@ with its wall-clock time, key events and requested hold frames, and every
 screen read, so turns, reads and think time are measured on the server for
 any client. Token consumption is a property of the client, so the reference
 harness meters it: after a run it sums the usage the provider reported for
-every assistant turn on the active branch of its session, as input, output,
-cache-read and cache-write tokens with a cost at the rates the operator
-declared, and files the total once, with the model
-identifier and the declared thinking level, under the name the session was
-created with. A run with any unmetered turn files nothing, so the record
+every assistant turn on the active branch of its session, as input, output
+and cache tokens with a cost at the rates the operator declared, and files
+the total once with the model, thinking level, harness version and brief
+language, under the name the session was created with. A run with any unmetered turn files nothing, so the record
 carries the whole meter or none, and cost is shown beside a run rather than
 used to rank it.
 
@@ -708,8 +708,8 @@ controls, menus, combat and attributes of the game. The page at
 their own sessions, and adds session creation and the note that any starting
 name is acceptable. The English and Chinese versions are equivalent in rules,
 with the on-screen Traditional terms preserved in both; the reference harness
-serves the Chinese brief by default, and the language of a run is not yet
-recorded in the catalogue. \Cref{tab:api} lists the control surface; a
+serves the Chinese brief by default, and the record of a run carries the
+language of every brief it fetched. \Cref{tab:api} lists the control surface; a
 scored session answers the last three calls with 404, can read its remaining
 time and its own action counters, and is refused every progress field until
 the run ends. A
@@ -782,7 +782,9 @@ test suite.
 
 \section{Session and Infrastructure Parameters}
 \label{app:infra}
-The default budget is \Nbudget{}\,s and is configurable to 24\,h; idle
+The default budget is \DefaultBudgetSec{}\,s, raised from the \Nbudget{}\,s at
+which the field of \cref{app:field} was collected, and is configurable to
+24\,h; idle
 teardown is 600\,s; the concurrency cap is 24 sessions per 8-vCPU host, set
 from a measurement of 32 sessions holding native 70.09\,fps on 8\,GiB with
 memory binding before CPU, at about 123\,MB of game copy per run, and the
@@ -792,8 +794,9 @@ period-correct for the game, with no sound card, so the observation is visual
 only, and with per-session private copies of the game and save directories.
 Recordings are stored as $16\times10$-tile zlib deltas; published video is
 the native $320\times200$ frame above a 32-pixel strip naming the actor, the
-action number, the keys held and the clock, played at four times speed or
-faster for long runs, with a timeline sidecar of a few kilobytes carrying
+action number, the keys held and the clock, played at \DefaultReplaySpeed{}
+times speed, or faster for long runs, with a timeline sidecar of a few
+kilobytes carrying
 every keypress and its hold duration for the scrubbable replay. A
 character-state read costs about 1.2\,ms through serialisation into a reused
 buffer and is taken after every action, with gains latched against the

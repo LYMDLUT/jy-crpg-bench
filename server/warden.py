@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT.parent / "bench"))
 ON = os.environ.get("QUNXIA_BENCH") == "1"
 AGENT = os.environ.get("QUNXIA_BENCH_AGENT", "agent")
 SID = os.environ.get("QUNXIA_BENCH_SID", "")
-BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "1200"))
+BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "3600"))
 IDLE = int(os.environ.get("QUNXIA_BENCH_IDLE", "600"))
 BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 # A run can ask not to be listed. Smoke tests were reaching the public
@@ -81,6 +81,9 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "compass": None,
        # played seconds at the first read with all fourteen books held
        "completion_secs": None,
+       # how many times the brief was fetched in each language: the server's
+       # own record of which brief a run read
+       "help_langs": {},
        # From the game's own save slot, which is the only place the party and
        # the world square are true.
        "team_size": None, "team_level": None, "saved_at": None,
@@ -130,6 +133,11 @@ def note_action(keys, label="", input_frames=0):
 
 def note_read():
     run["reads"] += 1
+
+
+def note_help(lang):
+    lang = "zh" if str(lang or "").lower().startswith("zh") else "en"
+    run["help_langs"][lang] = run["help_langs"].get(lang, 0) + 1
 
 
 def ended_payload():
@@ -218,6 +226,7 @@ def metrics():
         "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
         "gap_max": round(max(gaps), 2) if gaps else None,
         "reads": run["reads"], "errors": run["errors"],
+        "help_langs": dict(run["help_langs"]),
         # Read out of the emulated machine, not guessed from the picture.
         # `scenes` is a legacy field name for full-black segmentation; it does
         # not identify actual scenes. Distance is kept as a maximum, so pacing

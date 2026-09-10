@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jy-crpg-bench</title>
-<meta name="description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
+<meta name="description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，默认一小时，全程录像。">
 <meta name="theme-color" content="#f7f8fa">
 <link rel="canonical" href="https://hanxiao.io/jy-crpg-bench/">
 <link rel="alternate" hreflang="zh-Hans" href="https://hanxiao.io/jy-crpg-bench/">
@@ -15,7 +15,7 @@
 <meta property="og:site_name" content="hanxiao.io">
 <meta property="og:url" content="https://hanxiao.io/jy-crpg-bench/">
 <meta property="og:title" content="jy-crpg-bench">
-<meta property="og:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
+<meta property="og:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，默认一小时，全程录像。">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
@@ -26,10 +26,10 @@
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="jy-crpg-bench">
-<meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，二十分钟，全程录像。">
+<meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，默认一小时，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="556c71b3e1b2">
+<meta name="build" content="76e73648b3d9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -483,7 +483,7 @@
     <p class="tagline">面向前沿智能体的长程 CRPG 基准</p>
 
   <div class="oneline">
-    <select id="mins" class="mins" title="总游玩时长" aria-label="总游玩时长"><option value="20" selected>20 分钟</option><option value="60">1 小时</option><option value="240">4 小时</option><option value="480">8 小时</option><option value="1440">24 小时</option></select>
+    <select id="mins" class="mins" title="总游玩时长" aria-label="总游玩时长"><option value="60" selected>1 小时</option><option value="20">20 分钟</option><option value="240">4 小时</option><option value="480">8 小时</option><option value="1440">24 小时</option></select>
     <code id="one">读 %U%，照着玩。</code>
     <button id="view" title="查看">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -821,6 +821,8 @@ function usageFull(r) {
         + ` \u00b7 ${u.turns ?? "-"} ${T.b_usage_turn}`;
   if (u.cost > 0) s += ` \u00b7 $${u.cost.toFixed(4)}`;
   if (u.thinkingLevel) s += ` \u00b7 ${T.b_usage_think} ${u.thinkingLevel}`;
+  if (u.harness) s += ` \u00b7 ${u.harness}${u.piVersion ? " " + u.piVersion : ""}`;
+  if (u.language) s += ` \u00b7 ${u.language}`;
   return s;
 }
 
@@ -1439,7 +1441,7 @@ let brief = null;                    // cached text of the selected brief
 // The copied line shows the absolute address an agent will be handed; the
 // page's own links and the viewer use the relative one, so this works the same
 // on the deployed site and on a local server.
-function briefPath(mins) { return (mins === "20" ? "" : mins + "m/") + "agents.md"; }
+function briefPath(mins) { return (mins === "60" ? "" : mins + "m/") + "agents.md"; }
 function briefUrl(mins) { return T.base + briefPath(mins); }
 
 // Monospace width is linear in font-size, so one ratio pass lands it; a second
@@ -1873,7 +1875,7 @@ function fmt(t) {
   return (h ? h + ":" : "") + mm + ":" + String(sec).padStart(2, "0");
 }
 
-// The video is speed-compressed - four times for a short run, more for a long
+// The video is speed-compressed - eight times for a short run, more for a long
 // one - so its own clock means nothing to a reader. Every time shown is the
 // time inside the game.
 function gt(videoSeconds) {

@@ -80,7 +80,12 @@ def action_fields(event, ordinal):
     return action, event.get('label', '')
 
 
-def render(recording, out_path, agent="", speed=4.0, width=960, timeline_extra=None):
+# Published replays run at this speed unless the run is long enough to hit
+# MAX_VIDEO_SECONDS, when they run faster.
+DEFAULT_SPEED = 8.0
+
+
+def render(recording, out_path, agent="", speed=DEFAULT_SPEED, width=960, timeline_extra=None):
     events = recording.get("events") or []
     first_frame = next((e for e in events if "d" in e), None)
     if first_frame is None:

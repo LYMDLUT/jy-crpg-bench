@@ -42,7 +42,7 @@ SITE = os.environ.get("QUNXIA_SITE", "https://hanxiao.io/jy-crpg-bench/")
 # /health, so the version it shows is the backend actually answering, not
 # whatever the site was built beside.
 VERSION = os.environ.get("QUNXIA_VERSION", "dev")
-RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "1200"))     # 20 minutes
+RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "3600"))     # 60 minutes
 # A caller may ask for a longer game. Bounded at a day: past that the recording
 # hits its own size cap and the early history is dropped anyway.
 MAX_MINUTES = int(os.environ.get("QUNXIA_MAX_MINUTES", "1440"))
@@ -792,6 +792,13 @@ def _validate_usage(body):
              ("input", "output", "cacheRead", "cacheWrite", "totalTokens")}
     if any(v is None for v in usage.values()):
         return None
+
+    def short(key, limit=40):
+        value = body.get(key)
+        if isinstance(value, str) and value.strip():
+            return "".join(c for c in value.strip() if c.isprintable())[:limit] or None
+        return None
+
     cost = body.get("cost", 0)
     if isinstance(cost, bool) or not isinstance(cost, (int, float)) \
             or not 0 <= cost <= 10**6:
@@ -807,6 +814,17 @@ def _validate_usage(body):
     level = body.get("thinkingLevel")
     if isinstance(level, str) and level in THINKING_LEVELS:
         usage["thinkingLevel"] = level
+    # Which client ran the model, at which version and profile, and which
+    # language of the brief it was handed: the fields that tell a reference
+    # run from a run through another client, so the record says so rather
+    # than a prefix in the run's name.
+    for key in ("harness", "piVersion", "profile"):
+        value = short(key)
+        if value:
+            usage[key] = value
+    language = body.get("language")
+    if isinstance(language, str) and language in ("en", "zh"):
+        usage["language"] = language
     return usage
 
 

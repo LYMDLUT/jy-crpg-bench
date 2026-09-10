@@ -195,7 +195,7 @@ def skill(lang: str) -> str:
     return text.strip() + "\n"
 
 
-def build(lang: str, minutes: int = 20) -> str:
+def build(lang: str, minutes: int = 60) -> str:
     pre = (PRE_EN if lang == "en" else PRE_ZH).format(backend=BACKEND,
                                                       minutes=minutes)
     body = skill(lang)
@@ -206,8 +206,9 @@ def build(lang: str, minutes: int = 20) -> str:
 
 # The page carries the chosen playtime in the URL it hands out rather than in
 # the text of the line, so what a reader copies is just an address. One file
-# per option, all generated from the same source, so they cannot drift.
-OPTIONS = [20, 60, 240, 480, 1440]
+# per option, all generated from the same source, so they cannot drift. The
+# first option is the default and lives at the root.
+OPTIONS = [60, 20, 240, 480, 1440]
 
 
 def main():

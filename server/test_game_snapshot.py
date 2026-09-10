@@ -140,6 +140,18 @@ class WithholdingTests(unittest.TestCase):
             self.assertIn(field, game_server.warden.metrics())
             self.assertIn(field, game_server.session_summary())
 
+    def test_the_brief_language_a_run_fetched_is_on_the_record(self):
+        warden = game_server.warden
+        was = dict(warden.run["help_langs"])
+        try:
+            warden.run["help_langs"] = {}
+            for lang in ("zh", "zh-Hant", "en", None):
+                warden.note_help(lang)
+            self.assertEqual(warden.run["help_langs"], {"zh": 2, "en": 2})
+            self.assertEqual(warden.metrics()["help_langs"], {"zh": 2, "en": 2})
+        finally:
+            warden.run["help_langs"] = was
+
     def test_completion_latches_at_fourteen_books_and_stays(self):
         hero = game_server.hero
         was = dict(books=hero["books"], completion_secs=hero["completion_secs"])

@@ -422,14 +422,14 @@ function actionFixture({count=3, frame=async index=>({index})} = {}) {
     current:()=>current, timer:()=>timer};
 }
 
-test('action playback starts immediately and maps 10820 actions to 27 minutes at 4x, independent of wall time', async () => {
+test('action playback starts immediately and maps 10820 actions to 13.5 minutes at 8x, independent of wall time', async () => {
   const f=actionFixture({count:10820});
   await f.player.start();
   assert.equal(f.current(),0);
-  assert.equal(f.player.duration/4,1623);
-  assert.equal(f.timer().delay,150);
+  assert.equal(f.player.duration/8,811.5);
+  assert.equal(f.timer().delay,75);
   assert.equal(f.states.at(-1).step.t,0);
-  f.advance(150); await f.player.tick();
+  f.advance(75); await f.player.tick();
   assert.equal(f.current(),1);
   assert.equal(f.states.at(-1).step.t,3600);
   assert.equal(f.states.at(-1).step.who,'agent-b');
@@ -449,7 +449,7 @@ test('action playback starts immediately and maps 10820 actions to 27 minutes at
 
 test('action pause and speed changes preserve the displayed action and its remaining hold time', async () => {
   const f=actionFixture(); await f.player.start();
-  f.advance(50); f.player.pause();
+  f.advance(25); f.player.pause();
   assert.ok(Math.abs(f.player.position-.2)<1e-9);
   f.advance(90000); await f.player.tick();
   assert.equal(f.current(),0);
@@ -468,7 +468,7 @@ test('slow action frames do not skip actions and pausing during a pending frame 
     return {index};
   }});
   await f.player.start();
-  f.advance(150); const pending=f.player.tick(); await began.promise;
+  f.advance(75); const pending=f.player.tick(); await began.promise;
   f.advance(900000); f.player.pause();
   assert.equal(f.current(),0);
   wait.resolve(); await pending;
@@ -478,7 +478,7 @@ test('slow action frames do not skip actions and pausing during a pending frame 
   assert.equal(f.player.position,.6);
   f.player.play(); assert.equal(f.timer().delay,0);
   await f.player.tick(); assert.equal(f.current(),1);
-  assert.equal(f.timer().delay,150);
+  assert.equal(f.timer().delay,75);
   f.player.close();
 });
 
@@ -516,8 +516,8 @@ test('closing or pausing during the first action frame never causes a late autop
 test('action playback holds the last frame before stopping and restarts from the first frame', async () => {
   const f=actionFixture({count:1}); await f.player.start();
   assert.equal(f.player.wantPlaying,true);
-  assert.equal(f.timer().delay,150);
-  f.advance(150); await f.player.tick();
+  assert.equal(f.timer().delay,75);
+  f.advance(75); await f.player.tick();
   assert.equal(f.player.position,.6);
   assert.equal(f.player.wantPlaying,false);
   assert.equal(f.source.closed,undefined);
@@ -712,7 +712,7 @@ test('original time keeps milliseconds and long hours through action seeks indep
   await context.openPlayback();
   const get=id=>dom.document.getElementById(id);
   assert.equal(get('vcrtime').textContent,'播放 0:00');
-  assert.equal(get('vcrduration').textContent,'27:03');
+  assert.equal(get('vcrduration').textContent,'13:31');
   assert.equal(get('vcrrecorded').textContent,'动作 1 / 10820 · 原始时间 25:01:01.234');
   await get('vcrpause').dispatch('click');
   for(const [index,expected] of [[128,'113:06:00.789'],[1,'24:00:00.000'],[0,'25:01:01.234'],[10819,'240:00:01.005']]) {

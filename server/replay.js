@@ -6,7 +6,7 @@ class ReplayPlayer {
                        cancel=timer=>clearTimeout(timer)}) {
     Object.assign(this, {source, decode, paint, complete, reset, update, error, now, schedule, cancel});
     this.position = this.origin = this.duration = this.floor = 0;
-    this.speed = 4;
+    this.speed = 8;
     this.epoch = 0;
     this.queue = Promise.resolve();
     this.controller = new AbortController();
@@ -166,7 +166,7 @@ class ActionReplayPlayer {
     this.beat = .6;
     this.duration = source.steps * this.beat;
     this.position = this.index = this.epoch = 0;
-    this.speed = 4;
+    this.speed = 8;
     this.controller = new AbortController();
     this.playing = this.wantPlaying = this.ready = this.closed = false;
     this.loading = true;

@@ -54,7 +54,8 @@ test("the active branch is metered, including a compaction on it", async () => {
     message("a2", "u2", "assistant", { usage: usage(100, 5, 105, 0.002) }),
   ];
   const runDir = await makeRun(entries, {
-    manifest: { model: { ref: "provider/model-x", thinkingLevel: "high" }, piVersion: "0.84.4" },
+    manifest: { model: { ref: "provider/model-x", thinkingLevel: "high" }, piVersion: "0.84.4",
+                profile: "benchmark", prompt: { language: "zh" } },
   });
   const { code } = await runPiUsage(runDir);
   assert.equal(code, 0);
@@ -68,6 +69,9 @@ test("the active branch is metered, including a compaction on it", async () => {
   assert.equal(usageJson.model, "provider/model-x");
   assert.equal(usageJson.thinkingLevel, "high");
   assert.equal(usageJson.piVersion, "0.84.4");
+  assert.equal(usageJson.harness, "pi");
+  assert.equal(usageJson.profile, "benchmark");
+  assert.equal(usageJson.language, "zh");
 });
 
 test("a manifest without a thinking level reports null, not a guess", async () => {

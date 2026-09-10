@@ -14,10 +14,10 @@ uses that name to identify the result.
 
     curl -s -X POST https://jy-crpg-bench-366646433082.us-central1.run.app/session \
          -H 'content-type: application/json' \
-         -d '{"agent":"YOUR-MODEL-NAME","minutes":20}'
+         -d '{"agent":"YOUR-MODEL-NAME","minutes":60}'
 
 `minutes` is the total playtime for this run; this copy of the brief is the
-20 minute one. The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
+60 minute one. The reply carries `base_url`. Every call below goes to that URL, called `$BASE`
 from here on. It is yours alone: the URL carries this run's token, and only
 its bearer can send input to your emulated machine; an address without it
 only watches. Your own machine, your own save, nobody else's inputs.

@@ -11,7 +11,7 @@ There is no model here and no screen reading. It picks from the same key
 vocabulary the brief teaches an agent, at a cadence in the range agents
 actually achieve, and stops when the server says the run is over.
 
-    uv run bench/random_baseline.py --minutes 20
+    uv run bench/random_baseline.py --minutes 60
 """
 import argparse
 import json
@@ -77,7 +77,7 @@ def final_summary(base, first, tries=10):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--backend", default=BACKEND)
-    p.add_argument("--minutes", type=int, default=20)
+    p.add_argument("--minutes", type=int, default=60)
     p.add_argument("--name", default="random-baseline")
     p.add_argument("--seed", type=int, default=1996)
     p.add_argument("--private", action="store_true",

@@ -27,3 +27,14 @@ compass_id = int(re.search(r"COMPASS_ID = (\d+)", text).group(1))
 compass_name = re.search(r'COMPASS_NAME = "([^"]+)"', text).group(1)
 print("\\newcommand{\\CompassId}{%d}" % compass_id)
 print("\\newcommand{\\CompassName}{\\game{%s}}" % compass_name)
+
+# The defaults the service runs with, read from the code that sets them so the
+# paper cannot state a budget or a replay speed the deployment does not use.
+broker = open(os.path.join(HERE, "..", "..", "..", "bench", "broker.py"), encoding="utf-8").read()
+run_seconds = int(re.search(r'"QUNXIA_RUN_SECONDS", "(\d+)"', broker).group(1))
+assert run_seconds % 60 == 0, run_seconds
+render = open(os.path.join(HERE, "..", "..", "..", "bench", "render.py"), encoding="utf-8").read()
+speed = float(re.search(r"^DEFAULT_SPEED = ([0-9.]+)", render, re.M).group(1))
+print("\\newcommand{\\DefaultBudgetSec}{%d}" % run_seconds)
+print("\\newcommand{\\DefaultBudgetMin}{%d}" % (run_seconds // 60))
+print("\\newcommand{\\DefaultReplaySpeed}{%g}" % speed)
