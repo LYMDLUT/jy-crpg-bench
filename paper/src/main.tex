@@ -522,6 +522,20 @@ field in which every entrant passes. One instrument therefore
 covers both horizons, and the benchmark keeps measuring after the first model
 finishes.
 
+That ladder is the frozen score of the short benchmark and it stays fixed. For
+the multi-hour budgets the protocol allows, the release adds a second,
+additive report over the same ground truth: a finer trajectory that records
+the scenes a run reached, the battles it survived, the skills it learned and
+the books it gathered, out to the ending, with the walkthrough's hard
+prerequisites as dependency gates between them. Each component is scored
+against a fixed denominator with its coverage reported beside it, so a run
+instrumented on only part of the trajectory cannot post a falsely high number,
+and a milestone a run never measured is marked unmeasured rather than counted
+as failed. The report never rescores the short ladder and never feeds back
+into the short field's intervals; it exists so that a long run holding no book
+still leaves an ordered record of how far its plan carried. Its checkpoint
+contract and component weights are released with the benchmark.
+
 \subsection{Effort}
 \label{sec:metrics}
 
@@ -624,8 +638,9 @@ in which the later rungs and a completion time come within reach, and
 deliberation is priced in wall clock, an efficiency framing shared with
 ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}.
 
-\tbd{Runs at longer budgets, which the protocol already supports, are the
-measurement that separates a slow model from a stuck one.}
+\tbd{Long runs that exercise the additive long-horizon report are the
+measurement that separates a slow model from a stuck one; the protocol and the
+report already support them, and the field does not yet contain them.}
 
 \section{Conclusion}
 \label{sec:conclusion}
