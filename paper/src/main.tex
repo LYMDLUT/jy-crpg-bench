@@ -377,7 +377,7 @@ because the game samples its keyboard once per game-loop iteration and a
 shorter pulse can be consumed without registering. The control surface is
 nine HTTP calls, listed in \cref{app:brief}. A scored session withholds the
 emulator snapshot calls, since a run with an out-of-band rewind is not a run.
-The game's own save and load menu stays open to the model, as to a human
+The save and load menu of the game stays open to the model, as to a human
 player, so a model that loses a fight can reload the last save the game
 wrote, a rewind within the run that the recording shows.
 
@@ -598,8 +598,10 @@ chest, \SitemNoLeft{} searched it without crossing, and \Sboth{} did both.
 The count of rungs is therefore a summary of what a run achieved and not a
 position on one path, which is why every rung reached is credited whatever
 the order. The random policy reaches \QrandomRungs{} of the eight rungs in
-\QrandomBudgetMin{} minutes and never writes a save, so the two rungs the
-models divide on are rungs a random walk does not reach. Above them the field is
+\QrandomBudgetMin{} minutes: it acts, and in a small room a random walk
+searches the chest within the hour. It never writes a save, so the world map
+is the first rung a random walk does not reach, and the chest rung separates
+models from one another but not from the floor. Above them the field is
 undivided: no session reaches the compass, which is where the ladder will
 next separate models.
 
@@ -692,7 +694,12 @@ Call & Body & Meaning \\
 \label{app:metrics}
 A key is held for a requested 5 to 1200 emulated frames, 10 by default, and
 an action returns once the screen has reacted and held still; nothing the
-server observes about the screen enters any score. The save attempt reads the height of the menu the
+server observes about the screen enters any score. The recording journal
+logs every key the server presses on the core with its hold, and the seeded
+sequence of a random run is recomputed offline and compared with that
+journal: for the random runs reported here the two agree key for key, and on
+the local runner single ten-frame taps of every call shape moved the
+character one tile per tap in the position the game saved. The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
 entry through which the game saves. Attempts wait for a two-second gap

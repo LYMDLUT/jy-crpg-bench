@@ -4,15 +4,22 @@ def ok(msg): print("OK   "+msg)
 def bad(msg): print("FAIL "+msg)
 
 # regenerate everything
+# Generators that write their own files, then the two that print their file
+# to stdout, which is written for them: a captured stdout is not a file.
 for cmd in ([sys.executable,"figures/make.py"],[sys.executable,"figures/make_metrics.py"],
-            [sys.executable,"figures/emit_numbers.py"]):
+            [sys.executable,"figures/emit_table.py"]):
     r=subprocess.run(cmd,cwd=SRC,capture_output=True,text=True)
     if r.returncode: bad(" ".join(cmd)+" -> "+r.stderr[-400:]); sys.exit(1)
+for script,target in (("figures/emit_numbers.py","figures/numbers.tex"),
+                      ("figures/emit_books.py","tables/books.tex")):
+    r=subprocess.run([sys.executable,script],cwd=SRC,capture_output=True,text=True)
+    if r.returncode: bad(script+" -> "+r.stderr[-400:]); sys.exit(1)
+    open(os.path.join(SRC,target),"w",encoding="utf-8").write(r.stdout)
 ok("regenerated")
 
 main=open('main.tex',encoding='utf-8').read()
 defined={}
-for f in ('figures/numbers.tex','tables/runs.tex','tables/family.tex'):
+for f in ('figures/numbers.tex','tables/books.tex','tables/aggregate.tex'):
     if not os.path.exists(f): bad("missing "+f); sys.exit(1)
     defined[f]=set(re.findall(r'\\newcommand\{\\(\w+)\}',open(f).read()))
     if ('\\input{'+f+'}' not in main) and ('\\input{'+f.replace('.tex','')+'}' not in main):

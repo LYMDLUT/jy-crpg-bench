@@ -82,16 +82,20 @@ raw = json.load(open(SNAPSHOT, encoding="utf-8"))
 probes = [r for r in raw if r["agent"].startswith("probe-")]
 rows = field.load_runs()
 BUDGET = field.DEFAULT_BUDGET
-PLAY = field.played(rows)
+ALL = field.played(rows)
 never = [r for r in rows if (r["actions"] or 0) == 0]
 other_budget = [r for r in rows if r["budget"] != BUDGET]
-MODELS = [r for r in PLAY if fam(r["agent"]) != "random"]
+MODELS = [r for r in ALL if fam(r["agent"]) != "random"]
 RANDOM = field.random_rows(rows)
-if not PLAY or not RANDOM:
+if not MODELS or not RANDOM:
     sys.exit("no scored sessions or no random floor in the snapshot")
+# "sessions" in the paper are model sessions; the random floor is reported
+# on its own, so every count below runs over the models
+PLAY = MODELS
 
 emit("NsessionsTotal", len(raw), "catalogue entries in the snapshot")
-emit("Nsessions", len(PLAY), "sessions at the default budget that played")
+emit("Nsessions", len(MODELS), "model sessions at the default budget that played")
+emit("NsessionsAll", len(ALL), "sessions at the default budget that played, the floor included")
 emit("Nmodels", len(MODELS), "model sessions")
 emit("NrandomRuns", len(RANDOM), "random-baseline sessions")
 emit("Nvendors", len({fam(r["agent"]) for r in MODELS}), "vendors in the field")
