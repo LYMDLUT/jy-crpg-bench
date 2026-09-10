@@ -2,10 +2,20 @@
 # Videos and the catalogue go to the bucket through the Python client, which
 # reads the service account off the metadata server, so the gcloud CLI (and the
 # ~350MB it costs) is not installed.
+
+# The emulator core is pinned, not pulled fresh. The libretro nightly at
+# .../latest/dosbox_pure_libretro.so.zip is unversioned: it was re-published on
+# 2026-09-10 15:00 UTC with a build that stalls the opening's attribute roll, so
+# every image built after that could not author a start state. This stage is
+# the last image whose core authored the opening reliably; the core is copied
+# from it by digest below. To move the core deliberately, build that image from
+# a known-good `latest`, smoke-test authoring, and bump this digest.
+FROM us-central1-docker.pkg.dev/jinaai-dev/cloud-run-source-deploy/jy-crpg-bench@sha256:147bf0feb1c31992839bd4d96b99aea5f239f912315c3d7307da6cb1fa7597b2 AS core
+
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential ca-certificates curl ffmpeg unzip \
+      build-essential ca-certificates ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -15,14 +25,18 @@ COPY bench /app/bench
 COPY skills /app/skills
 COPY assets/game-data.tar.gz /app/assets/game-data.tar.gz
 
-# the emulator core, and the shared library the server loads
-RUN mkdir -p /app/cores && cd /app/cores \
- && curl -sSLo core.zip https://buildbot.libretro.com/nightly/linux/x86_64/latest/dosbox_pure_libretro.so.zip \
- && unzip -oq core.zip && rm core.zip
+# the emulator core, pinned to the digest above rather than pulled from the
+# libretro nightly `latest`, which is unversioned and drifts. The shim the
+# server loads dlopens this at runtime, so it is not needed to build the shim.
+COPY --from=core /app/cores/dosbox_pure_libretro.so /app/cores/dosbox_pure_libretro.so
 RUN sh /app/server/build.sh
 RUN tar xzf /app/assets/game-data.tar.gz -C /app && rm /app/assets/game-data.tar.gz
 
-RUN pip install --no-cache-dir aiohttp pillow numpy google-cloud-storage
+# Pinned so a rebuild reproduces the tested backend; these are the versions the
+# code was exercised against. Pillow is held below 14, which removes
+# Image.getdata, used by the progress reader.
+RUN pip install --no-cache-dir \
+      aiohttp==3.14.3 pillow==12.3.0 numpy==2.5.3 google-cloud-storage==3.14.1
 
 # Stamped at build time so the running backend can say which build it is, and
 # the leaderboard can show it. Defaults to "dev" for a local image.
