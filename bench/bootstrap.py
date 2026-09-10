@@ -118,32 +118,40 @@ def build(base, token, log=print):
     g = Game(base, token)
     log("waiting for the title screen")
     g.wait(16000)
+
+    # Leave the title, which advances on any key. Stop once the screen changes,
+    # which lands on the main menu (重新開始 / 載入進度 / 離開遊戲).
     for _ in range(6):
         before = sha(g.png())
-        g.key("enter")
+        g.key("enter", hold=25)
+        g.wait(2500)
         if sha(g.png()) != before:
             break
-        g.wait(3000)
+    log("main menu: data:image/png;base64," + base64.b64encode(g.png()).decode())
+
+    # The deployed core shows this menu where an older build went straight to
+    # the name screen, and the naming keys were being spent on the menu, so the
+    # name came out empty and the game never left the name screen. 重新開始 (new
+    # game) is the top item and the default, so an enter selects it and reaches
+    # the name screen.
+    g.key("enter", hold=25)
+    g.wait(2500)
+    log("name screen: data:image/png;base64," + base64.b64encode(g.png()).decode())
 
     # Name the character through the 注音 IME. The name does not matter, only
-    # that one is entered so the game leaves the name screen. The syllable ㄨㄤˊ
-    # is j ; 6, then 1 picks 王 and enter confirms. Each key is sent on its own
-    # with a hold and a pause, not as one fast list: on the deployed core the
-    # list arrived faster than the IME could take each symbol and the name came
-    # out empty, leaving the game on the name screen where every later key is
-    # then lost.
-    log("naming the character through the 注音 IME")
-    g.wait(1500)                       # let the name screen settle first
+    # that one is entered so the game moves on. ㄨㄤˊ is j ; 6, then 1 picks 王
+    # and enter confirms; each key is sent on its own with a hold and a pause
+    # because the deployed IME drops a fast list and the name comes out empty.
+    g.wait(800)
     before = sha(g.png())
     for k in ("j", ";", "6"):          # ㄨㄤˊ, one symbol at a time
         g.key(k, hold=25)
         g.wait(700)
-    log("syllable %s; screen: data:image/png;base64,%s"
-        % ("changed the screen" if sha(g.png()) != before else "did NOT show",
-           base64.b64encode(g.png()).decode()))
+    took = sha(g.png()) != before      # the 注音 field showed the syllable
     g.key("1", hold=25); g.wait(700)   # pick 王
     g.key("enter", hold=25); g.wait(2500)   # confirm the name
-    log("post-name screen: data:image/png;base64," + base64.b64encode(g.png()).decode())
+    log("syllable %s; post-name screen: data:image/png;base64,%s"
+        % ("took" if took else "did NOT show", base64.b64encode(g.png()).decode()))
 
     # The attribute roll takes y and n and nothing else. A y that arrives
     # before the prompt is simply lost, and every enter after it is ignored,
