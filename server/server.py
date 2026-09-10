@@ -1730,8 +1730,11 @@ async def run_action(request, steps, note, verb="KEY"):
         waited, changed = await settle(baseline, **settle_args)
         trajectory = note_move()
         screen_changed = note_screen()
-        record_trajectory(trajectory, screen_changed,
-                          action_at=action_entry["at"] - rec["started"])
+        action_at = (action_entry.get("at") - rec["started"]
+                     if isinstance(action_entry, dict)
+                     and type(action_entry.get("at")) in (int, float)
+                     else None)
+        record_trajectory(trajectory, screen_changed, action_at=action_at)
         # Inventory can increase and be consumed between sparse samples.  The
         # read is ~1.2 ms against hundreds of ms per action, so sample every
         # action and latch gains relative to the opening state.
