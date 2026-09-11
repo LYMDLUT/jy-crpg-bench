@@ -478,13 +478,13 @@ async def game_snapshot(reason=""):
             # the player left a menu open; an escape now would close it under them
             return None, "a menu is open"
         await meta_tap(KEYS["escape"])
-        # This walk's one escape-tap is now spent whatever the menu turns out to
-        # be: if the party has just stepped into a scene the tap opens a scene
-        # menu, not the world menu, and the attempt below aborts; the macro must
-        # not keep tapping until the party walks out onto the world map again.
-        hero["moved_on_map"] = False
         rows = menu_rows()
         if rows != WORLD_MENU_ROWS:
+            # Not the world map: a scene's menu, or none. Close it and give up.
+            # This is where the party spends most of a run, so the attempt costs
+            # a scene an escape it did not ask for; the read that answers the
+            # model waits on the same lock this holds, so the model never sees
+            # the menu, and the game state is put back before it looks again.
             await close_menus()
             return None, (f"the menu offered {rows} rows, not {WORLD_MENU_ROWS}"
                           "; the game only saves from the world map")
@@ -568,14 +568,6 @@ async def snapshotter():
         if time.time() - snap["last_action"] < SNAPSHOT_IDLE:
             continue
         if stats["queued"]:                # somebody is waiting to play
-            continue
-        if not hero["moved_on_map"]:
-            # The escape that opens the save menu is a key into the game, and
-            # in a scene it would advance a dialogue or move a battle cursor.
-            # Only a party that has just walked on the world map is somewhere
-            # that key is harmless, so the save waits for such an action, and
-            # one action pays for at most one save: a player who stands and
-            # thinks is not interrupted again until they walk again.
             continue
         try:
             summary, why = await game_snapshot("last call" if last_call
