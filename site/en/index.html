@@ -785,11 +785,11 @@ const RUNGS = [
   // The compass sits in the hermit's cabinet and is read from the same live
   // bag as the books. It and the companion close the opening, which needs no
   // fight; experience and levels need one, so they follow.
-  {k: "m_compass", at: r => r.compass == null ? null : !!r.compass},
-  {k: "m_party", at: r => r.team_size == null ? null : r.team_size > 1},
+  {k: "m_compass", at: r => r.saved_at !== undefined ? !!r.compass : (r.compass == null ? null : !!r.compass)},
+  {k: "m_party", at: r => r.saved_at !== undefined ? (r.team_size || 0) > 1 : (r.team_size == null ? null : r.team_size > 1)},
   {k: "m_exp",   at: r => r.exp == null ? null : r.exp > 0},
   {k: "m_level", at: r => r.level == null ? null : r.level > 1},
-  {k: "m_book",  at: r => r.books == null ? null : r.books > 0},
+  {k: "m_book",  at: r => r.saved_at !== undefined ? (r.books || 0) > 0 : (r.books == null ? null : r.books > 0)},
 ]; 
 
 function fexit(r) {

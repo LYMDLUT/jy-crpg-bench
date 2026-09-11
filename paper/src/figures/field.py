@@ -19,7 +19,7 @@ _broker = open(os.path.join(HERE, "..", "..", "..", "bench", "broker.py"), encod
 DEFAULT_BUDGET = int(re.search(r'"QUNXIA_RUN_SECONDS", "(\d+)"', _broker).group(1))
 
 
-def load_runs(path=SNAPSHOT):
+def load_runs(path=SNAPSHOT, dedup=True):
     rows = []
     for r in json.load(open(path, encoding="utf-8")):
         if r["agent"].startswith("probe-"):
@@ -28,7 +28,22 @@ def load_runs(path=SNAPSHOT):
         r["declared"] = r["agent"]
         r["agent"] = ALIASES.get(r["agent"], r["agent"])
         rows.append(r)
-    return rows
+    return longest_per_model(rows) if dedup else rows
+
+
+def longest_per_model(rows):
+    """One run per model: the longest it played. A model run more than once is
+    reported by its longest run, so a session cut short by an idle teardown does
+    not stand in for one the model actually saw through. Ties break towards more
+    actions, then the run id, so the choice is deterministic."""
+    best = {}
+    for r in rows:
+        key = r["agent"]
+        cur = best.get(key)
+        rank = ((r.get("played") or 0), (r.get("actions") or 0), r.get("id") or "")
+        if cur is None or rank > cur[0]:
+            best[key] = (rank, r)
+    return [v[1] for v in best.values()]
 
 
 def played(rows, budget=DEFAULT_BUDGET):
@@ -67,15 +82,20 @@ def rungs_of(row):
     benchmark read either field is credited only from the screen with a
     corroborating fade, a legacy path the paper does not report."""
     saved = "saved_at" in row or "world_map_at" in row
+    # For an instrumented run the compass, party and book rungs are read from
+    # the save the game writes, and the game offers that save only from the
+    # world map, which every one of these rungs sits beyond. So a run that
+    # wrote no save did not reach them: their absence is measured, not unknown.
+    # Only a run from before the benchmark read these at all is unmeasured.
     known = [
         True,
         row.get("picked_item") is not None,
         True if saved else row.get("bigmap") is not None,
-        row.get("compass") is not None,
-        row.get("team_size") is not None,
+        True if saved else row.get("compass") is not None,
+        True if saved else row.get("team_size") is not None,
         row.get("exp") is not None,
         row.get("level") is not None,
-        row.get("books") is not None,
+        True if saved else row.get("books") is not None,
     ]
     got = [
         (row.get("key_events") if row.get("key_events") is not None
