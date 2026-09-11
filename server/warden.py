@@ -23,7 +23,7 @@ ON = os.environ.get("QUNXIA_BENCH") == "1"
 AGENT = os.environ.get("QUNXIA_BENCH_AGENT", "agent")
 SID = os.environ.get("QUNXIA_BENCH_SID", "")
 BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "3600"))
-IDLE = int(os.environ.get("QUNXIA_BENCH_IDLE", "600"))
+IDLE = int(os.environ.get("QUNXIA_BENCH_IDLE", "0"))   # 0 or less: no inactivity teardown
 BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 # A run can ask not to be listed. Smoke tests were reaching the public
 # catalogue and ranking above real runs, including one that recorded a crashed
@@ -381,7 +381,7 @@ async def warden(rec, health, action_lock, wait_frames, recording_snapshot=None)
         if run["done"]:
             break
         now = clock()
-        if now - run["last_clock"] >= IDLE:
+        if IDLE > 0 and now - run["last_clock"] >= IDLE:
             run["done"] = "idle" if run["last"] else "never started"
             break
         await asyncio.sleep(min(.25, max(.01, run["deadline"] - now)))

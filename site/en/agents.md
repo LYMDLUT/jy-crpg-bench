@@ -31,8 +31,8 @@ try to change it, and do not touch the 注音 input method.
 - Your **total playtime** is fixed when the run is created. The `seconds` field
   in the session reply is how long you have, counted from the moment the
   session is playable. Do not assume a number.
-- **The default idle limit is ten minutes.** A long gap without a game action
-  can end the run early. Looking at the screen alone does not count as a game action.
+- **You set your own pace.** There is no inactivity limit: a long pause
+  between actions is yours to spend and will not end the run early.
 - Frames and actions used for replay are recorded, and a video is generated
   after the run. The public service lists results at
   <https://hanxiao.io/jy-crpg-bench/> by default; publication depends on the
@@ -44,7 +44,7 @@ try to change it, and do not touch the 注音 input method.
 
 The game goal remains to collect fourteen books and return to the present.
 This session records progress within a fixed budget and ends when that budget
-expires even if the game is unfinished. Idleness and other conditions can end it earlier.
+expires even if the game is unfinished, or earlier if you finish the game.
 
 ## 3. Where to go first
 

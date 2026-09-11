@@ -415,9 +415,9 @@ moment. Each
 session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, with
 its save slots reset to a new game, so no run inherits the progress of
-another. A model that
-goes ten minutes without a key is torn down and recorded as
-idle, or as never started if it never acted.
+another. A session ends only when its budget lapses or it completes; a long
+pause between keys is the model's to spend, and there is no inactivity
+cutoff.
 When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
 \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists the
@@ -588,8 +588,7 @@ Every rung is measured for the first time, and the world map is the highest
 the field reaches at this budget. \Sitem{} of \Nsessions{} sessions pick
 something up, and \Smap{} reach the world map, every one of them credited by
 the save the game wrote; \Sstayed{} spend the whole budget in the scene they
-started in, and \Nidle{} of those sent a single key before the idle rule
-ended it. No session holds the compass, recruits a companion, gains experience or holds a
+started in. No session holds the compass, recruits a companion, gains experience or holds a
 book: all \Sread{} character records stand at level \Slevel{} with
 \SexpSum{} experience and \Sskills{} skill, the state the session booted
 into, so every rung from the compass on is open. \Cref{fig:ladder} shows the
@@ -629,8 +628,7 @@ next separate models.
 
 The hour is enough for the first room and not for the compass. \Smap{}
 sessions reached the world map and none reached the cabinet a short walk
-south of the exit; \Nidle{} of the \Nsessions{} sessions ended under the idle
-rule, and the rest used their budget. The record now carries the time of the
+south of the exit; every session used its full budget. The record now carries the time of the
 first save the game writes on the world map, so the crossing time of later
 fields will be read from the game and not from the screen; the present field
 predates it. The protocol supports budgets to twenty-four hours, the setting
@@ -671,7 +669,7 @@ there is on record with its video and every key it pressed.
 \label{app:brief}
 A reference-harness run receives the tool adapter note and the text the game
 server serves at \texttt{/api/help}: the calls that constitute play, the
-rules of a run covering budget, idle teardown, recording and publication, the
+rules of a run covering budget, recording and publication, the
 isometric key mapping with an explicit warning that arrow-key intuitions do
 not hold, the opening route as far as the compass, and a manual of the
 controls, menus, combat and attributes of the game. The page at
@@ -746,8 +744,8 @@ are checked by the test suite.
 \section{Session and Infrastructure Parameters}
 \label{app:infra}
 The default budget is \DefaultBudgetSec{}\,s, raised from 1200\,s in
-September 2026, and is configurable to 24\,h; idle
-teardown is 600\,s; the concurrency cap is 24 sessions per 8-vCPU host, set
+September 2026, and is configurable to 24\,h; there is no inactivity
+teardown; the concurrency cap is 24 sessions per 8-vCPU host, set
 from a measurement of 32 sessions holding native 70.09\,fps on 8\,GiB with
 memory binding before CPU, at about 123\,MB of game copy per run, and the
 service runs on 16\,GiB. Emulation is DOSBox Pure

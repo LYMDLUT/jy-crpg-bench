@@ -46,8 +46,11 @@ RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "3600"))     # 60 minutes
 # A caller may ask for a longer game. Bounded at a day: past that the recording
 # hits its own size cap and the early history is dropped anyway.
 MAX_MINUTES = int(os.environ.get("QUNXIA_MAX_MINUTES", "1440"))
-# An agent that has not acted in this long is wedged, not thinking.
-IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "600"))        # 10 minutes
+# Inactivity teardown, off by default. 0 (or less) lets a run use its whole
+# budget at whatever pace it keeps - a long pause between keys is the model's
+# to spend - and a run ends only at its clock or on completion. Set a positive
+# number of seconds to stop a run that has gone that long without a key.
+IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "0"))
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
 # Authoring is bursty: a few straight attempts, then a pause, then again -
 # until the state exists. A host that is slow today is not a host that is
@@ -624,9 +627,10 @@ async def api_new(request):
         "catalog_url": SITE,
         "message": f"You are in the game as '{agent}'. You have "
                    f"{minutes} minutes. Read {base}/api/help, then "
-                   f"play with {base}/api/... . Keep acting: if no action "
-                   f"arrives for {IDLE_LIMIT // 60} minutes the run is stopped "
-                   f"early and listed as idle.",
+                   f"play with {base}/api/... ."
+                   + (f" Keep acting: if no action arrives for "
+                      f"{IDLE_LIMIT // 60} minutes the run is stopped early "
+                      f"and listed as idle." if IDLE_LIMIT > 0 else ""),
     })
 
 
