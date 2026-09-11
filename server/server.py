@@ -683,6 +683,12 @@ def absorb_archive(summary):
     bag = summary.get("bag") or {}
     if bag.get(save_state.COMPASS_ID, 0) > 0:
         hero["compass"] = True
+    elif hero["compass"] is None:
+        # The save's bag is the reliable source, so its absence is a real
+        # reading, not a missed one: the rung is measured and not reached,
+        # which the ladder draws as a filled miss rather than an empty cell.
+        # A later save that carries the compass still latches it to True.
+        hero["compass"] = False
     hero["books"] = max(hero["books"] or 0, summary.get("books") or 0)
     opening = hero["inventory_baseline"]
     if opening is not None and bag and inventory_gained(opening, bag):
