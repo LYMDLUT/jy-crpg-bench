@@ -630,9 +630,17 @@ def read_stats():
         carried = save_state.decode_character(
             mem[base:base + save_state.CHAR_BYTES], 0) or {}
         held = save_state.books_held(inventory, [carried] if carried else [])
-        hero["books"] = len(held)
-        hero["book_ids"] = held
-        hero["compass"] = inventory.get(save_state.COMPASS_ID, 0) > 0
+        # A rung, once reached, is kept. The live bag is decoded from a memory
+        # image whose character array is found by a name search, and on some
+        # core builds a later read can land on the wrong copy and come back
+        # short; the save the game writes, folded in by absorb_archive, is the
+        # reliable source, and neither it nor a good live read is undone by a
+        # bad one. Books and the compass only ever climb.
+        if len(held) > (hero["books"] or 0):
+            hero["books"] = len(held)
+            hero["book_ids"] = held
+        if inventory.get(save_state.COMPASS_ID, 0) > 0:
+            hero["compass"] = True
         latch_completion()
 
         opening = hero["inventory_baseline"]

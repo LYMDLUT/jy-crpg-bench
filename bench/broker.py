@@ -369,6 +369,28 @@ def reset_save_slots(game_dir):
                 shutil.copyfile(source, game_dir / f"{prefix}{slot}.{ext}")
 
 
+SNAPSHOT_SLOT = int(os.environ.get("QUNXIA_SNAPSHOT_SLOT", "3"))
+
+
+def preserve_save_slot(sess, work):
+    """Upload the game's own snapshot slot so a run's final state survives the
+    reclaim of its game copy. R<n>.GRP/.IDX is what the game itself wrote on the
+    world map; decoding it with save_state.from_archive later reproduces the
+    party, world square, bag and books without any live-memory read, so a run
+    can be re-scored or audited from the file the game wrote. A run that never
+    reached the world map has only the new-game slot here, which is harmless."""
+    game = pathlib.Path(work) / "game"
+    grp = game / f"R{SNAPSHOT_SLOT}.GRP"
+    idx = game / f"R{SNAPSHOT_SLOT}.IDX"
+    if not (grp.exists() and idx.exists()):
+        return
+    try:
+        put(f"slots/{sess['id']}.grp", grp.read_bytes(), "application/octet-stream", 31536000)
+        put(f"slots/{sess['id']}.idx", idx.read_bytes(), "application/octet-stream", 31536000)
+    except Exception as exc:
+        print(f"preserve slot {sess['id']}: {exc}", flush=True)
+
+
 def make_workdir(sid):
     """A private, writable game directory for one run."""
     root = WORK / sid
@@ -1175,6 +1197,10 @@ async def sweep(app):
                 work = s.get("work")
                 if work and work.exists():
                     await loop.run_in_executor(None, archive_health, s)
+                    # Keep the game's own save slot before the copy is dropped,
+                    # so a run's final state can be decoded again later from the
+                    # file the game wrote, independent of any live-memory read.
+                    await loop.run_in_executor(None, preserve_save_slot, s, work)
                     await loop.run_in_executor(
                         None, lambda w=work: shutil.rmtree(w, ignore_errors=True))
                     # its thumbnail is nothing but storage cost once the run is over
