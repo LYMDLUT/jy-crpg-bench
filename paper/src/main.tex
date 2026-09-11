@@ -725,20 +725,23 @@ the local runner single ten-frame taps of every call shape moved the
 character one tile per tap in the position the game saved. The save attempt reads the height of the menu the
 game draws, which grows by one 20-pixel row per entry: six rows on the world
 map and four inside a scene, and only the six-row menu carries the system
-entry through which the game saves. An attempt is made only after an action
-that moved the party on the world map, so it opens the world-map menu and
-never a scene's, and a look the model takes waits on the same single-player
-lock the attempt holds, so the model never observes the screen mid-save.
+entry through which the game saves. An attempt opens the menu and reads its
+height, withdrawing on the four rows of a scene and saving only where the six
+of the world map appear, so what admits a save is the game's own menu and not
+a reading of where the party stands; and a look the model takes waits on the
+same single-player lock the attempt holds, so the model never observes the
+screen mid-save.
 Attempts wait for a two-second gap
 between the keys the model sends, recur every two minutes, and are made once more
 shortly before the budget lapses, into a save slot reserved for the
 benchmark, and the time of the first save is kept as the time of the crossing.
 The item rung compares the live bag with the bag at the first read
-of the run; the compass rung looks for item \CompassId{} in the live bag,
-whose name in the shipped item table is \CompassName{}; the book rung looks
-for items \BookFirst{}--\BookLast{} in the bag or in the four carried slots of
-the protagonist; and the shipped names of all fifteen items are checked by the
-test suite.
+of the run; the compass rung looks for item \CompassId{} in the bag, whose
+name in the shipped item table is \CompassName{}, and the book rung for items
+\BookFirst{}--\BookLast{} in the bag or the four carried slots of the
+protagonist, each read from the live machine and corroborated by the save the
+game writes, and kept once seen; and the shipped names of all fifteen items
+are checked by the test suite.
 
 \section{Session and Infrastructure Parameters}
 \label{app:infra}
