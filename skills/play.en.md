@@ -39,7 +39,11 @@ happens: objectives, choices, and prompts that expect a specific key.
     GET  {BASE}/api/help                          this skill
 
 `/api/screen` returns JSON with `image`, a base64 PNG data URI; `?format=png`
-returns the raw bytes instead. `/api/key` is the only action: `key` is one key
+returns the raw bytes instead. If you save a frame to disk, name the file by
+this run -- the session id is the `/s/<id>/` segment of `{BASE}` -- for
+example `/tmp/<id>/frame.png`. One machine may host several sessions at once,
+and a shared filename lets one run overwrite another's screen and read it back
+as its own. `/api/key` is the only action: `key` is one key
 name or a list of names pressed in order, so a repeat is a list of the same key
 and a menu path is a list. It returns once the screen has settled, a scene
 transition included, with `ok`, `action` and `frame`, which names the picture
