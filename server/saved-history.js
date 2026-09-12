@@ -6,7 +6,7 @@
   const endpoint = path => new URL(path, location.href);
   const enabled = document.currentScript?.dataset.historyEnabled !== 'false';
   let start = 0, total = 0, origin = null, busy = false, urls = [];
-  let generation = 0, active = null, reload = false, disposed = false;
+  let generation = 0, active = null, reload = false, reloadStart = null, disposed = false;
   const box = get('historyrows'), info = get('historyinfo');
   function selectHistory() {
     get('historypane').hidden = false;
@@ -115,19 +115,20 @@
     } finally {
       if (token) await fetch(endpoint(`api/replay/${encodeURIComponent(token)}`), {method:'DELETE',keepalive:true}).catch(()=>{});
       active = null; busy = false;
-      if (reload && !disposed) { reload = false; load(); }
+      if (reload && !disposed) { const requested = reloadStart; reload = false; reloadStart = null; load(requested); }
       else buttons();
     }
   }
   function invalidate() {
     if (!enabled || disposed) return;
+    const requested = origin !== null ? start : null;
     generation++;
     active?.controller.abort();
     releaseImages(); box.textContent = '';
-    start = total = 0; origin = null;
+    start = total = 0;
     info.textContent = ' · 读取中'; get('historyrange').textContent = '';
-    if (active) reload = true;
-    else load();
+    if (active) { reload = true; reloadStart = requested; }
+    else load(requested);
   }
   get('historyfirst').onclick = () => load(0);
   get('historyprev').onclick = () => load(Math.max(0,start-PAGE));
