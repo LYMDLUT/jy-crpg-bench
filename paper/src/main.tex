@@ -32,8 +32,9 @@
 % URLs with an anonymous mirror.
 \iclrfinalcopy
 
-\title{\raggedright\bench{}: Long-Horizon Agency in an \\
-Out-of-Distribution Open-World RPG}
+\title{\raggedright\bench{}: A Long-Horizon Benchmark \\
+for Vision-Language Models \\
+in an Unmodified Chinese Open-World RPG}
 
 \author{Han Xiao \\
 \texttt{han.xiao@jina.ai} \\
@@ -57,15 +58,15 @@ Yiming Liu \\
 \input{tables/books.tex}
 
 \begin{abstract}
-Long-horizon agency requires a model to perceive an unfamiliar world, decide
-for itself what is worth doing, and hold one plan across hours of dependent
+A long-horizon task requires a model to perceive its environment, decide for
+itself what is worth doing, and hold one plan across hours of dependent
 decisions. We present \bench{}, a benchmark that places a vision-language
 model inside \game{金庸群俠傳}, the 1996 commercial open-world role-playing
 game \emph{Heroes of Jin Yong}, run unmodified under DOS emulation, and
 scores it against the ending the game defines, which requires recovering the
 fourteen books of the Jin Yong canon and takes a first-time human player tens
-of hours. The environment lies far outside the training distribution of
-current vision-language models, with a $320\times200$ framebuffer, a
+of hours. The environment is hard for current vision-language models on
+several axes at once, with a $320\times200$ framebuffer of 1996 pixel art, a
 $45^\circ$ isometric projection in which no key moves straight up the screen,
 Traditional Chinese rendered as 16-pixel bitmap glyphs, and objectives stated
 only inside its fiction. Every model plays through the same brief and control
@@ -74,11 +75,11 @@ no memory scaffold and no access to game state, so a run measures the model.
 Progress is read from the memory of the emulated machine and from the save the
 game writes for itself, so no milestone can be earned by a change on the
 screen alone, and one instrument spans both phases of play, a ladder of
-machine-verified milestones while models learn to move and completion time
+state-verified milestones while models learn to move and completion time
 once they finish. We report \NmodelsDistinct{} frontier models against a
 seeded random baseline under a \NbudgetMin{}-minute budget: \Smap{} reach the
 world map, one holds the compass, and none gains experience. We release
-\bench{} as a live, replayable public arena at
+\bench{} as a live, replayable public leaderboard at
 \url{https://github.com/hanxiao/jy-crpg-bench}.
 \end{abstract}
 
@@ -87,9 +88,11 @@ world map, one holds the compass, and none gains experience. We release
 
 Frontier models prove competition mathematics and write working compilers,
 yet the tasks they complete reliably are still measured in hours of human
-work \citep{kwa2025horizon}. Long-horizon evaluation takes two forms. Episodic benchmarks set a goal and score its
-completion; continuing benchmarks give the model an environment
-with no terminal state and score what accumulates
+work \citep{kwa2025horizon}. A long horizon is a property of the task, the
+number of dependent steps its completion requires \citep{chen2026horizongap},
+and its evaluation takes two forms. Episodic benchmarks set a goal and score
+its completion; continuing benchmarks give the model an environment with no
+terminal state and score what accumulates
 \citep{backlund2025vending,fan2026ecommerce}. An open-world game offers both,
 an ending that takes tens of hours to reach and a record of everything that
 accumulates before it, and adds a requirement the business simulations do
@@ -139,21 +142,21 @@ nothing about itself, and the game records whether they have been recovered.
 A model that finished would have held one plan across tens of hours of
 self-directed play, which is the capability long-horizon evaluation exists to
 detect. The instrument therefore spans both phases of play: a ladder of
-machine-verified milestones orders the field while models are learning to
+state-verified milestones orders the field while models are learning to
 move through the world, and completion time orders it once they finish, so
 the benchmark gains a speedrun ranking where a pass-or-fail score would
 saturate.
 
-Three properties make the environment adversarial for current models, and
-\cref{fig:env} shows the screens they apply to. First, perception is out of
-distribution on several axes at once. Downsampling costs vision-language
+Three properties make the environment hard for current models, and
+\cref{fig:env} shows the screens they apply to. First, perception is
+difficult on several documented axes at once. Downsampling costs vision-language
 models accuracy \citep{niu2025resolution}, degraded input costs them more
 \citep{usama2025corruptions}, out-of-distribution images degrade recognition
 even of familiar categories \citep{lin2026oodbench}, text rendered as pixels
 is understood less well than the same text supplied as tokens
 \citep{liu2026vistabench}, and precise spatial reading fails once primitives
 are small or adjacent \citep{rahmanzadehgervi2024blind,wang2024spatialeval};
-a $320\times200$ frame of 1996 bitmap art carrying 16-pixel Traditional
+a $320\times200$ frame of 1996 pixel art carrying 16-pixel Traditional
 Chinese glyphs sits at the hard end of all five. Second, the world is drawn
 in a $45^\circ$ isometric projection, so the four movement keys run along
 screen diagonals, and a model that reasons in screen coordinates walks in
@@ -162,7 +165,7 @@ no objective marker and reports no score. The brief supplies the opening
 route, from the first room to the compass, and a manual of the controls; from
 the compass on, deciding where to go and what is worth doing is part of the
 problem, the goal-setting requirement that ARC-AGI-3 places at the centre of
-agency \citep{arc2026arcagi3}.
+agentic intelligence \citep{arc2026arcagi3}.
 
 Measuring such an environment from the screen is unreliable, and recent work
 says so: GameWorld names heuristic verification as the obstacle to
@@ -179,8 +182,8 @@ We make three contributions.
 \begin{enumerate}
 \item We present \bench{}, a long-horizon benchmark on an unmodified
 commercial open-world role-playing game whose difficulty comes from named and
-independently checkable properties of the environment: out-of-distribution
-low-resolution perception, isometric control, Traditional Chinese grounding,
+independently checkable properties of the environment: low-resolution
+perception of 1996 pixel art, isometric control, Traditional Chinese grounding,
 a keyboard action space of which the game answers a small subset, and
 persistent character state that only coherent play advances.
 
@@ -194,7 +197,7 @@ ending the game defines.
 \item We evaluate \NmodelsDistinct{} frontier models under the same harness
 and against a seeded random baseline under a wall-clock budget, and release
 the benchmark, its harness and every recorded run as a public, replayable
-arena.
+leaderboard.
 \end{enumerate}
 
 \Cref{tab:related} places \bench{} among interactive agent benchmarks. The
@@ -258,14 +261,16 @@ Pro finished Pok\'emon Blue in 813 hours behind a harness that translated the
 RAM of the game into text, and an ablation without vision performed about as
 well \citep{comanici2025gemini}. The PokeAgent Challenge turned the setting
 into a speedrunning track scored by completion time over milestones
-\citep{karten2026pokeagent}. Crafter established the single-environment,
+\citep{karten2026pokeagent}. PokeGym builds a long-horizon benchmark on the
+open-world game Pok\'emon Legends: Z-A with no access to game state
+\citep{zhang2026pokegym}, and StarBench one on the turn-based Honkai: Star
+Rail \citep{zhang2025starbench}. Crafter established the single-environment,
 achievement-based design we follow \citep{hafner2021benchmarking}, and
 NetHack remains the deepest environment in use for learned agents
 \citep{kuttler2020nethack}. \bench{} differs from these in running one
 persistent open world with Traditional Chinese as its only text, in verifying
 progress from emulator memory and from the save file of the game, and in
-scoring against the completion condition the game defines, which gives the
-leaderboard a second scale in completion time.
+scoring against the completion condition the game defines.
 
 \subsection{Long-Horizon Evaluation and Its Measurement}
 
@@ -276,8 +281,9 @@ formulation to a year of deterministic business operation
 \citep{fan2026ecommerce}. Both keep perception out of the loop. TextQuests
 shares our self-directed, long-horizon framing while removing vision
 \citep{phan2025textquests}, TextAtari stretches horizons to $10^5$ steps over
-text renderings \citep{li2025textatari}, ARC-AGI-3 isolates fluid agency by
-excluding language and culture \citep{arc2026arcagi3}, and AutumnBench probes
+text renderings \citep{li2025textatari}, ARC-AGI-3 isolates adaptation to
+novel tasks by excluding language and external knowledge
+\citep{arc2026arcagi3}, and AutumnBench probes
 world-model quality through environment-level queries
 \citep{warrier2025benchmarking}. UltraHorizon makes exploration under hidden
 rules the task itself \citep{luo2025ultrahorizon}, and \citet{kapoor2026openworld}
@@ -455,7 +461,7 @@ call reaches.}
 \label{fig:apparatus}
 \end{figure}
 
-\subsection{State-Verifiable Progress}
+\subsection{State-Verified Progress}
 \label{sec:measure}
 
 The game keeps its persistent state in one archive: a base block with the
@@ -669,10 +675,9 @@ inside the opening of the game: \Smap{} of \Nsessions{} sessions reach the
 world map, one holds the compass, and none gains experience, so every rung
 from the companion to the fourteenth book stands open, and the
 \QrandomRungs{} rungs the random baseline reaches mark the floor a model has
-to clear. The environment is adversarial in ways that are named and
-checkable, since the frame is a $320\times200$ isometric render far from the
-training distribution of current models, objectives are stated only in
-Traditional Chinese, and the world supplies no score. Progress is read from
+to clear. The environment is hard in ways that are named and checkable: the
+frame is a $320\times200$ isometric render of 1996 pixel art, objectives are
+stated only in Traditional Chinese, and the world supplies no score. Progress is read from
 the memory of the machine and from a save the game writes for itself, so no
 change on the screen alone can score, and every rung of the ladder is an
 event the model has to cause. The ladder runs to the ending of the game: the
@@ -695,17 +700,10 @@ host of 8 vCPUs and 16\,GiB runs up to 24 concurrent sessions, each holding a
 private copy of the game of about 123\,MB. Emulation is DOSBox Pure through
 libretro at a fixed 26800 cycles, the speed of a 486DX2-66 and
 period-correct for the game, with no sound card, so the observation is visual
-only. Recordings are stored as zlib-compressed deltas over $16\times10$-pixel
-tiles. The published video shows the native $320\times200$ frame above a
-32-pixel strip naming the actor, the action number, the keys held and the
-clock, at \DefaultReplaySpeed{} times speed or faster for long runs, and a
-timeline file of a few kilobytes beside it carries every keypress and its
-hold duration for the replay. A character-state read costs about 1.2\,ms
-through serialisation into a reused buffer and is taken after every action.
-Outside scored runs the server can checkpoint and resume a session and serve
-many visitors from private workers behind one gateway; a scored run has
-neither. The leaderboard is a static page polling published JSON, and only
-the live viewers of a running session, capped at twelve, reach its worker.
+only. The published video runs at \DefaultReplaySpeed{} times speed or faster
+for long runs, with a strip above the frame naming the actor, the action
+number, the keys held and the clock, and a timeline file beside it carries
+every keypress and its hold duration for the replay.
 
 \section{Release and Licensing}
 \label{app:licence}
@@ -728,12 +726,11 @@ object, they will be removed.
 The ending requires the \BookCount{} books, which the game stores as item
 records \BookFirst{} to \BookLast{} of its item table, named after the
 novels: \booklist. A book counts as held when it is in the shared bag or in
-the four carried slots of the protagonist, which is how the final rung of
-the ladder is read.
-With all fourteen in hand and sufficient reputation, the game opens its final
+the four carried slots of the protagonist. With all fourteen in hand and sufficient reputation, the game opens its final
 sequence at a shrine on the far side of the map, where the books are placed
 and a last battle decides the ending \citep{bahamut2023walkthrough}.
 
+\clearpage
 \section{The Field at Submission Time}
 \label{app:field}
 \Cref{tab:results} lists the field, one row per model. A model run more
