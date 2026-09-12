@@ -17,7 +17,7 @@ class TrajectoryTests(unittest.TestCase):
         ], 1):
             events.append({"t": when, "act": "KEY", "on": key})
             events.append({"t": when + .1, "trajectory": True, "action": number,
-                           "x": x, "y": 4, "frontier": frontier,
+                           "x": x, "y": 4, "scene": 1, "frontier": frontier,
                            "screen_changed": changed})
         result = summarize(events, window_size=2)
         self.assertEqual(result["status"], "measured")
@@ -27,6 +27,19 @@ class TrajectoryTests(unittest.TestCase):
         self.assertEqual(result["summary"]["reverse_steps"], 1)
         self.assertEqual(result["summary"]["long_pauses"], 1)
         self.assertEqual(len(result["windows"]), 2)
+
+    def test_reads_scene_transitions_and_missing_samples_do_not_inflate_movement(self):
+        events = [{"t": 0, "act": "GET", "on": "screen"}]
+        for number, (x, scene) in enumerate([(1, 1), (2, 1), (99, 2), (None, 2), (105, 2)], 1):
+            events.extend([
+                {"t": number, "act": "KEY", "on": "right" if number % 2 else "kp7"},
+                {"t": number + .1, "trajectory": True, "action": number,
+                 "x": x, "y": 1, "scene": scene},
+            ])
+        result = summarize(events)
+        self.assertEqual(result["summary"]["actions"], 5)
+        self.assertEqual(result["summary"]["distance"], 1)
+        self.assertEqual(result["summary"]["reverse_steps"], 4)
 
     def test_legacy_recording_reports_action_metrics_without_fake_coordinates(self):
         with tempfile.TemporaryDirectory() as raw:

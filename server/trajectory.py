@@ -1,4 +1,4 @@
-"""Bounded action and trajectory analysis for a JSONL recording.
+"""Action and trajectory analysis for a JSONL recording.
 
 The recording remains the source of truth.  This module only reads it and
 returns measurements that can be compared between windows of one run or
@@ -16,7 +16,7 @@ PAUSE_SECONDS = 5.0
 MAX_LINE = 4 << 20
 
 _DIRECTION = {
-    "up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0),
+    "up": (1, -1), "down": (-1, 1), "left": (-1, -1), "right": (1, 1),
     "kp1": (-1, 1), "kp2": (0, 1), "kp3": (1, 1), "kp4": (-1, 0),
     "kp6": (1, 0), "kp7": (-1, -1), "kp8": (0, -1), "kp9": (1, -1),
 }
@@ -58,10 +58,13 @@ def _window(rows):
                if row["screen_changed"] is not None]
     positions = [(row["x"], row["y"]) for row in rows
                  if row["x"] is not None and row["y"] is not None]
-    distance = None
-    if len(positions) >= 2:
-        distance = sum(max(abs(x2 - x1), abs(y2 - y1))
-                       for (x1, y1), (x2, y2) in zip(positions, positions[1:]))
+    # Missing samples and scene changes break the path; never count a scene
+    # transition or bridge an unobserved segment as walked distance.
+    segments = [max(abs(b["x"] - a["x"]), abs(b["y"] - a["y"]))
+                for a, b in zip(rows, rows[1:])
+                if all(row[axis] is not None for row in (a, b) for axis in ("x", "y"))
+                and a.get("scene") is not None and a["scene"] == b.get("scene")]
+    distance = sum(segments) if segments else None
     frontiers = [row["frontier"] for row in rows if row["frontier"] is not None]
     gain = regressions = None
     if len(frontiers) >= 2:
@@ -100,6 +103,7 @@ def summarize(events, *, window_size=25):
                     "action": action,
                     "t": timestamp,
                     "action_t": _number(event.get("action_t")),
+                    "scene": event.get("scene"),
                     "x": event.get("x") if type(event.get("x")) is int else None,
                     "y": event.get("y") if type(event.get("y")) is int else None,
                     "frontier": _number(event.get("frontier")),
@@ -108,7 +112,7 @@ def summarize(events, *, window_size=25):
                 })
             continue
         name = _action_name(event)
-        if name is None:
+        if name not in ("KEY", "KEYS", "WAIT", "TEXT"):
             continue
         direction = _direction(event)
         reverse = bool(direction and previous_direction
@@ -139,7 +143,7 @@ def summarize(events, *, window_size=25):
                     observation = candidate
                     observations.remove(candidate)
                     break
-        row.update({"x": observation.get("x"), "y": observation.get("y"),
+        row.update({"scene": observation.get("scene"), "x": observation.get("x"), "y": observation.get("y"),
                     "frontier": observation.get("frontier"),
                     "screen_changed": observation.get("screen_changed")})
         rows.append(row)
@@ -169,7 +173,7 @@ def summarize(events, *, window_size=25):
 def read_events(path):
     """Read a recording while rejecting oversized or incomplete lines."""
     with Path(path).open("rb") as stream:
-        for line in stream:
+        for line in iter(lambda: stream.readline(MAX_LINE + 1), b""):
             if len(line) > MAX_LINE:
                 raise ValueError("recording event is too large")
             if not line.endswith(b"\n"):

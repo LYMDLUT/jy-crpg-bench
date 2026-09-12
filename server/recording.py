@@ -204,10 +204,14 @@ class RecordingAPI:
         response = web.StreamResponse(headers={'Content-Type': 'application/x-ndjson' if raw else 'application/json'})
         reader = None
         try:
-            if not raw:
+            if not raw or not include_trajectory:
                 reader = Snapshot(**pin)
             await response.prepare(request)
-            if raw:
+            if raw and not include_trajectory:
+                for _, line in reader.lines(0):
+                    if not json.loads(line).get('trajectory'):
+                        await response.write(line)
+            elif raw:
                 for start in range(0, pin['end'], 64 << 10):
                     await response.write(os.pread(pin['fd'], min(64 << 10, pin['end']-start), start))
             else:

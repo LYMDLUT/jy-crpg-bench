@@ -318,8 +318,10 @@ python3 Scripts/analyze_trajectory.py /path/to/recording.jsonl --window 25
 
 The JSON result includes per-action rows, early/later windows, action gaps,
 long pauses, reversals, screen-change ratio, and position distance/frontier
-regressions when coordinates are available. Comparing the windows shows
-whether later movement is becoming steadier; the `position-unmeasured` status
+regressions when coordinates are available. These are descriptive indicators, not a route-quality score. Distances
+only join consecutive samples in the same recorded scene; missing samples
+and scene changes break the path. Calibration remains off by default, so
+this change does not by itself provide reliable live coordinates. The the `position-unmeasured` status
 marks runs where only action-level smoothness can be assessed.
 Trajectory events are recorder-only data: benchmark callers can continue to
 read the ordinary action/frame journal, while the coordinate-bearing events
