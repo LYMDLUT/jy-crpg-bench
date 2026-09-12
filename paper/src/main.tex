@@ -23,25 +23,32 @@
 % is a run to be added, not a claim to be argued.
 \definecolor{pending}{HTML}{9A3B3B}
 \newcommand{\tbd}[1]{{\color{pending}\small[\,#1\,]}}
-\definecolor{sensitive}{HTML}{1F5AA6}
-\newcommand{\sensitive}[1]{{\color{sensitive}\small[\,#1\,]}}
+% The review build is blind by default.  Set \blindcopyfalse for a named
+% preprint build; the source keeps the metadata available without exposing it
+% in the submitted PDF.
+\newif\ifblindcopy
+\blindcopytrue
 % A page holding only a float starts at the top, not centred.
 \makeatletter\setlength{\@fptop}{0pt}\makeatother
 
-% arXiv preprint build. \iclrfinalcopy keeps the author block and drops the
-% review ruler; the conference running head is cleared after \maketitle. For a
-% blind conference copy, comment \iclrfinalcopy out and replace the hanxiao.io
-% URLs with an anonymous mirror.
+% Blind review is the default.  For an arXiv/preprint build, flip the two
+% standalone switches below; the named build then restores the author block
+% and project links.
+% \blindcopyfalse
 % \iclrfinalcopy
 
 \title{\raggedright\bench{}: Long-Horizon Agency in an \\
 Out-of-Distribution Open-World RPG}
 
-\author{\textcolor{sensitive}{Han Xiao} \\
-\textcolor{sensitive}{\texttt{han.xiao@jina.ai}} \\
-\And
-\textcolor{sensitive}{Yiming Liu} \\
-\textcolor{sensitive}{\texttt{letusgo126@gmail.com}}}
+\ifblindcopy
+  \author{Anonymous authors}
+\else
+  \author{Han Xiao \\
+  \texttt{han.xiao@jina.ai} \\
+  \And
+  Yiming Liu \\
+  \texttt{letusgo126@gmail.com}}
+\fi
 
 \begin{document}
 
@@ -81,7 +88,11 @@ once they finish. We report \NmodelsDistinct{} frontier models against a
 seeded random baseline under a \NbudgetMin{}-minute budget: \Smap{} reach the
 world map and one holds the compass, leaving the campaign behind the ending
 untouched. We release \bench{} as a live, replayable
-public arena at \textcolor{sensitive}{\url{https://github.com/hanxiao/jy-crpg-bench}}.
+\ifblindcopy
+public arena.
+\else
+public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
+\fi
 \end{abstract}
 
 \section{Introduction}
@@ -798,7 +809,12 @@ snapshot the paper is generated from, committed beside the paper source,
 keeps every session.\ifnum\Naliased>0{} The \Naliased{} runs created under a
 name that was not the model, \aliaslist, are listed under the model, and the
 snapshot keeps the declared names.\fi{} The live
-leaderboard at \url{https://hanxiao.io/jy-crpg-bench/} shows the field and
+\ifblindcopy
+leaderboard for the benchmark
+\else
+leaderboard at \url{https://hanxiao.io/jy-crpg-bench/}
+\fi
+shows the field and
 the runs published since.
 
 An earlier field of \NoldSessions{} sessions at a \NoldBudgetMin{}-minute
