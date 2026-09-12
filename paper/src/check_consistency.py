@@ -112,6 +112,39 @@ def main():
     if "never writes a save" in flat:
         ok &= claim("random floor never saved", not any(r.get("saved_at") for r in randoms),
                     "%d random runs" % len(randoms))
+    on_map = [r for r in scored if field.rungs_of(r)[2] is True]
+    if "every one of them credited by the save the game wrote" in flat:
+        ok &= claim("map rung rests on the save",
+                    all(r.get("saved_at") is not None or r.get("world_map_at") is not None for r in on_map),
+                    "%d on the map, %d with a save" % (len(on_map), sum(1 for r in on_map if r.get("saved_at") or r.get("world_map_at"))))
+    holders = [r for r in models if r.get("compass")]
+    if "the compass is the highest the field reaches at this budget, by one session" in flat:
+        ok &= claim("one compass holder, no companion, no book",
+                    len(holders) == 1 and not any((r.get("team_size") or 0) > 1 for r in scored)
+                    and not any((r.get("books") or 0) > 0 for r in scored),
+                    "%d holders: %s" % (len(holders), [r["agent"] for r in holders]))
+    if "no session recruits the companion" in flat:
+        ok &= claim("no companion", not any((r.get("team_size") or 0) > 1 for r in scored),
+                    "%d sessions with a party" % sum(1 for r in scored if (r.get("team_size") or 0) > 1))
+    if "every session ran to its budget, and none was cut short" in flat:
+        ok &= claim("every session ran out its budget", all(r["reason"] == "time" for r in scored),
+                    "reasons %s" % sorted({r["reason"] for r in scored}))
+    if "No run in this field carries a usage report" in flat:
+        ok &= claim("no usage reports", not any(r.get("usage") for r in scored), "%d scored" % len(scored))
+    if "fetched the brief from the session, in English" in flat:
+        langs = set()
+        for r in scored:
+            langs.update((r.get("help_langs") or {}).keys())
+        ok &= claim("brief fetched in English only", langs <= {"en"}, "languages %s" % sorted(langs))
+    if "no fingerprint latched without a save behind it" in flat:
+        ok &= claim("no screen latch without a save",
+                    not any(r.get("bigmap") is True and field.rungs_of(r)[2] is not True for r in scored),
+                    "%d screen latches" % sum(1 for r in scored if r.get("bigmap") is True))
+    if "the two agree on" in flat:
+        ok &= claim("save-only crossing counted",
+                    any(field.rungs_of(r)[2] is True and r.get("bigmap") is not True for r in scored)
+                    == ("crossing that the fingerprint never latched is credited by the save alone" in flat),
+                    "%d save-only crossings" % sum(1 for r in scored if field.rungs_of(r)[2] is True and r.get("bigmap") is not True))
     if "sent a single key before the idle rule" in flat:
         idle = [r for r in scored if r["reason"] == "idle"]
         ok &= claim("idle stub sent one key", bool(idle) and all(r["actions"] == 1 for r in idle),

@@ -1,8 +1,8 @@
 """Figures for the paper.
 
 Every number comes from `catalog_snapshot.json`, a copy of the published
-catalogue (gs://jy-crpg-bench-runs/catalog.json) taken on 7 September 2026.
-Refresh the snapshot and rerun to regenerate all four figures:
+catalogue (gs://jy-crpg-bench-runs/catalog.json) fetched before each build.
+Refresh the snapshot and rerun to regenerate the figures:
 
     python3 figures/make.py
 

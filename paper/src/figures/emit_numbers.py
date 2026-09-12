@@ -128,6 +128,17 @@ lines.append(("% the runs created under a name that was not the model, declared 
               "\\newcommand{\\aliaslist}{" + (" and ".join(_pairs) if _pairs else "none") + "}"))
 emit("Nidle", sum(1 for r in PLAY if r["reason"] == "idle"), "scored sessions ended by the idle rule")
 
+# A model run more than once is reported by its longest session (field.py);
+# the sessions that gives way to it stay in the snapshot and are counted here.
+_every = [r for r in field.load_runs(dedup=False) if r["budget"] == BUDGET and fam(r["agent"]) != "random"]
+_kept = {r["id"] for r in MODELS}
+_dropped = [r for r in _every if r["id"] not in _kept]
+emit("NrepeatModels", len({r["agent"] for r in _dropped}), "models with more than one session")
+emit("NrepeatSessions", len(_dropped), "sessions that give way to a longer one of the same model")
+emit("NrepeatNever", sum(1 for r in _dropped if (r["actions"] or 0) == 0),
+     "of those, sessions that never sent a key")
+emit("NsessionsRaw", len(_every), "model sessions at the default budget in the snapshot")
+
 # ------------------------------------------------------------------- behaviour
 acts = [r["actions"] for r in PLAY]
 emit("EactsTotal", sum(acts))
@@ -218,12 +229,30 @@ emit("Sskills", st.mode([r["skills"] for r in read]))
 emit("SexpAny", sum(1 for r in read if r["exp"] > 0))
 emit("SlevelTwo", sum(1 for r in read if r["level"] > 1))
 
+_on_map = lambda r: field.rungs_of(r)[2] is True
+crossed = [r for r in PLAY if _on_map(r)]
 cross = [r for r in read if r.get("bigmap") is True]
 fade = [r for r in PLAY if r.get("exit_secs") is not None]
 both = [r for r in read if r.get("bigmap") is True and r.get("exit_secs") is not None]
-emit("Smap", len(cross), "sessions whose screen latched the world-map signature")
-emit("Sstayed", len(PLAY) - len(cross),
-     "scored sessions with no world-map contact of any kind")
+emit("Smap", len(crossed), "sessions credited with the world map by the save the game wrote")
+emit("SmapScreen", len(cross), "sessions whose screen latched the world-map signature")
+emit("SmapSaveOnly", sum(1 for r in crossed if r.get("bigmap") is not True),
+     "crossings the save credits that the screen never latched")
+emit("SmapScreenOnly", sum(1 for r in cross if not _on_map(r)),
+     "screen latches with no save behind them")
+emit("Sstayed", len(PLAY) - len(crossed),
+     "scored sessions that never reached the world map")
+
+# The crossing timed by the game: the first save it writes on the world map,
+# measured from the start of the session. Attempts recur every two minutes, so
+# this clock trails the crossing by at most that.
+_saved = [r for r in crossed if r.get("first_saved_at") is not None and r.get("started") is not None]
+_save_min = [(r["first_saved_at"] - r["started"]) / 60.0 for r in _saved]
+if _save_min:
+    emit("SsaveN", len(_saved), "crossings carrying the time of the first save")
+    emit("SsaveMedian", st.median(_save_min), "minutes into the session, median", fmt="%.0f")
+    emit("SsaveFirst", min(_save_min), fmt="%.0f")
+    emit("SsaveLast", max(_save_min), fmt="%.0f")
 
 # The steady-traversal example the behaviour section names: among the model
 # sessions that acted at least as often as the median, the one whose actions
@@ -252,6 +281,15 @@ def _known(key):
 emit("Sitem", sum(1 for r in _known("picked_item") if r["picked_item"]), "sessions that picked something up")
 emit("SitemKnown", len(_known("picked_item")))
 emit("Scompass", sum(1 for r in _known("compass") if r["compass"]), "sessions holding the compass")
+_holders = sorted((r for r in PLAY if r.get("compass")), key=lambda r: r["agent"])
+lines.append(("% the sessions holding the compass, by label",
+              "\\newcommand{\\ScompassLabel}{" + (" and ".join(
+                  "\\texttt{%s}" % r["agent"] for r in _holders) if _holders else "none") + "}"))
+if _holders and _holders[0].get("first_saved_at") is not None:
+    emit("ScompassSaveMin", (_holders[0]["first_saved_at"] - _holders[0]["started"]) / 60.0,
+         "minutes into the session when the compass holder's first save landed", fmt="%.0f")
+    emit("ScompassExitActs", _holders[0].get("exit_acts") or 0,
+         "actions the compass holder had taken at its crossing")
 emit("ScompassKnown", len(_known("compass")))
 emit("Ssaved", sum(1 for r in PLAY if r.get("saved_at")), "sessions whose save the game wrote")
 emit("Steam", sum(1 for r in _known("team_size") if r["team_size"] > 1), "sessions with a companion")

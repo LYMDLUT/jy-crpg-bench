@@ -23,6 +23,8 @@
 % is a run to be added, not a claim to be argued.
 \definecolor{pending}{HTML}{9A3B3B}
 \newcommand{\tbd}[1]{{\color{pending}\small[\,#1\,]}}
+% A page holding only a float starts at the top, not centred.
+\makeatletter\setlength{\@fptop}{0pt}\makeatother
 
 % arXiv preprint build. \iclrfinalcopy keeps the author block and drops the
 % review ruler; the conference running head is cleared after \maketitle. For a
@@ -562,11 +564,16 @@ ladder.
 \section{Evaluation}
 \label{sec:results}
 
-The field at submission is \NmodelsDistinct{} models, one session each at the
-\NbudgetMin{}-minute budget, and a seeded random baseline. A run is listed under the name declared when its session was
-created; two were created under names that were not the model, and are
-listed under the model the operator identified, \aliaslist, with the declared
-names kept in the snapshot. No run in this field carries a usage report, so
+The field at submission is \NmodelsDistinct{} models from \Nvendors{}
+vendors at the \NbudgetMin{}-minute budget, and a seeded random baseline. A
+run is listed under the name declared when its session was created, and a
+model is reported by one session: \NrepeatModels{} models were run more than
+once, and each is reported by the longest session it played, the
+\NrepeatSessions{} others staying in the snapshot, \NrepeatNever{} of them a
+session that never sent a key.\ifnum\Naliased>0{} \Naliased{} runs were created under
+names that were not the model, and are listed under the model the operator
+identified, \aliaslist, with the declared names kept in the snapshot.\fi{}
+No run in this field carries a usage report, so
 tokens and thinking level are not reported, and \Shelp{} of the \Nsessions{}
 sessions fetched the brief from the session, in English, the rest reading the
 published page. Every session is public on the leaderboard with its video,
@@ -576,7 +583,7 @@ the runs by name. This section reads the field for what it says about the
 instrument: how much of the ladder is open, how far it separates models, and
 how a budget is spent.
 
-\tbd{The present field is one run per model. A sweep of repeated
+\tbd{The present field reports one run per model. A sweep of repeated
 runs per model under the fixed harness, and a human
 reference run under the same budget and interface reported to the
 human-baseline checklist \citep{wei2025humanbaselines}, are the two
@@ -584,19 +591,22 @@ additions the field most needs.}
 
 \subsection{Headroom}
 
-Every rung is measured for the first time, and the world map is the highest
-the field reaches at this budget. \Sitem{} of \Nsessions{} sessions pick
-something up, and \Smap{} reach the world map, every one of them credited by
-the save the game wrote; \Sstayed{} spend the whole budget in the scene they
-started in. No session holds the compass, recruits a companion, gains experience or holds a
-book: all \Sread{} character records stand at level \Slevel{} with
+Every rung is measured, and the compass is the highest the field reaches at
+this budget, by one session. \Sitem{} of \Nsessions{} sessions pick something
+up, and \Smap{} reach the world map, every one of them credited by the save
+the game wrote; \Sstayed{} spend the whole budget in the scene they started
+in. One session, \ScompassLabel, holds the compass, which the world offers in
+one place, the cabinet beside the hermit, so it is the first session to clear
+a rung beyond the world map; it does not recruit the companion whose house
+that visit opens. No session recruits a companion, gains experience or holds
+a book: all \Sread{} character records stand at level \Slevel{} with
 \SexpSum{} experience and \Sskills{} skill, the state the session booted
-into, so every rung from the compass on is open. \Cref{fig:ladder} shows the
+into, so every rung from the companion on is open. \Cref{fig:ladder} shows the
 ladder by model. Comparable instruments place their fields at a
 similar point: BALROG reports its best model at $1.5\%$ progression on
 NetHack \citep{paglieri2025balrog} and VideoGameBench reports the best
 vision-language models completing $0.48\%$ of its suite
-\citep{zhang2025videogamebench}. The distance from the world map to the
+\citep{zhang2025videogamebench}. The distance from the compass to the
 fourteen books is the headroom the benchmark holds.
 
 \begin{figure}[t]
@@ -610,9 +620,9 @@ carries no reading for.}
 
 \subsection{Discrimination}
 
-Two rungs divide the field, and they divide it differently. The chest and
+Three rungs divide the field, and they divide it differently. The chest and
 the exit are both in the first room, and the sessions that searched one are
-not the sessions that found the other: \SleftNoItem{} crossed without the
+not all the sessions that found the other: \SleftNoItem{} crossed without the
 chest, \SitemNoLeft{} searched it without crossing, and \Sboth{} did both.
 The count of rungs is therefore a summary of what a run achieved and not a
 position on one path, which is why every rung reached is credited whatever
@@ -620,18 +630,29 @@ the order. The random policy reaches \QrandomRungs{} of the eight rungs in
 \QrandomBudgetMin{} minutes: it acts, and in a small room a random walk
 searches the chest within the hour. It never writes a save, so the world map
 is the first rung a random walk does not reach, and the chest rung separates
-models from one another but not from the floor. Above them the field is
-undivided: no session reaches the compass, which is where the ladder will
-next separate models.
+models from one another but not from the floor. The compass divides the
+field a third time, one session from the rest, and above it the field is
+undivided: no session recruits the companion, which is where the ladder will
+next separate models. The world-map rung also shows why progress is read from
+the machine. The session record keeps, beside the save, a screen fingerprint
+of the world map that the harness latches for its replay; the two agree on
+\SmapScreen{} crossings, and \SmapSaveOnly{} crossing that the fingerprint
+never latched is credited by the save alone, while no fingerprint latched
+without a save behind it.
 
 \subsection{Use of the Budget}
 
-The hour is enough for the first room and not for the compass. \Smap{}
-sessions reached the world map and none reached the cabinet a short walk
-south of the exit; every session used its full budget. The record now carries the time of the
-first save the game writes on the world map, so the crossing time of later
-fields will be read from the game and not from the screen; the present field
-predates it. The protocol supports budgets to twenty-four hours, the setting
+The hour is enough for the first room and, once in the field, for the
+compass. \Smap{} sessions reached the world map and one reached the cabinet a
+walk south of the exit; every session ran to its budget, and none was cut
+short. The crossing is timed by the game: the first save it writes on the
+world map trails the crossing by at most the two-minute cadence of the
+attempts, and by that clock the \SsaveN{} crossings fall between
+\SsaveFirst{} and \SsaveLast{} minutes into the session, median
+\SsaveMedian{}. The session that went on to the compass crossed at
+\ScompassSaveMin{} minutes, after \ScompassExitActs{} actions, and spent
+the rest of the hour beyond the exit without recruiting the companion. The
+protocol supports budgets to twenty-four hours, the setting
 in which the later rungs and a completion time come within reach, and
 deliberation is priced in wall clock, an efficiency framing shared with
 ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}.
@@ -796,10 +817,12 @@ and a last battle decides the ending \citep{bahamut2023walkthrough}.
 
 \section{The Field at Submission Time}
 \label{app:field}
-\Cref{tab:results} lists every published run of the field, one row per model. The two
-runs created under a name that was not the model, \aliaslist, are listed
-under the model, and the catalogue snapshot the paper is generated from,
-committed beside the paper source, keeps the declared names. The live
+\Cref{tab:results} lists the field, one row per model. A model run more
+than once is listed by the longest session it played, and the catalogue
+snapshot the paper is generated from, committed beside the paper source,
+keeps every session.\ifnum\Naliased>0{} The \Naliased{} runs created under a
+name that was not the model, \aliaslist, are listed under the model, and the
+snapshot keeps the declared names.\fi{} The live
 leaderboard at \url{https://hanxiao.io/jy-crpg-bench/} shows the field and
 the runs published since.
 
