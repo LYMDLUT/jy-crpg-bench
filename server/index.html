@@ -265,7 +265,7 @@
   #historyinfo { margin-left: 5px; font-size: 10px; color: #818190; }
   #historypane { display: block; }
   #historyrows { flex: none; overflow: visible; padding: 3px 0; }
-  #historynav { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-top: 1px solid #26262c; background: #101014; }
+  #historynav { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-top: 1px solid #26262c; background: #101014; }
   #historynav button { padding: 4px 7px; font-size: 10px; }
   #historypage { width: 3.5em; padding: 3px 4px; font: inherit; font-size: 10px; text-align: center; }
   #historypages { color: #818190; font-size: 10px; white-space: nowrap; }
@@ -386,10 +386,10 @@
     <span>web <b id="m-web">0</b></span>
   </div>
   <div id="bars"></div>
+  <div id="historynav"><button id="historyfirst" title="最早的截图" disabled>«</button><button id="historyprev" title="上一页" disabled>‹</button><input id="historypage" type="number" min="1" inputmode="numeric" aria-label="历史页码" disabled><span>/ <span id="historypages">—</span></span><button id="historynext" title="下一页" disabled>›</button><button id="historylatest" title="最新 / 刷新" disabled>»</button><span id="historyrange"></span></div>
   <div id="timeline" aria-label="活动时间线">
     <div id="historypane">
       <div id="historyrows"><div class="history-empty">正在读取截图…</div></div>
-      <div id="historynav"><button id="historyfirst" title="最早的截图" disabled>«</button><button id="historyprev" title="上一页" disabled>‹</button><input id="historypage" type="number" min="1" inputmode="numeric" aria-label="历史页码" disabled><span>/ <span id="historypages">—</span></span><button id="historynext" title="下一页" disabled>›</button><button id="historylatest" title="最新 / 刷新" disabled>»</button><span id="historyrange"></span></div>
     </div>
     <button id="image-jump" hidden>Show latest image</button>
     <div id="logrows"><div id="empty">nothing yet. keys you press here, and calls
