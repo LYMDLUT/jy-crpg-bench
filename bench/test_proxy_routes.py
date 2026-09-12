@@ -37,11 +37,14 @@ class PublicSessionRouteTests(unittest.TestCase):
             self.assertFalse(broker.public_session_route(method, path))
 
     def test_public_preflight_and_proxy_responses_allow_cross_origin_reads(self):
-        preflight = broker.proxy_preflight()
+        preflight = broker.proxy_preflight("api/keys")
         self.assertEqual(preflight.status, 204)
         self.assertEqual(preflight.headers["Access-Control-Allow-Origin"], "*")
-        self.assertIn("GET", preflight.headers["Access-Control-Allow-Methods"])
+        self.assertEqual(preflight.headers["Access-Control-Allow-Methods"], "GET, OPTIONS, POST")
         self.assertIn("X-Agent", preflight.headers["Access-Control-Allow-Headers"])
+
+        screen_preflight = broker.proxy_preflight("api/screen")
+        self.assertEqual(screen_preflight.headers["Access-Control-Allow-Methods"], "GET, OPTIONS")
 
         headers = broker.proxy_cors_headers("application/json")
         self.assertEqual(headers["Access-Control-Allow-Origin"], "*")

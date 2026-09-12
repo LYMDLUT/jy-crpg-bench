@@ -381,10 +381,12 @@ def proxy_cors_headers(content_type=None):
     return headers
 
 
-def proxy_preflight():
+def proxy_preflight(path):
+    methods = sorted({method for method, route_path in PUBLIC_SESSION_ROUTES
+                      if route_path == path} | {"OPTIONS"})
     return web.Response(status=204, headers={
         **CORS,
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": ", ".join(methods),
         "Access-Control-Allow-Headers": "Content-Type, X-Agent",
         "Access-Control-Max-Age": "600",
     })
@@ -414,7 +416,7 @@ async def proxy(request):
                                  headers=proxy_cors_headers())
 
     if request.method == "OPTIONS":
-        return proxy_preflight()
+        return proxy_preflight(tail.strip("/"))
 
     url = f"http://127.0.0.1:{sess['port']}/{tail}"
 
