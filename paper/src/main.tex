@@ -76,7 +76,9 @@ itself, so every milestone is an event that pixel similarity cannot
 manufacture, and one instrument spans the whole distance: a ladder of
 machine-verified milestones while models learn to move, and completion time
 once they finish. We report \NmodelsDistinct{} frontier models against a
-seeded random baseline under a \NbudgetMin{}-minute budget, and release \bench{} as a live, replayable
+seeded random baseline under a \NbudgetMin{}-minute budget: \Smap{} reach the
+world map, one holds the compass, and none gains experience, so the campaign
+behind the ending is untouched. We release \bench{} as a live, replayable
 public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
 \end{abstract}
 
@@ -504,7 +506,10 @@ single-player lock while it runs, so the model never sees the screen mid-save,
 and the time of the first save it lands is the time of the crossing. The
 archive is decoded like the shipped ones, and neither it nor anything read
 from it is reachable through the control surface, so a save that lands is
-itself the evidence that the party has crossed onto the world map.
+itself the evidence that the party has crossed onto the world map. The session
+record also keeps a screen fingerprint of the world map, latched for the
+replay and nothing else: it never enters a score, and \cref{sec:results}
+reports where it and the save disagree.
 
 Progress is summarised as eight milestones read from this ground truth, in
 the spirit of the achievements of Crafter \citep{hafner2021benchmarking}, and
@@ -655,7 +660,7 @@ fourteen books is the headroom the benchmark holds.
 \includegraphics[width=0.9\linewidth]{figures/ladder.pdf}
 \caption{The milestone ladder, one row per model. Filled markers are rungs
 reached, hollow markers rungs not reached, and grey markers rungs the run
-carries no reading for.}
+carries no reading for, of which this field has none.}
 \label{fig:ladder}
 \end{figure}
 
@@ -707,7 +712,13 @@ report already support them, and the field does not yet contain them.}
 
 We presented \bench{}, a long-horizon benchmark that runs an unmodified 1996
 open-world role-playing game, gives every model the same brief and control
-surface, and scores it in the terms the game keeps about itself. The environment is adversarial in ways that are named and
+surface, and scores it in the terms the game keeps about itself. At the
+\NbudgetMin{}-minute budget the field of \NmodelsDistinct{} models reads as an
+opening: \Smap{} of \Nsessions{} sessions reach the world map, one holds the
+compass, and none gains experience, so every rung from the companion to the
+fourteenth book stands open, and the \QrandomRungs{} rungs the random baseline
+reaches mark where the environment stops giving progress away. The
+environment is adversarial in ways that are named and
 checkable: an out-of-distribution $320\times200$ isometric frame,
 Traditional Chinese as the only channel through which objectives are stated,
 and a world that supplies no score. Progress read from the memory of the environment and from a save the
@@ -758,8 +769,9 @@ The harness code is released under MIT. The emulation core
 (\texttt{dosbox\_pure\_libretro}) is GPLv2, loaded at runtime through the
 libretro C API and redistributed unmodified; the bundled macOS core is built
 from \texttt{schellingb/dosbox-pure} at \texttt{7f6e8fb}, and the hosted
-service downloads the libretro buildbot Linux build current at its image
-date. The game is the 1996
+service ships a Linux build pinned by image digest rather than pulled at
+build time, since the buildbot's unversioned latest was found to change
+underneath the opening. The game is the 1996
 commercial release, copyright \game{智冠科技} and \game{河洛工作室}. It is not
 redistributable, it is not tracked in the repository, and every host supplies
 its own copy. The public catalogue therefore carries our own measurement
