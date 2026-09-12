@@ -164,6 +164,7 @@ def figure_ladder():
     labels += sorted({r["agent"] for r in PLAY if r["family"] == "Random"})
     fig, ax = plt.subplots(figsize=(7.6, 0.30 * len(labels) + 1.0))
     notes, cells = [], []
+    unmeasured = False
     for row, fam in enumerate(labels):
         frows = [r for r in PLAY if r["agent"] == fam]
         for col in range(len(DEFINITION)):
@@ -171,13 +172,13 @@ def figure_ladder():
             hit = sum(1 for s in states if s is True)
             known = sum(1 for s in states if s is not None)
             if known == 0:
+                unmeasured = True
                 sval = 42.0
                 ax.scatter(col, row, s=sval, facecolor="#e4e4e6",
                           edgecolors="#d0d0d3", linewidths=0.9, zorder=3)
             elif hit:
                 sval = 62.0
-                ax.scatter(col, row, s=sval, marker="o",
-                          color=ACCENT if col >= 3 else INK, zorder=3)
+                ax.scatter(col, row, s=sval, marker="o", color=INK, zorder=3)
             else:
                 sval = 46.0
                 ax.scatter(col, row, s=sval, marker="o", facecolors="white",
@@ -205,11 +206,14 @@ def figure_ladder():
         Line2D([], [], marker="o", ls="", color=INK, ms=7, label="reached"),
         Line2D([], [], marker="o", ls="", markerfacecolor="white",
                markeredgecolor="#8c8c90", ms=7, label="not reached"),
-        Line2D([], [], marker="o", ls="", markerfacecolor="#e4e4e6",
-               markeredgecolor="#d0d0d3", ms=7, label="unmeasured"),
     ]
+    # the third state is drawn only when some run carries no reading, so the
+    # legend never names a marker the figure does not show
+    if unmeasured:
+        handles.append(Line2D([], [], marker="o", ls="", markerfacecolor="#e4e4e6",
+                              markeredgecolor="#d0d0d3", ms=7, label="unmeasured"))
     leg = ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.42, 1.0),
-                   fontsize=7, frameon=False, ncol=3, handletextpad=0.2,
+                   fontsize=7, frameon=False, ncol=len(handles), handletextpad=0.2,
                    columnspacing=1.1)
     fig.tight_layout(pad=0.3)
     # marker boxes are measured after the limits and layout are final, so the
