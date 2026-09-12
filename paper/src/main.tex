@@ -700,7 +700,7 @@ without the compass.
 {\footnotesize (d)} & {\footnotesize (e)} & {\footnotesize (f)} \\
 \includegraphics[width=0.32\linewidth]{figures/frames/g-inn-loop.png} &
 \includegraphics[width=0.32\linewidth]{figures/frames/h-blind-batch.png} &
-\includegraphics[width=0.32\linewidth]{figures/frames/i-stall.png} \\
+\includegraphics[width=0.32\linewidth]{figures/frames/i-shop-loop.png} \\
 {\footnotesize (g)} & {\footnotesize (h)} & {\footnotesize (i)} \\
 \end{tabular}
 \caption{Frames from the published replays, each with the strip of its video
@@ -709,9 +709,9 @@ its coordinates from the compass on the item screen; (b) the same session in
 the conversation of the hermit; (c) \PtalkLongLabel{} is told where the
 compass lies and (d) stands at the cabinet as the budget lapses; (e)
 \PexitActsMaxLabel{} in the yard behind the fence; (f) \PorbitLabel{} passing
-the gate of the hermit; (g) \texttt{grok-4.6} inside an inn; (h)
-\PbatchLabel{} in the middle of a long key list; (i) \PstallLongestLabel{} at
-the action it held for \PstallLongestMin{} minutes.}
+the gate of the hermit; (g) \texttt{grok-4.6} inside an inn and (i)
+\texttt{gpt-5.6-sol} in a shop, each talking to the keeper; (h)
+\PbatchLabel{} in the middle of a long key list.}
 \label{fig:frames}
 \end{figure}
 
@@ -731,13 +731,7 @@ advances the opening.
 \PbatchLabel{} sent lists of up to \PbatchMaxKeys{} keys in one action,
 \PbatchKeysPerAction{} on average, with \PbatchBig{} actions of fifty keys or
 more, so it looked at the screen once for every \PbatchKeysPerAction{} keys it
-pressed. It reached the world map, credited by the save alone, and its last
-action came at minute \PbatchLastMin{}. In \PstallHalf{} sessions more than
-half the hour went to pauses longer than two minutes: \PstallLongestLabel{}
-sent nothing for \PstallLongestMin{} minutes from minute \PstallLongestFrom{},
-and \PstallManyLabel{} paused \PstallManyCount{} times for \PstallManyTotal{}
-minutes in all. The budget is wall clock, so a pause is spent whether the
-model is deliberating or its client has stalled.
+pressed, and it reached the world map credited by the save alone.
 
 \section{Conclusion}
 \label{sec:conclusion}
