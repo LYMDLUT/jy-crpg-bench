@@ -70,7 +70,7 @@ function fixture({enabled = true, handle, decode} = {}) {
     click() { if (!this.disabled) return this.onclick?.({target: this}); }
   }
   const ids = ['historyrows', 'historyinfo', 'historypane', 'timeline',
-    'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historypage', 'historypages', 'historyrange',
+    'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historypage', 'historypages', 'historyrange', 'historysize',
     'play', 'save', 'recordingfiles'];
   const elements = Object.fromEntries(ids.map(id => [id, Object.assign(new Element(), {id})]));
   class TestURL extends URL {
@@ -250,6 +250,27 @@ test('a persisted activity refreshes the same feed and follows only the latest p
     'new persisted activity did not refresh the latest page', state);
   assert.equal(state.elements.logrows.hidden, true);
   assert.equal(state.elements.historyrange.textContent, '9–9 / 9 张');
+});
+
+test('page size can be changed without losing the current record range', async () => {
+  let opened = 0;
+  const state = fixture({handle: call => isOpen(call)
+    ? response({token: 'size-' + (++opened), started: 'same-recording', steps: 20})
+    : standard(call, tokenOf(call), 20)});
+  await until(() => deleted(state).length === 1 && !state.elements.historylatest.disabled,
+    'initial page did not finish', state);
+  state.elements.historysize.value = '16';
+  state.elements.historysize.onchange();
+  await until(() => deleted(state).length === 2 && !state.elements.historylatest.disabled,
+    'page-size change did not finish', state);
+  assert.deepEqual(indices(state), [16, 17, 18, 19]);
+  assert.equal(state.elements.historypages.textContent, '2');
+  assert.equal(state.elements.historyrange.textContent, '17–20 / 20 张');
+  assert.equal(state.requests.filter(isSteps).at(-1).url.searchParams.get('count'), '16');
+  state.elements.historyfirst.click();
+  await until(() => deleted(state).length === 3 && !state.elements.historylatest.disabled,
+    'first page after size change did not finish', state);
+  assert.deepEqual(indices(state), Array.from({length: 16}, (_, i) => i));
 });
 
 test('failed actions visibly retain their failure status and reason', async () => {

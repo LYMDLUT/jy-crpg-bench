@@ -2,15 +2,16 @@
 // history, this is the one rendered feed: the websocket is only a change
 // signal and the page owns eight disk-backed records at a time.
 (() => {
-  const PAGE = 8;
+  const PAGE_SIZES = [8, 16, 32, 64];
   const get = id => document.getElementById(id);
   const endpoint = path => new URL(path, location.href);
   const enabled = document.currentScript?.dataset.historyEnabled !== 'false';
   globalThis.__savedHistoryEnabled = enabled;
-  let start = 0, total = 0, origin = null, busy = false, urls = [];
+  let pageSize = 8, start = 0, total = 0, origin = null, busy = false, urls = [];
   let generation = 0, active = null, reload = false, reloadStart = null, disposed = false;
   let refreshTimer = null;
-  const box = get('historyrows'), info = get('historyinfo');
+  const box = get('historyrows'), info = get('historyinfo'), sizeControl = get('historysize');
+  sizeControl.value = String(pageSize);
   function selectHistory() {
     get('historypane').hidden = false;
     // The live websocket cache is a fallback for benchmark pages where saved
@@ -20,13 +21,14 @@
     if (typeof updateImageJump === 'function') updateImageJump();
   }
   function buttons() {
-    const pages = total ? Math.ceil(total / PAGE) : 0;
-    const page = total ? Math.floor(start / PAGE) + 1 : 0;
+    const pages = total ? Math.ceil(total / pageSize) : 0;
+    const page = total ? Math.floor(start / pageSize) + 1 : 0;
     get('historypage').value = page || '';
     get('historypages').textContent = pages || '—';
     get('historypage').disabled = busy || !pages;
+    sizeControl.disabled = busy || !pages;
     get('historyfirst').disabled = get('historyprev').disabled = busy || start <= 0;
-    get('historynext').disabled = busy || start + PAGE >= total;
+    get('historynext').disabled = busy || start + pageSize >= total;
     get('historylatest').disabled = busy;
   }
   function releaseImages() { urls.forEach(url => URL.revokeObjectURL(url)); urls = []; }
@@ -65,16 +67,15 @@
       if (!Number.isSafeInteger(meta.steps) || meta.steps < 0) throw Error('历史记录数量无法识别。');
       if (origin !== null && origin !== meta.started) requested = null;
       origin = meta.started; total = meta.steps;
-      const pages = total ? Math.ceil(total / PAGE) : 0;
+      const pages = total ? Math.ceil(total / pageSize) : 0;
       const requestedPage = requested === null || requested === undefined
         ? pages
-        : Math.floor(Math.max(0, requested) / PAGE) + 1;
+        : Math.floor(Math.max(0, requested) / pageSize) + 1;
       const pageNumber = pages ? Math.max(1, Math.min(pages, requestedPage)) : 0;
-      // Every page is aligned to the same eight-record boundary. In
-      // particular, a 10,841-record history has page 1,356 starting at
-      // record 10,841, while page 1,355 starts at record 10,833.
-      start = pageNumber ? (pageNumber - 1) * PAGE : 0;
-      const path = `api/replay/${encodeURIComponent(token)}/steps?start=${start}&count=${PAGE}`;
+      // Every page is aligned to the selected page-size boundary. The last
+      // page may be shorter when the total is not an exact multiple.
+      start = pageNumber ? (pageNumber - 1) * pageSize : 0;
+      const path = `api/replay/${encodeURIComponent(token)}/steps?start=${start}&count=${pageSize}`;
       const {data:page} = await request(path, signal);
       check();
       if (!Array.isArray(page.steps)) throw Error('历史截图列表无法读取。');
@@ -157,7 +158,7 @@
       // Keep an old page stable while it is being inspected. If the user was
       // on the last page, follow the new last page so live activity becomes
       // part of the same paginated feed immediately.
-      const requested = total && start + PAGE < total ? start : null;
+      const requested = total && start + pageSize < total ? start : null;
       if (active) {
         reload = true;
         reloadStart = requested;
@@ -167,16 +168,25 @@
     }, 250);
   }
   get('historyfirst').onclick = () => load(0);
-  get('historyprev').onclick = () => load(Math.max(0,start-PAGE));
-  get('historynext').onclick = () => load(start+PAGE);
+  get('historyprev').onclick = () => load(Math.max(0,start-pageSize));
+  get('historynext').onclick = () => load(start+pageSize);
   get('historylatest').onclick = () => load();
   const jump = () => {
-    const pages = total ? Math.ceil(total / PAGE) : 0;
+    const pages = total ? Math.ceil(total / pageSize) : 0;
     const page = Number.parseInt(get('historypage').value, 10);
-    if (pages && Number.isInteger(page)) load(Math.max(0, Math.min(pages, page) - 1) * PAGE);
+    if (pages && Number.isInteger(page)) load(Math.max(0, Math.min(pages, page) - 1) * pageSize);
   };
   get('historypage').onchange = jump;
   get('historypage').onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); jump(); } };
+  sizeControl.onchange = () => {
+    const next = Number.parseInt(sizeControl.value, 10);
+    if (!PAGE_SIZES.includes(next) || next === pageSize) {
+      sizeControl.value = String(pageSize);
+      return;
+    }
+    pageSize = next;
+    load(start);
+  };
   addEventListener('historyinvalidate', invalidate);
   addEventListener('activityrecorded', scheduleRefresh);
   addEventListener('pagehide', event => {
