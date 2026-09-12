@@ -205,7 +205,7 @@ next section reviews game environments as agent benchmarks and the
 measurement problem that long horizons create, \cref{sec:bench} details the
 environment, the interface, the session protocol and the measurement, and
 \cref{sec:results} reports the field: how much of the ladder is open, how far
-it separates models, and how the budget is spent.
+it separates models, how the budget is spent, and what the replays show.
 
 \begin{table}[t]
 \centering
@@ -593,8 +593,8 @@ the \Shelp{} sessions that fetched the brief from the session did so in
 English. Every session is public on the leaderboard with its video, replay
 timeline and metric record, and the catalogue snapshot the paper is generated
 from is committed beside the paper source. \Cref{app:field} lists the runs by
-name. The three subsections that follow report how much of the ladder is
-open, how far it separates models, and how the budget is spent.
+name. The subsections that follow report how much of the ladder is open, how
+far it separates models, how the budget is spent, and what the replays show.
 
 \tbd{The present field reports one run per model. A sweep of repeated
 runs per model under the fixed harness, and a human
@@ -663,6 +663,81 @@ with ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}.
 \tbd{Long runs that exercise the additive long-horizon report are the
 measurement that separates a slow model from a stuck one; the protocol and the
 report already support them, and the field does not yet contain them.}
+
+\subsection{Failure Modes}
+\label{sec:patterns}
+
+The replays show where the hour goes, and \cref{fig:frames} collects one
+frame from each pattern. The session that holds the compass, \ScompassLabel,
+left the compound after \ScompassExitActs{} actions, walked the path south,
+and pressed through the conversation of the hermit in \PtalkHolderMin{}
+minutes at \PtalkHolderPace{} seconds a line before searching the cabinet. It
+then opened the item screen \PholderMenuOpens{} times to read its coordinates
+from the compass, the one instrument the brief recommends, and its
+\PholderArrows{} arrow-key presses all fell inside menus and prompts, never on
+the map. It entered \PscenesMax{} scenes in the hour, and only
+\PscenesThree{} sessions entered three or more. \PtalkLongLabel{} reached the
+same conversation and pressed through its \PtalkLongPresses{} lines at
+\PtalkLongPace{} seconds each, so the conversation took \PtalkLongMin{}
+minutes and ended at minute \PtalkLongEndMin{}. The hermit had named the
+cabinet, \PtalkLongLeftMin{} minutes of budget remained, and the session ended
+without the compass.
+
+% The frames are fixed evidence from this field, picked by hand from the
+% published replays; the labels in the caption are the generated macros, so a
+% regenerated field that changes who holds a pattern has to re-pick them.
+\begin{figure}[t]
+\centering
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}ccc@{}}
+\includegraphics[width=0.32\linewidth]{figures/frames/a-compass-read.png} &
+\includegraphics[width=0.32\linewidth]{figures/frames/b-hermit-talk.png} &
+\includegraphics[width=0.32\linewidth]{figures/frames/c-cabinet-hint.png} \\
+{\footnotesize (a)} & {\footnotesize (b)} & {\footnotesize (c)} \\
+\includegraphics[width=0.32\linewidth]{figures/frames/d-cabinet-end.png} &
+\includegraphics[width=0.32\linewidth]{figures/frames/e-fence-corner.png} &
+\includegraphics[width=0.32\linewidth]{figures/frames/f-gate-orbit.png} \\
+{\footnotesize (d)} & {\footnotesize (e)} & {\footnotesize (f)} \\
+\includegraphics[width=0.32\linewidth]{figures/frames/g-inn-loop.png} &
+\includegraphics[width=0.32\linewidth]{figures/frames/h-blind-batch.png} &
+\includegraphics[width=0.32\linewidth]{figures/frames/i-stall.png} \\
+{\footnotesize (g)} & {\footnotesize (h)} & {\footnotesize (i)} \\
+\end{tabular}
+\caption{Frames from the published replays, each with the strip of its video
+naming the model, the action count and the clock: (a) \ScompassLabel{} reads
+its coordinates from the compass on the item screen; (b) the same session in
+the conversation of the hermit; (c) \PtalkLongLabel{} is told where the
+compass lies and (d) stands at the cabinet as the budget lapses; (e)
+\PexitActsMaxLabel{} in the yard behind the fence; (f) \PorbitLabel{} passing
+the gate of the hermit; (g) \texttt{grok-4.6} inside an inn; (h)
+\PbatchLabel{} in the middle of a long key list; (i) \PstallLongestLabel{} at
+the action it held for \PstallLongestMin{} minutes.}
+\label{fig:frames}
+\end{figure}
+
+The compound is left through a yard closed by a fence with one gate, and the
+yard held several sessions. \PexitActsMaxLabel{} needed \PexitActsMax{} actions to
+cross, against a median of \SexitActs{}, and reached the world map at minute
+\PexitMinMax{} after long stretches pressed into the fence. It is also the one
+session that never pressed enter or space, so the chest in the first room,
+which opens on either, stayed shut. \PorbitLabel{} crossed at minute
+\PorbitExitMin{} and then spent \PorbitActs{} actions and \PorbitMin{} minutes
+on the world map without entering a scene, passing the gate of the hermit
+repeatedly, since the entrance of a walled compound is one tile on one face
+and every other face is solid. Two sessions that found an inn and a shop
+talked to the keeper repeatedly; the reply repeats, and nothing in it
+advances the opening.
+
+\PbatchLabel{} sent lists of up to \PbatchMaxKeys{} keys in one action,
+\PbatchKeysPerAction{} on average, with \PbatchBig{} actions of fifty keys or
+more, so it looked at the screen once for every \PbatchKeysPerAction{} keys it
+pressed. It reached the world map, credited by the save alone, and its last
+action came at minute \PbatchLastMin{}. In \PstallHalf{} sessions more than
+half the hour went to pauses longer than two minutes: \PstallLongestLabel{}
+sent nothing for \PstallLongestMin{} minutes from minute \PstallLongestFrom{},
+and \PstallManyLabel{} paused \PstallManyCount{} times for \PstallManyTotal{}
+minutes in all. The budget is wall clock, so a pause is spent whether the
+model is deliberating or its client has stalled.
 
 \section{Conclusion}
 \label{sec:conclusion}

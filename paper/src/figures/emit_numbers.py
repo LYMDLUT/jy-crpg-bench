@@ -367,6 +367,150 @@ _keys = _ns["KEYS"]
 emit("MkeyNames", len(_keys), "key names the API accepts")
 emit("MkeyCodes", len(set(_keys.values())), "distinct scancodes behind them")
 
+
+# ------------------------------------------------------------ replay patterns
+# Read from the published keypress timelines of the scored sessions, committed
+# in figures/timelines/<id>.json beside the snapshot. A mark's time is on the
+# replay clock, so a minute here is the minute shown in the strip of the video.
+TIMELINES = os.path.join(HERE, "timelines")
+CONFIRM = ("enter", "space")
+STALL_SEC = 120.0
+
+
+def emit_label(name, agent, note=""):
+    lines.append((f"% {note}".rstrip() if note else "", f"\\newcommand{{\\{name}}}{{\\texttt{{{agent}}}}}"))
+
+
+def timeline(r):
+    path = os.path.join(TIMELINES, r["id"] + ".json")
+    if not os.path.exists(path):
+        sys.exit(f"no timeline for {r['agent']} ({r['id']}); fetch runs/{r['id']}.json")
+    t = json.load(open(path, encoding="utf-8"))
+    if t["id"] != r["id"] or len(t["marks"]) != r["actions"]:
+        sys.exit(f"timeline of {r['agent']} disagrees with the catalogue")
+    return t
+
+
+def minutes(t, m):
+    return m["t"] * t["speed"] / 60.0
+
+
+def confirm_runs(t):
+    """Stretches of three or more consecutive actions made only of confirm keys:
+    a conversation pressed through line by line."""
+    out, cur = [], []
+    for m in t["marks"]:
+        ks = [k for k, _ in m["keys"]]
+        if ks and all(k in CONFIRM for k in ks):
+            cur.append(m)
+        else:
+            if len(cur) >= 3:
+                out.append(cur)
+            cur = []
+    if len(cur) >= 3:
+        out.append(cur)
+    return out
+
+
+TL = {r["id"]: timeline(r) for r in PLAY}
+
+# the crossing that took most actions, against the median crossing
+_crossed = [r for r in PLAY if r.get("exit_acts") is not None]
+_slowest = max(_crossed, key=lambda r: r["exit_acts"])
+emit("PexitActsMax", _slowest["exit_acts"], "actions the slowest crossing took")
+emit_label("PexitActsMaxLabel", _slowest["agent"])
+emit("PexitMinMax", _slowest["exit_secs"] / 60.0, "minute of that crossing", fmt="%.0f")
+_noconfirm = [r for r in PLAY if not any((r.get("keys") or {}).get(k) for k in CONFIRM)]
+emit("PnoConfirm", len(_noconfirm), "sessions that never pressed enter or space")
+if len(_noconfirm) != 1 or _slowest["id"] != _noconfirm[0]["id"]:
+    sys.exit("the prose calls the slowest crossing the one session that never confirmed; it no longer is")
+
+# the session that crossed and then never entered a scene
+_orbit = [r for r in _crossed if (r.get("scenes") or 0) <= 2]
+_orb = max(_orbit, key=lambda r: r["actions"] - r["exit_acts"])
+emit_label("PorbitLabel", _orb["agent"])
+emit("PorbitExitMin", _orb["exit_secs"] / 60.0, "minute it crossed", fmt="%.0f")
+emit("PorbitActs", _orb["actions"] - _orb["exit_acts"], "actions it took on the world map afterwards")
+emit("PorbitMin", (_orb["played"] - _orb["exit_secs"]) / 60.0, "minutes it spent there", fmt="%.0f")
+
+# breadth: scenes entered
+_wide = max(PLAY, key=lambda r: r.get("scenes") or 0)
+emit("PscenesMax", _wide["scenes"], "scenes the widest-ranging session entered")
+emit_label("PscenesMaxLabel", _wide["agent"])
+emit("PscenesThree", sum(1 for r in PLAY if (r.get("scenes") or 0) >= 3), "sessions that entered three or more scenes")
+
+# the compass holder: the conversation and the compass reads
+_holder = next(r for r in PLAY if r.get("compass"))
+_ht = TL[_holder["id"]]
+_hruns = confirm_runs(_ht)
+_talk = max(_hruns, key=lambda c: sum(len(m["keys"]) for m in c))
+emit("PtalkHolderPresses", sum(len(m["keys"]) for m in _talk), "confirm presses of its longest conversation")
+_hmin = minutes(_ht, _talk[-1]) - minutes(_ht, _talk[0])
+emit("PtalkHolderMin", _hmin, "minutes that conversation took", fmt="%.0f")
+emit("PtalkHolderPace", 60.0 * _hmin / sum(len(m["keys"]) for m in _talk), "seconds a press", fmt="%.0f")
+
+
+def opens_items(m):
+    ks = [k for k, _ in m["keys"]]
+    return any(ks[i:i + 4] == ["esc", "down", "down", "enter"] for i in range(len(ks) - 3))
+
+
+emit("PholderMenuOpens", sum(1 for m in _ht["marks"] if opens_items(m)), "times it opened the item screen")
+emit("PholderArrows", sum(v for k, v in (_holder.get("keys") or {}).items() if k in ARROWS), "arrow keys it pressed")
+
+# the longest conversation held on the far side of the crossing by a session
+# without the compass: the one that reached the hermit and ran out of time
+_others = [r for r in PLAY if not r.get("compass") and r.get("exit_acts") is not None]
+_best = None
+for r in _others:
+    for c in confirm_runs(TL[r["id"]]):
+        if c[0]["n"] <= r["exit_acts"]:
+            continue
+        n = sum(len(m["keys"]) for m in c)
+        if _best is None or n > _best[0]:
+            _best = (n, r, c)
+_n, _lr, _lc = _best
+_lt = TL[_lr["id"]]
+emit_label("PtalkLongLabel", _lr["agent"])
+emit("PtalkLongPresses", _n, "confirm presses of the longest conversation without the compass")
+_lmin = minutes(_lt, _lc[-1]) - minutes(_lt, _lc[0])
+emit("PtalkLongMin", _lmin, "minutes it took", fmt="%.0f")
+emit("PtalkLongPace", 60.0 * _lmin / _n, "seconds a press", fmt="%.0f")
+emit("PtalkLongEndMin", minutes(_lt, _lc[-1]), "minute it ended", fmt="%.0f")
+emit("PtalkLongLeftMin", _lr["budget"] / 60.0 - minutes(_lt, _lc[-1]), "minutes of budget left then", fmt="%.0f")
+
+# blind batching: the longest key list any action carried
+_lens = {r["id"]: max(len(m["keys"]) for m in TL[r["id"]]["marks"]) for r in PLAY}
+_bid = max(_lens, key=_lens.get)
+_br = next(r for r in PLAY if r["id"] == _bid)
+emit("PbatchMaxKeys", _lens[_bid], "keys in the longest single action")
+emit_label("PbatchLabel", _br["agent"])
+emit("PbatchKeysPerAction", _br["key_events"] / _br["actions"], "its keys per action", fmt="%.0f")
+emit("PbatchBig", sum(1 for m in TL[_bid]["marks"] if len(m["keys"]) >= 50), "its actions of fifty keys or more")
+emit("PbatchLastMin", minutes(TL[_bid], TL[_bid]["marks"][-1]), "minute of its last action", fmt="%.0f")
+if not _br.get("saved_at") or _br.get("bigmap"):
+    sys.exit("the prose says the batching session was credited by the save alone; it no longer is")
+
+# stalls: gaps longer than two minutes between actions
+_stall = {}
+for r in PLAY:
+    t = TL[r["id"]]
+    ms = t["marks"]
+    gaps = [(b["t"] - a["t"]) * t["speed"] for a, b in zip(ms, ms[1:])]
+    big = [g for g in gaps if g > STALL_SEC]
+    _stall[r["id"]] = (len(big), sum(big) / 60.0, max(gaps) / 60.0 if gaps else 0.0,
+                       minutes(t, ms[max(range(len(gaps)), key=gaps.__getitem__)]) if gaps else 0.0)
+emit("PstallHalf", sum(1 for r in PLAY if _stall[r["id"]][1] > r["budget"] / 120.0),
+     "sessions with more than half the budget in gaps over two minutes")
+_long = max(PLAY, key=lambda r: _stall[r["id"]][2])
+emit_label("PstallLongestLabel", _long["agent"])
+emit("PstallLongestMin", _stall[_long["id"]][2], "the longest single gap, minutes", fmt="%.0f")
+emit("PstallLongestFrom", _stall[_long["id"]][3], "minute it began", fmt="%.0f")
+_many = max(PLAY, key=lambda r: _stall[r["id"]][0])
+emit_label("PstallManyLabel", _many["agent"])
+emit("PstallManyCount", _stall[_many["id"]][0], "gaps over two minutes in the most fragmented session")
+emit("PstallManyTotal", _stall[_many["id"]][1], "minutes they add up to", fmt="%.0f")
+
 print("% generated by figures/numbers.py from catalog_snapshot.json and start.state")
 print("% regenerate before editing any number in the paper")
 for comment, body in lines:

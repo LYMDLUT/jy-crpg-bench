@@ -8,7 +8,9 @@ ICLR 2027 submission draft for jy-crpg-bench.
   environment, action-space and apparatus figures; compile each with `pdflatex`
   in `src/figures/` to refresh its PDF
 - every number is generated from committed inputs: `src/figures/catalog_snapshot.json`
-  and `src/figures/start.state` (the savestate every session boots into).
+  and `src/figures/start.state` (the savestate every session boots into),
+  plus `src/figures/timelines/<id>.json`, the published keypress timeline of
+  every scored session, which the replay-pattern macros are read from.
   `figures/emit_numbers.py` writes `figures/numbers.tex`,
   `figures/emit_table.py` writes `tables/aggregate.tex`,
   `figures/make_metrics.py` writes `tables/family.tex` and `tables/runs.tex`,
