@@ -351,6 +351,7 @@ async def api_new(request):
 PUBLIC_SESSION_ROUTES = {
     ("GET", "api/screen"),
     ("GET", "api/help"),
+    ("GET", "api/keys"),
     ("POST", "api/key"),
     ("POST", "api/keys"),
     ("POST", "api/wait"),
@@ -358,11 +359,35 @@ PUBLIC_SESSION_ROUTES = {
 
 
 def public_session_route(method, tail, websocket=False):
-    """Whether an untrusted benchmark client may reach this game route."""
+    """Whether an untrusted benchmark client may reach this game route.
+
+    OPTIONS is accepted only as a CORS preflight for an already public route;
+    it is never a way to probe or reach one of the worker's private routes.
+    """
     path = str(tail or "").strip("/")
     if websocket:
         return method == "GET" and path == "ws"
+    if method == "OPTIONS":
+        return any(route_path == path for _, route_path in PUBLIC_SESSION_ROUTES)
     return (method, path) in PUBLIC_SESSION_ROUTES
+
+
+def proxy_cors_headers(content_type=None):
+    """Headers needed when an agent calls a session from another origin."""
+    headers = dict(CORS)
+    headers["Access-Control-Expose-Headers"] = "X-Bench-Remaining"
+    if content_type:
+        headers["Content-Type"] = content_type
+    return headers
+
+
+def proxy_preflight():
+    return web.Response(status=204, headers={
+        **CORS,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-Agent",
+        "Access-Control-Max-Age": "600",
+    })
 
 
 async def proxy(request):
@@ -385,7 +410,11 @@ async def proxy(request):
     if res or sess["proc"].poll() is not None:
         if res:
             res = await wait_published(sid, res)
-        return web.json_response(ended_payload(sess, res), status=410)
+        return web.json_response(ended_payload(sess, res), status=410,
+                                 headers=proxy_cors_headers())
+
+    if request.method == "OPTIONS":
+        return proxy_preflight()
 
     url = f"http://127.0.0.1:{sess['port']}/{tail}"
 
@@ -402,7 +431,10 @@ async def proxy(request):
             async with http.request(request.method, url, params=request.query,
                                     data=data or None, headers=headers,
                                     timeout=aiohttp.ClientTimeout(total=180)) as r:
-                out = web.StreamResponse(status=r.status, headers={'Content-Type':r.headers.get('Content-Type','application/octet-stream')})
+                out = web.StreamResponse(
+                    status=r.status,
+                    headers=proxy_cors_headers(
+                        r.headers.get('Content-Type', 'application/octet-stream')))
                 out.headers['X-Bench-Remaining'] = str(max(0, int(sess['ends_at'] - time.time())))
                 await out.prepare(request)
                 async for chunk in r.content.iter_chunked(64 << 10):
