@@ -14,6 +14,11 @@
     if (typeof updateImageJump === 'function') updateImageJump();
   }
   function buttons() {
+    const pages = total ? Math.ceil(total / PAGE) : 0;
+    const page = total ? Math.floor(start / PAGE) + 1 : 0;
+    get('historypage').value = page || '';
+    get('historypages').textContent = pages || '—';
+    get('historypage').disabled = busy || !pages;
     get('historyfirst').disabled = get('historyprev').disabled = busy || start <= 0;
     get('historynext').disabled = busy || start + PAGE >= total;
     get('historylatest').disabled = busy;
@@ -134,6 +139,13 @@
   get('historyprev').onclick = () => load(Math.max(0,start-PAGE));
   get('historynext').onclick = () => load(start+PAGE);
   get('historylatest').onclick = () => load();
+  const jump = () => {
+    const pages = total ? Math.ceil(total / PAGE) : 0;
+    const page = Number.parseInt(get('historypage').value, 10);
+    if (pages && Number.isInteger(page)) load(Math.max(0, Math.min(pages, page) - 1) * PAGE);
+  };
+  get('historypage').onchange = jump;
+  get('historypage').onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); jump(); } };
   addEventListener('historyinvalidate', invalidate);
   addEventListener('pagehide', event => {
     if (!event.persisted) {

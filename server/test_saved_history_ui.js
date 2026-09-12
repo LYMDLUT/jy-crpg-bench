@@ -70,7 +70,7 @@ function fixture({enabled = true, handle, decode} = {}) {
     click() { if (!this.disabled) return this.onclick?.({target: this}); }
   }
   const ids = ['historyrows', 'historyinfo', 'historypane', 'timeline',
-    'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historyrange',
+    'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historypage', 'historypages', 'historyrange',
     'play', 'save', 'recordingfiles'];
   const elements = Object.fromEntries(ids.map(id => [id, Object.assign(new Element(), {id})]));
   class TestURL extends URL {
