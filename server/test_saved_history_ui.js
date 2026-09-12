@@ -69,7 +69,7 @@ function fixture({enabled = true, handle, decode} = {}) {
     addEventListener(name, handler) { this['on' + name] = handler; }
     click() { if (!this.disabled) return this.onclick?.({target: this}); }
   }
-  const ids = ['historyrows', 'historyinfo', 'historypane', 'historytab', 'livetab',
+  const ids = ['historyrows', 'historyinfo', 'historypane', 'timeline',
     'logrows', 'historyfirst', 'historyprev', 'historynext', 'historylatest', 'historyrange',
     'play', 'save', 'recordingfiles'];
   const elements = Object.fromEntries(ids.map(id => [id, Object.assign(new Element(), {id})]));
@@ -182,18 +182,14 @@ function standard(call, token = 'new', total = 20, customStep) {
   assert.fail('unexpected request ' + call.url);
 }
 
-test('explicitly disabled history selects realtime and makes no replay request', async () => {
+test('explicitly disabled history leaves the unified timeline without replay requests', async () => {
   const state = fixture({enabled: false, handle: () => assert.fail('disabled history requested the API')});
   await settle();
-  assert.equal(state.elements.historypane.hidden, true);
+  assert.equal(state.elements.historypane.hidden, false);
   assert.equal(state.elements.logrows.hidden, false);
-  assert.equal(state.elements.livetab.getAttribute('aria-selected'), 'true');
-  assert.ok(state.elements.historytab.disabled || state.elements.historytab.hidden,
-    'the unavailable history tab must not be interactive');
   for (const id of ['play', 'save', 'recordingfiles']) {
     assert.equal(state.elements[id].hidden, true, id + ' reads endpoints this server does not have');
   }
-  state.elements.historytab.click();
   state.emit('historyinvalidate');
   await settle();
   assert.equal(state.requests.length, 0);
@@ -203,8 +199,7 @@ test('an ordinary endpoint 404 remains a visible history error', async () => {
   const state = fixture({handle: () => response({}, 404)});
   await until(() => state.elements.historyrows.textContent.includes('历史'), 'history error did not appear', state);
   assert.equal(state.elements.historypane.hidden, false);
-  assert.equal(state.elements.logrows.hidden, true);
-  assert.equal(state.elements.historytab.getAttribute('aria-selected'), 'true');
+  assert.equal(state.elements.logrows.hidden, false);
   assert.match(state.elements.historyrows.textContent, /不可用|失败|重试/);
   assert.equal(state.elements.historylatest.disabled, false);
 });
@@ -219,17 +214,17 @@ test('latest, first, next, and previous pages own eight rows and preserve the us
       'page did not finish', state);
     assert.deepEqual(indices(state), expected);
   }
-  await completed(1, [19, 18, 17, 16, 15, 14, 13, 12]);
+  await completed(1, [12, 13, 14, 15, 16, 17, 18, 19]);
   assert.equal(state.elements.historyrange.textContent, '13–20 / 20 张');
   state.elements.historyfirst.click();
-  await completed(2, [7, 6, 5, 4, 3, 2, 1, 0]);
+  await completed(2, [0, 1, 2, 3, 4, 5, 6, 7]);
   assert.equal(state.elements.historyprev.disabled, true);
   state.elements.historynext.click();
-  await completed(3, [15, 14, 13, 12, 11, 10, 9, 8]);
+  await completed(3, [8, 9, 10, 11, 12, 13, 14, 15]);
   state.elements.historyprev.click();
-  await completed(4, [7, 6, 5, 4, 3, 2, 1, 0]);
+  await completed(4, [0, 1, 2, 3, 4, 5, 6, 7]);
   state.elements.historylatest.click();
-  await completed(5, [19, 18, 17, 16, 15, 14, 13, 12]);
+  await completed(5, [12, 13, 14, 15, 16, 17, 18, 19]);
   assert.equal(state.elements.historynext.disabled, true);
   assert.ok(state.requests.every(call => call.url.pathname.startsWith('/u/test-user/api/replay')));
   assert.ok(state.requests.filter(isOpen).every(call => call.url.searchParams.get('recording') === 'current'));
@@ -361,7 +356,7 @@ for (const stage of ['steps', 'frame', 'blob', 'decode']) {
     else pending.resolve();
     await until(() => deleted(state).includes('fresh') && !state.elements.historylatest.disabled,
       'fresh history did not finish', state);
-    assert.deepEqual(indices(state), [7, 6, 5, 4, 3, 2, 1, 0]);
+    assert.deepEqual(indices(state), [0, 1, 2, 3, 4, 5, 6, 7]);
     assert.ok(state.rows().every(row => row.textContent.includes('new-rec')));
     assert.equal(state.elements.historyrange.textContent, '1–8 / 8 张');
     const staleAppends = state.mutations.slice(invalidatedAt).filter(change =>

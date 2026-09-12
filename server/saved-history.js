@@ -8,15 +8,11 @@
   let start = 0, total = 0, origin = null, busy = false, urls = [];
   let generation = 0, active = null, reload = false, disposed = false;
   const box = get('historyrows'), info = get('historyinfo');
-  function selectHistory(selected) {
-    get('historypane').hidden = !selected;
-    get('logrows').hidden = selected;
-    get('historytab').setAttribute('aria-selected', String(selected));
-    get('livetab').setAttribute('aria-selected', String(!selected));
+  function selectHistory() {
+    get('historypane').hidden = false;
+    get('logrows').hidden = false;
     if (typeof updateImageJump === 'function') updateImageJump();
   }
-  get('historytab').onclick = () => { if (enabled) selectHistory(true); };
-  get('livetab').onclick = () => selectHistory(false);
   function buttons() {
     get('historyfirst').disabled = get('historyprev').disabled = busy || start <= 0;
     get('historynext').disabled = busy || start + PAGE >= total;
@@ -67,7 +63,9 @@
       info.textContent = ' · ' + total.toLocaleString();
       get('historyrange').textContent = total ? `${start+1}–${start+page.steps.length} / ${total} 张` : '0 张';
       const imageRows = [];
-      for (let offset = page.steps.length - 1; offset >= 0; offset--) {
+      // The page is already chronological. Keep older actions above newer ones
+      // so the timeline reads from top to bottom.
+      for (let offset = 0; offset < page.steps.length; offset++) {
         const step = page.steps[offset], index = start + offset;
         const row = document.createElement('article'); row.className = 'saved-row'; row.dataset.step = index;
         const details = document.createElement('div'); details.className = 'saved-meta';
@@ -142,10 +140,9 @@
       active?.controller.abort(); releaseImages();
     }
   });
-  get('historytab').hidden = !enabled;
   // Playback, export and the recordings menu read the same endpoints the
   // history pane does, so where the server has none they are hidden too.
   if (!enabled) for (const id of ['play', 'save', 'recordingfiles']) get(id).hidden = true;
-  selectHistory(enabled);
+  selectHistory();
   if (enabled) load();
 })();

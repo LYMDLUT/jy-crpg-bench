@@ -260,13 +260,11 @@
   #side h2 { flex: none; }
   #meter { color: #8b8b99; }
   #image-jump { margin: 0 12px 8px; align-self: flex-start; font: inherit; font-size: 11px; padding: 4px 8px; }
-  #activitytabs { display: flex; gap: 14px; padding: 0 12px; border-bottom: 1px solid #26262c; flex: none; }
-  #activitytabs button { padding: 9px 0; font-size: 11px; border: 0; border-radius: 0; background: none; color: #7e7e8e; }
-  #activitytabs button[aria-selected=true] { color: #a6d5ff; box-shadow: inset 0 -2px #7fc7ff; }
+  #timeline { flex: 1; min-height: 0; overflow-y: auto; }
   #historyinfo { margin-left: 5px; font-size: 10px; color: #818190; }
-  #historypane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-  #historyrows { overflow-y: auto; flex: 1; min-height: 0; padding: 3px 0; }
-  #historynav { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-top: 1px solid #26262c; flex: none; }
+  #historypane { display: contents; }
+  #historyrows { padding: 3px 0; }
+  #historynav { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-top: 1px solid #26262c; }
   #historynav button { padding: 4px 7px; font-size: 10px; }
   #historyrange { color: #818190; font-size: 10px; }
   .saved-row { padding: 8px 12px 10px; border-bottom: 1px solid #202028; }
@@ -385,17 +383,15 @@
     <span>web <b id="m-web">0</b></span>
   </div>
   <div id="bars"></div>
-  <div id="activitytabs" role="tablist" aria-label="活动记录">
-    <button id="historytab" role="tab" aria-selected="true" aria-controls="historypane">历史截图<span id="historyinfo"></span></button>
-    <button id="livetab" role="tab" aria-selected="false" aria-controls="logrows">实时活动</button>
-  </div>
-  <div id="historypane" role="tabpanel" aria-labelledby="historytab">
-    <div id="historyrows"><div class="history-empty">正在读取截图…</div></div>
-    <div id="historynav"><button id="historyfirst" title="最早的截图" disabled>«</button><button id="historyprev" disabled>← 更早</button><span id="historyrange"></span><button id="historynext" disabled>更晚 →</button><button id="historylatest" title="最新 / 刷新" disabled>↻</button></div>
-  </div>
-  <button id="image-jump" hidden>Show latest image</button>
-  <div id="logrows" role="tabpanel" aria-labelledby="livetab" hidden><div id="empty">nothing yet. keys you press here, and calls
+  <div id="timeline" aria-label="活动时间线">
+    <div id="historypane">
+      <div id="historyrows"><div class="history-empty">正在读取截图…</div></div>
+      <div id="historynav"><button id="historyfirst" title="最早的截图" disabled>«</button><button id="historyprev" disabled>← 更早</button><span id="historyrange"></span><button id="historynext" disabled>更晚 →</button><button id="historylatest" title="最新 / 刷新" disabled>↻</button></div>
+    </div>
+    <button id="image-jump" hidden>Show latest image</button>
+    <div id="logrows"><div id="empty">nothing yet. keys you press here, and calls
     to /api/*, both show up.</div></div>
+  </div>
 </aside>
 </div>
 
@@ -676,6 +672,7 @@ function connect() {
 }
 
 const rows = document.getElementById("logrows");
+const timeline = document.getElementById("timeline");
 const empty = document.getElementById("empty");
 const logcount = document.getElementById("logcount");
 const imageJump = document.getElementById("image-jump");
@@ -1061,12 +1058,12 @@ function addLog(e) {
       ? "Nearest recorded frame before this action" + (e.thumb_at ? " · " + new Date(e.thumb_at * 1000).toLocaleString() : "")
       : "what the API returned";
     img.onclick = () => window.open(e.thumb, "_blank");
-    img.onload = () => { rows.scrollTop = rows.scrollHeight; };
+    img.onload = () => { timeline.scrollTop = timeline.scrollHeight; };
     box.append(img);
     rows.appendChild(box);
   }
   while (rows.children.length > 400) rows.firstChild.remove();
-  rows.scrollTop = rows.scrollHeight;
+  timeline.scrollTop = timeline.scrollHeight;
   logcount.textContent = ++logged;
   updateImageJump();
 }
