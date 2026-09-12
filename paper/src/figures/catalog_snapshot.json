@@ -1,1 +1,6068 @@
-[{"id": "1398af63dfa6", "agent": "claude-sonnet5-high", "started": 1789171405.9637873, "played": 3587, "budget": 3600, "actions": 361, "decision_calls": 361, "reason": "time", "key_events": 1326, "input_frames": 15525, "wait_calls": 0, "ttfa": 12.97, "aps": 0.101, "gap_p50": 9.47, "gap_p95": 20.63, "gap_max": 66.48, "reads": 304, "errors": null, "help_langs": {"en": 2}, "scenes": 2, "frontier": null, "bigmap": true, "exit_acts": 194, "exit_secs": 2064.2, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 4, "picked_item": false, "books": 0, "items_total": 12, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789174993.3776147, "first_saved_at": 1789173486.146797, "meaningful": 0.801, "meaningful_count": 289, "oscillation": 0.014, "curve": [[0, 0], [5, 5], [10, 10], [15, 15], [20, 19], [25, 23], [30, 26], [35, 28], [40, 29], [45, 32], [50, 34], [55, 39], [60, 43], [65, 47], [70, 49], [75, 53], [80, 57], [85, 61], [90, 65], [95, 69], [100, 74], [105, 79], [110, 84], [115, 86], [120, 90], [125, 94], [130, 95], [135, 100], [140, 103], [145, 106], [150, 111], [155, 114], [160, 118], [165, 123], [170, 128], [175, 132], [180, 134], [185, 135], [190, 136], [195, 140], [200, 143], [205, 148], [210, 153], [215, 158], [220, 163], [225, 168], [230, 173], [235, 178], [240, 183], [245, 188], [250, 192], [255, 197], [260, 202], [265, 207], [270, 212], [275, 217], [280, 221], [285, 223], [290, 228], [295, 233], [300, 238], [305, 243], [310, 247], [315, 249], [320, 254], [325, 259], [330, 263], [335, 267], [340, 269], [345, 274], [350, 279], [355, 283], [360, 288]], "keys": {"kp1": 424, "kp3": 355, "kp7": 278, "kp9": 238, "enter": 23, "escape": 6, "down": 1, "right": 1}, "distinct_keys": 8, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-sonnet5-high-1398af63dfa6.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 448.4, "frames": 8967, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-sonnet5-high-1398af63dfa6.jpg", "timeline_url": "runs/1398af63dfa6.json"}, {"id": "c84266b701e8", "agent": "claude-fable5.1-high", "started": 1789171362.710704, "played": 3409, "budget": 3600, "actions": 1592, "decision_calls": 1592, "reason": "time", "key_events": 2016, "input_frames": 20290, "wait_calls": 0, "ttfa": 20.43, "aps": 0.467, "gap_p50": 0.72, "gap_p95": 11.54, "gap_max": 81.3, "reads": 1770, "errors": null, "help_langs": {}, "scenes": 2, "frontier": null, "bigmap": true, "exit_acts": 331, "exit_secs": 781.8, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 4, "picked_item": false, "books": 0, "items_total": 12, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789174947.3095353, "first_saved_at": 1789172202.7750793, "meaningful": 0.83, "meaningful_count": 1322, "oscillation": 0.104, "curve": [[595, 534], [600, 539], [605, 544], [610, 549], [615, 554], [620, 559], [625, 564], [630, 569], [635, 574], [640, 579], [645, 584], [650, 589], [655, 594], [660, 599], [665, 604], [670, 609], [675, 614], [680, 619], [685, 624], [690, 629], [695, 634], [700, 639], [705, 644], [710, 649], [715, 654], [720, 659], [725, 664], [730, 669], [735, 674], [740, 679], [745, 682], [750, 686], [755, 689], [760, 691], [765, 692], [770, 693], [775, 693], [780, 697], [785, 698], [790, 699], [795, 700], [800, 700], [805, 704], [810, 707], [815, 707], [820, 708], [825, 712], [830, 716], [835, 721], [840, 726], [845, 730], [850, 732], [855, 736], [860, 740], [865, 745], [870, 750], [875, 755], [880, 760], [885, 765], [890, 770], [895, 773], [900, 778], [905, 783], [910, 788], [915, 793], [920, 798], [925, 803], [930, 804], [935, 804], [940, 805], [945, 806], [950, 806], [955, 810], [960, 815], [965, 818], [970, 823], [975, 828], [980, 832], [985, 837], [990, 842], [995, 846], [1000, 851], [1005, 853], [1010, 857], [1015, 861], [1020, 864], [1025, 869], [1030, 869], [1035, 869], [1040, 874], [1045, 879], [1050, 884], [1055, 889], [1060, 894], [1065, 899], [1070, 904], [1075, 908], [1080, 911], [1085, 916], [1090, 921], [1095, 926], [1100, 931], [1105, 936], [1110, 941], [1115, 946], [1120, 951], [1125, 956], [1130, 961], [1135, 966], [1140, 971], [1145, 976], [1150, 981], [1155, 986], [1160, 991], [1165, 996], [1170, 1001], [1175, 1005], [1180, 1008], [1185, 1011], [1190, 1016], [1195, 1021], [1200, 1026], [1205, 1031], [1210, 1036], [1215, 1041], [1220, 1046], [1225, 1051], [1230, 1056], [1235, 1061], [1240, 1066], [1245, 1071], [1250, 1076], [1255, 1081], [1260, 1086], [1265, 1091], [1270, 1095], [1275, 1100], [1280, 1100], [1285, 1100], [1290, 1100], [1295, 1105], [1300, 1110], [1305, 1110], [1310, 1110], [1315, 1115], [1320, 1117], [1325, 1117], [1330, 1117], [1335, 1117], [1340, 1121], [1345, 1126], [1350, 1131], [1355, 1136], [1360, 1141], [1365, 1146], [1370, 1151], [1375, 1156], [1380, 1161], [1385, 1166], [1390, 1171], [1395, 1176], [1400, 1181], [1405, 1186], [1410, 1191], [1415, 1196], [1420, 1201], [1425, 1206], [1430, 1211], [1435, 1213], [1440, 1215], [1445, 1220], [1450, 1224], [1455, 1229], [1460, 1234], [1465, 1238], [1470, 1238], [1475, 1239], [1480, 1244], [1485, 1249], [1490, 1250], [1495, 1250], [1500, 1251], [1505, 1256], [1510, 1260], [1515, 1264], [1520, 1269], [1525, 1270], [1530, 1271], [1535, 1275], [1540, 1279], [1545, 1282], [1550, 1283], [1555, 1287], [1560, 1292], [1565, 1297], [1570, 1302], [1575, 1307], [1580, 1310], [1585, 1315], [1590, 1320]], "keys": {"kp1": 632, "kp3": 502, "kp9": 454, "kp7": 402, "enter": 26}, "distinct_keys": 5, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-fable5.1-high-c84266b701e8.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 447.4, "frames": 8948, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-fable5.1-high-c84266b701e8.jpg", "timeline_url": "runs/c84266b701e8.json"}, {"id": "8806d294db69", "agent": "claude-opus5-high", "started": 1789171340.574184, "played": 3599, "budget": 3600, "actions": 341, "decision_calls": 341, "reason": "time", "key_events": 1707, "input_frames": 18430, "wait_calls": 0, "ttfa": 15.83, "aps": 0.095, "gap_p50": 10.42, "gap_p95": 26.44, "gap_max": 38.99, "reads": 251, "errors": null, "help_langs": {}, "scenes": 2, "frontier": null, "bigmap": true, "exit_acts": 146, "exit_secs": 2068.1, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 5, "picked_item": true, "books": 0, "items_total": 212, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789174869.2797627, "first_saved_at": 1789173444.7025614, "meaningful": 0.786, "meaningful_count": 268, "oscillation": 0.015, "curve": [[0, 0], [5, 5], [10, 8], [15, 13], [20, 17], [25, 22], [30, 25], [35, 28], [40, 31], [45, 36], [50, 41], [55, 43], [60, 48], [65, 51], [70, 56], [75, 60], [80, 63], [85, 67], [90, 70], [95, 74], [100, 78], [105, 79], [110, 84], [115, 88], [120, 91], [125, 94], [130, 98], [135, 103], [140, 105], [145, 109], [150, 114], [155, 118], [160, 123], [165, 127], [170, 131], [175, 136], [180, 141], [185, 146], [190, 151], [195, 156], [200, 158], [205, 162], [210, 167], [215, 172], [220, 174], [225, 179], [230, 183], [235, 188], [240, 193], [245, 197], [250, 202], [255, 207], [260, 212], [265, 217], [270, 221], [275, 226], [280, 230], [285, 234], [290, 239], [295, 242], [300, 245], [305, 250], [310, 254], [315, 257], [320, 257], [325, 262], [330, 264], [335, 264], [340, 268]], "keys": {"kp3": 439, "kp7": 413, "kp9": 405, "kp1": 394, "enter": 43, "space": 7, "escape": 4, "right": 1, "down": 1}, "distinct_keys": 9, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-opus5-high-8806d294db69.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 448.0, "frames": 8960, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-opus5-high-8806d294db69.jpg", "timeline_url": "runs/8806d294db69.json"}, {"id": "295b689ac75e", "agent": "glm-5.3-flash", "started": 1789170962.1857264, "played": 3598, "budget": 3600, "actions": 1994, "decision_calls": 1994, "reason": "time", "key_events": 2346, "input_frames": 55838, "wait_calls": 0, "ttfa": 47.66, "aps": 0.554, "gap_p50": 0.91, "gap_p95": 2.4, "gap_max": 112.01, "reads": 2001, "errors": null, "help_langs": {}, "scenes": 2, "frontier": null, "bigmap": true, "exit_acts": 1595, "exit_secs": 2196.4, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 4, "picked_item": false, "books": 0, "items_total": 12, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789174547.7787673, "first_saved_at": 1789173432.8837516, "meaningful": 0.939, "meaningful_count": 1873, "oscillation": 0.252, "curve": [[995, 930], [1000, 935], [1005, 940], [1010, 945], [1015, 950], [1020, 955], [1025, 960], [1030, 965], [1035, 970], [1040, 975], [1045, 980], [1050, 985], [1055, 990], [1060, 995], [1065, 1000], [1070, 1005], [1075, 1010], [1080, 1015], [1085, 1020], [1090, 1025], [1095, 1030], [1100, 1035], [1105, 1040], [1110, 1045], [1115, 1050], [1120, 1055], [1125, 1060], [1130, 1065], [1135, 1070], [1140, 1075], [1145, 1080], [1150, 1085], [1155, 1090], [1160, 1095], [1165, 1100], [1170, 1105], [1175, 1110], [1180, 1115], [1185, 1120], [1190, 1125], [1195, 1130], [1200, 1135], [1205, 1140], [1210, 1145], [1215, 1150], [1220, 1155], [1225, 1160], [1230, 1165], [1235, 1170], [1240, 1175], [1245, 1180], [1250, 1185], [1255, 1190], [1260, 1195], [1265, 1200], [1270, 1205], [1275, 1210], [1280, 1215], [1285, 1220], [1290, 1225], [1295, 1230], [1300, 1235], [1305, 1240], [1310, 1245], [1315, 1250], [1320, 1255], [1325, 1260], [1330, 1265], [1335, 1270], [1340, 1275], [1345, 1280], [1350, 1285], [1355, 1290], [1360, 1295], [1365, 1300], [1370, 1305], [1375, 1310], [1380, 1315], [1385, 1320], [1390, 1325], [1395, 1330], [1400, 1335], [1405, 1340], [1410, 1345], [1415, 1350], [1420, 1355], [1425, 1360], [1430, 1365], [1435, 1370], [1440, 1375], [1445, 1380], [1450, 1385], [1455, 1390], [1460, 1395], [1465, 1400], [1470, 1405], [1475, 1410], [1480, 1415], [1485, 1420], [1490, 1425], [1495, 1429], [1500, 1434], [1505, 1439], [1510, 1444], [1515, 1449], [1520, 1454], [1525, 1459], [1530, 1464], [1535, 1469], [1540, 1474], [1545, 1479], [1550, 1484], [1555, 1489], [1560, 1494], [1565, 1499], [1570, 1504], [1575, 1509], [1580, 1514], [1585, 1518], [1590, 1523], [1595, 1526], [1600, 1531], [1605, 1536], [1610, 1541], [1615, 1546], [1620, 1551], [1625, 1556], [1630, 1561], [1635, 1566], [1640, 1571], [1645, 1576], [1650, 1581], [1655, 1586], [1660, 1591], [1665, 1596], [1670, 1601], [1675, 1606], [1680, 1611], [1685, 1616], [1690, 1621], [1695, 1626], [1700, 1631], [1705, 1636], [1710, 1641], [1715, 1645], [1720, 1650], [1725, 1655], [1730, 1660], [1735, 1664], [1740, 1666], [1745, 1670], [1750, 1674], [1755, 1678], [1760, 1683], [1765, 1687], [1770, 1690], [1775, 1694], [1780, 1699], [1785, 1704], [1790, 1709], [1795, 1714], [1800, 1719], [1805, 1724], [1810, 1729], [1815, 1734], [1820, 1739], [1825, 1743], [1830, 1747], [1835, 1750], [1840, 1754], [1845, 1758], [1850, 1763], [1855, 1768], [1860, 1770], [1865, 1774], [1870, 1778], [1875, 1780], [1880, 1785], [1885, 1789], [1890, 1791], [1895, 1796], [1900, 1801], [1905, 1803], [1910, 1807], [1915, 1812], [1920, 1815], [1925, 1817], [1930, 1820], [1935, 1824], [1940, 1828], [1945, 1833], [1950, 1838], [1955, 1840], [1960, 1843], [1965, 1845], [1970, 1850], [1975, 1855], [1980, 1860], [1985, 1865], [1990, 1870]], "keys": {"kp1": 703, "kp3": 658, "kp7": 514, "kp9": 463, "escape": 8}, "distinct_keys": 5, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-295b689ac75e.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 444.0, "frames": 8880, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-295b689ac75e.jpg", "timeline_url": "runs/295b689ac75e.json"}, {"id": "f9435a1f803b", "agent": "gpt-6-astra", "started": 1789168046.817444, "played": 3599, "budget": 3600, "actions": 250, "decision_calls": 250, "reason": "time", "key_events": 917, "input_frames": 12065, "wait_calls": 0, "ttfa": 26.78, "aps": 0.069, "gap_p50": 11.97, "gap_p95": 26.89, "gap_max": 86.0, "reads": 251, "errors": null, "help_langs": {"en": 1}, "scenes": 11, "frontier": null, "bigmap": true, "exit_acts": 33, "exit_secs": 293.6, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 6, "picked_item": true, "books": 0, "items_total": 20, "compass": true, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789171330.5266457, "first_saved_at": 1789168573.3215377, "meaningful": 0.928, "meaningful_count": 232, "oscillation": 0.02, "curve": [[0, 0], [5, 5], [10, 9], [15, 14], [20, 19], [25, 24], [30, 27], [35, 32], [40, 37], [45, 42], [50, 46], [55, 51], [60, 56], [65, 60], [70, 65], [75, 70], [80, 74], [85, 79], [90, 84], [95, 89], [100, 94], [105, 99], [110, 104], [115, 109], [120, 114], [125, 119], [130, 124], [135, 129], [140, 134], [145, 139], [150, 144], [155, 148], [160, 153], [165, 158], [170, 163], [175, 168], [180, 172], [185, 177], [190, 181], [195, 185], [200, 189], [205, 193], [210, 196], [215, 201], [220, 206], [225, 211], [230, 216], [235, 220], [240, 225], [245, 228], [250, 232]], "keys": {"kp1": 220, "kp9": 204, "kp3": 187, "kp7": 123, "enter": 105, "escape": 36, "down": 35, "right": 7}, "distinct_keys": 8, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-6-astra-f9435a1f803b.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 446.6, "frames": 8932, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-6-astra-f9435a1f803b.jpg", "timeline_url": "runs/f9435a1f803b.json"}, {"id": "0d8c2621e10c", "agent": "gpt-5.6-terra", "started": 1789167842.4243915, "played": 2731, "budget": 3600, "actions": 163, "decision_calls": 163, "reason": "time", "key_events": 3506, "input_frames": 35110, "wait_calls": 0, "ttfa": 11.94, "aps": 0.06, "gap_p50": 13.01, "gap_p95": 38.11, "gap_max": 97.41, "reads": 156, "errors": null, "help_langs": {}, "scenes": 1, "frontier": null, "bigmap": false, "exit_acts": null, "exit_secs": null, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 6, "picked_item": true, "books": 0, "items_total": 25, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789171428.1028965, "first_saved_at": 1789169803.7131176, "meaningful": 0.767, "meaningful_count": 125, "oscillation": 0.031, "curve": [[0, 0], [5, 4], [10, 9], [15, 12], [20, 17], [25, 20], [30, 23], [35, 26], [40, 29], [45, 32], [50, 36], [55, 40], [60, 43], [65, 45], [70, 48], [75, 52], [80, 57], [85, 61], [90, 63], [95, 65], [100, 67], [105, 71], [110, 76], [115, 80], [120, 85], [125, 90], [130, 95], [135, 100], [140, 104], [145, 109], [150, 114], [155, 118], [160, 123]], "keys": {"kp1": 1061, "kp3": 906, "kp7": 788, "kp9": 719, "enter": 22, "down": 6, "escape": 4}, "distinct_keys": 7, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-terra-0d8c2621e10c.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 448.5, "frames": 8970, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-terra-0d8c2621e10c.jpg", "timeline_url": "runs/0d8c2621e10c.json"}, {"id": "0f91a9091a9d", "agent": "gpt-5.6-sol", "started": 1789167818.1818905, "played": 3591, "budget": 3600, "actions": 225, "decision_calls": 225, "reason": "time", "key_events": 2349, "input_frames": 23490, "wait_calls": 0, "ttfa": 23.29, "aps": 0.063, "gap_p50": 14.34, "gap_p95": 25.59, "gap_max": 184.94, "reads": 214, "errors": null, "help_langs": {}, "scenes": 5, "frontier": null, "bigmap": true, "exit_acts": 58, "exit_secs": 662.5, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 7, "picked_item": true, "books": 0, "items_total": 28, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789170112.5696552, "first_saved_at": 1789168708.0875301, "meaningful": 0.88, "meaningful_count": 198, "oscillation": 0.027, "curve": [[0, 0], [5, 4], [10, 9], [15, 14], [20, 17], [25, 22], [30, 26], [35, 31], [40, 36], [45, 41], [50, 46], [55, 49], [60, 54], [65, 59], [70, 64], [75, 68], [80, 73], [85, 78], [90, 83], [95, 88], [100, 93], [105, 98], [110, 102], [115, 107], [120, 111], [125, 115], [130, 120], [135, 125], [140, 129], [145, 133], [150, 138], [155, 143], [160, 148], [165, 153], [170, 158], [175, 163], [180, 168], [185, 172], [190, 176], [195, 179], [200, 183], [205, 186], [210, 191], [215, 194], [220, 195], [225, 198]], "keys": {"kp1": 664, "kp7": 624, "kp3": 506, "kp9": 487, "enter": 53, "space": 14, "escape": 1}, "distinct_keys": 7, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-sol-0f91a9091a9d.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 446.7, "frames": 8933, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-sol-0f91a9091a9d.jpg", "timeline_url": "runs/0f91a9091a9d.json"}, {"id": "f523874509d7", "agent": "gpt-5.6-luna", "started": 1789167783.9904768, "played": 3591, "budget": 3600, "actions": 180, "decision_calls": 180, "reason": "time", "key_events": 330, "input_frames": 9950, "wait_calls": 0, "ttfa": 11.62, "aps": 0.05, "gap_p50": 0.93, "gap_p95": 21.74, "gap_max": 2316.85, "reads": 155, "errors": null, "help_langs": {}, "scenes": 1, "frontier": null, "bigmap": false, "exit_acts": null, "exit_secs": null, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 5, "picked_item": true, "books": null, "items_total": 15, "compass": null, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": null, "team_level": null, "saved_at": null, "first_saved_at": null, "meaningful": 0.739, "meaningful_count": 133, "oscillation": 0.028, "curve": [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20], [25, 25], [30, 30], [35, 35], [40, 40], [45, 45], [50, 49], [55, 53], [60, 57], [65, 61], [70, 65], [75, 68], [80, 71], [85, 73], [90, 75], [95, 77], [100, 80], [105, 82], [110, 85], [115, 87], [120, 90], [125, 92], [130, 96], [135, 99], [140, 103], [145, 107], [150, 112], [155, 113], [160, 115], [165, 119], [170, 123], [175, 128], [180, 133]], "keys": {"kp3": 91, "kp1": 73, "enter": 72, "kp9": 53, "kp7": 41}, "distinct_keys": 5, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-f523874509d7.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 448.1, "frames": 8962, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-f523874509d7.jpg", "timeline_url": "runs/f523874509d7.json"}, {"id": "b7ebb2583197", "agent": "gpt-5.6-luna", "started": 1789167761.6983378, "played": 0, "budget": 3600, "actions": 0, "decision_calls": 0, "reason": "time", "key_events": 0, "input_frames": 0, "wait_calls": 0, "ttfa": null, "aps": 0.0, "gap_p50": null, "gap_p95": null, "gap_max": null, "reads": 0, "errors": null, "help_langs": {}, "scenes": 1, "frontier": 0, "bigmap": false, "exit_acts": null, "exit_secs": null, "level": null, "exp": null, "hp": null, "maxhp": null, "skills": null, "items": null, "reputation": null, "potential": null, "inventory_distinct": null, "picked_item": null, "books": null, "items_total": null, "compass": null, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": null, "team_level": null, "saved_at": null, "first_saved_at": null, "meaningful": 0.0, "meaningful_count": 0, "oscillation": 0.0, "curve": [], "keys": {}, "distinct_keys": 0, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-b7ebb2583197.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 448.3, "frames": 8965, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-b7ebb2583197.jpg", "timeline_url": "runs/b7ebb2583197.json"}, {"id": "900fbb74ad21", "agent": "grok-4.6", "started": 1789167375.3105114, "played": 3588, "budget": 3600, "actions": 346, "decision_calls": 346, "reason": "time", "key_events": 651, "input_frames": 11510, "wait_calls": 0, "ttfa": 16.52, "aps": 0.096, "gap_p50": 9.15, "gap_p95": 23.61, "gap_max": 66.97, "reads": 318, "errors": null, "help_langs": {}, "scenes": 3, "frontier": null, "bigmap": true, "exit_acts": 130, "exit_secs": 948.5, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 5, "picked_item": true, "books": 0, "items_total": 22, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789169010.6686583, "first_saved_at": 1789168372.2325113, "meaningful": 0.801, "meaningful_count": 277, "oscillation": 0.035, "curve": [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20], [25, 25], [30, 30], [35, 35], [40, 40], [45, 45], [50, 50], [55, 55], [60, 60], [65, 63], [70, 67], [75, 71], [80, 76], [85, 80], [90, 82], [95, 82], [100, 84], [105, 88], [110, 92], [115, 95], [120, 100], [125, 104], [130, 107], [135, 112], [140, 117], [145, 122], [150, 127], [155, 132], [160, 137], [165, 141], [170, 145], [175, 149], [180, 153], [185, 158], [190, 163], [195, 168], [200, 172], [205, 177], [210, 181], [215, 185], [220, 189], [225, 194], [230, 198], [235, 203], [240, 208], [245, 213], [250, 217], [255, 221], [260, 226], [265, 229], [270, 233], [275, 236], [280, 239], [285, 244], [290, 247], [295, 250], [300, 254], [305, 255], [310, 258], [315, 260], [320, 262], [325, 266], [330, 269], [335, 273], [340, 274], [345, 276]], "keys": {"kp1": 163, "kp7": 142, "kp3": 130, "kp9": 106, "enter": 76, "space": 34}, "distinct_keys": 6, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/grok-4.6-900fbb74ad21.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 446.7, "frames": 8933, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/grok-4.6-900fbb74ad21.jpg", "timeline_url": "runs/900fbb74ad21.json"}, {"id": "48d439b06486", "agent": "glm-5.3-flash", "started": 1789167154.3874574, "played": 3570, "budget": 3600, "actions": 920, "decision_calls": 920, "reason": "time", "key_events": 1101, "input_frames": 26730, "wait_calls": 0, "ttfa": 20.46, "aps": 0.258, "gap_p50": 0.91, "gap_p95": 18.59, "gap_max": 215.57, "reads": 934, "errors": null, "help_langs": {"en": 1}, "scenes": 1, "frontier": null, "bigmap": false, "exit_acts": null, "exit_secs": null, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 5, "picked_item": true, "books": null, "items_total": 15, "compass": null, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": null, "team_level": null, "saved_at": null, "first_saved_at": null, "meaningful": 0.866, "meaningful_count": 797, "oscillation": 0.259, "curve": [[0, 0], [5, 5], [10, 10], [15, 13], [20, 17], [25, 21], [30, 24], [35, 26], [40, 31], [45, 35], [50, 37], [55, 41], [60, 43], [65, 46], [70, 49], [75, 51], [80, 54], [85, 56], [90, 61], [95, 65], [100, 68], [105, 68], [110, 72], [115, 76], [120, 81], [125, 81], [130, 81], [135, 81], [140, 81], [145, 83], [150, 87], [155, 91], [160, 93], [165, 98], [170, 102], [175, 106], [180, 111], [185, 115], [190, 119], [195, 123], [200, 128], [205, 132], [210, 136], [215, 139], [220, 142], [225, 146], [230, 151], [235, 156], [240, 159], [245, 163], [250, 168], [255, 172], [260, 174], [265, 177], [270, 180], [275, 185], [280, 190], [285, 195], [290, 200], [295, 205], [300, 210], [305, 215], [310, 220], [315, 225], [320, 230], [325, 235], [330, 240], [335, 245], [340, 250], [345, 255], [350, 259], [355, 264], [360, 269], [365, 274], [370, 279], [375, 284], [380, 289], [385, 293], [390, 298], [395, 303], [400, 308], [405, 313], [410, 318], [415, 323], [420, 328], [425, 333], [430, 338], [435, 342], [440, 347], [445, 352], [450, 357], [455, 362], [460, 367], [465, 372], [470, 376], [475, 381], [480, 385], [485, 390], [490, 394], [495, 398], [500, 403], [505, 408], [510, 413], [515, 418], [520, 423], [525, 428], [530, 433], [535, 438], [540, 443], [545, 448], [550, 453], [555, 458], [560, 463], [565, 468], [570, 473], [575, 478], [580, 483], [585, 488], [590, 493], [595, 498], [600, 503], [605, 508], [610, 513], [615, 518], [620, 523], [625, 528], [630, 533], [635, 538], [640, 543], [645, 548], [650, 553], [655, 558], [660, 563], [665, 568], [670, 573], [675, 578], [680, 583], [685, 588], [690, 593], [695, 598], [700, 603], [705, 608], [710, 613], [715, 618], [720, 623], [725, 627], [730, 632], [735, 636], [740, 641], [745, 646], [750, 651], [755, 656], [760, 661], [765, 666], [770, 671], [775, 676], [780, 680], [785, 683], [790, 687], [795, 691], [800, 696], [805, 700], [810, 704], [815, 708], [820, 712], [825, 717], [830, 722], [835, 727], [840, 732], [845, 737], [850, 742], [855, 746], [860, 751], [865, 756], [870, 761], [875, 766], [880, 771], [885, 776], [890, 781], [895, 786], [900, 790], [905, 791], [910, 791], [915, 792], [920, 797]], "keys": {"kp1": 331, "kp3": 284, "kp7": 250, "kp9": 218, "space": 17, "enter": 1}, "distinct_keys": 6, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-48d439b06486.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 445.6, "frames": 8911, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-48d439b06486.jpg", "timeline_url": "runs/48d439b06486.json"}, {"id": "c12c28d128a7", "agent": "gemini-3.6-flash", "started": 1789166713.116093, "played": 3597, "budget": 3600, "actions": 58, "decision_calls": 58, "reason": "time", "key_events": 201, "input_frames": 2010, "wait_calls": 0, "ttfa": 13.96, "aps": 0.016, "gap_p50": 15.75, "gap_p95": 279.12, "gap_max": 468.67, "reads": 60, "errors": null, "help_langs": {}, "scenes": 1, "frontier": null, "bigmap": false, "exit_acts": null, "exit_secs": null, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 4, "picked_item": false, "books": null, "items_total": 12, "compass": null, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": null, "team_level": null, "saved_at": null, "first_saved_at": null, "meaningful": 0.741, "meaningful_count": 43, "oscillation": 0.086, "curve": [[0, 0], [5, 4], [10, 9], [15, 13], [20, 17], [25, 19], [30, 22], [35, 25], [40, 29], [45, 30], [50, 35], [55, 40]], "keys": {"kp1": 77, "kp3": 69, "kp7": 24, "kp9": 17, "enter": 14}, "distinct_keys": 5, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.6-flash-c12c28d128a7.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 448.1, "frames": 8962, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.6-flash-c12c28d128a7.jpg", "timeline_url": "runs/c12c28d128a7.json"}, {"id": "ae695d618b53", "agent": "gemini-3.7-flash", "started": 1789166553.2801857, "played": 3526, "budget": 3600, "actions": 102, "decision_calls": 102, "reason": "time", "key_events": 663, "input_frames": 6630, "wait_calls": 0, "ttfa": 26.41, "aps": 0.029, "gap_p50": 15.54, "gap_p95": 220.65, "gap_max": 387.64, "reads": 104, "errors": null, "help_langs": {}, "scenes": 2, "frontier": null, "bigmap": true, "exit_acts": 64, "exit_secs": 1633.2, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 6, "picked_item": true, "books": 0, "items_total": 122, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789170140.83382, "first_saved_at": 1789168295.6779022, "meaningful": 0.882, "meaningful_count": 90, "oscillation": 0.029, "curve": [[0, 0], [5, 5], [10, 10], [15, 15], [20, 18], [25, 23], [30, 26], [35, 30], [40, 32], [45, 37], [50, 42], [55, 44], [60, 49], [65, 54], [70, 59], [75, 64], [80, 69], [85, 74], [90, 78], [95, 83], [100, 88]], "keys": {"kp1": 300, "kp3": 163, "kp7": 116, "kp9": 54, "enter": 14, "space": 9, "escape": 4, "down": 2, "n": 1}, "distinct_keys": 9, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.7-flash-ae695d618b53.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 446.7, "frames": 8933, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.7-flash-ae695d618b53.jpg", "timeline_url": "runs/ae695d618b53.json"}, {"id": "9f5557c5b6b5", "agent": "gemini-3.8-flash", "started": 1789166365.836144, "played": 3592, "budget": 3600, "actions": 185, "decision_calls": 185, "reason": "time", "key_events": 562, "input_frames": 5620, "wait_calls": 0, "ttfa": 94.69, "aps": 0.052, "gap_p50": 19.97, "gap_p95": 28.28, "gap_max": 49.15, "reads": 186, "errors": null, "help_langs": {}, "scenes": 3, "frontier": null, "bigmap": true, "exit_acts": 86, "exit_secs": 1265.9, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 6, "picked_item": true, "books": 0, "items_total": 27, "compass": false, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": 1, "team_level": 1, "saved_at": 1789168455.9620874, "first_saved_at": 1789167689.8768866, "meaningful": 0.832, "meaningful_count": 154, "oscillation": 0.022, "curve": [[0, 0], [5, 3], [10, 5], [15, 10], [20, 14], [25, 18], [30, 22], [35, 25], [40, 29], [45, 32], [50, 35], [55, 36], [60, 40], [65, 45], [70, 47], [75, 51], [80, 55], [85, 59], [90, 64], [95, 69], [100, 74], [105, 79], [110, 84], [115, 89], [120, 94], [125, 98], [130, 103], [135, 107], [140, 112], [145, 117], [150, 122], [155, 127], [160, 132], [165, 137], [170, 142], [175, 147], [180, 151], [185, 154]], "keys": {"kp1": 177, "kp3": 121, "kp9": 105, "kp7": 82, "enter": 66, "space": 6, "down": 3, "escape": 1, "right": 1}, "distinct_keys": 9, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.8-flash-9f5557c5b6b5.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 437.3, "frames": 8746, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.8-flash-9f5557c5b6b5.jpg", "timeline_url": "runs/9f5557c5b6b5.json"}, {"id": "da3cba637fcb", "agent": "random-baseline", "started": 1789159181.0302124, "played": 3599, "budget": 3600, "actions": 2110, "decision_calls": 2110, "reason": "time", "key_events": 2110, "input_frames": 21100, "wait_calls": 0, "ttfa": 0.22, "aps": 0.586, "gap_p50": 1.34, "gap_p95": 3.89, "gap_max": 63.26, "reads": 0, "errors": null, "help_langs": {}, "scenes": 1, "frontier": null, "bigmap": false, "exit_acts": null, "exit_secs": null, "level": 1, "exp": 0, "hp": 38, "maxhp": 38, "skills": 1, "items": null, "reputation": 0, "potential": 79, "inventory_distinct": 6, "picked_item": true, "books": null, "items_total": 18, "compass": null, "completion_secs": null, "party_size": null, "world_map_at": null, "team_size": null, "team_level": null, "saved_at": null, "first_saved_at": null, "meaningful": 0.424, "meaningful_count": 894, "oscillation": 0.053, "curve": [[1115, 438], [1120, 438], [1125, 440], [1130, 443], [1135, 447], [1140, 451], [1145, 454], [1150, 458], [1155, 458], [1160, 460], [1165, 462], [1170, 465], [1175, 467], [1180, 471], [1185, 472], [1190, 476], [1195, 480], [1200, 483], [1205, 488], [1210, 493], [1215, 495], [1220, 498], [1225, 502], [1230, 503], [1235, 504], [1240, 508], [1245, 513], [1250, 516], [1255, 517], [1260, 519], [1265, 524], [1270, 528], [1275, 531], [1280, 534], [1285, 538], [1290, 541], [1295, 545], [1300, 548], [1305, 550], [1310, 552], [1315, 552], [1320, 554], [1325, 554], [1330, 555], [1335, 555], [1340, 556], [1345, 556], [1350, 558], [1355, 559], [1360, 559], [1365, 559], [1370, 562], [1375, 562], [1380, 562], [1385, 562], [1390, 563], [1395, 564], [1400, 565], [1405, 565], [1410, 566], [1415, 566], [1420, 569], [1425, 569], [1430, 571], [1435, 575], [1440, 576], [1445, 577], [1450, 578], [1455, 580], [1460, 582], [1465, 586], [1470, 588], [1475, 590], [1480, 591], [1485, 593], [1490, 595], [1495, 597], [1500, 602], [1505, 605], [1510, 608], [1515, 612], [1520, 614], [1525, 619], [1530, 622], [1535, 627], [1540, 630], [1545, 632], [1550, 633], [1555, 635], [1560, 635], [1565, 637], [1570, 639], [1575, 644], [1580, 649], [1585, 653], [1590, 658], [1595, 660], [1600, 661], [1605, 663], [1610, 665], [1615, 667], [1620, 667], [1625, 667], [1630, 669], [1635, 671], [1640, 671], [1645, 675], [1650, 677], [1655, 679], [1660, 682], [1665, 685], [1670, 686], [1675, 687], [1680, 690], [1685, 693], [1690, 696], [1695, 701], [1700, 701], [1705, 703], [1710, 704], [1715, 707], [1720, 709], [1725, 710], [1730, 712], [1735, 715], [1740, 718], [1745, 722], [1750, 724], [1755, 726], [1760, 727], [1765, 727], [1770, 727], [1775, 728], [1780, 732], [1785, 734], [1790, 738], [1795, 738], [1800, 740], [1805, 742], [1810, 747], [1815, 750], [1820, 753], [1825, 757], [1830, 758], [1835, 761], [1840, 764], [1845, 768], [1850, 772], [1855, 776], [1860, 779], [1865, 784], [1870, 788], [1875, 791], [1880, 795], [1885, 799], [1890, 800], [1895, 804], [1900, 808], [1905, 812], [1910, 814], [1915, 817], [1920, 818], [1925, 821], [1930, 825], [1935, 827], [1940, 828], [1945, 832], [1950, 836], [1955, 836], [1960, 841], [1965, 845], [1970, 849], [1975, 853], [1980, 855], [1985, 860], [1990, 862], [1995, 863], [2000, 864], [2005, 867], [2010, 870], [2015, 871], [2020, 872], [2025, 876], [2030, 878], [2035, 879], [2040, 882], [2045, 883], [2050, 883], [2055, 884], [2060, 884], [2065, 884], [2070, 884], [2075, 887], [2080, 887], [2085, 887], [2090, 889], [2095, 890], [2100, 891], [2105, 893], [2110, 894]], "keys": {"kp3": 353, "kp7": 345, "kp1": 340, "kp9": 330, "enter": 294, "space": 102, "escape": 81, "y": 48, "left": 46, "right": 46, "up": 45, "down": 40, "n": 40}, "distinct_keys": 13, "valid": true, "complete": true, "why": "the full 60 minutes budget was used", "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/random-baseline-da3cba637fcb.mp4", "rendered_artifacts_uploaded": true, "error": null, "video": {"seconds": 449.8, "frames": 8996, "size": "320x232", "speed": 8.0}, "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/random-baseline-da3cba637fcb.jpg", "timeline_url": "runs/da3cba637fcb.json"}]
+[
+ {
+  "id": "1398af63dfa6",
+  "agent": "claude-sonnet5-high",
+  "started": 1789171405.9637873,
+  "played": 3587,
+  "budget": 3600,
+  "actions": 361,
+  "decision_calls": 361,
+  "reason": "time",
+  "key_events": 1326,
+  "input_frames": 15525,
+  "wait_calls": 0,
+  "ttfa": 12.97,
+  "aps": 0.101,
+  "gap_p50": 9.47,
+  "gap_p95": 20.63,
+  "gap_max": 66.48,
+  "reads": 304,
+  "errors": null,
+  "help_langs": {
+   "en": 2
+  },
+  "scenes": 2,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 194,
+  "exit_secs": 2064.2,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 4,
+  "picked_item": false,
+  "books": 0,
+  "items_total": 12,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789174993.3776147,
+  "first_saved_at": 1789173486.146797,
+  "meaningful": 0.801,
+  "meaningful_count": 289,
+  "oscillation": 0.014,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    20,
+    19
+   ],
+   [
+    25,
+    23
+   ],
+   [
+    30,
+    26
+   ],
+   [
+    35,
+    28
+   ],
+   [
+    40,
+    29
+   ],
+   [
+    45,
+    32
+   ],
+   [
+    50,
+    34
+   ],
+   [
+    55,
+    39
+   ],
+   [
+    60,
+    43
+   ],
+   [
+    65,
+    47
+   ],
+   [
+    70,
+    49
+   ],
+   [
+    75,
+    53
+   ],
+   [
+    80,
+    57
+   ],
+   [
+    85,
+    61
+   ],
+   [
+    90,
+    65
+   ],
+   [
+    95,
+    69
+   ],
+   [
+    100,
+    74
+   ],
+   [
+    105,
+    79
+   ],
+   [
+    110,
+    84
+   ],
+   [
+    115,
+    86
+   ],
+   [
+    120,
+    90
+   ],
+   [
+    125,
+    94
+   ],
+   [
+    130,
+    95
+   ],
+   [
+    135,
+    100
+   ],
+   [
+    140,
+    103
+   ],
+   [
+    145,
+    106
+   ],
+   [
+    150,
+    111
+   ],
+   [
+    155,
+    114
+   ],
+   [
+    160,
+    118
+   ],
+   [
+    165,
+    123
+   ],
+   [
+    170,
+    128
+   ],
+   [
+    175,
+    132
+   ],
+   [
+    180,
+    134
+   ],
+   [
+    185,
+    135
+   ],
+   [
+    190,
+    136
+   ],
+   [
+    195,
+    140
+   ],
+   [
+    200,
+    143
+   ],
+   [
+    205,
+    148
+   ],
+   [
+    210,
+    153
+   ],
+   [
+    215,
+    158
+   ],
+   [
+    220,
+    163
+   ],
+   [
+    225,
+    168
+   ],
+   [
+    230,
+    173
+   ],
+   [
+    235,
+    178
+   ],
+   [
+    240,
+    183
+   ],
+   [
+    245,
+    188
+   ],
+   [
+    250,
+    192
+   ],
+   [
+    255,
+    197
+   ],
+   [
+    260,
+    202
+   ],
+   [
+    265,
+    207
+   ],
+   [
+    270,
+    212
+   ],
+   [
+    275,
+    217
+   ],
+   [
+    280,
+    221
+   ],
+   [
+    285,
+    223
+   ],
+   [
+    290,
+    228
+   ],
+   [
+    295,
+    233
+   ],
+   [
+    300,
+    238
+   ],
+   [
+    305,
+    243
+   ],
+   [
+    310,
+    247
+   ],
+   [
+    315,
+    249
+   ],
+   [
+    320,
+    254
+   ],
+   [
+    325,
+    259
+   ],
+   [
+    330,
+    263
+   ],
+   [
+    335,
+    267
+   ],
+   [
+    340,
+    269
+   ],
+   [
+    345,
+    274
+   ],
+   [
+    350,
+    279
+   ],
+   [
+    355,
+    283
+   ],
+   [
+    360,
+    288
+   ]
+  ],
+  "keys": {
+   "kp1": 424,
+   "kp3": 355,
+   "kp7": 278,
+   "kp9": 238,
+   "enter": 23,
+   "escape": 6,
+   "down": 1,
+   "right": 1
+  },
+  "distinct_keys": 8,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-sonnet5-high-1398af63dfa6.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 448.4,
+   "frames": 8967,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-sonnet5-high-1398af63dfa6.jpg",
+  "timeline_url": "runs/1398af63dfa6.json"
+ },
+ {
+  "id": "c84266b701e8",
+  "agent": "claude-fable5.1-high",
+  "started": 1789171362.710704,
+  "played": 3409,
+  "budget": 3600,
+  "actions": 1592,
+  "decision_calls": 1592,
+  "reason": "time",
+  "key_events": 2016,
+  "input_frames": 20290,
+  "wait_calls": 0,
+  "ttfa": 20.43,
+  "aps": 0.467,
+  "gap_p50": 0.72,
+  "gap_p95": 11.54,
+  "gap_max": 81.3,
+  "reads": 1770,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 2,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 331,
+  "exit_secs": 781.8,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 4,
+  "picked_item": false,
+  "books": 0,
+  "items_total": 12,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789174947.3095353,
+  "first_saved_at": 1789172202.7750793,
+  "meaningful": 0.83,
+  "meaningful_count": 1322,
+  "oscillation": 0.104,
+  "curve": [
+   [
+    595,
+    534
+   ],
+   [
+    600,
+    539
+   ],
+   [
+    605,
+    544
+   ],
+   [
+    610,
+    549
+   ],
+   [
+    615,
+    554
+   ],
+   [
+    620,
+    559
+   ],
+   [
+    625,
+    564
+   ],
+   [
+    630,
+    569
+   ],
+   [
+    635,
+    574
+   ],
+   [
+    640,
+    579
+   ],
+   [
+    645,
+    584
+   ],
+   [
+    650,
+    589
+   ],
+   [
+    655,
+    594
+   ],
+   [
+    660,
+    599
+   ],
+   [
+    665,
+    604
+   ],
+   [
+    670,
+    609
+   ],
+   [
+    675,
+    614
+   ],
+   [
+    680,
+    619
+   ],
+   [
+    685,
+    624
+   ],
+   [
+    690,
+    629
+   ],
+   [
+    695,
+    634
+   ],
+   [
+    700,
+    639
+   ],
+   [
+    705,
+    644
+   ],
+   [
+    710,
+    649
+   ],
+   [
+    715,
+    654
+   ],
+   [
+    720,
+    659
+   ],
+   [
+    725,
+    664
+   ],
+   [
+    730,
+    669
+   ],
+   [
+    735,
+    674
+   ],
+   [
+    740,
+    679
+   ],
+   [
+    745,
+    682
+   ],
+   [
+    750,
+    686
+   ],
+   [
+    755,
+    689
+   ],
+   [
+    760,
+    691
+   ],
+   [
+    765,
+    692
+   ],
+   [
+    770,
+    693
+   ],
+   [
+    775,
+    693
+   ],
+   [
+    780,
+    697
+   ],
+   [
+    785,
+    698
+   ],
+   [
+    790,
+    699
+   ],
+   [
+    795,
+    700
+   ],
+   [
+    800,
+    700
+   ],
+   [
+    805,
+    704
+   ],
+   [
+    810,
+    707
+   ],
+   [
+    815,
+    707
+   ],
+   [
+    820,
+    708
+   ],
+   [
+    825,
+    712
+   ],
+   [
+    830,
+    716
+   ],
+   [
+    835,
+    721
+   ],
+   [
+    840,
+    726
+   ],
+   [
+    845,
+    730
+   ],
+   [
+    850,
+    732
+   ],
+   [
+    855,
+    736
+   ],
+   [
+    860,
+    740
+   ],
+   [
+    865,
+    745
+   ],
+   [
+    870,
+    750
+   ],
+   [
+    875,
+    755
+   ],
+   [
+    880,
+    760
+   ],
+   [
+    885,
+    765
+   ],
+   [
+    890,
+    770
+   ],
+   [
+    895,
+    773
+   ],
+   [
+    900,
+    778
+   ],
+   [
+    905,
+    783
+   ],
+   [
+    910,
+    788
+   ],
+   [
+    915,
+    793
+   ],
+   [
+    920,
+    798
+   ],
+   [
+    925,
+    803
+   ],
+   [
+    930,
+    804
+   ],
+   [
+    935,
+    804
+   ],
+   [
+    940,
+    805
+   ],
+   [
+    945,
+    806
+   ],
+   [
+    950,
+    806
+   ],
+   [
+    955,
+    810
+   ],
+   [
+    960,
+    815
+   ],
+   [
+    965,
+    818
+   ],
+   [
+    970,
+    823
+   ],
+   [
+    975,
+    828
+   ],
+   [
+    980,
+    832
+   ],
+   [
+    985,
+    837
+   ],
+   [
+    990,
+    842
+   ],
+   [
+    995,
+    846
+   ],
+   [
+    1000,
+    851
+   ],
+   [
+    1005,
+    853
+   ],
+   [
+    1010,
+    857
+   ],
+   [
+    1015,
+    861
+   ],
+   [
+    1020,
+    864
+   ],
+   [
+    1025,
+    869
+   ],
+   [
+    1030,
+    869
+   ],
+   [
+    1035,
+    869
+   ],
+   [
+    1040,
+    874
+   ],
+   [
+    1045,
+    879
+   ],
+   [
+    1050,
+    884
+   ],
+   [
+    1055,
+    889
+   ],
+   [
+    1060,
+    894
+   ],
+   [
+    1065,
+    899
+   ],
+   [
+    1070,
+    904
+   ],
+   [
+    1075,
+    908
+   ],
+   [
+    1080,
+    911
+   ],
+   [
+    1085,
+    916
+   ],
+   [
+    1090,
+    921
+   ],
+   [
+    1095,
+    926
+   ],
+   [
+    1100,
+    931
+   ],
+   [
+    1105,
+    936
+   ],
+   [
+    1110,
+    941
+   ],
+   [
+    1115,
+    946
+   ],
+   [
+    1120,
+    951
+   ],
+   [
+    1125,
+    956
+   ],
+   [
+    1130,
+    961
+   ],
+   [
+    1135,
+    966
+   ],
+   [
+    1140,
+    971
+   ],
+   [
+    1145,
+    976
+   ],
+   [
+    1150,
+    981
+   ],
+   [
+    1155,
+    986
+   ],
+   [
+    1160,
+    991
+   ],
+   [
+    1165,
+    996
+   ],
+   [
+    1170,
+    1001
+   ],
+   [
+    1175,
+    1005
+   ],
+   [
+    1180,
+    1008
+   ],
+   [
+    1185,
+    1011
+   ],
+   [
+    1190,
+    1016
+   ],
+   [
+    1195,
+    1021
+   ],
+   [
+    1200,
+    1026
+   ],
+   [
+    1205,
+    1031
+   ],
+   [
+    1210,
+    1036
+   ],
+   [
+    1215,
+    1041
+   ],
+   [
+    1220,
+    1046
+   ],
+   [
+    1225,
+    1051
+   ],
+   [
+    1230,
+    1056
+   ],
+   [
+    1235,
+    1061
+   ],
+   [
+    1240,
+    1066
+   ],
+   [
+    1245,
+    1071
+   ],
+   [
+    1250,
+    1076
+   ],
+   [
+    1255,
+    1081
+   ],
+   [
+    1260,
+    1086
+   ],
+   [
+    1265,
+    1091
+   ],
+   [
+    1270,
+    1095
+   ],
+   [
+    1275,
+    1100
+   ],
+   [
+    1280,
+    1100
+   ],
+   [
+    1285,
+    1100
+   ],
+   [
+    1290,
+    1100
+   ],
+   [
+    1295,
+    1105
+   ],
+   [
+    1300,
+    1110
+   ],
+   [
+    1305,
+    1110
+   ],
+   [
+    1310,
+    1110
+   ],
+   [
+    1315,
+    1115
+   ],
+   [
+    1320,
+    1117
+   ],
+   [
+    1325,
+    1117
+   ],
+   [
+    1330,
+    1117
+   ],
+   [
+    1335,
+    1117
+   ],
+   [
+    1340,
+    1121
+   ],
+   [
+    1345,
+    1126
+   ],
+   [
+    1350,
+    1131
+   ],
+   [
+    1355,
+    1136
+   ],
+   [
+    1360,
+    1141
+   ],
+   [
+    1365,
+    1146
+   ],
+   [
+    1370,
+    1151
+   ],
+   [
+    1375,
+    1156
+   ],
+   [
+    1380,
+    1161
+   ],
+   [
+    1385,
+    1166
+   ],
+   [
+    1390,
+    1171
+   ],
+   [
+    1395,
+    1176
+   ],
+   [
+    1400,
+    1181
+   ],
+   [
+    1405,
+    1186
+   ],
+   [
+    1410,
+    1191
+   ],
+   [
+    1415,
+    1196
+   ],
+   [
+    1420,
+    1201
+   ],
+   [
+    1425,
+    1206
+   ],
+   [
+    1430,
+    1211
+   ],
+   [
+    1435,
+    1213
+   ],
+   [
+    1440,
+    1215
+   ],
+   [
+    1445,
+    1220
+   ],
+   [
+    1450,
+    1224
+   ],
+   [
+    1455,
+    1229
+   ],
+   [
+    1460,
+    1234
+   ],
+   [
+    1465,
+    1238
+   ],
+   [
+    1470,
+    1238
+   ],
+   [
+    1475,
+    1239
+   ],
+   [
+    1480,
+    1244
+   ],
+   [
+    1485,
+    1249
+   ],
+   [
+    1490,
+    1250
+   ],
+   [
+    1495,
+    1250
+   ],
+   [
+    1500,
+    1251
+   ],
+   [
+    1505,
+    1256
+   ],
+   [
+    1510,
+    1260
+   ],
+   [
+    1515,
+    1264
+   ],
+   [
+    1520,
+    1269
+   ],
+   [
+    1525,
+    1270
+   ],
+   [
+    1530,
+    1271
+   ],
+   [
+    1535,
+    1275
+   ],
+   [
+    1540,
+    1279
+   ],
+   [
+    1545,
+    1282
+   ],
+   [
+    1550,
+    1283
+   ],
+   [
+    1555,
+    1287
+   ],
+   [
+    1560,
+    1292
+   ],
+   [
+    1565,
+    1297
+   ],
+   [
+    1570,
+    1302
+   ],
+   [
+    1575,
+    1307
+   ],
+   [
+    1580,
+    1310
+   ],
+   [
+    1585,
+    1315
+   ],
+   [
+    1590,
+    1320
+   ]
+  ],
+  "keys": {
+   "kp1": 632,
+   "kp3": 502,
+   "kp9": 454,
+   "kp7": 402,
+   "enter": 26
+  },
+  "distinct_keys": 5,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-fable5.1-high-c84266b701e8.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 447.4,
+   "frames": 8948,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-fable5.1-high-c84266b701e8.jpg",
+  "timeline_url": "runs/c84266b701e8.json"
+ },
+ {
+  "id": "8806d294db69",
+  "agent": "claude-opus5-high",
+  "started": 1789171340.574184,
+  "played": 3599,
+  "budget": 3600,
+  "actions": 341,
+  "decision_calls": 341,
+  "reason": "time",
+  "key_events": 1707,
+  "input_frames": 18430,
+  "wait_calls": 0,
+  "ttfa": 15.83,
+  "aps": 0.095,
+  "gap_p50": 10.42,
+  "gap_p95": 26.44,
+  "gap_max": 38.99,
+  "reads": 251,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 2,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 146,
+  "exit_secs": 2068.1,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 5,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 212,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789174869.2797627,
+  "first_saved_at": 1789173444.7025614,
+  "meaningful": 0.786,
+  "meaningful_count": 268,
+  "oscillation": 0.015,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    8
+   ],
+   [
+    15,
+    13
+   ],
+   [
+    20,
+    17
+   ],
+   [
+    25,
+    22
+   ],
+   [
+    30,
+    25
+   ],
+   [
+    35,
+    28
+   ],
+   [
+    40,
+    31
+   ],
+   [
+    45,
+    36
+   ],
+   [
+    50,
+    41
+   ],
+   [
+    55,
+    43
+   ],
+   [
+    60,
+    48
+   ],
+   [
+    65,
+    51
+   ],
+   [
+    70,
+    56
+   ],
+   [
+    75,
+    60
+   ],
+   [
+    80,
+    63
+   ],
+   [
+    85,
+    67
+   ],
+   [
+    90,
+    70
+   ],
+   [
+    95,
+    74
+   ],
+   [
+    100,
+    78
+   ],
+   [
+    105,
+    79
+   ],
+   [
+    110,
+    84
+   ],
+   [
+    115,
+    88
+   ],
+   [
+    120,
+    91
+   ],
+   [
+    125,
+    94
+   ],
+   [
+    130,
+    98
+   ],
+   [
+    135,
+    103
+   ],
+   [
+    140,
+    105
+   ],
+   [
+    145,
+    109
+   ],
+   [
+    150,
+    114
+   ],
+   [
+    155,
+    118
+   ],
+   [
+    160,
+    123
+   ],
+   [
+    165,
+    127
+   ],
+   [
+    170,
+    131
+   ],
+   [
+    175,
+    136
+   ],
+   [
+    180,
+    141
+   ],
+   [
+    185,
+    146
+   ],
+   [
+    190,
+    151
+   ],
+   [
+    195,
+    156
+   ],
+   [
+    200,
+    158
+   ],
+   [
+    205,
+    162
+   ],
+   [
+    210,
+    167
+   ],
+   [
+    215,
+    172
+   ],
+   [
+    220,
+    174
+   ],
+   [
+    225,
+    179
+   ],
+   [
+    230,
+    183
+   ],
+   [
+    235,
+    188
+   ],
+   [
+    240,
+    193
+   ],
+   [
+    245,
+    197
+   ],
+   [
+    250,
+    202
+   ],
+   [
+    255,
+    207
+   ],
+   [
+    260,
+    212
+   ],
+   [
+    265,
+    217
+   ],
+   [
+    270,
+    221
+   ],
+   [
+    275,
+    226
+   ],
+   [
+    280,
+    230
+   ],
+   [
+    285,
+    234
+   ],
+   [
+    290,
+    239
+   ],
+   [
+    295,
+    242
+   ],
+   [
+    300,
+    245
+   ],
+   [
+    305,
+    250
+   ],
+   [
+    310,
+    254
+   ],
+   [
+    315,
+    257
+   ],
+   [
+    320,
+    257
+   ],
+   [
+    325,
+    262
+   ],
+   [
+    330,
+    264
+   ],
+   [
+    335,
+    264
+   ],
+   [
+    340,
+    268
+   ]
+  ],
+  "keys": {
+   "kp3": 439,
+   "kp7": 413,
+   "kp9": 405,
+   "kp1": 394,
+   "enter": 43,
+   "space": 7,
+   "escape": 4,
+   "right": 1,
+   "down": 1
+  },
+  "distinct_keys": 9,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-opus5-high-8806d294db69.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 448.0,
+   "frames": 8960,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/claude-opus5-high-8806d294db69.jpg",
+  "timeline_url": "runs/8806d294db69.json"
+ },
+ {
+  "id": "295b689ac75e",
+  "agent": "glm-5.3-flash",
+  "started": 1789170962.1857264,
+  "played": 3598,
+  "budget": 3600,
+  "actions": 1994,
+  "decision_calls": 1994,
+  "reason": "time",
+  "key_events": 2346,
+  "input_frames": 55838,
+  "wait_calls": 0,
+  "ttfa": 47.66,
+  "aps": 0.554,
+  "gap_p50": 0.91,
+  "gap_p95": 2.4,
+  "gap_max": 112.01,
+  "reads": 2001,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 2,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 1595,
+  "exit_secs": 2196.4,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 4,
+  "picked_item": false,
+  "books": 0,
+  "items_total": 12,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789174547.7787673,
+  "first_saved_at": 1789173432.8837516,
+  "meaningful": 0.939,
+  "meaningful_count": 1873,
+  "oscillation": 0.252,
+  "curve": [
+   [
+    995,
+    930
+   ],
+   [
+    1000,
+    935
+   ],
+   [
+    1005,
+    940
+   ],
+   [
+    1010,
+    945
+   ],
+   [
+    1015,
+    950
+   ],
+   [
+    1020,
+    955
+   ],
+   [
+    1025,
+    960
+   ],
+   [
+    1030,
+    965
+   ],
+   [
+    1035,
+    970
+   ],
+   [
+    1040,
+    975
+   ],
+   [
+    1045,
+    980
+   ],
+   [
+    1050,
+    985
+   ],
+   [
+    1055,
+    990
+   ],
+   [
+    1060,
+    995
+   ],
+   [
+    1065,
+    1000
+   ],
+   [
+    1070,
+    1005
+   ],
+   [
+    1075,
+    1010
+   ],
+   [
+    1080,
+    1015
+   ],
+   [
+    1085,
+    1020
+   ],
+   [
+    1090,
+    1025
+   ],
+   [
+    1095,
+    1030
+   ],
+   [
+    1100,
+    1035
+   ],
+   [
+    1105,
+    1040
+   ],
+   [
+    1110,
+    1045
+   ],
+   [
+    1115,
+    1050
+   ],
+   [
+    1120,
+    1055
+   ],
+   [
+    1125,
+    1060
+   ],
+   [
+    1130,
+    1065
+   ],
+   [
+    1135,
+    1070
+   ],
+   [
+    1140,
+    1075
+   ],
+   [
+    1145,
+    1080
+   ],
+   [
+    1150,
+    1085
+   ],
+   [
+    1155,
+    1090
+   ],
+   [
+    1160,
+    1095
+   ],
+   [
+    1165,
+    1100
+   ],
+   [
+    1170,
+    1105
+   ],
+   [
+    1175,
+    1110
+   ],
+   [
+    1180,
+    1115
+   ],
+   [
+    1185,
+    1120
+   ],
+   [
+    1190,
+    1125
+   ],
+   [
+    1195,
+    1130
+   ],
+   [
+    1200,
+    1135
+   ],
+   [
+    1205,
+    1140
+   ],
+   [
+    1210,
+    1145
+   ],
+   [
+    1215,
+    1150
+   ],
+   [
+    1220,
+    1155
+   ],
+   [
+    1225,
+    1160
+   ],
+   [
+    1230,
+    1165
+   ],
+   [
+    1235,
+    1170
+   ],
+   [
+    1240,
+    1175
+   ],
+   [
+    1245,
+    1180
+   ],
+   [
+    1250,
+    1185
+   ],
+   [
+    1255,
+    1190
+   ],
+   [
+    1260,
+    1195
+   ],
+   [
+    1265,
+    1200
+   ],
+   [
+    1270,
+    1205
+   ],
+   [
+    1275,
+    1210
+   ],
+   [
+    1280,
+    1215
+   ],
+   [
+    1285,
+    1220
+   ],
+   [
+    1290,
+    1225
+   ],
+   [
+    1295,
+    1230
+   ],
+   [
+    1300,
+    1235
+   ],
+   [
+    1305,
+    1240
+   ],
+   [
+    1310,
+    1245
+   ],
+   [
+    1315,
+    1250
+   ],
+   [
+    1320,
+    1255
+   ],
+   [
+    1325,
+    1260
+   ],
+   [
+    1330,
+    1265
+   ],
+   [
+    1335,
+    1270
+   ],
+   [
+    1340,
+    1275
+   ],
+   [
+    1345,
+    1280
+   ],
+   [
+    1350,
+    1285
+   ],
+   [
+    1355,
+    1290
+   ],
+   [
+    1360,
+    1295
+   ],
+   [
+    1365,
+    1300
+   ],
+   [
+    1370,
+    1305
+   ],
+   [
+    1375,
+    1310
+   ],
+   [
+    1380,
+    1315
+   ],
+   [
+    1385,
+    1320
+   ],
+   [
+    1390,
+    1325
+   ],
+   [
+    1395,
+    1330
+   ],
+   [
+    1400,
+    1335
+   ],
+   [
+    1405,
+    1340
+   ],
+   [
+    1410,
+    1345
+   ],
+   [
+    1415,
+    1350
+   ],
+   [
+    1420,
+    1355
+   ],
+   [
+    1425,
+    1360
+   ],
+   [
+    1430,
+    1365
+   ],
+   [
+    1435,
+    1370
+   ],
+   [
+    1440,
+    1375
+   ],
+   [
+    1445,
+    1380
+   ],
+   [
+    1450,
+    1385
+   ],
+   [
+    1455,
+    1390
+   ],
+   [
+    1460,
+    1395
+   ],
+   [
+    1465,
+    1400
+   ],
+   [
+    1470,
+    1405
+   ],
+   [
+    1475,
+    1410
+   ],
+   [
+    1480,
+    1415
+   ],
+   [
+    1485,
+    1420
+   ],
+   [
+    1490,
+    1425
+   ],
+   [
+    1495,
+    1429
+   ],
+   [
+    1500,
+    1434
+   ],
+   [
+    1505,
+    1439
+   ],
+   [
+    1510,
+    1444
+   ],
+   [
+    1515,
+    1449
+   ],
+   [
+    1520,
+    1454
+   ],
+   [
+    1525,
+    1459
+   ],
+   [
+    1530,
+    1464
+   ],
+   [
+    1535,
+    1469
+   ],
+   [
+    1540,
+    1474
+   ],
+   [
+    1545,
+    1479
+   ],
+   [
+    1550,
+    1484
+   ],
+   [
+    1555,
+    1489
+   ],
+   [
+    1560,
+    1494
+   ],
+   [
+    1565,
+    1499
+   ],
+   [
+    1570,
+    1504
+   ],
+   [
+    1575,
+    1509
+   ],
+   [
+    1580,
+    1514
+   ],
+   [
+    1585,
+    1518
+   ],
+   [
+    1590,
+    1523
+   ],
+   [
+    1595,
+    1526
+   ],
+   [
+    1600,
+    1531
+   ],
+   [
+    1605,
+    1536
+   ],
+   [
+    1610,
+    1541
+   ],
+   [
+    1615,
+    1546
+   ],
+   [
+    1620,
+    1551
+   ],
+   [
+    1625,
+    1556
+   ],
+   [
+    1630,
+    1561
+   ],
+   [
+    1635,
+    1566
+   ],
+   [
+    1640,
+    1571
+   ],
+   [
+    1645,
+    1576
+   ],
+   [
+    1650,
+    1581
+   ],
+   [
+    1655,
+    1586
+   ],
+   [
+    1660,
+    1591
+   ],
+   [
+    1665,
+    1596
+   ],
+   [
+    1670,
+    1601
+   ],
+   [
+    1675,
+    1606
+   ],
+   [
+    1680,
+    1611
+   ],
+   [
+    1685,
+    1616
+   ],
+   [
+    1690,
+    1621
+   ],
+   [
+    1695,
+    1626
+   ],
+   [
+    1700,
+    1631
+   ],
+   [
+    1705,
+    1636
+   ],
+   [
+    1710,
+    1641
+   ],
+   [
+    1715,
+    1645
+   ],
+   [
+    1720,
+    1650
+   ],
+   [
+    1725,
+    1655
+   ],
+   [
+    1730,
+    1660
+   ],
+   [
+    1735,
+    1664
+   ],
+   [
+    1740,
+    1666
+   ],
+   [
+    1745,
+    1670
+   ],
+   [
+    1750,
+    1674
+   ],
+   [
+    1755,
+    1678
+   ],
+   [
+    1760,
+    1683
+   ],
+   [
+    1765,
+    1687
+   ],
+   [
+    1770,
+    1690
+   ],
+   [
+    1775,
+    1694
+   ],
+   [
+    1780,
+    1699
+   ],
+   [
+    1785,
+    1704
+   ],
+   [
+    1790,
+    1709
+   ],
+   [
+    1795,
+    1714
+   ],
+   [
+    1800,
+    1719
+   ],
+   [
+    1805,
+    1724
+   ],
+   [
+    1810,
+    1729
+   ],
+   [
+    1815,
+    1734
+   ],
+   [
+    1820,
+    1739
+   ],
+   [
+    1825,
+    1743
+   ],
+   [
+    1830,
+    1747
+   ],
+   [
+    1835,
+    1750
+   ],
+   [
+    1840,
+    1754
+   ],
+   [
+    1845,
+    1758
+   ],
+   [
+    1850,
+    1763
+   ],
+   [
+    1855,
+    1768
+   ],
+   [
+    1860,
+    1770
+   ],
+   [
+    1865,
+    1774
+   ],
+   [
+    1870,
+    1778
+   ],
+   [
+    1875,
+    1780
+   ],
+   [
+    1880,
+    1785
+   ],
+   [
+    1885,
+    1789
+   ],
+   [
+    1890,
+    1791
+   ],
+   [
+    1895,
+    1796
+   ],
+   [
+    1900,
+    1801
+   ],
+   [
+    1905,
+    1803
+   ],
+   [
+    1910,
+    1807
+   ],
+   [
+    1915,
+    1812
+   ],
+   [
+    1920,
+    1815
+   ],
+   [
+    1925,
+    1817
+   ],
+   [
+    1930,
+    1820
+   ],
+   [
+    1935,
+    1824
+   ],
+   [
+    1940,
+    1828
+   ],
+   [
+    1945,
+    1833
+   ],
+   [
+    1950,
+    1838
+   ],
+   [
+    1955,
+    1840
+   ],
+   [
+    1960,
+    1843
+   ],
+   [
+    1965,
+    1845
+   ],
+   [
+    1970,
+    1850
+   ],
+   [
+    1975,
+    1855
+   ],
+   [
+    1980,
+    1860
+   ],
+   [
+    1985,
+    1865
+   ],
+   [
+    1990,
+    1870
+   ]
+  ],
+  "keys": {
+   "kp1": 703,
+   "kp3": 658,
+   "kp7": 514,
+   "kp9": 463,
+   "escape": 8
+  },
+  "distinct_keys": 5,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-295b689ac75e.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 444.0,
+   "frames": 8880,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-295b689ac75e.jpg",
+  "timeline_url": "runs/295b689ac75e.json"
+ },
+ {
+  "id": "f9435a1f803b",
+  "agent": "gpt-6-astra",
+  "started": 1789168046.817444,
+  "played": 3599,
+  "budget": 3600,
+  "actions": 250,
+  "decision_calls": 250,
+  "reason": "time",
+  "key_events": 917,
+  "input_frames": 12065,
+  "wait_calls": 0,
+  "ttfa": 26.78,
+  "aps": 0.069,
+  "gap_p50": 11.97,
+  "gap_p95": 26.89,
+  "gap_max": 86.0,
+  "reads": 251,
+  "errors": null,
+  "help_langs": {
+   "en": 1
+  },
+  "scenes": 11,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 33,
+  "exit_secs": 293.6,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 6,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 20,
+  "compass": true,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789171330.5266457,
+  "first_saved_at": 1789168573.3215377,
+  "meaningful": 0.928,
+  "meaningful_count": 232,
+  "oscillation": 0.02,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    9
+   ],
+   [
+    15,
+    14
+   ],
+   [
+    20,
+    19
+   ],
+   [
+    25,
+    24
+   ],
+   [
+    30,
+    27
+   ],
+   [
+    35,
+    32
+   ],
+   [
+    40,
+    37
+   ],
+   [
+    45,
+    42
+   ],
+   [
+    50,
+    46
+   ],
+   [
+    55,
+    51
+   ],
+   [
+    60,
+    56
+   ],
+   [
+    65,
+    60
+   ],
+   [
+    70,
+    65
+   ],
+   [
+    75,
+    70
+   ],
+   [
+    80,
+    74
+   ],
+   [
+    85,
+    79
+   ],
+   [
+    90,
+    84
+   ],
+   [
+    95,
+    89
+   ],
+   [
+    100,
+    94
+   ],
+   [
+    105,
+    99
+   ],
+   [
+    110,
+    104
+   ],
+   [
+    115,
+    109
+   ],
+   [
+    120,
+    114
+   ],
+   [
+    125,
+    119
+   ],
+   [
+    130,
+    124
+   ],
+   [
+    135,
+    129
+   ],
+   [
+    140,
+    134
+   ],
+   [
+    145,
+    139
+   ],
+   [
+    150,
+    144
+   ],
+   [
+    155,
+    148
+   ],
+   [
+    160,
+    153
+   ],
+   [
+    165,
+    158
+   ],
+   [
+    170,
+    163
+   ],
+   [
+    175,
+    168
+   ],
+   [
+    180,
+    172
+   ],
+   [
+    185,
+    177
+   ],
+   [
+    190,
+    181
+   ],
+   [
+    195,
+    185
+   ],
+   [
+    200,
+    189
+   ],
+   [
+    205,
+    193
+   ],
+   [
+    210,
+    196
+   ],
+   [
+    215,
+    201
+   ],
+   [
+    220,
+    206
+   ],
+   [
+    225,
+    211
+   ],
+   [
+    230,
+    216
+   ],
+   [
+    235,
+    220
+   ],
+   [
+    240,
+    225
+   ],
+   [
+    245,
+    228
+   ],
+   [
+    250,
+    232
+   ]
+  ],
+  "keys": {
+   "kp1": 220,
+   "kp9": 204,
+   "kp3": 187,
+   "kp7": 123,
+   "enter": 105,
+   "escape": 36,
+   "down": 35,
+   "right": 7
+  },
+  "distinct_keys": 8,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-6-astra-f9435a1f803b.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 446.6,
+   "frames": 8932,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-6-astra-f9435a1f803b.jpg",
+  "timeline_url": "runs/f9435a1f803b.json"
+ },
+ {
+  "id": "0d8c2621e10c",
+  "agent": "gpt-5.6-terra",
+  "started": 1789167842.4243915,
+  "played": 2731,
+  "budget": 3600,
+  "actions": 163,
+  "decision_calls": 163,
+  "reason": "time",
+  "key_events": 3506,
+  "input_frames": 35110,
+  "wait_calls": 0,
+  "ttfa": 11.94,
+  "aps": 0.06,
+  "gap_p50": 13.01,
+  "gap_p95": 38.11,
+  "gap_max": 97.41,
+  "reads": 156,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 1,
+  "frontier": null,
+  "bigmap": false,
+  "exit_acts": null,
+  "exit_secs": null,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 6,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 25,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789171428.1028965,
+  "first_saved_at": 1789169803.7131176,
+  "meaningful": 0.767,
+  "meaningful_count": 125,
+  "oscillation": 0.031,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    4
+   ],
+   [
+    10,
+    9
+   ],
+   [
+    15,
+    12
+   ],
+   [
+    20,
+    17
+   ],
+   [
+    25,
+    20
+   ],
+   [
+    30,
+    23
+   ],
+   [
+    35,
+    26
+   ],
+   [
+    40,
+    29
+   ],
+   [
+    45,
+    32
+   ],
+   [
+    50,
+    36
+   ],
+   [
+    55,
+    40
+   ],
+   [
+    60,
+    43
+   ],
+   [
+    65,
+    45
+   ],
+   [
+    70,
+    48
+   ],
+   [
+    75,
+    52
+   ],
+   [
+    80,
+    57
+   ],
+   [
+    85,
+    61
+   ],
+   [
+    90,
+    63
+   ],
+   [
+    95,
+    65
+   ],
+   [
+    100,
+    67
+   ],
+   [
+    105,
+    71
+   ],
+   [
+    110,
+    76
+   ],
+   [
+    115,
+    80
+   ],
+   [
+    120,
+    85
+   ],
+   [
+    125,
+    90
+   ],
+   [
+    130,
+    95
+   ],
+   [
+    135,
+    100
+   ],
+   [
+    140,
+    104
+   ],
+   [
+    145,
+    109
+   ],
+   [
+    150,
+    114
+   ],
+   [
+    155,
+    118
+   ],
+   [
+    160,
+    123
+   ]
+  ],
+  "keys": {
+   "kp1": 1061,
+   "kp3": 906,
+   "kp7": 788,
+   "kp9": 719,
+   "enter": 22,
+   "down": 6,
+   "escape": 4
+  },
+  "distinct_keys": 7,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-terra-0d8c2621e10c.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 448.5,
+   "frames": 8970,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-terra-0d8c2621e10c.jpg",
+  "timeline_url": "runs/0d8c2621e10c.json"
+ },
+ {
+  "id": "0f91a9091a9d",
+  "agent": "gpt-5.6-sol",
+  "started": 1789167818.1818905,
+  "played": 3591,
+  "budget": 3600,
+  "actions": 225,
+  "decision_calls": 225,
+  "reason": "time",
+  "key_events": 2349,
+  "input_frames": 23490,
+  "wait_calls": 0,
+  "ttfa": 23.29,
+  "aps": 0.063,
+  "gap_p50": 14.34,
+  "gap_p95": 25.59,
+  "gap_max": 184.94,
+  "reads": 214,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 5,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 58,
+  "exit_secs": 662.5,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 7,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 28,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789170112.5696552,
+  "first_saved_at": 1789168708.0875301,
+  "meaningful": 0.88,
+  "meaningful_count": 198,
+  "oscillation": 0.027,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    4
+   ],
+   [
+    10,
+    9
+   ],
+   [
+    15,
+    14
+   ],
+   [
+    20,
+    17
+   ],
+   [
+    25,
+    22
+   ],
+   [
+    30,
+    26
+   ],
+   [
+    35,
+    31
+   ],
+   [
+    40,
+    36
+   ],
+   [
+    45,
+    41
+   ],
+   [
+    50,
+    46
+   ],
+   [
+    55,
+    49
+   ],
+   [
+    60,
+    54
+   ],
+   [
+    65,
+    59
+   ],
+   [
+    70,
+    64
+   ],
+   [
+    75,
+    68
+   ],
+   [
+    80,
+    73
+   ],
+   [
+    85,
+    78
+   ],
+   [
+    90,
+    83
+   ],
+   [
+    95,
+    88
+   ],
+   [
+    100,
+    93
+   ],
+   [
+    105,
+    98
+   ],
+   [
+    110,
+    102
+   ],
+   [
+    115,
+    107
+   ],
+   [
+    120,
+    111
+   ],
+   [
+    125,
+    115
+   ],
+   [
+    130,
+    120
+   ],
+   [
+    135,
+    125
+   ],
+   [
+    140,
+    129
+   ],
+   [
+    145,
+    133
+   ],
+   [
+    150,
+    138
+   ],
+   [
+    155,
+    143
+   ],
+   [
+    160,
+    148
+   ],
+   [
+    165,
+    153
+   ],
+   [
+    170,
+    158
+   ],
+   [
+    175,
+    163
+   ],
+   [
+    180,
+    168
+   ],
+   [
+    185,
+    172
+   ],
+   [
+    190,
+    176
+   ],
+   [
+    195,
+    179
+   ],
+   [
+    200,
+    183
+   ],
+   [
+    205,
+    186
+   ],
+   [
+    210,
+    191
+   ],
+   [
+    215,
+    194
+   ],
+   [
+    220,
+    195
+   ],
+   [
+    225,
+    198
+   ]
+  ],
+  "keys": {
+   "kp1": 664,
+   "kp7": 624,
+   "kp3": 506,
+   "kp9": 487,
+   "enter": 53,
+   "space": 14,
+   "escape": 1
+  },
+  "distinct_keys": 7,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-sol-0f91a9091a9d.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 446.7,
+   "frames": 8933,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-sol-0f91a9091a9d.jpg",
+  "timeline_url": "runs/0f91a9091a9d.json"
+ },
+ {
+  "id": "f523874509d7",
+  "agent": "gpt-5.6-luna",
+  "started": 1789167783.9904768,
+  "played": 3591,
+  "budget": 3600,
+  "actions": 180,
+  "decision_calls": 180,
+  "reason": "time",
+  "key_events": 330,
+  "input_frames": 9950,
+  "wait_calls": 0,
+  "ttfa": 11.62,
+  "aps": 0.05,
+  "gap_p50": 0.93,
+  "gap_p95": 21.74,
+  "gap_max": 2316.85,
+  "reads": 155,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 1,
+  "frontier": null,
+  "bigmap": false,
+  "exit_acts": null,
+  "exit_secs": null,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 5,
+  "picked_item": true,
+  "books": null,
+  "items_total": 15,
+  "compass": null,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": null,
+  "team_level": null,
+  "saved_at": null,
+  "first_saved_at": null,
+  "meaningful": 0.739,
+  "meaningful_count": 133,
+  "oscillation": 0.028,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    20,
+    20
+   ],
+   [
+    25,
+    25
+   ],
+   [
+    30,
+    30
+   ],
+   [
+    35,
+    35
+   ],
+   [
+    40,
+    40
+   ],
+   [
+    45,
+    45
+   ],
+   [
+    50,
+    49
+   ],
+   [
+    55,
+    53
+   ],
+   [
+    60,
+    57
+   ],
+   [
+    65,
+    61
+   ],
+   [
+    70,
+    65
+   ],
+   [
+    75,
+    68
+   ],
+   [
+    80,
+    71
+   ],
+   [
+    85,
+    73
+   ],
+   [
+    90,
+    75
+   ],
+   [
+    95,
+    77
+   ],
+   [
+    100,
+    80
+   ],
+   [
+    105,
+    82
+   ],
+   [
+    110,
+    85
+   ],
+   [
+    115,
+    87
+   ],
+   [
+    120,
+    90
+   ],
+   [
+    125,
+    92
+   ],
+   [
+    130,
+    96
+   ],
+   [
+    135,
+    99
+   ],
+   [
+    140,
+    103
+   ],
+   [
+    145,
+    107
+   ],
+   [
+    150,
+    112
+   ],
+   [
+    155,
+    113
+   ],
+   [
+    160,
+    115
+   ],
+   [
+    165,
+    119
+   ],
+   [
+    170,
+    123
+   ],
+   [
+    175,
+    128
+   ],
+   [
+    180,
+    133
+   ]
+  ],
+  "keys": {
+   "kp3": 91,
+   "kp1": 73,
+   "enter": 72,
+   "kp9": 53,
+   "kp7": 41
+  },
+  "distinct_keys": 5,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-f523874509d7.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 448.1,
+   "frames": 8962,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-f523874509d7.jpg",
+  "timeline_url": "runs/f523874509d7.json"
+ },
+ {
+  "id": "b7ebb2583197",
+  "agent": "gpt-5.6-luna",
+  "started": 1789167761.6983378,
+  "played": 0,
+  "budget": 3600,
+  "actions": 0,
+  "decision_calls": 0,
+  "reason": "time",
+  "key_events": 0,
+  "input_frames": 0,
+  "wait_calls": 0,
+  "ttfa": null,
+  "aps": 0.0,
+  "gap_p50": null,
+  "gap_p95": null,
+  "gap_max": null,
+  "reads": 0,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 1,
+  "frontier": 0,
+  "bigmap": false,
+  "exit_acts": null,
+  "exit_secs": null,
+  "level": null,
+  "exp": null,
+  "hp": null,
+  "maxhp": null,
+  "skills": null,
+  "items": null,
+  "reputation": null,
+  "potential": null,
+  "inventory_distinct": null,
+  "picked_item": null,
+  "books": null,
+  "items_total": null,
+  "compass": null,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": null,
+  "team_level": null,
+  "saved_at": null,
+  "first_saved_at": null,
+  "meaningful": 0.0,
+  "meaningful_count": 0,
+  "oscillation": 0.0,
+  "curve": [],
+  "keys": {},
+  "distinct_keys": 0,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-b7ebb2583197.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 448.3,
+   "frames": 8965,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gpt-5.6-luna-b7ebb2583197.jpg",
+  "timeline_url": "runs/b7ebb2583197.json"
+ },
+ {
+  "id": "900fbb74ad21",
+  "agent": "grok-4.6",
+  "started": 1789167375.3105114,
+  "played": 3588,
+  "budget": 3600,
+  "actions": 346,
+  "decision_calls": 346,
+  "reason": "time",
+  "key_events": 651,
+  "input_frames": 11510,
+  "wait_calls": 0,
+  "ttfa": 16.52,
+  "aps": 0.096,
+  "gap_p50": 9.15,
+  "gap_p95": 23.61,
+  "gap_max": 66.97,
+  "reads": 318,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 3,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 130,
+  "exit_secs": 948.5,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 5,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 22,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789169010.6686583,
+  "first_saved_at": 1789168372.2325113,
+  "meaningful": 0.801,
+  "meaningful_count": 277,
+  "oscillation": 0.035,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    20,
+    20
+   ],
+   [
+    25,
+    25
+   ],
+   [
+    30,
+    30
+   ],
+   [
+    35,
+    35
+   ],
+   [
+    40,
+    40
+   ],
+   [
+    45,
+    45
+   ],
+   [
+    50,
+    50
+   ],
+   [
+    55,
+    55
+   ],
+   [
+    60,
+    60
+   ],
+   [
+    65,
+    63
+   ],
+   [
+    70,
+    67
+   ],
+   [
+    75,
+    71
+   ],
+   [
+    80,
+    76
+   ],
+   [
+    85,
+    80
+   ],
+   [
+    90,
+    82
+   ],
+   [
+    95,
+    82
+   ],
+   [
+    100,
+    84
+   ],
+   [
+    105,
+    88
+   ],
+   [
+    110,
+    92
+   ],
+   [
+    115,
+    95
+   ],
+   [
+    120,
+    100
+   ],
+   [
+    125,
+    104
+   ],
+   [
+    130,
+    107
+   ],
+   [
+    135,
+    112
+   ],
+   [
+    140,
+    117
+   ],
+   [
+    145,
+    122
+   ],
+   [
+    150,
+    127
+   ],
+   [
+    155,
+    132
+   ],
+   [
+    160,
+    137
+   ],
+   [
+    165,
+    141
+   ],
+   [
+    170,
+    145
+   ],
+   [
+    175,
+    149
+   ],
+   [
+    180,
+    153
+   ],
+   [
+    185,
+    158
+   ],
+   [
+    190,
+    163
+   ],
+   [
+    195,
+    168
+   ],
+   [
+    200,
+    172
+   ],
+   [
+    205,
+    177
+   ],
+   [
+    210,
+    181
+   ],
+   [
+    215,
+    185
+   ],
+   [
+    220,
+    189
+   ],
+   [
+    225,
+    194
+   ],
+   [
+    230,
+    198
+   ],
+   [
+    235,
+    203
+   ],
+   [
+    240,
+    208
+   ],
+   [
+    245,
+    213
+   ],
+   [
+    250,
+    217
+   ],
+   [
+    255,
+    221
+   ],
+   [
+    260,
+    226
+   ],
+   [
+    265,
+    229
+   ],
+   [
+    270,
+    233
+   ],
+   [
+    275,
+    236
+   ],
+   [
+    280,
+    239
+   ],
+   [
+    285,
+    244
+   ],
+   [
+    290,
+    247
+   ],
+   [
+    295,
+    250
+   ],
+   [
+    300,
+    254
+   ],
+   [
+    305,
+    255
+   ],
+   [
+    310,
+    258
+   ],
+   [
+    315,
+    260
+   ],
+   [
+    320,
+    262
+   ],
+   [
+    325,
+    266
+   ],
+   [
+    330,
+    269
+   ],
+   [
+    335,
+    273
+   ],
+   [
+    340,
+    274
+   ],
+   [
+    345,
+    276
+   ]
+  ],
+  "keys": {
+   "kp1": 163,
+   "kp7": 142,
+   "kp3": 130,
+   "kp9": 106,
+   "enter": 76,
+   "space": 34
+  },
+  "distinct_keys": 6,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/grok-4.6-900fbb74ad21.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 446.7,
+   "frames": 8933,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/grok-4.6-900fbb74ad21.jpg",
+  "timeline_url": "runs/900fbb74ad21.json"
+ },
+ {
+  "id": "48d439b06486",
+  "agent": "glm-5.3-flash",
+  "started": 1789167154.3874574,
+  "played": 3570,
+  "budget": 3600,
+  "actions": 920,
+  "decision_calls": 920,
+  "reason": "time",
+  "key_events": 1101,
+  "input_frames": 26730,
+  "wait_calls": 0,
+  "ttfa": 20.46,
+  "aps": 0.258,
+  "gap_p50": 0.91,
+  "gap_p95": 18.59,
+  "gap_max": 215.57,
+  "reads": 934,
+  "errors": null,
+  "help_langs": {
+   "en": 1
+  },
+  "scenes": 1,
+  "frontier": null,
+  "bigmap": false,
+  "exit_acts": null,
+  "exit_secs": null,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 5,
+  "picked_item": true,
+  "books": null,
+  "items_total": 15,
+  "compass": null,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": null,
+  "team_level": null,
+  "saved_at": null,
+  "first_saved_at": null,
+  "meaningful": 0.866,
+  "meaningful_count": 797,
+  "oscillation": 0.259,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    13
+   ],
+   [
+    20,
+    17
+   ],
+   [
+    25,
+    21
+   ],
+   [
+    30,
+    24
+   ],
+   [
+    35,
+    26
+   ],
+   [
+    40,
+    31
+   ],
+   [
+    45,
+    35
+   ],
+   [
+    50,
+    37
+   ],
+   [
+    55,
+    41
+   ],
+   [
+    60,
+    43
+   ],
+   [
+    65,
+    46
+   ],
+   [
+    70,
+    49
+   ],
+   [
+    75,
+    51
+   ],
+   [
+    80,
+    54
+   ],
+   [
+    85,
+    56
+   ],
+   [
+    90,
+    61
+   ],
+   [
+    95,
+    65
+   ],
+   [
+    100,
+    68
+   ],
+   [
+    105,
+    68
+   ],
+   [
+    110,
+    72
+   ],
+   [
+    115,
+    76
+   ],
+   [
+    120,
+    81
+   ],
+   [
+    125,
+    81
+   ],
+   [
+    130,
+    81
+   ],
+   [
+    135,
+    81
+   ],
+   [
+    140,
+    81
+   ],
+   [
+    145,
+    83
+   ],
+   [
+    150,
+    87
+   ],
+   [
+    155,
+    91
+   ],
+   [
+    160,
+    93
+   ],
+   [
+    165,
+    98
+   ],
+   [
+    170,
+    102
+   ],
+   [
+    175,
+    106
+   ],
+   [
+    180,
+    111
+   ],
+   [
+    185,
+    115
+   ],
+   [
+    190,
+    119
+   ],
+   [
+    195,
+    123
+   ],
+   [
+    200,
+    128
+   ],
+   [
+    205,
+    132
+   ],
+   [
+    210,
+    136
+   ],
+   [
+    215,
+    139
+   ],
+   [
+    220,
+    142
+   ],
+   [
+    225,
+    146
+   ],
+   [
+    230,
+    151
+   ],
+   [
+    235,
+    156
+   ],
+   [
+    240,
+    159
+   ],
+   [
+    245,
+    163
+   ],
+   [
+    250,
+    168
+   ],
+   [
+    255,
+    172
+   ],
+   [
+    260,
+    174
+   ],
+   [
+    265,
+    177
+   ],
+   [
+    270,
+    180
+   ],
+   [
+    275,
+    185
+   ],
+   [
+    280,
+    190
+   ],
+   [
+    285,
+    195
+   ],
+   [
+    290,
+    200
+   ],
+   [
+    295,
+    205
+   ],
+   [
+    300,
+    210
+   ],
+   [
+    305,
+    215
+   ],
+   [
+    310,
+    220
+   ],
+   [
+    315,
+    225
+   ],
+   [
+    320,
+    230
+   ],
+   [
+    325,
+    235
+   ],
+   [
+    330,
+    240
+   ],
+   [
+    335,
+    245
+   ],
+   [
+    340,
+    250
+   ],
+   [
+    345,
+    255
+   ],
+   [
+    350,
+    259
+   ],
+   [
+    355,
+    264
+   ],
+   [
+    360,
+    269
+   ],
+   [
+    365,
+    274
+   ],
+   [
+    370,
+    279
+   ],
+   [
+    375,
+    284
+   ],
+   [
+    380,
+    289
+   ],
+   [
+    385,
+    293
+   ],
+   [
+    390,
+    298
+   ],
+   [
+    395,
+    303
+   ],
+   [
+    400,
+    308
+   ],
+   [
+    405,
+    313
+   ],
+   [
+    410,
+    318
+   ],
+   [
+    415,
+    323
+   ],
+   [
+    420,
+    328
+   ],
+   [
+    425,
+    333
+   ],
+   [
+    430,
+    338
+   ],
+   [
+    435,
+    342
+   ],
+   [
+    440,
+    347
+   ],
+   [
+    445,
+    352
+   ],
+   [
+    450,
+    357
+   ],
+   [
+    455,
+    362
+   ],
+   [
+    460,
+    367
+   ],
+   [
+    465,
+    372
+   ],
+   [
+    470,
+    376
+   ],
+   [
+    475,
+    381
+   ],
+   [
+    480,
+    385
+   ],
+   [
+    485,
+    390
+   ],
+   [
+    490,
+    394
+   ],
+   [
+    495,
+    398
+   ],
+   [
+    500,
+    403
+   ],
+   [
+    505,
+    408
+   ],
+   [
+    510,
+    413
+   ],
+   [
+    515,
+    418
+   ],
+   [
+    520,
+    423
+   ],
+   [
+    525,
+    428
+   ],
+   [
+    530,
+    433
+   ],
+   [
+    535,
+    438
+   ],
+   [
+    540,
+    443
+   ],
+   [
+    545,
+    448
+   ],
+   [
+    550,
+    453
+   ],
+   [
+    555,
+    458
+   ],
+   [
+    560,
+    463
+   ],
+   [
+    565,
+    468
+   ],
+   [
+    570,
+    473
+   ],
+   [
+    575,
+    478
+   ],
+   [
+    580,
+    483
+   ],
+   [
+    585,
+    488
+   ],
+   [
+    590,
+    493
+   ],
+   [
+    595,
+    498
+   ],
+   [
+    600,
+    503
+   ],
+   [
+    605,
+    508
+   ],
+   [
+    610,
+    513
+   ],
+   [
+    615,
+    518
+   ],
+   [
+    620,
+    523
+   ],
+   [
+    625,
+    528
+   ],
+   [
+    630,
+    533
+   ],
+   [
+    635,
+    538
+   ],
+   [
+    640,
+    543
+   ],
+   [
+    645,
+    548
+   ],
+   [
+    650,
+    553
+   ],
+   [
+    655,
+    558
+   ],
+   [
+    660,
+    563
+   ],
+   [
+    665,
+    568
+   ],
+   [
+    670,
+    573
+   ],
+   [
+    675,
+    578
+   ],
+   [
+    680,
+    583
+   ],
+   [
+    685,
+    588
+   ],
+   [
+    690,
+    593
+   ],
+   [
+    695,
+    598
+   ],
+   [
+    700,
+    603
+   ],
+   [
+    705,
+    608
+   ],
+   [
+    710,
+    613
+   ],
+   [
+    715,
+    618
+   ],
+   [
+    720,
+    623
+   ],
+   [
+    725,
+    627
+   ],
+   [
+    730,
+    632
+   ],
+   [
+    735,
+    636
+   ],
+   [
+    740,
+    641
+   ],
+   [
+    745,
+    646
+   ],
+   [
+    750,
+    651
+   ],
+   [
+    755,
+    656
+   ],
+   [
+    760,
+    661
+   ],
+   [
+    765,
+    666
+   ],
+   [
+    770,
+    671
+   ],
+   [
+    775,
+    676
+   ],
+   [
+    780,
+    680
+   ],
+   [
+    785,
+    683
+   ],
+   [
+    790,
+    687
+   ],
+   [
+    795,
+    691
+   ],
+   [
+    800,
+    696
+   ],
+   [
+    805,
+    700
+   ],
+   [
+    810,
+    704
+   ],
+   [
+    815,
+    708
+   ],
+   [
+    820,
+    712
+   ],
+   [
+    825,
+    717
+   ],
+   [
+    830,
+    722
+   ],
+   [
+    835,
+    727
+   ],
+   [
+    840,
+    732
+   ],
+   [
+    845,
+    737
+   ],
+   [
+    850,
+    742
+   ],
+   [
+    855,
+    746
+   ],
+   [
+    860,
+    751
+   ],
+   [
+    865,
+    756
+   ],
+   [
+    870,
+    761
+   ],
+   [
+    875,
+    766
+   ],
+   [
+    880,
+    771
+   ],
+   [
+    885,
+    776
+   ],
+   [
+    890,
+    781
+   ],
+   [
+    895,
+    786
+   ],
+   [
+    900,
+    790
+   ],
+   [
+    905,
+    791
+   ],
+   [
+    910,
+    791
+   ],
+   [
+    915,
+    792
+   ],
+   [
+    920,
+    797
+   ]
+  ],
+  "keys": {
+   "kp1": 331,
+   "kp3": 284,
+   "kp7": 250,
+   "kp9": 218,
+   "space": 17,
+   "enter": 1
+  },
+  "distinct_keys": 6,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-48d439b06486.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 445.6,
+   "frames": 8911,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/glm-5.3-flash-48d439b06486.jpg",
+  "timeline_url": "runs/48d439b06486.json"
+ },
+ {
+  "id": "c12c28d128a7",
+  "agent": "gemini-3.6-flash",
+  "started": 1789166713.116093,
+  "played": 3597,
+  "budget": 3600,
+  "actions": 58,
+  "decision_calls": 58,
+  "reason": "time",
+  "key_events": 201,
+  "input_frames": 2010,
+  "wait_calls": 0,
+  "ttfa": 13.96,
+  "aps": 0.016,
+  "gap_p50": 15.75,
+  "gap_p95": 279.12,
+  "gap_max": 468.67,
+  "reads": 60,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 1,
+  "frontier": null,
+  "bigmap": false,
+  "exit_acts": null,
+  "exit_secs": null,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 4,
+  "picked_item": false,
+  "books": null,
+  "items_total": 12,
+  "compass": null,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": null,
+  "team_level": null,
+  "saved_at": null,
+  "first_saved_at": null,
+  "meaningful": 0.741,
+  "meaningful_count": 43,
+  "oscillation": 0.086,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    4
+   ],
+   [
+    10,
+    9
+   ],
+   [
+    15,
+    13
+   ],
+   [
+    20,
+    17
+   ],
+   [
+    25,
+    19
+   ],
+   [
+    30,
+    22
+   ],
+   [
+    35,
+    25
+   ],
+   [
+    40,
+    29
+   ],
+   [
+    45,
+    30
+   ],
+   [
+    50,
+    35
+   ],
+   [
+    55,
+    40
+   ]
+  ],
+  "keys": {
+   "kp1": 77,
+   "kp3": 69,
+   "kp7": 24,
+   "kp9": 17,
+   "enter": 14
+  },
+  "distinct_keys": 5,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.6-flash-c12c28d128a7.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 448.1,
+   "frames": 8962,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.6-flash-c12c28d128a7.jpg",
+  "timeline_url": "runs/c12c28d128a7.json"
+ },
+ {
+  "id": "ae695d618b53",
+  "agent": "gemini-3.7-flash",
+  "started": 1789166553.2801857,
+  "played": 3526,
+  "budget": 3600,
+  "actions": 102,
+  "decision_calls": 102,
+  "reason": "time",
+  "key_events": 663,
+  "input_frames": 6630,
+  "wait_calls": 0,
+  "ttfa": 26.41,
+  "aps": 0.029,
+  "gap_p50": 15.54,
+  "gap_p95": 220.65,
+  "gap_max": 387.64,
+  "reads": 104,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 2,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 64,
+  "exit_secs": 1633.2,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 6,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 122,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789170140.83382,
+  "first_saved_at": 1789168295.6779022,
+  "meaningful": 0.882,
+  "meaningful_count": 90,
+  "oscillation": 0.029,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    20,
+    18
+   ],
+   [
+    25,
+    23
+   ],
+   [
+    30,
+    26
+   ],
+   [
+    35,
+    30
+   ],
+   [
+    40,
+    32
+   ],
+   [
+    45,
+    37
+   ],
+   [
+    50,
+    42
+   ],
+   [
+    55,
+    44
+   ],
+   [
+    60,
+    49
+   ],
+   [
+    65,
+    54
+   ],
+   [
+    70,
+    59
+   ],
+   [
+    75,
+    64
+   ],
+   [
+    80,
+    69
+   ],
+   [
+    85,
+    74
+   ],
+   [
+    90,
+    78
+   ],
+   [
+    95,
+    83
+   ],
+   [
+    100,
+    88
+   ]
+  ],
+  "keys": {
+   "kp1": 300,
+   "kp3": 163,
+   "kp7": 116,
+   "kp9": 54,
+   "enter": 14,
+   "space": 9,
+   "escape": 4,
+   "down": 2,
+   "n": 1
+  },
+  "distinct_keys": 9,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.7-flash-ae695d618b53.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 446.7,
+   "frames": 8933,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.7-flash-ae695d618b53.jpg",
+  "timeline_url": "runs/ae695d618b53.json"
+ },
+ {
+  "id": "9f5557c5b6b5",
+  "agent": "gemini-3.8-flash",
+  "started": 1789166365.836144,
+  "played": 3592,
+  "budget": 3600,
+  "actions": 185,
+  "decision_calls": 185,
+  "reason": "time",
+  "key_events": 562,
+  "input_frames": 5620,
+  "wait_calls": 0,
+  "ttfa": 94.69,
+  "aps": 0.052,
+  "gap_p50": 19.97,
+  "gap_p95": 28.28,
+  "gap_max": 49.15,
+  "reads": 186,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 3,
+  "frontier": null,
+  "bigmap": true,
+  "exit_acts": 86,
+  "exit_secs": 1265.9,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 6,
+  "picked_item": true,
+  "books": 0,
+  "items_total": 27,
+  "compass": false,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": 1,
+  "team_level": 1,
+  "saved_at": 1789168455.9620874,
+  "first_saved_at": 1789167689.8768866,
+  "meaningful": 0.832,
+  "meaningful_count": 154,
+  "oscillation": 0.022,
+  "curve": [
+   [
+    0,
+    0
+   ],
+   [
+    5,
+    3
+   ],
+   [
+    10,
+    5
+   ],
+   [
+    15,
+    10
+   ],
+   [
+    20,
+    14
+   ],
+   [
+    25,
+    18
+   ],
+   [
+    30,
+    22
+   ],
+   [
+    35,
+    25
+   ],
+   [
+    40,
+    29
+   ],
+   [
+    45,
+    32
+   ],
+   [
+    50,
+    35
+   ],
+   [
+    55,
+    36
+   ],
+   [
+    60,
+    40
+   ],
+   [
+    65,
+    45
+   ],
+   [
+    70,
+    47
+   ],
+   [
+    75,
+    51
+   ],
+   [
+    80,
+    55
+   ],
+   [
+    85,
+    59
+   ],
+   [
+    90,
+    64
+   ],
+   [
+    95,
+    69
+   ],
+   [
+    100,
+    74
+   ],
+   [
+    105,
+    79
+   ],
+   [
+    110,
+    84
+   ],
+   [
+    115,
+    89
+   ],
+   [
+    120,
+    94
+   ],
+   [
+    125,
+    98
+   ],
+   [
+    130,
+    103
+   ],
+   [
+    135,
+    107
+   ],
+   [
+    140,
+    112
+   ],
+   [
+    145,
+    117
+   ],
+   [
+    150,
+    122
+   ],
+   [
+    155,
+    127
+   ],
+   [
+    160,
+    132
+   ],
+   [
+    165,
+    137
+   ],
+   [
+    170,
+    142
+   ],
+   [
+    175,
+    147
+   ],
+   [
+    180,
+    151
+   ],
+   [
+    185,
+    154
+   ]
+  ],
+  "keys": {
+   "kp1": 177,
+   "kp3": 121,
+   "kp9": 105,
+   "kp7": 82,
+   "enter": 66,
+   "space": 6,
+   "down": 3,
+   "escape": 1,
+   "right": 1
+  },
+  "distinct_keys": 9,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.8-flash-9f5557c5b6b5.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 437.3,
+   "frames": 8746,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/gemini-3.8-flash-9f5557c5b6b5.jpg",
+  "timeline_url": "runs/9f5557c5b6b5.json"
+ },
+ {
+  "id": "da3cba637fcb",
+  "agent": "random-baseline",
+  "started": 1789159181.0302124,
+  "played": 3599,
+  "budget": 3600,
+  "actions": 2110,
+  "decision_calls": 2110,
+  "reason": "time",
+  "key_events": 2110,
+  "input_frames": 21100,
+  "wait_calls": 0,
+  "ttfa": 0.22,
+  "aps": 0.586,
+  "gap_p50": 1.34,
+  "gap_p95": 3.89,
+  "gap_max": 63.26,
+  "reads": 0,
+  "errors": null,
+  "help_langs": {},
+  "scenes": 1,
+  "frontier": null,
+  "bigmap": false,
+  "exit_acts": null,
+  "exit_secs": null,
+  "level": 1,
+  "exp": 0,
+  "hp": 38,
+  "maxhp": 38,
+  "skills": 1,
+  "items": null,
+  "reputation": 0,
+  "potential": 79,
+  "inventory_distinct": 6,
+  "picked_item": true,
+  "books": null,
+  "items_total": 18,
+  "compass": null,
+  "completion_secs": null,
+  "party_size": null,
+  "world_map_at": null,
+  "team_size": null,
+  "team_level": null,
+  "saved_at": null,
+  "first_saved_at": null,
+  "meaningful": 0.424,
+  "meaningful_count": 894,
+  "oscillation": 0.053,
+  "curve": [
+   [
+    1115,
+    438
+   ],
+   [
+    1120,
+    438
+   ],
+   [
+    1125,
+    440
+   ],
+   [
+    1130,
+    443
+   ],
+   [
+    1135,
+    447
+   ],
+   [
+    1140,
+    451
+   ],
+   [
+    1145,
+    454
+   ],
+   [
+    1150,
+    458
+   ],
+   [
+    1155,
+    458
+   ],
+   [
+    1160,
+    460
+   ],
+   [
+    1165,
+    462
+   ],
+   [
+    1170,
+    465
+   ],
+   [
+    1175,
+    467
+   ],
+   [
+    1180,
+    471
+   ],
+   [
+    1185,
+    472
+   ],
+   [
+    1190,
+    476
+   ],
+   [
+    1195,
+    480
+   ],
+   [
+    1200,
+    483
+   ],
+   [
+    1205,
+    488
+   ],
+   [
+    1210,
+    493
+   ],
+   [
+    1215,
+    495
+   ],
+   [
+    1220,
+    498
+   ],
+   [
+    1225,
+    502
+   ],
+   [
+    1230,
+    503
+   ],
+   [
+    1235,
+    504
+   ],
+   [
+    1240,
+    508
+   ],
+   [
+    1245,
+    513
+   ],
+   [
+    1250,
+    516
+   ],
+   [
+    1255,
+    517
+   ],
+   [
+    1260,
+    519
+   ],
+   [
+    1265,
+    524
+   ],
+   [
+    1270,
+    528
+   ],
+   [
+    1275,
+    531
+   ],
+   [
+    1280,
+    534
+   ],
+   [
+    1285,
+    538
+   ],
+   [
+    1290,
+    541
+   ],
+   [
+    1295,
+    545
+   ],
+   [
+    1300,
+    548
+   ],
+   [
+    1305,
+    550
+   ],
+   [
+    1310,
+    552
+   ],
+   [
+    1315,
+    552
+   ],
+   [
+    1320,
+    554
+   ],
+   [
+    1325,
+    554
+   ],
+   [
+    1330,
+    555
+   ],
+   [
+    1335,
+    555
+   ],
+   [
+    1340,
+    556
+   ],
+   [
+    1345,
+    556
+   ],
+   [
+    1350,
+    558
+   ],
+   [
+    1355,
+    559
+   ],
+   [
+    1360,
+    559
+   ],
+   [
+    1365,
+    559
+   ],
+   [
+    1370,
+    562
+   ],
+   [
+    1375,
+    562
+   ],
+   [
+    1380,
+    562
+   ],
+   [
+    1385,
+    562
+   ],
+   [
+    1390,
+    563
+   ],
+   [
+    1395,
+    564
+   ],
+   [
+    1400,
+    565
+   ],
+   [
+    1405,
+    565
+   ],
+   [
+    1410,
+    566
+   ],
+   [
+    1415,
+    566
+   ],
+   [
+    1420,
+    569
+   ],
+   [
+    1425,
+    569
+   ],
+   [
+    1430,
+    571
+   ],
+   [
+    1435,
+    575
+   ],
+   [
+    1440,
+    576
+   ],
+   [
+    1445,
+    577
+   ],
+   [
+    1450,
+    578
+   ],
+   [
+    1455,
+    580
+   ],
+   [
+    1460,
+    582
+   ],
+   [
+    1465,
+    586
+   ],
+   [
+    1470,
+    588
+   ],
+   [
+    1475,
+    590
+   ],
+   [
+    1480,
+    591
+   ],
+   [
+    1485,
+    593
+   ],
+   [
+    1490,
+    595
+   ],
+   [
+    1495,
+    597
+   ],
+   [
+    1500,
+    602
+   ],
+   [
+    1505,
+    605
+   ],
+   [
+    1510,
+    608
+   ],
+   [
+    1515,
+    612
+   ],
+   [
+    1520,
+    614
+   ],
+   [
+    1525,
+    619
+   ],
+   [
+    1530,
+    622
+   ],
+   [
+    1535,
+    627
+   ],
+   [
+    1540,
+    630
+   ],
+   [
+    1545,
+    632
+   ],
+   [
+    1550,
+    633
+   ],
+   [
+    1555,
+    635
+   ],
+   [
+    1560,
+    635
+   ],
+   [
+    1565,
+    637
+   ],
+   [
+    1570,
+    639
+   ],
+   [
+    1575,
+    644
+   ],
+   [
+    1580,
+    649
+   ],
+   [
+    1585,
+    653
+   ],
+   [
+    1590,
+    658
+   ],
+   [
+    1595,
+    660
+   ],
+   [
+    1600,
+    661
+   ],
+   [
+    1605,
+    663
+   ],
+   [
+    1610,
+    665
+   ],
+   [
+    1615,
+    667
+   ],
+   [
+    1620,
+    667
+   ],
+   [
+    1625,
+    667
+   ],
+   [
+    1630,
+    669
+   ],
+   [
+    1635,
+    671
+   ],
+   [
+    1640,
+    671
+   ],
+   [
+    1645,
+    675
+   ],
+   [
+    1650,
+    677
+   ],
+   [
+    1655,
+    679
+   ],
+   [
+    1660,
+    682
+   ],
+   [
+    1665,
+    685
+   ],
+   [
+    1670,
+    686
+   ],
+   [
+    1675,
+    687
+   ],
+   [
+    1680,
+    690
+   ],
+   [
+    1685,
+    693
+   ],
+   [
+    1690,
+    696
+   ],
+   [
+    1695,
+    701
+   ],
+   [
+    1700,
+    701
+   ],
+   [
+    1705,
+    703
+   ],
+   [
+    1710,
+    704
+   ],
+   [
+    1715,
+    707
+   ],
+   [
+    1720,
+    709
+   ],
+   [
+    1725,
+    710
+   ],
+   [
+    1730,
+    712
+   ],
+   [
+    1735,
+    715
+   ],
+   [
+    1740,
+    718
+   ],
+   [
+    1745,
+    722
+   ],
+   [
+    1750,
+    724
+   ],
+   [
+    1755,
+    726
+   ],
+   [
+    1760,
+    727
+   ],
+   [
+    1765,
+    727
+   ],
+   [
+    1770,
+    727
+   ],
+   [
+    1775,
+    728
+   ],
+   [
+    1780,
+    732
+   ],
+   [
+    1785,
+    734
+   ],
+   [
+    1790,
+    738
+   ],
+   [
+    1795,
+    738
+   ],
+   [
+    1800,
+    740
+   ],
+   [
+    1805,
+    742
+   ],
+   [
+    1810,
+    747
+   ],
+   [
+    1815,
+    750
+   ],
+   [
+    1820,
+    753
+   ],
+   [
+    1825,
+    757
+   ],
+   [
+    1830,
+    758
+   ],
+   [
+    1835,
+    761
+   ],
+   [
+    1840,
+    764
+   ],
+   [
+    1845,
+    768
+   ],
+   [
+    1850,
+    772
+   ],
+   [
+    1855,
+    776
+   ],
+   [
+    1860,
+    779
+   ],
+   [
+    1865,
+    784
+   ],
+   [
+    1870,
+    788
+   ],
+   [
+    1875,
+    791
+   ],
+   [
+    1880,
+    795
+   ],
+   [
+    1885,
+    799
+   ],
+   [
+    1890,
+    800
+   ],
+   [
+    1895,
+    804
+   ],
+   [
+    1900,
+    808
+   ],
+   [
+    1905,
+    812
+   ],
+   [
+    1910,
+    814
+   ],
+   [
+    1915,
+    817
+   ],
+   [
+    1920,
+    818
+   ],
+   [
+    1925,
+    821
+   ],
+   [
+    1930,
+    825
+   ],
+   [
+    1935,
+    827
+   ],
+   [
+    1940,
+    828
+   ],
+   [
+    1945,
+    832
+   ],
+   [
+    1950,
+    836
+   ],
+   [
+    1955,
+    836
+   ],
+   [
+    1960,
+    841
+   ],
+   [
+    1965,
+    845
+   ],
+   [
+    1970,
+    849
+   ],
+   [
+    1975,
+    853
+   ],
+   [
+    1980,
+    855
+   ],
+   [
+    1985,
+    860
+   ],
+   [
+    1990,
+    862
+   ],
+   [
+    1995,
+    863
+   ],
+   [
+    2000,
+    864
+   ],
+   [
+    2005,
+    867
+   ],
+   [
+    2010,
+    870
+   ],
+   [
+    2015,
+    871
+   ],
+   [
+    2020,
+    872
+   ],
+   [
+    2025,
+    876
+   ],
+   [
+    2030,
+    878
+   ],
+   [
+    2035,
+    879
+   ],
+   [
+    2040,
+    882
+   ],
+   [
+    2045,
+    883
+   ],
+   [
+    2050,
+    883
+   ],
+   [
+    2055,
+    884
+   ],
+   [
+    2060,
+    884
+   ],
+   [
+    2065,
+    884
+   ],
+   [
+    2070,
+    884
+   ],
+   [
+    2075,
+    887
+   ],
+   [
+    2080,
+    887
+   ],
+   [
+    2085,
+    887
+   ],
+   [
+    2090,
+    889
+   ],
+   [
+    2095,
+    890
+   ],
+   [
+    2100,
+    891
+   ],
+   [
+    2105,
+    893
+   ],
+   [
+    2110,
+    894
+   ]
+  ],
+  "keys": {
+   "kp3": 353,
+   "kp7": 345,
+   "kp1": 340,
+   "kp9": 330,
+   "enter": 294,
+   "space": 102,
+   "escape": 81,
+   "y": 48,
+   "left": 46,
+   "right": 46,
+   "up": 45,
+   "down": 40,
+   "n": 40
+  },
+  "distinct_keys": 13,
+  "valid": true,
+  "complete": true,
+  "why": "the full 60 minutes budget was used",
+  "video_url": "https://storage.googleapis.com/jy-crpg-bench-runs/random-baseline-da3cba637fcb.mp4",
+  "rendered_artifacts_uploaded": true,
+  "error": null,
+  "video": {
+   "seconds": 449.8,
+   "frames": 8996,
+   "size": "320x232",
+   "speed": 8.0
+  },
+  "poster_url": "https://storage.googleapis.com/jy-crpg-bench-runs/random-baseline-da3cba637fcb.jpg",
+  "timeline_url": "runs/da3cba637fcb.json"
+ }
+]
