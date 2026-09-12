@@ -2424,7 +2424,7 @@ async def calibrate():
 async def api_recording(request):
     if recording_api:
         return await recording_api.handle(
-            request, include_trajectory=not (warden.ON and not operator(request)))
+            request, include_trajectory=include_trajectory(request))
     return web.json_response({"started": rec["started"], "duration": 0, "events": [], "bytes": 0})
 
 
@@ -2517,6 +2517,16 @@ def operator(request):
     got = request.query.get("token") or request.headers.get("X-Reset-Token")
     return bool(want) and hmac.compare_digest(
         (got or "").encode("utf-8"), want.encode("utf-8"))
+
+
+def include_trajectory(request):
+    """Only an explicitly authenticated operator may read recorded coordinates.
+
+    Trajectory markers are written for offline analysis. They must stay out of
+    every ordinary recording response, including interactive non-benchmark
+    sessions where the benchmark warden is disabled.
+    """
+    return operator(request)
 
 
 def withheld(request):

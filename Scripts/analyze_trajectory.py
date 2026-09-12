@@ -17,4 +17,3 @@ if args.window < 1:
     parser.error("--window must be positive")
 print(json.dumps(analyze(args.recording, window_size=args.window),
                  ensure_ascii=False, indent=2))
-

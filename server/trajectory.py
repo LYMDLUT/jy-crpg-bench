@@ -19,6 +19,10 @@ _DIRECTION = {
     "up": (1, -1), "down": (-1, 1), "left": (-1, -1), "right": (1, 1),
     "kp1": (-1, 1), "kp2": (0, 1), "kp3": (1, 1), "kp4": (-1, 0),
     "kp6": (1, 0), "kp7": (-1, -1), "kp8": (0, -1), "kp9": (1, -1),
+    "upright": (1, -1), "ne": (1, -1),
+    "downright": (1, 1), "se": (1, 1),
+    "downleft": (-1, 1), "sw": (-1, 1),
+    "upleft": (-1, -1), "nw": (-1, -1),
 }
 
 
@@ -41,7 +45,11 @@ def _direction(event):
     if not isinstance(target, str):
         label = event.get("label")
         target = label.split(" ", 1)[-1] if isinstance(label, str) else ""
-    return _DIRECTION.get(target.lower())
+    # KEYS actions can carry a sequence such as ``kp9 enter``. Only the
+    # directional token contributes to route reversals; confirmation keys do
+    # not erase the movement direction.
+    return next((_DIRECTION[token] for token in target.lower().split()
+                 if token in _DIRECTION), None)
 
 
 def _window(rows):

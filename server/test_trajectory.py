@@ -67,6 +67,16 @@ class TrajectoryTests(unittest.TestCase):
         self.assertEqual(result["actions"][0]["x"], 42)
         self.assertEqual(result["actions"][0]["y"], 7)
 
+    def test_direction_aliases_and_key_sequences_count_reversals(self):
+        events = [
+            {"t": 0.0, "act": "KEYS", "on": "ne enter"},
+            {"t": 0.1, "trajectory": True, "action": 1},
+            {"t": 1.0, "act": "KEY", "on": "sw"},
+            {"t": 1.1, "trajectory": True, "action": 2},
+        ]
+        result = summarize(events)
+        self.assertEqual(result["summary"]["reverse_steps"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
