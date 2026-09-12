@@ -77,8 +77,8 @@ manufacture, and one instrument spans the whole distance: a ladder of
 machine-verified milestones while models learn to move, and completion time
 once they finish. We report \NmodelsDistinct{} frontier models against a
 seeded random baseline under a \NbudgetMin{}-minute budget: \Smap{} reach the
-world map, one holds the compass, and none gains experience, so the campaign
-behind the ending is untouched. We release \bench{} as a live, replayable
+world map and one holds the compass, leaving the campaign behind the ending
+untouched. We release \bench{} as a live, replayable
 public arena at \url{https://github.com/hanxiao/jy-crpg-bench}.
 \end{abstract}
 
@@ -415,7 +415,7 @@ launch, and files model and level with the usage report of
 
 \Cref{tab:api} is the control surface in full, and the same brief is published
 at \texttt{agents.md} for a client that creates its own sessions. The
-reference harness reads the Chinese brief by default, a run's record keeps the
+reference harness reads the Chinese brief by default, the record of a run keeps the
 language of every brief it fetched, and the manual it serves warns in as many
 words that arrow-key intuition does not survive the isometric map. A scored
 session is refused every field that would report its own progress until the
@@ -450,8 +450,8 @@ session is a separate emulator process with a private copy of the game,
 which every host supplies itself as described in \cref{app:licence}, with
 its save slots reset to a new game, so no run inherits the progress of
 another. A session ends only when its budget lapses or it completes; a long
-pause between keys is the model's to spend, and there is no inactivity
-cutoff.
+pause between keys is time the model is free to spend, and there is no
+inactivity cutoff.
 When the budget lapses the session renders its recording
 to video, computes its metrics, and appends itself to the public catalogue.
 \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists the
@@ -493,23 +493,21 @@ machine but never loads state into it. The one thing it presses for itself is th
 described next, which costs the game a few seconds of menu time outside the
 accounting of the run and leaves the screen as it found it.
 
-For the party roster and the world position the benchmark reads the game's
-own save, the archive it writes in the format already validated against the
-shipped ones. The game offers its save menu on the world map alone and
-announces this through the height of the menu -- six rows on the world map
-against four in a scene -- so an attempt opens the menu, reads its height, and
-withdraws on a scene's four rows, saving only where the six appear; what
-admits a save is the game's own menu, not any reading of where the party
-stands. An attempt recurs every two minutes and once more before the budget
-lapses, waits for a two-second gap in the model's own keys, and holds the
-single-player lock while it runs, so the model never sees the screen mid-save,
-and the time of the first save it lands is the time of the crossing. The
-archive is decoded like the shipped ones, and neither it nor anything read
-from it is reachable through the control surface, so a save that lands is
-itself the evidence that the party has crossed onto the world map. The session
-record also keeps a screen fingerprint of the world map, latched for the
-replay and nothing else: it never enters a score, and \cref{sec:results}
-reports where it and the save disagree.
+For the party roster and the world position the benchmark reads the save the
+game writes, in the format already validated against the shipped archives. The
+game offers its save menu on the world map alone and announces this through
+the height of the menu, which stands at six rows on the world map and four in
+a scene, so an attempt opens the menu, reads its height, and saves only where
+six rows appear. The menu the game draws is what admits a save, and no reading
+of the party position enters the decision. An attempt recurs every two minutes
+and once more before the budget lapses, waits for a two-second gap in the keys
+the model sends, and holds the single-player lock while it runs, so the model
+never sees the screen mid-save, and the time of the first save it lands is the
+time of the crossing. The archive is decoded like the shipped ones, and
+neither it nor anything read from it is reachable through the control surface,
+so a save that lands is itself the evidence that the party has crossed onto the
+world map. The session record also keeps a screen fingerprint of the world map
+for the replay, and it never enters a score.
 
 Progress is summarised as eight milestones read from this ground truth, in
 the spirit of the achievements of Crafter \citep{hafner2021benchmarking}, and
@@ -556,8 +554,9 @@ holds one of the fourteen & a book in the bag or carried by the protagonist & ba
 \end{tabular}
 \end{table}
 
-The ladder points at the ending of the game. The fourteen books are what the
-game requires before its final sequence can be played, and the archive
+The ladder points at the ending of the game. The fourteen books, named in
+\cref{app:books}, are what the game requires before its final sequence can be
+played, and the archive
 records every book held, so the count of books carries the ladder from its
 last rung to the threshold of that sequence, and the fourteenth book is the
 completion event the benchmark times: the first read that finds all fourteen
@@ -571,13 +570,13 @@ That ladder is the frozen score of the short benchmark and it stays fixed. For
 the multi-hour budgets the protocol allows, the release adds a second,
 additive report over the same ground truth: a finer trajectory that records
 the scenes a run reached, the battles it survived, the skills it learned and
-the books it gathered, out to the ending, with the walkthrough's hard
-prerequisites as dependency gates between them. Each component is scored
+the books it gathered, out to the ending, with the hard prerequisites of the
+walkthrough as dependency gates between them. Each component is scored
 against a fixed denominator with its coverage reported beside it, so a run
 instrumented on only part of the trajectory cannot post a falsely high number,
-and a milestone a run never measured is marked unmeasured rather than counted
+and a milestone a run never measured is marked unmeasured and never counted
 as failed. The report never rescores the short ladder and never feeds back
-into the short field's intervals; it exists so that a long run holding no book
+into the intervals of the short field; it exists so that a long run holding no book
 still leaves an ordered record of how far its plan carried. Its checkpoint
 contract and component weights are released with the benchmark.
 
@@ -601,11 +600,11 @@ surface, drawing from thirteen keys the brief teaches, weighted towards
 movement and confirmation, and never reading the screen, following the
 convention that anchors a score on random and human play
 \citep{mnih2015humanlevel,hafner2021benchmarking,arc2026arcagi3}. The rungs
-it reaches are what the environment gives away, and they are the floor of the
-ladder. Because it is seeded, its whole key sequence is recomputed offline and
-checked against the recording journal of what the machine was given; for the
-random runs reported here the two agree key for key, so even the floor rests
-on a verified input path.
+it reaches are the floor of the ladder, the progress a run makes without
+reading the screen. Because it is seeded, its whole key sequence is recomputed
+offline and checked against the recording journal of what the machine
+received; for the random runs reported here the two agree key for key, so even
+the floor rests on a verified input path.
 
 \section{Evaluation}
 \label{sec:results}
@@ -680,11 +679,9 @@ models from one another but not from the floor. The compass divides the
 field a third time, one session from the rest, and above it the field is
 undivided: no session recruits the companion, which is where the ladder will
 next separate models. The world-map rung also shows why progress is read from
-the machine. The session record keeps, beside the save, a screen fingerprint
-of the world map that the harness latches for its replay; the two agree on
-\SmapScreen{} crossings, and \SmapSaveOnly{} crossing that the fingerprint
-never latched is credited by the save alone, while no fingerprint latched
-without a save behind it.
+the machine. The save and the replay fingerprint agree on \SmapScreen{}
+crossings, \SmapSaveOnly{} crossing the fingerprint missed is credited by the
+save alone, and no fingerprint latched without a save behind it.
 
 \subsection{Use of the Budget}
 
@@ -717,7 +714,7 @@ surface, and scores it in the terms the game keeps about itself. At the
 opening: \Smap{} of \Nsessions{} sessions reach the world map, one holds the
 compass, and none gains experience, so every rung from the companion to the
 fourteenth book stands open, and the \QrandomRungs{} rungs the random baseline
-reaches mark where the environment stops giving progress away. The
+reaches mark the floor a model has to clear. The
 environment is adversarial in ways that are named and
 checkable: an out-of-distribution $320\times200$ isometric frame,
 Traditional Chinese as the only channel through which objectives are stated,
@@ -769,9 +766,8 @@ The harness code is released under MIT. The emulation core
 (\texttt{dosbox\_pure\_libretro}) is GPLv2, loaded at runtime through the
 libretro C API and redistributed unmodified; the bundled macOS core is built
 from \texttt{schellingb/dosbox-pure} at \texttt{7f6e8fb}, and the hosted
-service ships a Linux build pinned by image digest rather than pulled at
-build time, since the buildbot's unversioned latest was found to change
-underneath the opening. The game is the 1996
+service ships a Linux build pinned by image digest, since the unversioned
+latest build from that buildbot was found to change underneath the opening. The game is the 1996
 commercial release, copyright \game{智冠科技} and \game{河洛工作室}. It is not
 redistributable, it is not tracked in the repository, and every host supplies
 its own copy. The public catalogue therefore carries our own measurement
