@@ -1,16 +1,22 @@
-// Complete disk-backed screenshot history. The realtime log's 40-image cache
-// is separate; each page owns only eight images and releases its snapshot.
+// Complete disk-backed activity history. When the server exposes saved
+// history, this is the one rendered feed: the websocket is only a change
+// signal and the page owns eight disk-backed records at a time.
 (() => {
   const PAGE = 8;
   const get = id => document.getElementById(id);
   const endpoint = path => new URL(path, location.href);
   const enabled = document.currentScript?.dataset.historyEnabled !== 'false';
+  globalThis.__savedHistoryEnabled = enabled;
   let start = 0, total = 0, origin = null, busy = false, urls = [];
   let generation = 0, active = null, reload = false, reloadStart = null, disposed = false;
+  let refreshTimer = null;
   const box = get('historyrows'), info = get('historyinfo');
   function selectHistory() {
     get('historypane').hidden = false;
-    get('logrows').hidden = false;
+    // The live websocket cache is a fallback for benchmark pages where saved
+    // history is disabled. Rendering it beside this feed would duplicate the
+    // same actions and make pagination look as if only half the timeline moved.
+    get('logrows').hidden = enabled;
     if (typeof updateImageJump === 'function') updateImageJump();
   }
   function buttons() {
@@ -59,7 +65,15 @@
       if (!Number.isSafeInteger(meta.steps) || meta.steps < 0) throw Error('历史记录数量无法识别。');
       if (origin !== null && origin !== meta.started) requested = null;
       origin = meta.started; total = meta.steps;
-      start = Math.max(0, Math.min(requested ?? Math.max(0, total - PAGE), Math.max(0, total - 1)));
+      const pages = total ? Math.ceil(total / PAGE) : 0;
+      const requestedPage = requested === null || requested === undefined
+        ? pages
+        : Math.floor(Math.max(0, requested) / PAGE) + 1;
+      const pageNumber = pages ? Math.max(1, Math.min(pages, requestedPage)) : 0;
+      // Every page is aligned to the same eight-record boundary. In
+      // particular, a 10,841-record history has page 1,356 starting at
+      // record 10,841, while page 1,355 starts at record 10,833.
+      start = pageNumber ? (pageNumber - 1) * PAGE : 0;
       const path = `api/replay/${encodeURIComponent(token)}/steps?start=${start}&count=${PAGE}`;
       const {data:page} = await request(path, signal);
       check();
@@ -114,7 +128,8 @@
         }));
       }
       check();
-      box.scrollTop = 0;
+      const timeline = get('timeline');
+      if (timeline) timeline.scrollTop = 0;
     } catch(error) {
       if (current()) { releaseImages(); info.textContent=''; box.textContent=''; const text=document.createElement('div'); text.className='history-empty'; text.textContent=error.message; box.append(text); }
     } finally {
@@ -135,6 +150,22 @@
     if (active) { reload = true; reloadStart = requested; }
     else load(requested);
   }
+  function scheduleRefresh() {
+    if (!enabled || disposed || refreshTimer !== null) return;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      // Keep an old page stable while it is being inspected. If the user was
+      // on the last page, follow the new last page so live activity becomes
+      // part of the same paginated feed immediately.
+      const requested = total && start + PAGE < total ? start : null;
+      if (active) {
+        reload = true;
+        reloadStart = requested;
+      } else {
+        load(requested);
+      }
+    }, 250);
+  }
   get('historyfirst').onclick = () => load(0);
   get('historyprev').onclick = () => load(Math.max(0,start-PAGE));
   get('historynext').onclick = () => load(start+PAGE);
@@ -147,9 +178,11 @@
   get('historypage').onchange = jump;
   get('historypage').onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); jump(); } };
   addEventListener('historyinvalidate', invalidate);
+  addEventListener('activityrecorded', scheduleRefresh);
   addEventListener('pagehide', event => {
     if (!event.persisted) {
       disposed = true; reload = false; generation++;
+      if (refreshTimer !== null) { clearTimeout(refreshTimer); refreshTimer = null; }
       active?.controller.abort(); releaseImages();
     }
   });

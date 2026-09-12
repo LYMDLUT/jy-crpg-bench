@@ -199,7 +199,7 @@ test('an ordinary endpoint 404 remains a visible history error', async () => {
   const state = fixture({handle: () => response({}, 404)});
   await until(() => state.elements.historyrows.textContent.includes('历史'), 'history error did not appear', state);
   assert.equal(state.elements.historypane.hidden, false);
-  assert.equal(state.elements.logrows.hidden, false);
+  assert.equal(state.elements.logrows.hidden, true);
   assert.match(state.elements.historyrows.textContent, /不可用|失败|重试/);
   assert.equal(state.elements.historylatest.disabled, false);
 });
@@ -214,8 +214,8 @@ test('latest, first, next, and previous pages own eight rows and preserve the us
       'page did not finish', state);
     assert.deepEqual(indices(state), expected);
   }
-  await completed(1, [12, 13, 14, 15, 16, 17, 18, 19]);
-  assert.equal(state.elements.historyrange.textContent, '13–20 / 20 张');
+  await completed(1, [16, 17, 18, 19]);
+  assert.equal(state.elements.historyrange.textContent, '17–20 / 20 张');
   state.elements.historyfirst.click();
   await completed(2, [0, 1, 2, 3, 4, 5, 6, 7]);
   assert.equal(state.elements.historyprev.disabled, true);
@@ -224,16 +224,32 @@ test('latest, first, next, and previous pages own eight rows and preserve the us
   state.elements.historyprev.click();
   await completed(4, [0, 1, 2, 3, 4, 5, 6, 7]);
   state.elements.historylatest.click();
-  await completed(5, [12, 13, 14, 15, 16, 17, 18, 19]);
+  await completed(5, [16, 17, 18, 19]);
   assert.equal(state.elements.historynext.disabled, true);
   assert.ok(state.requests.every(call => call.url.pathname.startsWith('/u/test-user/api/replay')));
   assert.ok(state.requests.filter(isOpen).every(call => call.url.searchParams.get('recording') === 'current'));
   assert.ok(state.requests.filter(isSteps).every(call => call.url.searchParams.get('count') === '8'));
   assert.equal(new Set(deleted(state)).size, 5);
-  assert.equal(state.created.length - new Set(state.revoked).size, 8, 'only the current page retains image URLs');
+  assert.equal(state.created.length - new Set(state.revoked).size, 4, 'only the current page retains image URLs');
   state.emit('pagehide', {persisted: false});
   await settle();
   assert.ok(state.created.every(({url}) => state.revoked.includes(url)), 'pagehide releases all rendered image URLs');
+});
+
+test('a persisted activity refreshes the same feed and follows only the latest page', async () => {
+  let total = 8, opened = 0;
+  const state = fixture({handle: call => isOpen(call)
+    ? response({token: 'live-' + (++opened), started: 'same-recording', steps: total})
+    : standard(call, tokenOf(call), total)});
+  await until(() => deleted(state).length === 1 && !state.elements.historylatest.disabled,
+    'initial live page did not finish', state);
+  total = 9;
+  state.emit('activityrecorded');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await until(() => deleted(state).length === 2 && indices(state).join(',') === '8',
+    'new persisted activity did not refresh the latest page', state);
+  assert.equal(state.elements.logrows.hidden, true);
+  assert.equal(state.elements.historyrange.textContent, '9–9 / 9 张');
 });
 
 test('failed actions visibly retain their failure status and reason', async () => {
