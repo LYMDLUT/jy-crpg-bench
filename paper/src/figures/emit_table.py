@@ -4,6 +4,7 @@ import json, os, statistics as st
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import field
+from labels import latex_agent
 
 
 def wil(k, n, z=1.96):
@@ -17,11 +18,6 @@ def wil(k, n, z=1.96):
 
 def median(values):
     return st.median(values) if values else float("nan")
-
-
-def display_agent(label):
-    names = {"claude":"Claude", "gemini":"Gemini", "qwen":"Qwen", "grok":"Grok", "glm":"GLM", "gpt":"GPT", "vista":"Vista", "codex":"Codex", "random":"Random"}
-    return "-".join(names.get(part.lower(), next((names[v] + part[len(v):] for v in names if part.lower().startswith(v)), part)) for part in label.split("-"))
 
 
 def main():
@@ -52,7 +48,7 @@ def main():
         if is_random and not floor_started:
             lines.append(r"\midrule")
             floor_started = True
-        name = display_agent(agent).replace("_", "\\_").replace("--", "-{-}")
+        name = latex_agent(agent)
         lines.append(r"\texttt{%s} & %.0f & %s & %d/%d & %s \\"
                      % (name, played, reason, count, len(rungs),
                         " & ".join(mark[v] for v in rungs)))
