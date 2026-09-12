@@ -34,7 +34,7 @@
 
 \title{\raggedright\bench{}: A Long-Horizon Benchmark \\
 for Vision-Language Models \\
-in an Unmodified Chinese Open-World RPG}
+in a Chinese Open-World RPG}
 
 \author{Han Xiao \\
 \texttt{han.xiao@jina.ai} \\
@@ -62,8 +62,8 @@ A long-horizon task requires a model to perceive its environment, decide for
 itself what is worth doing, and hold one plan across hours of dependent
 decisions. We present \bench{}, a benchmark that places a vision-language
 model inside \game{金庸群俠傳}, the 1996 commercial open-world role-playing
-game \emph{Heroes of Jin Yong}, run unmodified under DOS emulation, and
-scores it against the ending the game defines, which requires recovering the
+game \emph{Heroes of Jin Yong} running under DOS emulation, and scores it
+against the ending the game defines, which requires recovering the
 fourteen books of the Jin Yong canon and takes a first-time human player tens
 of hours. The environment is hard for current vision-language models on
 several axes at once, with a $320\times200$ framebuffer of 1996 pixel art, a
@@ -127,8 +127,8 @@ do.
 \bench{} runs a single deep environment, following the precedent of Crafter
 and NetHack \citep{hafner2021benchmarking,kuttler2020nethack}. The environment is
 \game{金庸群俠傳}, a 1996 Chinese role-playing game that remains a landmark
-of its genre, executed as its original DOS binary under emulation with no
-modification. The game presents an open world built from the fourteen novels
+of its genre, executed as its original DOS binary under emulation. The game
+presents an open world built from the fourteen novels
 of Jin Yong: a two-tier map, several hundred named characters each carrying
 level, experience, skills, items and reputation, and an ending that requires
 recovering fourteen books scattered across the world. A first human
@@ -180,8 +180,8 @@ nothing read from the screen enters a score.
 We make three contributions.
 
 \begin{enumerate}
-\item We present \bench{}, a long-horizon benchmark on an unmodified
-commercial open-world role-playing game whose difficulty comes from named and
+\item We present \bench{}, a long-horizon benchmark on a commercial
+open-world role-playing game whose difficulty comes from named and
 independently checkable properties of the environment: low-resolution
 perception of 1996 pixel art, isometric control, Traditional Chinese grounding,
 a keyboard action space of which the game answers a small subset, and
@@ -667,7 +667,7 @@ report already support them, and the field does not yet contain them.}
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented \bench{}, a long-horizon benchmark that runs an unmodified 1996
+We presented \bench{}, a long-horizon benchmark that runs a 1996
 open-world role-playing game, gives every model the same brief and control
 surface, and scores it in the terms the game keeps about itself. At the
 \NbudgetMin{}-minute budget the field of \NmodelsDistinct{} models stays
