@@ -56,7 +56,12 @@ def _rows(path):
     return out
 
 
-def load_runs(path=SNAPSHOT, dedup=True):
+# Models left out of the paper's field: a version with two later versions of
+# its line in the field. Their sessions stay in the public catalogue.
+EXCLUDED = ("gemini-3.6-flash",)
+
+
+def load_runs(path=SNAPSHOT, dedup=True, keep_excluded=False):
     rows = _rows(path)
     if path == SNAPSHOT:
         field = {r["agent"] for r in rows}
@@ -78,6 +83,8 @@ def load_runs(path=SNAPSHOT, dedup=True):
                 continue
             seen.add(r["id"])
             rows.append(r)
+    if not keep_excluded:
+        rows = [r for r in rows if r["agent"] not in EXCLUDED]
     return best_per_model(rows) if dedup else rows
 
 
@@ -201,12 +208,10 @@ def crossing_actions(row):
 
 def ladder_order(m):
     """Sort key for the model rows of the milestone figure and the effort table:
-    milestones reached, then the shares from the deepest milestone down, then
-    the median crossing, then the name, so the best row is always on top."""
-    import statistics
-    shares = [c[0] / c[2] for c in m["counts"]]
-    med = statistics.median(m["crossings"]) if m["crossings"] else float("inf")
-    return (-m["reached"], tuple(-s for s in reversed(shares)), med, m["agent"].lower())
+    the mean number of actions to the world map over the sessions that
+    crossed, fewest first, then the name; a model with no crossing goes last."""
+    mean = sum(m["crossings"]) / len(m["crossings"]) if m["crossings"] else float("inf")
+    return (mean, m["agent"].lower())
 
 
 def model_rows(rows):

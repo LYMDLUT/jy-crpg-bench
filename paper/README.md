@@ -15,8 +15,9 @@ ICLR 2027 submission draft for jy-crpg-bench.
   per session the live catalogue no longer lists, from the preserved saves in
   `src/figures/slots/` and the timelines; `catalog_backup_20260911T174413Z.json`
   is the catalogue as it stood before it was cleared for the final sweep.
-  `field.py` merges the three and credits a model with every rung any of its
-  sessions reached; `slots.py` decodes every preserved save in
+  `field.py` merges the three, leaves out the models in its `EXCLUDED` list
+  (a version with two later versions of its line in the field) and credits a
+  model with every rung any of its sessions reached; `slots.py` decodes every preserved save in
   `src/figures/slots/`; `replay_scan.py` matches five fixed panels of the game
   (`src/figures/templates/`) against every published replay video, and the
   message drawn when an item enters the bag along its row at the full frame

@@ -643,6 +643,14 @@ if any(r["world_opened"] and not _seen(r, "hermit") for r in _hb):
     sys.exit("a save shows the scenes the hermit opens but the replay shows no portrait")
 emit("PhermitBoth", len(_hb), "sessions with a preserved save and a replay")
 emit("PhermitOpened", sum(1 for r in _hb if r["world_opened"]), "of them whose save shows the scenes the hermit opens, all with his portrait on the replay")
+# the model left out of the field, and its sessions in the catalogue
+if len(field.EXCLUDED) != 1:
+    sys.exit("the appendix names one excluded model")
+_excl = field.played([r for r in field.load_runs(dedup=False, keep_excluded=True) if r["agent"] in field.EXCLUDED])
+if not _excl:
+    sys.exit("the excluded model has no session at the default budget; drop the sentence")
+lines.append(("% the model left out of the field", "\\newcommand{\\LexcludedLabel}{\\texttt{%s}}" % field.EXCLUDED[0]))
+emit("NexcludedSessions", len(_excl), "its sessions at the default budget in the catalogue")
 # when the field ran
 import datetime as _dt
 _days = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in ALL if r.get("started"))

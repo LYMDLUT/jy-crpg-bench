@@ -22,6 +22,7 @@ import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import ticker as mticker
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
 
@@ -177,43 +178,28 @@ ACT_TICKS = (20, 50, 100, 200, 500, 1000, 2000)
 
 
 def figure_ladder():
-    # one row per model with every session it played behind it; models by
-    # milestones reached, then by the share of sessions behind them, the
-    # random floor last
+    # one row per model with every session it played behind it, ordered by the
+    # mean crossing with the fewest actions first; the random floor last
     rows = _field.played(_field.load_runs(dedup=False))
     models = _field.model_rows([r for r in rows if not _field.is_random(r["agent"])])
     floor = _field.model_rows([r for r in rows if _field.is_random(r["agent"])])
-        # ties on the count are broken by the shares from the deepest milestone
-    # down, then by the median crossing, so the best row is always on top
     models.sort(key=_field.ladder_order)
     entries = models + floor
-    labels = [m["agent"] for m in entries]
-    n = len(entries)
-    span = len(DEFINITION)
-    fig, ax = plt.subplots(figsize=(7.6, 0.27 * n + 1.25))
-    cells = []
-    # the actions each crossing took, as a box plot behind the row on one log
-    # scale: the box is the quartiles, the line inside it the median, the thin
-    # line the range
-    lo10, hi10 = math.log10(ACT_LO), math.log10(ACT_HI)
-    xmap = lambda a: -0.5 + span * (math.log10(a) - lo10) / (hi10 - lo10)
-    for row, m in enumerate(entries):
-        c = m["crossings"]
-        if not c:
-            continue
-        if min(c) < ACT_LO or max(c) > ACT_HI:
-            sys.exit(f"ladder: a crossing of {m['agent']} falls outside the {ACT_LO}-{ACT_HI} action scale")
-        q1, med, q3 = (float(v) for v in np.percentile(c, [25, 50, 75]))
-        if len(c) > 1:
-            ax.plot([xmap(min(c)), xmap(max(c))], [row, row], color=BOX_WHISKER, lw=0.8, zorder=1.1)
-            for v in (min(c), max(c)):
-                ax.plot([xmap(v), xmap(v)], [row - 0.13, row + 0.13], color=BOX_WHISKER, lw=0.8, zorder=1.1)
-            ax.add_patch(Rectangle((xmap(q1), row - 0.31), xmap(q3) - xmap(q1), 0.62,
-                                   facecolor=BOX_FILL, edgecolor="none", zorder=1.2))
-        ax.plot([xmap(med), xmap(med)], [row - 0.31, row + 0.31], color=BOX_MEDIAN, lw=1.2, zorder=1.3)
+    boxed = [m for m in models if m["crossings"]]
+    n, nb, span = len(entries), len(boxed), len(DEFINITION)
+    # the layout in inches: the milestone panel, its legend, the crossing panel
+    top_pitch, bottom_pitch = 0.24, 0.15
+    head, legend_h, gap, foot = 0.42, 0.28, 0.12, 0.42
+    top_h, bottom_h = top_pitch * n, bottom_pitch * nb
+    fig_h = head + top_h + legend_h + gap + bottom_h + foot
+    fig = plt.figure(figsize=(7.6, fig_h))
+    left, right = 0.165, 0.975
+    ax = fig.add_axes([left, (foot + bottom_h + gap + legend_h) / fig_h, right - left, top_h / fig_h])
+    bx = fig.add_axes([left, foot / fig_h, right - left, bottom_h / fig_h])
     # one marker per milestone: the filled share of the disc is the share of
     # the model's sessions that reached it
     S = 60.0
+    cells = []
     for row, m in enumerate(entries):
         for col, (reached, known, total) in enumerate(m["counts"]):
             if known < total:
@@ -228,7 +214,6 @@ def figure_ladder():
                                edgecolors="none", linewidths=0, zorder=3.4)
                     ax.scatter(col, row, s=S, marker="o", facecolors="none", edgecolors=EDGE, linewidths=1.1, zorder=3.6)
             cells.append((col, row, S ** 0.5))
-    # the session count at the right, headed like the milestone names
     from matplotlib.transforms import blended_transform_factory
     xsess = span + 0.35
     heads = [ax.annotate("sessions", xy=(xsess, 1.0),
@@ -237,38 +222,56 @@ def figure_ladder():
                          va="bottom", fontsize=6.6, color="#67676b")]
     counts = [ax.text(xsess, row, str(m["sessions"]), ha="center", va="center", fontsize=7.6, color=INK)
               for row, m in enumerate(entries)]
-    # the action scale under the rows
-    ybase = n - 0.2
-    ax.plot([xmap(ACT_LO), xmap(ACT_HI)], [ybase, ybase], color="#c3c3c6", lw=0.6, zorder=1)
-    ticks = []
-    for t in ACT_TICKS:
-        ax.plot([xmap(t), xmap(t)], [ybase, ybase + 0.12], color="#c3c3c6", lw=0.6, zorder=1)
-        ticks.append(ax.text(xmap(t), ybase + 0.2, str(t), ha="center", va="top", fontsize=6.6, color="#67676b"))
-    ax.set_yticks(range(n), labels, fontsize=8.5, fontfamily="monospace")
+    ax.set_yticks(range(n), [m["agent"] for m in entries], fontsize=8.5, fontfamily="monospace")
     ax.set_xticks(range(span), DEFINITION, fontsize=6.6)
     ax.xaxis.tick_top()
     ax.set_xlim(-0.55, span + 0.75)
-    ax.set_ylim(n + 0.55, -0.62)
-    for side in ("left", "bottom", "top"):
+    ax.set_ylim(n - 0.5, -0.6)
+    for side in ("left", "bottom", "top", "right"):
         ax.spines[side].set_visible(False)
     ax.tick_params(length=0)
     from matplotlib.legend_handler import HandlerTuple
-    ring = lambda: Line2D([], [], marker="o", ls="", markerfacecolor="none", markeredgecolor=EDGE, ms=7.2)
+    ring = Line2D([], [], marker="o", ls="", markerfacecolor="none", markeredgecolor=EDGE, ms=7.2)
     half = Line2D([], [], marker=_sector(0.5), ls="", markerfacecolor=INK, markeredgecolor="none", ms=7.2)
     handles = [
         Line2D([], [], marker="o", ls="", markerfacecolor="white", markeredgecolor=EDGE, ms=7.2),
-        (half, ring()),
+        (half, ring),
         Line2D([], [], marker="o", ls="", color=INK, ms=7.2),
-        Patch(facecolor=BOX_FILL, edgecolor="none"),
     ]
-    texts = ["reached in no session", "in half of the sessions", "in every session", "actions to the world map (box plot)"]
-    leg = ax.legend(handles, texts, loc="upper center", bbox_to_anchor=(0.45, 0.0),
-                    fontsize=8, frameon=False, ncol=len(handles), handletextpad=0.2,
-                    columnspacing=1.1, handler_map={tuple: HandlerTuple(ndivide=1)})
-    fig.tight_layout(pad=0.3)
+    texts = ["reached in no session", "in half of the sessions", "in every session"]
+    leg = ax.legend(handles, texts, loc="upper center", bbox_to_anchor=(0.5, -0.01),
+                    fontsize=8, frameon=False, ncol=3, handletextpad=0.2,
+                    columnspacing=1.4, handler_map={tuple: HandlerTuple(ndivide=1)})
+    # the crossing panel: one thin box per model that crossed, on a log scale;
+    # the box is the quartiles, the line inside it the median, the whiskers the range
+    for row, m in enumerate(boxed):
+        c = m["crossings"]
+        if min(c) < ACT_LO or max(c) > ACT_HI:
+            sys.exit(f"ladder: a crossing of {m['agent']} falls outside the {ACT_LO}-{ACT_HI} action scale")
+        q1, med, q3 = (float(v) for v in np.percentile(c, [25, 50, 75]))
+        bx.plot([min(c), max(c)], [row, row], color=BOX_MEDIAN, lw=0.8, zorder=1)
+        for v in (min(c), max(c)):
+            bx.plot([v, v], [row - 0.18, row + 0.18], color=BOX_MEDIAN, lw=0.8, zorder=1)
+        bx.add_patch(Rectangle((q1, row - 0.3), q3 - q1, 0.6, facecolor=BOX_FILL,
+                               edgecolor=BOX_MEDIAN, lw=0.8, zorder=2))
+        bx.plot([med, med], [row - 0.3, row + 0.3], color=ACCENT, lw=1.3, zorder=3)
+    bx.set_xscale("log")
+    bx.set_xlim(ACT_LO, ACT_HI)
+    bx.set_xticks(ACT_TICKS)
+    bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=6.6, color="#67676b")
+    bx.xaxis.set_minor_locator(mticker.NullLocator())
+    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=7.8, fontfamily="monospace")
+    bx.set_ylim(nb - 0.5, -0.5)
+    bx.tick_params(axis="y", length=0)
+    bx.tick_params(axis="x", length=2, color="#c3c3c6")
+    for side in ("left", "top", "right"):
+        bx.spines[side].set_visible(False)
+    bx.spines["bottom"].set_color("#c3c3c6")
+    xl = bx.set_xlabel("actions to reach the world map", fontsize=7.6, color="#67676b", labelpad=3)
     boxes = [box_at(ax, c, r, size) for c, r, size in cells]
-    check_overlaps(fig, ax, list(ax.get_xticklabels()) + list(ax.get_yticklabels())
-                   + heads + counts + ticks + list(leg.get_texts()), boxes, name="ladder")
+    check_overlaps(fig, ax, list(ax.get_xticklabels()) + list(ax.get_yticklabels()) + heads + counts
+                   + list(leg.get_texts()) + list(bx.get_xticklabels()) + list(bx.get_yticklabels()) + [xl],
+                   boxes, name="ladder")
     fig.savefig(os.path.join(HERE, "ladder.pdf"), bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
