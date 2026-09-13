@@ -57,6 +57,17 @@ print("catalogue facts:",json.dumps(facts,indent=None))
 if all((r.get('level')==1 for r in play)): bad("every scored run is level 1 -- § claims this; confirm")
 print("cited keys:",len(cites),"| unused in bib:",unused)
 print("numbers.tex macros:",len(allproj))
+# anonymity: while \iclrfinalcopy is commented out, no source may name an
+# author, an address or the project (the scan of PR #48, on the sources since
+# pdftotext is not on every build machine; the screenshots are checked by eye)
+import glob
+if not re.search(r'^\s*\\iclrfinalcopy', main, re.M):
+    leak = re.compile(r'hanxiao|jina\.ai|letusgo|Han Xiao|Yiming', re.I)
+    for f in ['main.tex'] + sorted(glob.glob('figures/*.tex')):
+        text = re.sub(r'(?m)(?<!\\)%.*$', '', open(f, encoding='utf-8').read())
+        for m in leak.finditer(text):
+            problems.append(f"anonymity: {f} contains {m.group(0)!r}")
+    ok("anonymity scan of the sources")
 if problems:
     print("\nPROBLEMS:"); [print("  - "+p) for p in problems]
 else:
