@@ -175,6 +175,29 @@ The start state is built on first boot if it is missing. A DOSBox Pure
 savestate belongs to the core build that wrote it, so it cannot ship with the
 image and is made wherever the service runs.
 
+## A human session
+
+A person plays a scored session through the same control API a model uses.
+`Scripts/human_play.py` asks the service for a session and serves a page on
+your machine that shows the frame the API returns and sends every key press as
+one `POST /api/key`, looking once after it. The brief is a click away and is
+fetched through the same API, so the clock runs while you read it, as it does
+for a model. The page talks only to the local script, which holds the token.
+
+```sh
+./Scripts/human_play.py --agent human-1 --minutes 60          # scored and published
+./Scripts/human_play.py --agent human-trial --no-publish      # try the client first
+```
+
+The browser view of a session is a spectator view: the worker drops keys sent
+over its socket while a session is scored, and the broker relays that socket
+one way, so keys reach a scored game only through the API. A human session is
+recorded, scored and published like any other and shows the same milestones.
+When reporting it, record who played (first-time player or not, reads
+Traditional Chinese or not, knows the novels or not), that the brief was read
+on the clock, the display (the frame at three times its size, pixelated), and
+the one-key-per-press protocol.
+
 ## Deploying
 
 ```sh
