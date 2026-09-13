@@ -199,6 +199,16 @@ def crossing_actions(row):
     return None
 
 
+def ladder_order(m):
+    """Sort key for the model rows of the milestone figure and the effort table:
+    milestones reached, then the shares from the deepest milestone down, then
+    the median crossing, then the name, so the best row is always on top."""
+    import statistics
+    shares = [c[0] / c[2] for c in m["counts"]]
+    med = statistics.median(m["crossings"]) if m["crossings"] else float("inf")
+    return (-m["reached"], tuple(-s for s in reversed(shares)), med, m["agent"].lower())
+
+
 def model_rows(rows):
     """One row per model: the milestones any of its sessions reached, with the
     number of sessions behind it, per milestone the count of sessions that

@@ -28,7 +28,8 @@ ICLR 2027 submission draft for jy-crpg-bench.
   `figures/emit_numbers.py` writes `figures/numbers.tex`,
   `figures/make_metrics.py` writes `tables/family.tex` and `tables/runs.tex`,
   `figures/emit_books.py` writes `tables/books.tex` from the save decoder's
-  book table, `figures/make.py` draws the data figures, and
+  book table, `figures/emit_effort.py` writes `tables/effort.tex` (sessions,
+  actions, keys per action and the time between actions per model), `figures/make.py` draws the data figures, and
   `check_consistency.py` fails if a claim drifts from the snapshot
 - `refs/` - the fourteen reference papers read while shaping the structure, by arXiv id
 - `iclr2027/` - the official style-file kit as downloaded

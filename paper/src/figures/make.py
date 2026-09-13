@@ -185,11 +185,7 @@ def figure_ladder():
     floor = _field.model_rows([r for r in rows if _field.is_random(r["agent"])])
         # ties on the count are broken by the shares from the deepest milestone
     # down, then by the median crossing, so the best row is always on top
-    def order(m):
-        shares = [c[0] / c[2] for c in m["counts"]]
-        med = float(np.median(m["crossings"])) if m["crossings"] else float("inf")
-        return (-m["reached"], tuple(-s for s in reversed(shares)), med, m["agent"].lower())
-    models.sort(key=order)
+    models.sort(key=_field.ladder_order)
     entries = models + floor
     labels = [m["agent"] for m in entries]
     n = len(entries)

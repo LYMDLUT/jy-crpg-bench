@@ -202,6 +202,29 @@ def main():
                     and not any(r.get("picked_item") is None and not (r.get("replay") or {}).get("obtained") for r in scored)
                     and (int(nums["PobtainedAgree"]), int(nums["PobtainedRead"])) == (len(both), len(only)),
                     "%d with both, %d from the message alone" % (len(both), len(only)))
+    def seen(r, n):
+        e = r.get("replay") or {}
+        return bool(e.get(n) and e[n]["seconds"] > 0)
+    if "shows the coordinate line on the replay, and no other session does" in flat:
+        cb = [r for r in scored if r.get("replay") and r.get("compass") is not None]
+        ok &= claim("the compass panel and the bag agree in both directions",
+                    bool(cb) and all(seen(r, "compass") == bool(r["compass"]) for r in cb)
+                    and (int(nums["PcompassBoth"]), int(nums["PcompassBag"])) == (len(cb), sum(1 for r in cb if r["compass"])),
+                    "%d sessions with both, %d with the compass" % (len(cb), sum(1 for r in cb if r["compass"])))
+    if "also shows his portrait on the replay" in flat:
+        hb = [r for r in scored if r.get("replay") and r.get("world_opened") is not None]
+        ok &= claim("every save with the hermit's scenes opened has his portrait on the replay",
+                    bool(hb) and not any(r["world_opened"] and not seen(r, "hermit") for r in hb)
+                    and (int(nums["PhermitBoth"]), int(nums["PhermitOpened"])) == (len(hb), sum(1 for r in hb if r["world_opened"])),
+                    "%d sessions with both, %d opened" % (len(hb), sum(1 for r in hb if r["world_opened"])))
+    if "any threshold between the two gives the same readings" in flat:
+        panels = ("hermit", "compass", "battle", "defeat", "prompt", "obtained")
+        ev = [r["replay"] for r in scored if r.get("replay")]
+        miss = max(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] == 0 and e[n]["max"] is not None)
+        hit = min(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] > 0)
+        ok &= claim("the replay threshold sits between the highest miss and the lowest hit",
+                    miss < float(nums["ReplayThreshold"]) <= hit and abs(float(nums["ReplayMissMax"]) - miss) < 0.006 and abs(float(nums["ReplayHitMin"]) - hit) < 0.006,
+                    "miss %.3f, threshold %s, hit %.3f" % (miss, nums["ReplayThreshold"], hit))
     if "sent a single key before the idle rule" in flat:
         idle = [r for r in scored if r["reason"] == "idle"]
         ok &= claim("idle stub sent one key", bool(idle) and all(r["actions"] == 1 for r in idle),

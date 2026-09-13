@@ -223,8 +223,7 @@ and the sprite walks across it, so a model that reads movement from the scrollin
 \label{fig:keymap}
 \end{figure}
 
-The single action presses a key, or a list of up to \MmaxKeys{} keys in order, holding each for a requested number of emulated frames, ten by default. It returns once the screen has settled. The game has \MsettleReact{} frames to react, and the wait then ends after \MsettleStable{} frames without change, when the picture cycles as in an idle animation, or after \MsettleMax{} frames regardless. A black frame marks a scene change, and the action waits through it and settles once more, so the frame a model receives is the one to act on. There is no call
-that advances the game without input, since the game only moves on input,
+The single action presses a key, or a list of up to \MmaxKeys{} keys in order, holding each for a requested number of emulated frames, ten by default. It returns once the screen has settled. The game has \MsettleReact{} frames to react, and the wait then ends after \MsettleStable{} frames without change, when the picture cycles as in an idle animation, or after \MsettleMax{} frames regardless. A black frame marks a scene change, and the action waits through it and settles once more, so the frame a model receives is the one to act on. \Cref{app:design} gives the reasons for the list action and for the other choices of the protocol. There is no call that advances the game without input, since the game only moves on input,
 and the hold is counted in frames because the game samples its keyboard once
 per game-loop iteration. A scored session answers four of the calls in
 \cref{tab:api}: the screen, the brief, the key names and the action. Three
@@ -234,21 +233,20 @@ game. The save and load menu of the game stays available to the model as to a hu
 
 \begin{table}[!htb]
 \centering
-\caption{The control surface. A scored session answers the four calls
-marked; the three snapshot calls serve development.}
+\caption{The control surface. A scored session answers four calls and refuses the three snapshot calls, which serve development.}
 \label{tab:api}
-\small
-\begin{tabular}{@{}lllc@{}}
+\footnotesize
+\begin{tabular}{@{}lll@{}}
 \toprule
-Call & Body & Meaning & Scored \\
+Call & Meaning & Scored session \\
 \midrule
-\texttt{GET /api/screen} & -- & the current frame & \checkmark \\
-\texttt{GET /api/help} & -- & the brief, in English or Chinese & \checkmark \\
-\texttt{GET /api/keys} & -- & every accepted key name & \checkmark \\
-\texttt{GET /api/slots} & -- & emulator snapshots on disk & \\
-\texttt{POST /api/key} & \texttt{\{"key":"kp3","hold":10\}} & press one key, or several in order & \checkmark \\
-\texttt{POST /api/save} & \texttt{\{"name":"..."\}} & take a snapshot & \\
-\texttt{POST /api/load} & \texttt{\{"name":"..."\}} & restore a snapshot & \\
+\texttt{GET /api/screen} & the current frame & answered \\
+\texttt{GET /api/help} & the brief, in English or Chinese & answered \\
+\texttt{GET /api/keys} & every accepted key name & answered \\
+\texttt{GET /api/slots} & emulator snapshots on disk & refused \\
+\texttt{POST /api/key \{"key":"kp3","hold":10\}} & press one key, or several in order & answered \\
+\texttt{POST /api/save \{"name":"..."\}} & take a snapshot & refused \\
+\texttt{POST /api/load \{"name":"..."\}} & restore a snapshot & refused \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -277,15 +275,7 @@ cutoff. When
 the budget lapses the session renders its recording to a time-compressed
 video, computes its metrics, and appends itself to the public catalogue with
 the video and its keypress timeline, so the behaviour behind a score can be
-reviewed. \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra}
-lists the emulation and hosting parameters.
-
-\begin{figure}[!htb]
-\centering
-\includegraphics[width=\linewidth]{figures/architecture.pdf}
-\caption{A frontier model, hosted in pi, drives the control API of its own session; the recording feeds the public replay, and progress is read from the emulated machine, from the save the game writes and from the replay, through paths the control API does not expose.}
-\label{fig:apparatus}
-\end{figure}
+reviewed. \Cref{app:infra} shows the apparatus and lists the emulation and hosting parameters.
 
 \subsection{Measuring Progress}
 \label{sec:measure}
@@ -300,7 +290,7 @@ minutes and once more before the budget lapses, and waits for a two-second
 gap in the keys the model sends. The session is held while the attempt runs,
 so the model never sees the screen mid-save, and the time of the first successful save is the time of the crossing. Neither the archive nor anything read from it is reachable through the control surface, so a successful save is itself the evidence that the party has crossed onto the world map. The session record also keeps a fingerprint of the world map taken from the frame, which credits the crossing only for a session with no save on record.
 
-Five events leave no trace in either record, because the game keeps them only on screen. The model speaks with the hermit, opens the item screen with the compass in it, enters a fight, loses it, or answers the prompt of a companion who asks to join. These are read from the published replay, since each event draws fixed art at a fixed screen position. The hermit has a portrait in the dialogue frame, and the compass adds a coordinate line to the item screen. A fight shows the card of the acting character, a defeat shows its banner (\game{戰鬥失敗}), and a recruitable character asks with a yes-or-no prompt. Every frame of the replay is matched against these panels at one frame per second by normalised cross-correlation, and a score above \ReplayThreshold{} counts as a hit. A prompt followed by a yes key in the keypress journal is a recruitment. The message the game centres on screen when an item enters the bag is matched along its row at the full frame rate of the video. It supplies the item milestone for the \PobtainedRead{} sessions with no bag reading and agrees with the bag on all \PobtainedAgree{} sessions that have one.
+Five events leave no trace in either record, because the game keeps them only on screen. The model speaks with the hermit, opens the item screen with the compass in it, enters a fight, loses it, or answers the prompt of a companion who asks to join. These are read from the published replay, since each event draws fixed art at a fixed screen position. The hermit has a portrait in the dialogue frame, and the compass adds a coordinate line to the item screen. A fight shows the card of the acting character, a defeat shows its banner (\game{戰鬥失敗}), and a recruitable character asks with a yes-or-no prompt. Every frame of the replay is matched against these panels at one frame per second by normalised cross-correlation, and a score above \ReplayThreshold{} counts as a hit. A prompt followed by a yes key in the keypress journal is a recruitment. The message the game centres on screen when an item enters the bag is matched along its row at the full frame rate of the video. It supplies the item milestone for the \PobtainedRead{} sessions with no bag reading and agrees with the bag on all \PobtainedAgree{} sessions that have one. \Cref{app:design} reports the same check for the other readings.
 
 Progress is summarised as \Lrungs{} milestones, in the spirit of the achievements of Crafter \citep{hafner2021benchmarking}. The milestones fall into two phases that the game itself separates. The opening needs no fight. Its five milestones are the exit tile, the chest in the first room, the conversation with the hermit, the compass in his cabinet, and the companion who joins through dialogue, all reached by walking, reading and answering. The campaign begins with the first fight, which a party at level one can lose, and runs through the experience and levels that victories bring and the chains of items, factions and fights that lead to the books. Its five milestones are a fight entered, a fight fought to its end, experience gained, the second level, and the first of the fourteen books. The default budget covers the opening, and extended budgets cover the campaign. The milestones are listed in the order of the opening route, with the optional chest after the exit, and a run is credited with every milestone it reaches, so the count does not depend on the path taken.
 
@@ -387,7 +377,7 @@ The game itself times the crossing onto the world map, since the first save writ
 and \SsaveLast{} minutes into the session, with a median of \SsaveMedian{}.
 One session of \LtopLabel{} crossed at \ScompassSaveMin{} minutes by that
 clock, after \ScompassExitActs{} actions, and spent the rest of the hour beyond the exit. The hour is therefore enough for the first room and, for one model, for the walk to the cabinet and beyond. The budget is wall clock, so the
-compute a model spends on a decision is charged against the time it has left to play, an efficiency framing shared with ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}. The sessions took between \EactsMin{} and \EactsMax{} actions, and the same conversation with the hermit cost one model \PtalkHolderPace{} seconds a line and another \PtalkSlowPace{}. A comparison of token cost across models must wait until more than one model plays past the opening. A model that has not reached the hermit has not begun the part of the game the milestones score, and at this budget only \LtopLabel{} has, so a cost per milestone would rank a single model.
+compute a model spends on a decision is charged against the time it has left to play, an efficiency framing shared with ARC-AGI-3 and TextQuests \citep{arc2026arcagi3,phan2025textquests}. The sessions took between \EactsMin{} and \EactsMax{} actions, and the same conversation with the hermit cost one model \PtalkHolderPace{} seconds a line and another \PtalkSlowPace{}. \Cref{tab:effort} in \cref{app:infra} lists actions, keys per action and the time between actions for every model. A comparison of token cost across models must wait until more than one model plays past the opening. A model that has not reached the hermit has not begun the part of the game the milestones score, and at this budget only \LtopLabel{} has, so a cost per milestone would rank a single model.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -415,13 +405,21 @@ model has to clear. Only one frontier model plays the game in any meaningful sen
 \crefname{appendix}{Appendix}{Appendices}
 \Crefname{appendix}{Appendix}{Appendices}
 
-\section{Session and Infrastructure Parameters}
-\label{app:infra}
-A host of 8 vCPUs and 16\,GiB runs up to 24 concurrent sessions. Emulation
-is DOSBox Pure through
-libretro at a fixed 26800 cycles, the speed of a 486DX2-66 and
-period-correct for the game, with no sound card, so the observation is visual
-only. The published video runs at \DefaultReplaySpeed{} times speed, or faster for long runs, with a strip naming the actor, the action number, the keys held and the clock; a timeline file beside it carries every keypress and its hold.
+\section{Design Decisions}
+\label{app:design}
+This appendix gives the reasons for the protocol choices a reader may want changed.
+
+An action accepts one key or a list of up to \MmaxKeys{}, because a menu path or a repeated step is one decision, and a list costs one round trip and one settle wait in place of one per key. The list does not loosen the coupling between perception and action. An action returns no picture, so a model that sends single keys without asking for the screen is as open-loop as one that sends twenty, and the coupling is set by how often a model looks. The cap bounds the worst case, every list is in the public timeline, and the most list-heavy model of the field sent \PbatchKeysPerAction{} keys per action on average. A single-key protocol would also change the action space under which the recorded field was played.
+
+The observation is the frame the game draws, at its own resolution. Reading sixteen-pixel glyphs and an isometric scene is part of the task, and the hermit milestone separates the models on that reading. A text channel or an upscaled frame would score a different task, and a fixed OCR component would put its own errors between the game and every model. Nearest-neighbour upscaling adds no information, and a model that wants it can resample the frame it receives with the tools of its harness. The brief lists the on-screen terms in the Traditional Chinese the game draws, so no model has to guess which glyphs to look for.
+
+The scores describe the 1996 release run as its own binary. A reimplementation such as kys-cpp \citep{scarsty2026kyscpp} is a different program, with its own timing, text rendering and behaviour, so a track built on it would be a different benchmark. The memory reader anchors on one character name and confirms the two neighbouring records at the expected stride before it reads anything. A copy with a different layout therefore yields no reading, never a wrong one, and a session without a reading is reported as unread.
+
+The baseline is a seeded random policy because it measures what the milestone structure gives away: a small first room puts the chest within reach of a random walk, and nothing after it is. A scripted policy that follows the route in the brief would measure its author, and a trained perception policy would measure its training, while the leaderboard ranks frontier models under one harness. A human first-time run under the same brief and budget is part of the next field.
+
+The \NbudgetMin{}-minute budget is sized to the opening, and the campaign budgets follow with the same milestones. Each model has \LsessionsMin{} to \LsessionsMax{} sessions, so the paper reports the share of sessions that reached each milestone and the spread of the crossings, and it does not claim that one model outranks another by a margin.
+
+The replay readings are checked against the state records wherever both exist. Over the \PcompassBoth{} sessions with both a bag reading and a replay, every one of the \PcompassBag{} sessions whose bag holds the compass shows the coordinate line on the replay, and no other session does. Over the \PhermitBoth{} sessions with a preserved save and a replay, every one of the \PhermitOpened{} sessions whose save shows the scenes the hermit opens also shows his portrait on the replay. No frame without a panel scored above \ReplayMissMax{}, and every session with an event has a frame above \ReplayHitMin{}, so any threshold between the two gives the same readings.
 
 \section{Release and Licensing}
 \label{app:licence}
@@ -439,14 +437,31 @@ identify the interface under study, in the same spirit as prior work showing
 frames of copyrighted games \citep{paglieri2025balrog}; if the rights holders
 object, they will be removed.
 
+\section{Apparatus and Sessions}
+\label{app:infra}
+\Cref{fig:apparatus} shows the apparatus. A host of 8 vCPUs and 16\,GiB runs up to 24 concurrent sessions. Emulation is DOSBox Pure through libretro at a fixed 26800 cycles, the speed of a 486DX2-66 and period-correct for the game, with no sound card, so the observation is visual only. The published video runs at \DefaultReplaySpeed{} times speed, or faster for long runs, with a strip naming the actor, the action number, the keys held and the clock; a timeline file beside it carries every keypress and its hold. The sessions ran from \FieldDates{} under the model names the harness declared, which are the identifiers the providers expose, with the thinking level omitted since every session ran at the high level.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=0.7\linewidth]{figures/architecture.pdf}
+\caption{A frontier model, hosted in pi, drives the control API of its own session; the recording feeds the public replay, and progress is read from the emulated machine, from the save the game writes and from the replay, through paths the control API does not expose.}
+\label{fig:apparatus}
+\end{figure}
+
+\Cref{tab:effort} lists the effort of every model. The service sees no token counts; they are visible to the harness and the provider alone.
+
+\begin{table}[!htb]
+\centering
+\caption{Effort per model in the order of \cref{fig:ladder}; actions and seconds are medians over sessions.}
+\label{tab:effort}
+\footnotesize
+\renewcommand{\arraystretch}{0.92}
+\input{tables/effort.tex}
+\end{table}
+
 \section{The Fourteen Books}
 \label{app:books}
-The ending requires the \BookCount{} books, which the game stores as item
-records \BookFirst{} to \BookLast{} of its item table, named after the
-novels: \booklist. A book counts as held when it is in the shared bag or in
-the four carried slots of the protagonist. With all fourteen in hand and sufficient reputation, the game opens its final
-sequence at a shrine on the far side of the world map, where the books are placed
-and a last battle decides the ending \citep{bahamut2023walkthrough}.
-
+The ending requires the \BookCount{} books, item records \BookFirst{} to \BookLast{} of the item table, named after the novels: \booklist. A book counts as held when it is in the shared bag or in
+the four carried slots of the protagonist. With all fourteen and sufficient reputation, the game opens its final sequence at a shrine on the far side of the world map, where a last battle decides the ending \citep{bahamut2023walkthrough}.
 
 \end{document}

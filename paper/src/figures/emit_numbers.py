@@ -622,6 +622,35 @@ if any(r.get("picked_item") is None and not (r.get("replay") or {}).get("obtaine
     sys.exit("a session has neither a bag reading nor a scan for the obtained message")
 emit("PobtainedAgree", len(_ob_both), "sessions with both a bag reading and the message scan, which agree")
 emit("PobtainedRead", len(_ob_only), "sessions whose item milestone is read from the message alone")
+# the threshold margin: every reading is the same for any threshold between the
+# highest score of a frame without the event and the lowest best score of a session with it
+_PANELS = ("hermit", "compass", "battle", "defeat", "prompt", "obtained")
+_hitmin = min(e[n]["max"] for _, e in EV.values() for n in _PANELS if e[n]["seconds"] > 0)
+if not _miss < _tm["threshold"] <= _hitmin:
+    sys.exit("the threshold does not sit between the highest miss and the lowest hit")
+emit("ReplayHitMin", _hitmin, "lowest best score of a session with the event", fmt="%.2f")
+# the replay readings against the state records where both exist
+def _seen(r, n):
+    e = r.get("replay") or {}
+    return bool(e.get(n) and e[n]["seconds"] > 0)
+_cb = [r for r in ALL if r.get("replay") and r.get("compass") is not None]
+if any(_seen(r, "compass") != bool(r["compass"]) for r in _cb):
+    sys.exit("the compass panel disagrees with a bag reading")
+emit("PcompassBoth", len(_cb), "sessions with both a bag reading and a replay")
+emit("PcompassBag", sum(1 for r in _cb if r["compass"]), "of them whose bag holds the compass, all with the coordinate line on the replay")
+_hb = [r for r in ALL if r.get("replay") and r.get("world_opened") is not None]
+if any(r["world_opened"] and not _seen(r, "hermit") for r in _hb):
+    sys.exit("a save shows the scenes the hermit opens but the replay shows no portrait")
+emit("PhermitBoth", len(_hb), "sessions with a preserved save and a replay")
+emit("PhermitOpened", sum(1 for r in _hb if r["world_opened"]), "of them whose save shows the scenes the hermit opens, all with his portrait on the replay")
+# when the field ran
+import datetime as _dt
+_days = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in ALL if r.get("started"))
+if len(_days) != len(ALL):
+    sys.exit("a session carries no start time")
+if _days[0].year != _days[-1].year or _days[0].month != _days[-1].month:
+    sys.exit("the field spans more than one month; the date macro assumes one")
+lines.append(("% the days the field ran, UTC", "\\newcommand{\\FieldDates}{%d to %d %s}" % (_days[0].day, _days[-1].day, _days[-1].strftime("%B %Y"))))
 
 # the conversations with the hermit held by sessions that never took the
 # compass: the confirm run overlapping the hermit's portrait on screen
