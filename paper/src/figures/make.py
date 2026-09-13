@@ -188,7 +188,7 @@ def figure_ladder():
     boxed = [m for m in models if m["crossings"]]
     n, nb, span = len(entries), len(boxed), len(DEFINITION)
     # the layout in inches: the milestone panel, its legend, the crossing panel
-    top_pitch, bottom_pitch = 0.24, 0.15
+    top_pitch, bottom_pitch = 0.24, 0.12
     head, legend_h, gap, foot = 0.42, 0.28, 0.12, 0.42
     top_h, bottom_h = top_pitch * n, bottom_pitch * nb
     fig_h = head + top_h + legend_h + gap + bottom_h + foot
@@ -249,18 +249,20 @@ def figure_ladder():
         if min(c) < ACT_LO or max(c) > ACT_HI:
             sys.exit(f"ladder: a crossing of {m['agent']} falls outside the {ACT_LO}-{ACT_HI} action scale")
         q1, med, q3 = (float(v) for v in np.percentile(c, [25, 50, 75]))
-        bx.plot([min(c), max(c)], [row, row], color=BOX_MEDIAN, lw=0.8, zorder=1)
+        bx.plot([min(c), max(c)], [row, row], color=BOX_MEDIAN, lw=0.7, zorder=1)
         for v in (min(c), max(c)):
-            bx.plot([v, v], [row - 0.18, row + 0.18], color=BOX_MEDIAN, lw=0.8, zorder=1)
-        bx.add_patch(Rectangle((q1, row - 0.3), q3 - q1, 0.6, facecolor=BOX_FILL,
-                               edgecolor=BOX_MEDIAN, lw=0.8, zorder=2))
-        bx.plot([med, med], [row - 0.3, row + 0.3], color=ACCENT, lw=1.3, zorder=3)
+            bx.plot([v, v], [row - 0.14, row + 0.14], color=BOX_MEDIAN, lw=0.7, zorder=1)
+        bx.add_patch(Rectangle((q1, row - 0.22), q3 - q1, 0.44, facecolor=BOX_FILL,
+                               edgecolor=BOX_MEDIAN, lw=0.7, zorder=2))
+        bx.plot([med, med], [row - 0.22, row + 0.22], color=ACCENT, lw=1.2, zorder=3)
+        # the mean, which orders the rows
+        bx.scatter(sum(c) / len(c), row, s=11, marker="o", color=INK, zorder=4)
     bx.set_xscale("log")
     bx.set_xlim(ACT_LO, ACT_HI)
     bx.set_xticks(ACT_TICKS)
     bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=6.6, color="#67676b")
     bx.xaxis.set_minor_locator(mticker.NullLocator())
-    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=7.8, fontfamily="monospace")
+    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=7.0, fontfamily="monospace")
     bx.set_ylim(nb - 0.5, -0.5)
     bx.tick_params(axis="y", length=0)
     bx.tick_params(axis="x", length=2, color="#c3c3c6")

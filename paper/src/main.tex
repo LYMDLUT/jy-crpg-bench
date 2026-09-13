@@ -77,7 +77,7 @@ nothing in the environment reports it. Existing game benchmarks each remove one 
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/env.pdf}
-\caption{The environment at the resolution the model receives, upscaled three times without interpolation. Panels (a, b) show the two tiers of the world, (c) the four movement axes, (d--f) the three kinds of text panel, (g) the bag, (h) the world-map menu with the party list, and (i) a turn of battle.}
+\caption{The environment as the model receives it, upscaled three times without interpolation.}
 \label{fig:env}
 \end{figure}
 
@@ -92,7 +92,7 @@ environment, the interface, the session protocol and the measurement, and \cref{
 
 \begin{table}[!htb]
 \centering
-\caption{Interactive agent benchmarks. The observation column is what the model receives before any upscaling; a self-directed environment supplies no task list, score or objective marker during play; the last column names the record against which progress is verified.}
+\caption{Interactive agent benchmarks. Observation is what the model receives before any upscaling, a self-directed environment supplies no task list, score or objective marker during play, and the last column is the record that verifies progress.}
 \label{tab:related}
 \footnotesize
 \setlength{\tabcolsep}{2pt}
@@ -223,20 +223,20 @@ game. The save and load menu of the game stays available to the model as to a hu
 
 \begin{table}[!htb]
 \centering
-\caption{The control surface. A scored session answers four calls and refuses the three snapshot calls, which serve development.}
+\caption{The control surface. A check marks a call the model can use in a scored session; the snapshot calls serve development.}
 \label{tab:api}
 \footnotesize
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}llc@{}}
 \toprule
-Call & Meaning & Scored session \\
+Call & Meaning & Model can use \\
 \midrule
-\texttt{GET /api/screen} & the current frame & answered \\
-\texttt{GET /api/help} & the brief, in English or Chinese & answered \\
-\texttt{GET /api/keys} & every accepted key name & answered \\
-\texttt{GET /api/slots} & emulator snapshots on disk & refused \\
-\texttt{POST /api/key \{"key":"kp3","hold":10\}} & press one key, or several in order & answered \\
-\texttt{POST /api/save \{"name":"..."\}} & take a snapshot & refused \\
-\texttt{POST /api/load \{"name":"..."\}} & restore a snapshot & refused \\
+\texttt{GET /api/screen} & the current frame & \checkmark \\
+\texttt{GET /api/help} & the brief, in English or Chinese & \checkmark \\
+\texttt{GET /api/keys} & every accepted key name & \checkmark \\
+\texttt{GET /api/slots} & emulator snapshots on disk & $\times$ \\
+\texttt{POST /api/key \{"key":"kp3","hold":10\}} & press one key, or several in order & \checkmark \\
+\texttt{POST /api/save \{"name":"..."\}} & take a snapshot & $\times$ \\
+\texttt{POST /api/load \{"name":"..."\}} & restore a snapshot & $\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -266,7 +266,7 @@ reviewed. \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists t
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/architecture.pdf}
-\caption{A frontier model, hosted in pi, drives the control API of its own session; the recording feeds the public replay, and progress is read from the emulated machine, from the save the game writes and from the replay, through paths the control API does not expose.}
+\caption{A frontier model in pi drives the control API of its own session. The recording feeds the public replay, and progress is read from the emulated machine, the save the game writes and the replay, none of which the control API exposes.}
 \label{fig:apparatus}
 \end{figure}
 
@@ -311,7 +311,7 @@ the best vision-language models completing $0.48\%$ of its suite
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/ladder.pdf}
-\caption{Milestones per model, ordered by the mean number of actions to the world map with the fewest at the top and the random baseline last. In the upper panel each marker shows the share of sessions in which the model reached the milestone, and the number of sessions is given at the right. The lower panel shows the actions to the world map across the sessions that crossed, on a log scale, with the box spanning the quartiles, the line inside it the median, and the whiskers the range. The evidence for each milestone, and the record it comes from, is: a save written on the world map, or the world-map fingerprint (save, frame); an item count above the starting count, or the pickup message on screen (memory, replay); the portrait of the hermit (replay); the compass in the bag or on the item screen (memory, replay); a party of more than one, or a yes to the join prompt (save, replay); the card of the acting character (replay); the defeat banner or experience gained (replay, memory); experience above zero and a level above one (memory); a book in the bag or carried by the player (memory). A session with no fight on its replay is counted as having gained no experience and no book, since both require a won fight.}
+\caption{Milestones per model, with rows ordered by the mean number of actions to the world map, fewest first, and the random baseline last. In the upper panel each marker shows the share of sessions in which the model reached the milestone, with the number of sessions at the right. The lower panel shows the actions to the world map across the sessions that crossed, on a log scale; the box spans the quartiles, the line marks the median, the dot the mean and the whiskers the range. Each milestone is read from the record in brackets: the world map from a save written there or the world-map fingerprint (save, frame); the item from the bag count or the pickup message (memory, replay); the hermit from his portrait (replay); the compass from the bag or the item screen (memory, replay); the companion from the party size or a yes to the join prompt (save, replay); the fight from the card of the acting character (replay); the fight fought to the end from the defeat banner or experience gained (replay, memory); experience and level from the character record (memory); a book from the bag or the player (memory). A session whose replay shows no fight gained no experience and holds no book, since both require a won fight.}
 \label{fig:ladder}
 \end{figure}
 
@@ -339,7 +339,7 @@ Three milestones separate the models: the chest, the hermit and the fight. \Cref
 \includegraphics[width=0.32\linewidth]{figures/frames/i-defeat.png} \\
 {\footnotesize (g) \PorbitLabel} & {\footnotesize (h) \texttt{grok-4.6}} & {\footnotesize (i) \LtopLabel} \\
 \end{tabular}
-\caption{Frames from the published replays; the strip under each frame names the model, the action count and the clock. (a) The compass coordinates on the item screen; (b) the conversation with the hermit; (c) the join prompt of Duan Yu in an inn; (d) a fight; (e) the hermit naming the cabinet; (f) the yard behind the fence; (g) passing the gate of the hermit; (h) talking to an innkeeper; (i) the defeat banner.}
+\caption{Frames from the replays, each with the strip naming the model, the action count and the clock: (a) the compass coordinates on the item screen; (b) the conversation with the hermit; (c) the join prompt of Duan Yu in an inn; (d) a fight; (e) the hermit naming the cabinet; (f) the yard behind the fence; (g) passing the gate of the hermit; (h) talking to an innkeeper; (i) the defeat banner.}
 \label{fig:frames}
 \end{figure}
 
@@ -413,7 +413,7 @@ object, they will be removed.
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=0.8\linewidth]{figures/keymap.pdf}
-\caption{The keyboard the API exposes. The nine keys the game responds to outside dialogue are highlighted; the arrow keys alias the four movement keys, and any key advances a dialogue.}
+\caption{The keyboard the API exposes, with the nine keys the game responds to outside dialogue highlighted; any key advances a dialogue.}
 \label{fig:keymap}
 \end{figure}
 
