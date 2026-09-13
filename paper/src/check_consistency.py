@@ -225,7 +225,7 @@ def main():
         ok &= claim("the replay threshold sits between the highest miss and the lowest hit",
                     miss < float(nums["ReplayThreshold"]) <= hit and abs(float(nums["ReplayMissMax"]) - miss) < 0.006 and abs(float(nums["ReplayHitMin"]) - hit) < 0.006,
                     "miss %.3f, threshold %s, hit %.3f" % (miss, nums["ReplayThreshold"], hit))
-    if "models entered a scene from the world map" in flat:
+    if "models entered a scene" in flat:
         SCENE = field.DEFINITION.index("entered\na scene")
         union = field.model_rows(models)
         entered = [m["agent"] for m in union if m["rungs"][SCENE] is True]
