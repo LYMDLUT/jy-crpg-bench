@@ -12,7 +12,8 @@ for cmd in ([sys.executable,"figures/make.py"],[sys.executable,"figures/make_met
 for script,target in (("figures/recover_sessions.py","figures/recovered_sessions.json"),
                       ("figures/emit_numbers.py","figures/numbers.tex"),
                                             ("figures/emit_books.py","tables/books.tex"),
-                      ("figures/emit_effort.py","tables/effort.tex")):
+                      ("figures/emit_effort.py","tables/effort.tex"),
+                      ("figures/emit_milestones.py","tables/milestones.tex")):
     r=subprocess.run([sys.executable,script],cwd=SRC,capture_output=True,text=True)
     if r.returncode: bad(script+" -> "+r.stderr[-400:]); sys.exit(1)
     open(os.path.join(SRC,target),"w",encoding="utf-8").write(r.stdout)
@@ -20,7 +21,7 @@ ok("regenerated")
 
 main=open('main.tex',encoding='utf-8').read()
 defined={}
-for f in ('figures/numbers.tex','tables/books.tex','tables/effort.tex'):
+for f in ('figures/numbers.tex','tables/books.tex','tables/effort.tex','tables/milestones.tex'):
     if not os.path.exists(f): bad("missing "+f); sys.exit(1)
     defined[f]=set(re.findall(r'\\newcommand\{\\(\w+)\}',open(f).read()))
     if ('\\input{'+f+'}' not in main) and ('\\input{'+f.replace('.tex','')+'}' not in main):

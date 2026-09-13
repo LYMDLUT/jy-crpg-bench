@@ -338,7 +338,7 @@ emit("QrandomRungs", max((m["reached"] for m in RUNION), default=0),
 emit("Lrungs", len(field.DEFINITION), "rungs on the ladder")
 emit("Lopening", field.OPENING, "rungs of the opening")
 emit("Lmodels", len(UNION), "models on the ladder")
-_LNAMES = {"Lmap": "reached\nworld map", "Litem": "picked up\nan item", "Lhermit": "spoke with\nthe hermit",
+_LNAMES = {"Lmap": "reached\nworld map", "Litem": "picked up\nan item", "Lscene": "entered\na scene", "Lhermit": "spoke with\nthe hermit",
            "Lcompass": "holds the\ncompass", "Lparty": "recruited\ncompanion", "Lfight": "entered\na fight",
            "Lfought": "fought to\nthe end", "Lexp": "gained\nexperience", "Llevel": "reached\nlevel 2",
            "Lbook": "one of the\nfourteen"}
@@ -347,6 +347,17 @@ for _n, _d in _LNAMES.items():
     emit(_n, sum(1 for m in UNION if m["rungs"][_i] is True), "models credited with rung %d" % (_i + 1))
 _ITEM = field.DEFINITION.index("picked up\nan item")
 emit("LnoItem", sum(1 for m in UNION if m["rungs"][_ITEM] is False), "models that never picked anything up")
+_SCENE = field.DEFINITION.index("entered\na scene")
+emit("LnoScene", sum(1 for m in UNION if m["rungs"][_SCENE] is False), "models that never entered a scene beyond the home")
+
+
+def _scenes(r):
+    return ((r.get("replay") or {}).get("scenes") or {})
+
+
+def _distinct(r):
+    return _scenes(r).get("distinct") or 0
+
 _top = max(UNION, key=lambda m: (m["reached"], m["agent"]))
 lines.append(("% the model with the most rungs", "\\newcommand{\\LtopLabel}{\\texttt{%s}}" % _top["agent"]))
 emit("Ltop", _top["reached"], "rungs it reached")
@@ -523,23 +534,32 @@ emit("PnoConfirm", len(_noconfirm), "sessions that never pressed enter or space"
 if len(_noconfirm) != 1 or _slowest["id"] != _noconfirm[0]["id"]:
     sys.exit("the prose calls the slowest crossing the one session that never confirmed; it no longer is")
 
-# the session that crossed and then never entered a scene
-_orbit = [r for r in _crossed if (r.get("scenes") or 0) <= 2]
+# the session that crossed and then never entered a scene, the home included
+_orbit = [r for r in _crossed if not _scenes(r).get("entries")]
 _orb = max(_orbit, key=lambda r: r["actions"] - r["exit_acts"])
 emit_label("PorbitLabel", _orb["agent"])
 emit("PorbitExitMin", _orb["exit_secs"] / 60.0, "minute it crossed", fmt="%.0f")
 emit("PorbitActs", _orb["actions"] - _orb["exit_acts"], "actions it took on the world map afterwards")
 emit("PorbitMin", (_orb["played"] - _orb["exit_secs"]) / 60.0, "minutes it spent there", fmt="%.0f")
 
-# breadth: scenes entered
-_wide = max(PLAY, key=lambda r: r.get("scenes") or 0)
-emit("PscenesMax", _wide["scenes"], "scenes the widest-ranging session entered")
+# breadth: distinct scenes entered beyond the home, from the name banners on the replay
+_wide = max(PLAY, key=lambda r: (_distinct(r), r["actions"]))
+emit("PscenesMax", _distinct(_wide), "distinct scenes the widest-ranging session entered")
 emit_label("PscenesMaxLabel", _wide["agent"])
-emit("PscenesThree", sum(1 for r in PLAY if (r.get("scenes") or 0) >= 3), "sessions that entered three or more scenes")
+emit("PscenesThree", sum(1 for r in PLAY if _distinct(r) >= 3), "sessions that entered three or more distinct scenes")
+
+# the prose says every model but the top one entered only an inn or the house of the hermit
+_HERMIT_HOUSE = "南賢居"
+for _r in MODELS:
+    if _r["agent"] != _top["agent"]:
+        for _x in _scenes(_r).get("entries", []):
+            if _x["name"] != field.HOME and _x["name"] != _HERMIT_HOUSE and not _x["name"].endswith("客棧"):
+                sys.exit(f"{_r['agent']} entered {_x['name']}, which is neither an inn nor the house of the hermit; the prose no longer holds")
 
 # the compass holder: the conversation and the compass reads
-_holder = max((r for r in PLAY if field.rungs_of(r)[_COMPASS] is True and r.get("scenes") is not None),
-              key=lambda r: r["scenes"])
+_holder = max((r for r in PLAY if field.rungs_of(r)[_COMPASS] is True), key=lambda r: (_distinct(r), r["actions"]))
+if _distinct(_holder) != _distinct(_wide):
+    sys.exit("the prose calls the widest-ranging session a compass holder; it no longer is")
 _ht = TL[_holder["id"]]
 _hruns = confirm_runs(_ht)
 _talk = max(_hruns, key=lambda c: sum(len(m["keys"]) for m in c))

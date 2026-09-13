@@ -19,18 +19,22 @@ ICLR 2027 submission draft for jy-crpg-bench.
   (a version with two later versions of its line in the field) and credits a
   model with every rung any of its sessions reached; `slots.py` decodes every preserved save in
   `src/figures/slots/`; `replay_scan.py` matches five fixed panels of the game
-  (`src/figures/templates/`) against every published replay video, and the
-  message drawn when an item enters the bag along its row at the full frame
-  rate, and writes `replay_events.json`, the record of the events the game
-  keeps only on screen, the item reading for sessions whose bag no record
-  carries, and, from the first fully black frame, the actions each session
-  took to reach the world map
+  (`src/figures/templates/`) and the message drawn when an item enters the
+  bag against every frame of every published replay video, keeping the best
+  score of each second, and writes `replay_events.json`, the record of the
+  events the game keeps only on screen, the item reading for sessions whose bag no record
+  carries, the scenes each session entered (read by name from the banner
+  the game draws on entry, matched against `src/figures/templates/scenes/`,
+  one file per scene name), and, from the first fully black frame, the
+  actions each session took to reach the world map
   (run it with a directory of the videos, or let it fetch them).
   `figures/emit_numbers.py` writes `figures/numbers.tex`,
   `figures/make_metrics.py` writes `tables/family.tex` and `tables/runs.tex`,
   `figures/emit_books.py` writes `tables/books.tex` from the save decoder's
   book table, `figures/emit_effort.py` writes `tables/effort.tex` (sessions,
-  actions, keys per action and the time between actions per model), `figures/make.py` draws the data figures, and
+  actions, keys per action and the time between actions per model),
+  `figures/emit_milestones.py` writes `tables/milestones.tex` (each
+  milestone in actions and minutes from the replays and timelines), `figures/make.py` draws the data figures, and
   `check_consistency.py` fails if a claim drifts from the snapshot
 - `refs/` - the fourteen reference papers read while shaping the structure, by arXiv id
 - `iclr2027/` - the official style-file kit as downloaded

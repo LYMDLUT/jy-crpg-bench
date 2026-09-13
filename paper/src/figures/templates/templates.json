@@ -36,7 +36,7 @@
   "shows": "the yes-or-no prompt of a character who can be asked to join"
  },
  "threshold": 0.9,
- "frames_per_second": 1,
+ "frames_per_second": "every frame of the video, kept per second",
  "frame": [
   320,
   232

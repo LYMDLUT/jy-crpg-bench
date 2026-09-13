@@ -124,12 +124,13 @@ def aliased(rows):
     return sorted({(r["declared"], r["agent"]) for r in rows if r["declared"] != r["agent"]})
 
 
-DEFINITION = ("reached\nworld map", "picked up\nan item", "spoke with\nthe hermit",
+DEFINITION = ("reached\nworld map", "picked up\nan item", "entered\na scene", "spoke with\nthe hermit",
               "holds the\ncompass", "recruited\ncompanion",
               "entered\na fight", "fought to\nthe end",
               "gained\nexperience", "reached\nlevel 2", "one of the\nfourteen")
-SHORT = ("map", "item", "hermit", "compass", "party", "fight", "fought out", "exp", "lv 2", "book")
-OPENING = 5     # the first five close the opening without a fight
+SHORT = ("map", "item", "scene", "hermit", "compass", "party", "fight", "fought out", "exp", "lv 2", "book")
+OPENING = 6     # the first six close the opening without a fight
+HOME = "王居"   # the banner of the home scene, which does not count as a scene entered
 MAP = DEFINITION.index("reached\nworld map")
 
 
@@ -160,9 +161,11 @@ def rungs_of(row):
 
     recruited = bool(ev and ev.get("recruited_minute") is not None)
     no_fight = ev is not None and not seen("battle")
+    scenes = (ev or {}).get("scenes")
     known = [
         True if saved else row.get("bigmap") is not None,
         row.get("picked_item") is not None or bool(ev and ev.get("obtained")),
+        scenes is not None,
         ev is not None,
         ev is not None or saved or row.get("compass") is not None,
         ev is not None or saved or row.get("team_size") is not None,
@@ -178,6 +181,7 @@ def rungs_of(row):
          or slot is True) if saved
         else bool(row.get("bigmap")) and row.get("exit_secs") is not None,
         bool(row.get("picked_item")) or seen("obtained"),
+        bool(scenes and any(x["name"] != HOME for x in scenes["entries"])),
         seen("hermit"),
         bool(row.get("compass")) or seen("compass"),
         (row.get("team_size") or 0) > 1 or recruited,

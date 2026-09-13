@@ -1,172 +1,222 @@
 {
  "8b3e9ed4c230": {
-  "agent": "claude-fable5.1-high",
-  "video_seconds": 426,
+  "agent": "claude-fable5.1",
+  "video_seconds": 427,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.19,
+   "max": 0.25,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.123,
+   "max": 0.15,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.105,
+   "max": 0.14,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.211,
+   "max": 0.212,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.564,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 145.2,
-  "crossing_actions": 60,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.337,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 145.2,
+  "crossing_actions": 60,
+  "recruited_minute": null
  },
  "c84266b701e8": {
-  "agent": "claude-fable5.1-high",
-  "video_seconds": 447,
+  "agent": "claude-fable5.1",
+  "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.275,
+   "max": 0.36,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.149,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.121,
+   "max": 0.152,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.286,
+   "max": 0.294,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.654,
+   "max": 0.684,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     246,
+     0.609
+    ],
+    [
+     255,
+     0.654
+    ],
+    [
+     256,
+     0.684
+    ]
+   ]
   },
-  "first_black_second": 94.75,
-  "crossing_actions": 331,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.304,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 94.75,
+  "crossing_actions": 331,
+  "recruited_minute": null
  },
  "088b8aa5f658": {
-  "agent": "claude-opus5-high",
-  "video_seconds": 446,
+  "agent": "claude-opus5",
+  "video_seconds": 447,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.273,
+   "max": 0.298,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.105,
+   "max": 0.107,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.2,
+   "max": 0.19,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.287,
+   "max": 0.29,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.574,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 38.9,
-  "crossing_actions": 24,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.307,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 38.9,
+  "crossing_actions": 24,
+  "recruited_minute": null
  },
  "8806d294db69": {
-  "agent": "claude-opus5-high",
+  "agent": "claude-opus5",
   "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.262,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.137,
+   "max": 0.175,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.166,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.249,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.578,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 256.1,
-  "crossing_actions": 146,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 1,
    "max": 0.926,
@@ -184,189 +234,299 @@
      0.881
     ]
    ]
-  }
+  },
+  "first_black_second": 256.1,
+  "crossing_actions": 146,
+  "recruited_minute": null
  },
  "1398af63dfa6": {
-  "agent": "claude-sonnet5-high",
-  "video_seconds": 448,
+  "agent": "claude-sonnet5",
+  "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.296,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.152,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.165,
+   "max": 0.172,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.211,
+   "max": 0.29,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.594,
+   "max": 0.562,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 255.95,
-  "crossing_actions": 194,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.324,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 255.95,
+  "crossing_actions": 194,
+  "recruited_minute": null
  },
  "35b14cd224bf": {
-  "agent": "claude-sonnet5-high",
+  "agent": "claude-sonnet5",
   "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.299,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.153,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.122,
+   "max": 0.144,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.229,
+   "max": 0.253,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.681,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     37,
+     0.605
+    ],
+    [
+     38,
+     0.605
+    ],
+    [
+     242,
+     0.634
+    ],
+    [
+     243,
+     0.633
+    ],
+    [
+     245,
+     0.655
+    ],
+    [
+     246,
+     0.66
+    ],
+    [
+     299,
+     0.681
+    ],
+    [
+     300,
+     0.681
+    ],
+    [
+     313,
+     0.647
+    ],
+    [
+     314,
+     0.647
+    ],
+    [
+     423,
+     0.649
+    ],
+    [
+     424,
+     0.647
+    ],
+    [
+     438,
+     0.672
+    ],
+    [
+     439,
+     0.665
+    ]
+   ]
   },
-  "first_black_second": 93.6,
-  "crossing_actions": 85,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.316,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 93.6,
+  "crossing_actions": 85,
+  "recruited_minute": null
  },
  "99e87f76ec31": {
   "agent": "gemini-3.6-flash",
   "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.376,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.131,
+   "max": 0.143,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.199,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.228,
+   "max": 0.313,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.565,
+   "max": 0.566,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 71.65,
-  "crossing_actions": 60,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.306,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 71.65,
+  "crossing_actions": 60,
+  "recruited_minute": null
  },
  "c12c28d128a7": {
   "agent": "gemini-3.6-flash",
-  "video_seconds": 448,
+  "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.15,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.082,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.094,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.164,
+   "max": 0.165,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.573,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.281,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "6e7750bb85e0": {
   "agent": "gemini-3.7-flash",
   "video_seconds": 441,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 26.0,
+     "name": "\u5357\u8ce2\u5c45"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 26.0
+  },
   "hermit": {
-   "seconds": 22,
+   "seconds": 29,
    "max": 0.994,
    "first_minute": 34.5,
    "minutes": [
@@ -377,50 +537,229 @@
     35.5,
     35.6,
     35.7,
+    35.9,
     36.0,
     36.1,
     36.3,
     36.4,
+    36.8,
     36.9,
     37.1,
+    37.2,
     37.3,
     37.5,
     37.6,
     37.7,
+    37.9,
+    38.0,
+    38.4,
     38.5,
     38.7,
+    38.8,
     40.8,
     40.9,
     41.1
+   ],
+   "candidates": [
+    [
+     259,
+     0.994
+    ],
+    [
+     260,
+     0.994
+    ],
+    [
+     261,
+     0.994
+    ],
+    [
+     262,
+     0.991
+    ],
+    [
+     263,
+     0.712
+    ],
+    [
+     266,
+     0.993
+    ],
+    [
+     267,
+     0.993
+    ],
+    [
+     268,
+     0.993
+    ],
+    [
+     269,
+     0.993
+    ],
+    [
+     270,
+     0.994
+    ],
+    [
+     271,
+     0.994
+    ],
+    [
+     272,
+     0.994
+    ],
+    [
+     273,
+     0.994
+    ],
+    [
+     276,
+     0.993
+    ],
+    [
+     277,
+     0.993
+    ],
+    [
+     278,
+     0.993
+    ],
+    [
+     279,
+     0.993
+    ],
+    [
+     280,
+     0.993
+    ],
+    [
+     281,
+     0.993
+    ],
+    [
+     282,
+     0.993
+    ],
+    [
+     283,
+     0.993
+    ],
+    [
+     284,
+     0.993
+    ],
+    [
+     285,
+     0.99
+    ],
+    [
+     288,
+     0.993
+    ],
+    [
+     289,
+     0.993
+    ],
+    [
+     290,
+     0.993
+    ],
+    [
+     291,
+     0.993
+    ],
+    [
+     306,
+     0.993
+    ],
+    [
+     307,
+     0.993
+    ],
+    [
+     308,
+     0.993
+    ]
    ]
   },
   "compass": {
    "seconds": 0,
    "max": 0.577,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.165,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.235,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.608,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     66,
+     0.605
+    ],
+    [
+     67,
+     0.605
+    ],
+    [
+     73,
+     0.608
+    ],
+    [
+     74,
+     0.605
+    ],
+    [
+     75,
+     0.605
+    ],
+    [
+     76,
+     0.605
+    ],
+    [
+     77,
+     0.605
+    ],
+    [
+     78,
+     0.605
+    ],
+    [
+     81,
+     0.6
+    ],
+    [
+     82,
+     0.6
+    ],
+    [
+     83,
+     0.604
+    ],
+    [
+     84,
+     0.604
+    ]
+   ]
   },
-  "first_black_second": 148.65,
-  "crossing_actions": 172,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 11,
    "max": 0.973,
@@ -492,44 +831,211 @@
      0.973
     ]
    ]
-  }
+  },
+  "first_black_second": 148.65,
+  "crossing_actions": 172,
+  "recruited_minute": null
  },
  "ae695d618b53": {
   "agent": "gemini-3.7-flash",
   "video_seconds": 447,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.299,
+   "max": 0.286,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.507,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.167,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.238,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.608,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     57,
+     0.601
+    ],
+    [
+     58,
+     0.601
+    ],
+    [
+     59,
+     0.601
+    ],
+    [
+     60,
+     0.601
+    ],
+    [
+     61,
+     0.601
+    ],
+    [
+     62,
+     0.601
+    ],
+    [
+     63,
+     0.601
+    ],
+    [
+     64,
+     0.601
+    ],
+    [
+     65,
+     0.601
+    ],
+    [
+     66,
+     0.601
+    ],
+    [
+     67,
+     0.601
+    ],
+    [
+     68,
+     0.601
+    ],
+    [
+     69,
+     0.601
+    ],
+    [
+     82,
+     0.603
+    ],
+    [
+     83,
+     0.603
+    ],
+    [
+     95,
+     0.605
+    ],
+    [
+     96,
+     0.605
+    ],
+    [
+     97,
+     0.605
+    ],
+    [
+     98,
+     0.605
+    ],
+    [
+     99,
+     0.605
+    ],
+    [
+     100,
+     0.605
+    ],
+    [
+     101,
+     0.605
+    ],
+    [
+     102,
+     0.605
+    ],
+    [
+     103,
+     0.605
+    ],
+    [
+     104,
+     0.605
+    ],
+    [
+     105,
+     0.605
+    ],
+    [
+     106,
+     0.605
+    ],
+    [
+     107,
+     0.605
+    ],
+    [
+     108,
+     0.605
+    ],
+    [
+     109,
+     0.605
+    ],
+    [
+     110,
+     0.605
+    ],
+    [
+     111,
+     0.605
+    ],
+    [
+     112,
+     0.605
+    ],
+    [
+     113,
+     0.605
+    ],
+    [
+     114,
+     0.605
+    ],
+    [
+     115,
+     0.605
+    ],
+    [
+     118,
+     0.608
+    ],
+    [
+     119,
+     0.608
+    ],
+    [
+     120,
+     0.608
+    ]
+   ]
   },
-  "first_black_second": 200.4,
-  "crossing_actions": 64,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 4,
    "max": 0.92,
@@ -558,88 +1064,133 @@
      0.92
     ]
    ]
-  }
+  },
+  "first_black_second": 200.4,
+  "crossing_actions": 64,
+  "recruited_minute": null
  },
  "cd7ca6660e9e": {
   "agent": "gemini-3.7-flash",
   "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.245,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.591,
+   "max": 0.592,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.11,
+   "max": 0.136,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.251,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.595,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 287.5,
-  "crossing_actions": 148,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.286,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 287.5,
+  "crossing_actions": 148,
+  "recruited_minute": null
  },
  "f2ec4a93bbe2": {
   "agent": "gemini-3.7-flash",
   "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.269,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.154,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.139,
+   "max": 0.146,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.263,
+   "max": 0.317,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.617,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     12,
+     0.608
+    ],
+    [
+     13,
+     0.608
+    ],
+    [
+     24,
+     0.617
+    ],
+    [
+     25,
+     0.605
+    ],
+    [
+     26,
+     0.605
+    ],
+    [
+     27,
+     0.605
+    ]
+   ]
   },
-  "first_black_second": 127.3,
-  "crossing_actions": 78,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 4,
    "max": 0.919,
@@ -668,44 +1219,72 @@
      0.911
     ]
    ]
-  }
+  },
+  "first_black_second": 127.3,
+  "crossing_actions": 78,
+  "recruited_minute": null
  },
  "12f61e546998": {
   "agent": "gemini-3.8-flash",
-  "video_seconds": 448,
+  "video_seconds": 449,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 37.3,
+     "name": "\u6cb3\u6d1b\u5ba2\u68e7"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 37.3
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.407,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.102,
+   "max": 0.117,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.183,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.312,
+   "max": 0.31,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.607,
+   "max": 0.608,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     33,
+     0.608
+    ],
+    [
+     34,
+     0.608
+    ],
+    [
+     35,
+     0.607
+    ]
+   ]
   },
-  "first_black_second": 144.3,
-  "crossing_actions": 94,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 8,
    "max": 0.931,
@@ -754,13 +1333,26 @@
      0.908
     ]
    ]
-  }
+  },
+  "first_black_second": 144.3,
+  "crossing_actions": 94,
+  "recruited_minute": null
  },
  "8acf2fa93bf6": {
   "agent": "gemini-3.8-flash",
-  "video_seconds": 446,
+  "video_seconds": 447,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 38.0,
+     "name": "\u5357\u8ce2\u5c45"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 38.0
+  },
   "hermit": {
-   "seconds": 80,
+   "seconds": 83,
    "max": 1.0,
    "first_minute": 43.9,
    "minutes": [
@@ -800,6 +1392,7 @@
     49.1,
     49.2,
     49.3,
+    49.5,
     51.5,
     51.6,
     51.7,
@@ -830,6 +1423,7 @@
     55.1,
     55.2,
     55.3,
+    55.5,
     57.5,
     57.6,
     57.7,
@@ -843,36 +1437,381 @@
     58.8,
     58.9,
     59.1,
-    59.2
+    59.2,
+    59.3
+   ],
+   "candidates": [
+    [
+     329,
+     0.994
+    ],
+    [
+     330,
+     0.994
+    ],
+    [
+     331,
+     0.994
+    ],
+    [
+     335,
+     0.994
+    ],
+    [
+     336,
+     0.994
+    ],
+    [
+     337,
+     0.994
+    ],
+    [
+     341,
+     0.993
+    ],
+    [
+     342,
+     0.993
+    ],
+    [
+     343,
+     0.993
+    ],
+    [
+     344,
+     0.993
+    ],
+    [
+     345,
+     0.993
+    ],
+    [
+     346,
+     0.993
+    ],
+    [
+     347,
+     1.0
+    ],
+    [
+     348,
+     1.0
+    ],
+    [
+     349,
+     1.0
+    ],
+    [
+     350,
+     1.0
+    ],
+    [
+     351,
+     1.0
+    ],
+    [
+     352,
+     1.0
+    ],
+    [
+     353,
+     1.0
+    ],
+    [
+     354,
+     1.0
+    ],
+    [
+     355,
+     1.0
+    ],
+    [
+     356,
+     1.0
+    ],
+    [
+     357,
+     1.0
+    ],
+    [
+     358,
+     1.0
+    ],
+    [
+     359,
+     1.0
+    ],
+    [
+     360,
+     1.0
+    ],
+    [
+     361,
+     1.0
+    ],
+    [
+     362,
+     1.0
+    ],
+    [
+     363,
+     1.0
+    ],
+    [
+     364,
+     1.0
+    ],
+    [
+     365,
+     1.0
+    ],
+    [
+     366,
+     1.0
+    ],
+    [
+     367,
+     1.0
+    ],
+    [
+     368,
+     1.0
+    ],
+    [
+     369,
+     1.0
+    ],
+    [
+     370,
+     1.0
+    ],
+    [
+     371,
+     1.0
+    ],
+    [
+     386,
+     0.993
+    ],
+    [
+     387,
+     0.993
+    ],
+    [
+     388,
+     0.993
+    ],
+    [
+     389,
+     0.993
+    ],
+    [
+     390,
+     0.993
+    ],
+    [
+     391,
+     0.993
+    ],
+    [
+     392,
+     0.993
+    ],
+    [
+     393,
+     0.993
+    ],
+    [
+     394,
+     0.993
+    ],
+    [
+     395,
+     0.993
+    ],
+    [
+     396,
+     0.993
+    ],
+    [
+     397,
+     1.0
+    ],
+    [
+     398,
+     1.0
+    ],
+    [
+     399,
+     1.0
+    ],
+    [
+     400,
+     1.0
+    ],
+    [
+     401,
+     1.0
+    ],
+    [
+     402,
+     1.0
+    ],
+    [
+     403,
+     1.0
+    ],
+    [
+     404,
+     1.0
+    ],
+    [
+     405,
+     1.0
+    ],
+    [
+     406,
+     1.0
+    ],
+    [
+     407,
+     1.0
+    ],
+    [
+     408,
+     1.0
+    ],
+    [
+     409,
+     1.0
+    ],
+    [
+     410,
+     1.0
+    ],
+    [
+     411,
+     1.0
+    ],
+    [
+     412,
+     1.0
+    ],
+    [
+     413,
+     1.0
+    ],
+    [
+     414,
+     1.0
+    ],
+    [
+     415,
+     1.0
+    ],
+    [
+     416,
+     1.0
+    ],
+    [
+     431,
+     1.0
+    ],
+    [
+     432,
+     1.0
+    ],
+    [
+     433,
+     1.0
+    ],
+    [
+     434,
+     1.0
+    ],
+    [
+     435,
+     1.0
+    ],
+    [
+     436,
+     1.0
+    ],
+    [
+     437,
+     1.0
+    ],
+    [
+     438,
+     1.0
+    ],
+    [
+     439,
+     1.0
+    ],
+    [
+     440,
+     1.0
+    ],
+    [
+     441,
+     1.0
+    ],
+    [
+     442,
+     1.0
+    ],
+    [
+     443,
+     1.0
+    ],
+    [
+     444,
+     1.0
+    ],
+    [
+     445,
+     1.0
+    ]
    ]
   },
   "compass": {
    "seconds": 0,
    "max": 0.151,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.111,
+   "max": 0.117,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.237,
+   "max": 0.288,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.603,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     39,
+     0.603
+    ],
+    [
+     40,
+     0.603
+    ]
+   ]
   },
-  "first_black_second": 195.95,
-  "crossing_actions": 117,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 5,
    "max": 0.92,
@@ -906,65 +1845,92 @@
      0.911
     ]
    ]
-  }
+  },
+  "first_black_second": 195.95,
+  "crossing_actions": 117,
+  "recruited_minute": null
  },
  "9a77387a84de": {
   "agent": "gemini-3.8-flash",
-  "video_seconds": 93,
+  "video_seconds": 94,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.109,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.089,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.095,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.107,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.02,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.197,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "9f5557c5b6b5": {
   "agent": "gemini-3.8-flash",
-  "video_seconds": 437,
+  "video_seconds": 438,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 34.0,
+     "name": "\u5357\u8ce2\u5c45"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 34.0
+  },
   "hermit": {
-   "seconds": 86,
+   "seconds": 100,
    "max": 0.994,
-   "first_minute": 38.7,
+   "first_minute": 38.5,
    "minutes": [
+    38.5,
     38.7,
     38.8,
+    38.9,
+    39.2,
     39.3,
     39.5,
     39.6,
+    40.0,
     40.1,
     40.3,
     40.4,
@@ -972,8 +1938,10 @@
     40.7,
     41.1,
     41.2,
+    41.3,
     41.5,
     41.6,
+    41.7,
     42.3,
     42.4,
     42.5,
@@ -998,8 +1966,10 @@
     45.3,
     45.5,
     45.6,
+    46.0,
     46.1,
     46.3,
+    46.4,
     46.8,
     46.9,
     47.1,
@@ -1008,6 +1978,7 @@
     47.6,
     47.7,
     47.9,
+    48.3,
     48.4,
     48.5,
     48.7,
@@ -1029,6 +2000,7 @@
     50.8,
     50.9,
     51.1,
+    51.3,
     51.5,
     51.6,
     51.7,
@@ -1039,42 +2011,494 @@
     52.8,
     52.9,
     53.1,
+    53.2,
+    53.3,
     53.5,
     53.6,
     53.7,
     53.9,
+    54.0,
+    54.4,
     54.5,
     54.7,
     54.8
+   ],
+   "candidates": [
+    [
+     289,
+     0.989
+    ],
+    [
+     290,
+     0.989
+    ],
+    [
+     291,
+     0.989
+    ],
+    [
+     292,
+     0.989
+    ],
+    [
+     294,
+     0.989
+    ],
+    [
+     295,
+     0.989
+    ],
+    [
+     296,
+     0.989
+    ],
+    [
+     297,
+     0.989
+    ],
+    [
+     300,
+     0.993
+    ],
+    [
+     301,
+     0.993
+    ],
+    [
+     302,
+     0.993
+    ],
+    [
+     303,
+     0.993
+    ],
+    [
+     304,
+     0.993
+    ],
+    [
+     305,
+     0.993
+    ],
+    [
+     308,
+     0.989
+    ],
+    [
+     309,
+     0.989
+    ],
+    [
+     310,
+     0.993
+    ],
+    [
+     311,
+     0.993
+    ],
+    [
+     312,
+     0.993
+    ],
+    [
+     313,
+     0.993
+    ],
+    [
+     317,
+     0.989
+    ],
+    [
+     318,
+     0.989
+    ],
+    [
+     319,
+     0.989
+    ],
+    [
+     320,
+     0.989
+    ],
+    [
+     321,
+     0.989
+    ],
+    [
+     322,
+     0.989
+    ],
+    [
+     323,
+     0.993
+    ],
+    [
+     324,
+     0.993
+    ],
+    [
+     325,
+     0.993
+    ],
+    [
+     326,
+     0.993
+    ],
+    [
+     327,
+     0.993
+    ],
+    [
+     328,
+     0.993
+    ],
+    [
+     331,
+     0.993
+    ],
+    [
+     332,
+     0.993
+    ],
+    [
+     333,
+     0.993
+    ],
+    [
+     334,
+     0.993
+    ],
+    [
+     335,
+     0.993
+    ],
+    [
+     336,
+     0.993
+    ],
+    [
+     337,
+     0.993
+    ],
+    [
+     338,
+     0.993
+    ],
+    [
+     339,
+     0.993
+    ],
+    [
+     340,
+     0.993
+    ],
+    [
+     341,
+     0.993
+    ],
+    [
+     342,
+     0.993
+    ],
+    [
+     345,
+     0.989
+    ],
+    [
+     346,
+     0.989
+    ],
+    [
+     347,
+     0.989
+    ],
+    [
+     348,
+     0.989
+    ],
+    [
+     351,
+     0.993
+    ],
+    [
+     352,
+     0.993
+    ],
+    [
+     353,
+     0.993
+    ],
+    [
+     354,
+     0.993
+    ],
+    [
+     355,
+     0.993
+    ],
+    [
+     357,
+     0.989
+    ],
+    [
+     358,
+     0.989
+    ],
+    [
+     359,
+     0.989
+    ],
+    [
+     362,
+     0.993
+    ],
+    [
+     363,
+     0.993
+    ],
+    [
+     364,
+     0.993
+    ],
+    [
+     365,
+     0.993
+    ],
+    [
+     366,
+     0.993
+    ],
+    [
+     367,
+     0.993
+    ],
+    [
+     368,
+     0.993
+    ],
+    [
+     369,
+     0.993
+    ],
+    [
+     370,
+     0.993
+    ],
+    [
+     371,
+     0.989
+    ],
+    [
+     372,
+     0.989
+    ],
+    [
+     373,
+     0.989
+    ],
+    [
+     374,
+     0.989
+    ],
+    [
+     375,
+     0.993
+    ],
+    [
+     376,
+     0.993
+    ],
+    [
+     377,
+     0.993
+    ],
+    [
+     378,
+     0.993
+    ],
+    [
+     379,
+     0.993
+    ],
+    [
+     380,
+     0.993
+    ],
+    [
+     381,
+     0.993
+    ],
+    [
+     382,
+     0.993
+    ],
+    [
+     383,
+     0.993
+    ],
+    [
+     385,
+     0.993
+    ],
+    [
+     386,
+     0.993
+    ],
+    [
+     387,
+     0.993
+    ],
+    [
+     388,
+     0.993
+    ],
+    [
+     389,
+     0.993
+    ],
+    [
+     393,
+     0.993
+    ],
+    [
+     394,
+     0.993
+    ],
+    [
+     395,
+     0.993
+    ],
+    [
+     396,
+     0.993
+    ],
+    [
+     397,
+     0.993
+    ],
+    [
+     398,
+     0.993
+    ],
+    [
+     399,
+     0.993
+    ],
+    [
+     400,
+     0.989
+    ],
+    [
+     401,
+     0.989
+    ],
+    [
+     402,
+     0.989
+    ],
+    [
+     403,
+     0.989
+    ],
+    [
+     404,
+     0.989
+    ],
+    [
+     405,
+     0.989
+    ],
+    [
+     408,
+     0.994
+    ],
+    [
+     409,
+     0.994
+    ],
+    [
+     410,
+     0.994
+    ],
+    [
+     411,
+     0.994
+    ]
    ]
   },
   "compass": {
    "seconds": 0,
    "max": 0.582,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.117,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.274,
+   "max": 0.281,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.606,
+   "max": 0.609,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     46,
+     0.603
+    ],
+    [
+     47,
+     0.603
+    ],
+    [
+     52,
+     0.605
+    ],
+    [
+     53,
+     0.605
+    ],
+    [
+     60,
+     0.606
+    ],
+    [
+     61,
+     0.609
+    ],
+    [
+     62,
+     0.603
+    ],
+    [
+     63,
+     0.603
+    ],
+    [
+     64,
+     0.603
+    ],
+    [
+     65,
+     0.603
+    ],
+    [
+     66,
+     0.603
+    ]
+   ]
   },
-  "first_black_second": 145.95,
-  "crossing_actions": 86,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 9,
    "max": 0.956,
@@ -1128,88 +2552,126 @@
      0.956
     ]
    ]
-  }
+  },
+  "first_black_second": 145.95,
+  "crossing_actions": 86,
+  "recruited_minute": null
  },
  "295b689ac75e": {
   "agent": "glm-5.3-flash",
   "video_seconds": 444,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.24,
+   "max": 0.275,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.123,
+   "max": 0.138,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.138,
+   "max": 0.175,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.187,
+   "max": 0.251,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.606,
+   "max": 0.61,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     0,
+     0.605
+    ],
+    [
+     289,
+     0.61
+    ]
+   ]
   },
-  "first_black_second": 268.15,
-  "crossing_actions": 1595,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.303,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 268.15,
+  "crossing_actions": 1595,
+  "recruited_minute": null
  },
  "48d439b06486": {
   "agent": "glm-5.3-flash",
   "video_seconds": 446,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.19,
+   "max": 0.299,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.154,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.107,
+   "max": 0.138,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.222,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.55,
+   "max": 0.607,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     416,
+     0.606
+    ],
+    [
+     417,
+     0.607
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 2,
    "max": 0.994,
@@ -1228,88 +2690,126 @@
      0.993
     ]
    ]
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "b6dfffac2cae": {
   "agent": "glm-5.3-flash",
-  "video_seconds": 446,
+  "video_seconds": 447,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 51.3,
+     "name": "\u5357\u8ce2\u5c45"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 51.3
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.335,
+   "max": 0.267,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.148,
+   "max": 0.152,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.133,
+   "max": 0.135,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.204,
+   "max": 0.293,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.602,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     336,
+     0.602
+    ],
+    [
+     337,
+     0.602
+    ],
+    [
+     338,
+     0.602
+    ]
+   ]
   },
-  "first_black_second": 104.25,
-  "crossing_actions": 66,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.292,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 104.25,
+  "crossing_actions": 66,
+  "recruited_minute": null
  },
  "be199bf68b51": {
   "agent": "glm-5.3-flash",
-  "video_seconds": 445,
+  "video_seconds": 446,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.207,
+   "max": 0.298,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.153,
+   "max": 0.154,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.102,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.178,
+   "max": 0.182,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.592,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 5,
    "max": 0.943,
@@ -1343,176 +2843,225 @@
      0.917
     ]
    ]
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "f1df9f2490b5": {
   "agent": "glm-5.3-flash",
-  "video_seconds": 447,
+  "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.301,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.119,
+   "max": 0.141,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.185,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.217,
+   "max": 0.218,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.571,
+   "max": 0.574,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 93.95,
-  "crossing_actions": 64,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.342,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 93.95,
+  "crossing_actions": 64,
+  "recruited_minute": null
  },
  "0ad0cb9c4482": {
   "agent": "gpt-5.6-luna",
-  "video_seconds": 448,
+  "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.283,
+   "max": 0.274,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.584,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.159,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.185,
+   "max": 0.249,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.586,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 61.65,
-  "crossing_actions": 50,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.307,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 61.65,
+  "crossing_actions": 50,
+  "recruited_minute": null
  },
  "34bbdab1f463": {
   "agent": "gpt-5.6-luna",
   "video_seconds": 73,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.026,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": -0.044,
+   "max": 0.0,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": -0.042,
+   "max": 0.0,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.088,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.006,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.148,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "446a46649555": {
   "agent": "gpt-5.6-luna",
   "video_seconds": 265,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.184,
+   "max": 0.248,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.614,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     159,
+     0.614
+    ],
+    [
+     160,
+     0.614
+    ]
+   ]
   },
   "battle": {
    "seconds": 0,
-   "max": 0.13,
+   "max": 0.105,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.167,
+   "max": 0.21,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.566,
+   "max": 0.568,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 152.2,
-  "crossing_actions": 112,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 1,
    "max": 0.941,
@@ -1526,176 +3075,230 @@
      0.941
     ]
    ]
-  }
+  },
+  "first_black_second": 152.2,
+  "crossing_actions": 112,
+  "recruited_minute": null
  },
  "9845539b481b": {
   "agent": "gpt-5.6-luna",
   "video_seconds": 387,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.214,
+   "max": 0.217,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.591,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.111,
+   "max": 0.126,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.243,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.567,
+   "max": 0.597,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 264.9,
-  "crossing_actions": 155,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.288,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 264.9,
+  "crossing_actions": 155,
+  "recruited_minute": null
  },
  "a6391f44ec6b": {
   "agent": "gpt-5.6-luna",
-  "video_seconds": 221,
+  "video_seconds": 222,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.207,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.101,
+   "max": 0.149,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.109,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.238,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.597,
+   "max": 0.605,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     121,
+     0.605
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.286,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "b7ebb2583197": {
   "agent": "gpt-5.6-luna",
-  "video_seconds": 448,
+  "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.026,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": -0.044,
+   "max": 0.0,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": -0.042,
+   "max": 0.0,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.088,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.006,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.148,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "f523874509d7": {
   "agent": "gpt-5.6-luna",
-  "video_seconds": 448,
+  "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.157,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.104,
+   "max": 0.105,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.106,
+   "max": 0.099,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.174,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.6,
+   "max": 0.617,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     67,
+     0.617
+    ],
+    [
+     68,
+     0.608
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 2,
    "max": 0.903,
@@ -1714,44 +3317,76 @@
      0.903
     ]
    ]
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "0f91a9091a9d": {
   "agent": "gpt-5.6-sol",
   "video_seconds": 447,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 27.3,
+     "name": "\u738b\u5c45"
+    },
+    {
+     "minute": 38.1,
+     "name": "\u6cb3\u6d1b\u5ba2\u68e7"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 38.1
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.267,
+   "max": 0.313,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.141,
+   "max": 0.143,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.151,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.269,
+   "max": 0.301,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.612,
+   "max": 0.623,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     13,
+     0.612
+    ],
+    [
+     14,
+     0.612
+    ],
+    [
+     106,
+     0.623
+    ]
+   ]
   },
-  "first_black_second": 79.45,
-  "crossing_actions": 58,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 6,
    "max": 0.994,
@@ -1790,16 +3425,30 @@
      0.918
     ]
    ]
-  }
+  },
+  "first_black_second": 79.45,
+  "crossing_actions": 58,
+  "recruited_minute": null
  },
  "80848a636957": {
   "agent": "gpt-5.6-sol",
-  "video_seconds": 447,
+  "video_seconds": 448,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 49.3,
+     "name": "\u5357\u8ce2\u5c45"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 49.3
+  },
   "hermit": {
-   "seconds": 14,
+   "seconds": 17,
    "max": 0.991,
-   "first_minute": 52.9,
+   "first_minute": 52.8,
    "minutes": [
+    52.8,
     52.9,
     53.1,
     53.2,
@@ -1807,42 +3456,120 @@
     53.5,
     53.6,
     53.7,
+    53.9,
     54.1,
+    54.3,
     54.5,
     54.7,
     54.8,
     54.9,
     55.1,
     55.2
+   ],
+   "candidates": [
+    [
+     396,
+     0.991
+    ],
+    [
+     397,
+     0.991
+    ],
+    [
+     398,
+     0.991
+    ],
+    [
+     399,
+     0.991
+    ],
+    [
+     400,
+     0.991
+    ],
+    [
+     401,
+     0.991
+    ],
+    [
+     402,
+     0.991
+    ],
+    [
+     403,
+     0.991
+    ],
+    [
+     404,
+     0.991
+    ],
+    [
+     406,
+     0.99
+    ],
+    [
+     407,
+     0.99
+    ],
+    [
+     409,
+     0.99
+    ],
+    [
+     410,
+     0.99
+    ],
+    [
+     411,
+     0.99
+    ],
+    [
+     412,
+     0.99
+    ],
+    [
+     413,
+     0.99
+    ],
+    [
+     414,
+     0.99
+    ]
    ]
   },
   "compass": {
    "seconds": 0,
    "max": 0.598,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.169,
+   "max": 0.205,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.25,
+   "max": 0.265,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.664,
+   "max": 0.662,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     368,
+     0.662
+    ]
+   ]
   },
-  "first_black_second": 160.5,
-  "crossing_actions": 430,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 1,
    "max": 0.923,
@@ -1860,132 +3587,192 @@
      0.923
     ]
    ]
-  }
+  },
+  "first_black_second": 160.5,
+  "crossing_actions": 430,
+  "recruited_minute": null
  },
  "bcad6fdec2ee": {
   "agent": "gpt-5.6-sol",
   "video_seconds": 432,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.266,
+   "max": 0.268,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.108,
+   "max": 0.131,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.101,
+   "max": 0.116,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.223,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.595,
+   "max": 0.597,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 51.05,
-  "crossing_actions": 38,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.335,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 51.05,
+  "crossing_actions": 38,
+  "recruited_minute": null
  },
  "db351d9c3582": {
   "agent": "gpt-5.6-sol",
   "video_seconds": 447,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.298,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.151,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.108,
+   "max": 0.16,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.238,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.615,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     290,
+     0.615
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.292,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "0d8c2621e10c": {
   "agent": "gpt-5.6-terra",
   "video_seconds": 449,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.299,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.152,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.162,
+   "max": 0.164,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.251,
+   "max": 0.299,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.603,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     70,
+     0.603
+    ],
+    [
+     71,
+     0.603
+    ],
+    [
+     72,
+     0.603
+    ],
+    [
+     73,
+     0.603
+    ],
+    [
+     74,
+     0.603
+    ],
+    [
+     75,
+     0.603
+    ]
+   ]
   },
-  "first_black_second": 158.95,
-  "crossing_actions": 107,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 4,
    "max": 0.997,
@@ -2014,220 +3801,331 @@
      0.917
     ]
    ]
-  }
+  },
+  "first_black_second": 158.95,
+  "crossing_actions": 107,
+  "recruited_minute": null
  },
  "26db1beab727": {
   "agent": "gpt-5.6-terra",
   "video_seconds": 447,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.179,
+   "max": 0.183,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.709,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     166,
+     0.707
+    ],
+    [
+     167,
+     0.709
+    ]
+   ]
   },
   "battle": {
    "seconds": 0,
    "max": 0.099,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.251,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.561,
+   "max": 0.565,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.281,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "3269ad245e36": {
   "agent": "gpt-5.6-terra",
   "video_seconds": 372,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.211,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.12,
+   "max": 0.148,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.091,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.171,
+   "max": 0.17,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.606,
+   "max": 0.608,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     16,
+     0.608
+    ],
+    [
+     17,
+     0.608
+    ],
+    [
+     18,
+     0.606
+    ],
+    [
+     19,
+     0.606
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.27,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "5fdccfdb9269": {
   "agent": "gpt-5.6-terra",
-  "video_seconds": 142,
+  "video_seconds": 143,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.167,
+   "max": 0.203,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.101,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.102,
+   "max": 0.093,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.233,
+   "max": 0.157,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.601,
+   "max": 0.603,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     64,
+     0.602
+    ],
+    [
+     65,
+     0.601
+    ],
+    [
+     66,
+     0.603
+    ],
+    [
+     67,
+     0.603
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.268,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "7808aa4b7bb3": {
   "agent": "gpt-5.6-terra",
   "video_seconds": 162,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.134,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.563,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
    "max": 0.164,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.239,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.593,
+   "max": 0.594,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.269,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "ded5658a6d00": {
   "agent": "gpt-5.6-terra",
   "video_seconds": 259,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 13.9,
+     "name": "\u738b\u5c45"
+    }
+   ],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.218,
+   "max": 0.279,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.586,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.079,
+   "max": 0.167,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.18,
+   "max": 0.204,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.605,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     49,
+     0.603
+    ],
+    [
+     50,
+     0.605
+    ],
+    [
+     51,
+     0.605
+    ]
+   ]
   },
-  "first_black_second": 103.35,
-  "crossing_actions": 150,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 1,
    "max": 0.941,
@@ -2241,24 +4139,44 @@
      0.941
     ]
    ]
-  }
+  },
+  "first_black_second": 103.35,
+  "crossing_actions": 150,
+  "recruited_minute": null
  },
  "0aaed52489f6": {
   "agent": "gpt-6-astra",
   "video_seconds": 445,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 10.9,
+     "name": "\u5357\u8ce2\u5c45"
+    },
+    {
+     "minute": 34.0,
+     "name": "\u95bb\u57fa\u5c45"
+    }
+   ],
+   "distinct": 2,
+   "first_minute": 10.9
+  },
   "hermit": {
-   "seconds": 37,
+   "seconds": 43,
    "max": 0.994,
    "first_minute": 13.1,
    "minutes": [
     13.1,
     13.2,
+    13.3,
+    13.6,
     13.7,
     13.9,
     14.0,
     14.1,
     14.3,
     14.4,
+    14.5,
     14.7,
     14.8,
     14.9,
@@ -2271,6 +4189,8 @@
     15.9,
     16.0,
     16.1,
+    16.3,
+    16.4,
     16.5,
     16.9,
     17.1,
@@ -2287,30 +4207,308 @@
     19.7,
     19.9,
     20.0,
-    20.1
+    20.1,
+    20.3
+   ],
+   "candidates": [
+    [
+     98,
+     0.989
+    ],
+    [
+     99,
+     0.989
+    ],
+    [
+     100,
+     0.989
+    ],
+    [
+     102,
+     0.989
+    ],
+    [
+     103,
+     0.989
+    ],
+    [
+     104,
+     0.989
+    ],
+    [
+     105,
+     0.989
+    ],
+    [
+     106,
+     0.989
+    ],
+    [
+     107,
+     0.993
+    ],
+    [
+     108,
+     0.993
+    ],
+    [
+     109,
+     0.989
+    ],
+    [
+     110,
+     0.989
+    ],
+    [
+     111,
+     0.989
+    ],
+    [
+     112,
+     0.989
+    ],
+    [
+     113,
+     0.989
+    ],
+    [
+     114,
+     0.989
+    ],
+    [
+     115,
+     0.989
+    ],
+    [
+     116,
+     0.989
+    ],
+    [
+     117,
+     0.989
+    ],
+    [
+     118,
+     0.989
+    ],
+    [
+     119,
+     0.989
+    ],
+    [
+     120,
+     0.993
+    ],
+    [
+     121,
+     0.993
+    ],
+    [
+     122,
+     0.993
+    ],
+    [
+     123,
+     0.989
+    ],
+    [
+     124,
+     0.989
+    ],
+    [
+     127,
+     0.989
+    ],
+    [
+     128,
+     0.989
+    ],
+    [
+     129,
+     0.993
+    ],
+    [
+     130,
+     0.993
+    ],
+    [
+     131,
+     0.993
+    ],
+    [
+     132,
+     0.993
+    ],
+    [
+     133,
+     0.993
+    ],
+    [
+     134,
+     0.993
+    ],
+    [
+     139,
+     0.994
+    ],
+    [
+     140,
+     0.994
+    ],
+    [
+     141,
+     0.994
+    ],
+    [
+     147,
+     0.994
+    ],
+    [
+     148,
+     0.994
+    ],
+    [
+     149,
+     0.994
+    ],
+    [
+     150,
+     0.994
+    ],
+    [
+     151,
+     0.994
+    ],
+    [
+     152,
+     0.994
+    ]
    ]
   },
   "compass": {
-   "seconds": 12,
+   "seconds": 17,
    "max": 0.935,
-   "first_minute": 24.4,
+   "first_minute": 24.3,
    "minutes": [
+    24.3,
     24.4,
+    24.5,
     25.6,
     25.7,
     25.9,
     26.0,
+    27.3,
     27.5,
     27.6,
     27.7,
     30.0,
     30.1,
     30.3,
-    30.9
+    30.4,
+    30.9,
+    31.1
+   ],
+   "candidates": [
+    [
+     179,
+     0.612
+    ],
+    [
+     182,
+     0.935
+    ],
+    [
+     183,
+     0.935
+    ],
+    [
+     184,
+     0.935
+    ],
+    [
+     192,
+     0.91
+    ],
+    [
+     193,
+     0.91
+    ],
+    [
+     194,
+     0.91
+    ],
+    [
+     195,
+     0.91
+    ],
+    [
+     205,
+     0.907
+    ],
+    [
+     206,
+     0.907
+    ],
+    [
+     207,
+     0.907
+    ],
+    [
+     208,
+     0.907
+    ],
+    [
+     225,
+     0.928
+    ],
+    [
+     226,
+     0.928
+    ],
+    [
+     227,
+     0.928
+    ],
+    [
+     228,
+     0.928
+    ],
+    [
+     232,
+     0.915
+    ],
+    [
+     233,
+     0.915
+    ],
+    [
+     307,
+     0.618
+    ],
+    [
+     308,
+     0.618
+    ],
+    [
+     309,
+     0.618
+    ],
+    [
+     310,
+     0.618
+    ],
+    [
+     311,
+     0.603
+    ],
+    [
+     312,
+     0.603
+    ]
    ]
   },
   "battle": {
-   "seconds": 140,
+   "seconds": 142,
    "max": 0.999,
    "first_minute": 39.5,
    "minutes": [
@@ -2318,9 +4516,11 @@
     39.6,
     39.7,
     39.9,
+    40.4,
     40.5,
     40.7,
     40.8,
+    40.9,
     41.6,
     41.7,
     41.9,
@@ -2454,23 +4654,592 @@
     58.9,
     59.1,
     59.2
+   ],
+   "candidates": [
+    [
+     296,
+     0.992
+    ],
+    [
+     297,
+     0.992
+    ],
+    [
+     298,
+     0.992
+    ],
+    [
+     299,
+     0.992
+    ],
+    [
+     303,
+     0.999
+    ],
+    [
+     304,
+     0.999
+    ],
+    [
+     305,
+     0.999
+    ],
+    [
+     306,
+     0.999
+    ],
+    [
+     307,
+     0.999
+    ],
+    [
+     312,
+     0.999
+    ],
+    [
+     313,
+     0.999
+    ],
+    [
+     314,
+     0.999
+    ],
+    [
+     315,
+     0.999
+    ],
+    [
+     316,
+     0.999
+    ],
+    [
+     317,
+     0.999
+    ],
+    [
+     318,
+     0.999
+    ],
+    [
+     319,
+     0.999
+    ],
+    [
+     320,
+     0.999
+    ],
+    [
+     321,
+     0.999
+    ],
+    [
+     322,
+     0.999
+    ],
+    [
+     323,
+     0.999
+    ],
+    [
+     324,
+     0.999
+    ],
+    [
+     325,
+     0.999
+    ],
+    [
+     326,
+     0.999
+    ],
+    [
+     327,
+     0.999
+    ],
+    [
+     328,
+     0.999
+    ],
+    [
+     329,
+     0.999
+    ],
+    [
+     330,
+     0.999
+    ],
+    [
+     331,
+     0.999
+    ],
+    [
+     332,
+     0.999
+    ],
+    [
+     333,
+     0.999
+    ],
+    [
+     334,
+     0.999
+    ],
+    [
+     335,
+     0.999
+    ],
+    [
+     336,
+     0.999
+    ],
+    [
+     337,
+     0.999
+    ],
+    [
+     338,
+     0.999
+    ],
+    [
+     339,
+     0.999
+    ],
+    [
+     340,
+     0.999
+    ],
+    [
+     341,
+     0.999
+    ],
+    [
+     342,
+     0.999
+    ],
+    [
+     343,
+     0.999
+    ],
+    [
+     344,
+     0.999
+    ],
+    [
+     345,
+     0.999
+    ],
+    [
+     346,
+     0.999
+    ],
+    [
+     347,
+     0.999
+    ],
+    [
+     348,
+     0.999
+    ],
+    [
+     349,
+     0.999
+    ],
+    [
+     350,
+     0.999
+    ],
+    [
+     351,
+     0.999
+    ],
+    [
+     352,
+     0.999
+    ],
+    [
+     353,
+     0.999
+    ],
+    [
+     354,
+     0.999
+    ],
+    [
+     355,
+     0.999
+    ],
+    [
+     356,
+     0.999
+    ],
+    [
+     357,
+     0.999
+    ],
+    [
+     358,
+     0.999
+    ],
+    [
+     359,
+     0.999
+    ],
+    [
+     360,
+     0.999
+    ],
+    [
+     361,
+     0.999
+    ],
+    [
+     362,
+     0.999
+    ],
+    [
+     363,
+     0.999
+    ],
+    [
+     364,
+     0.999
+    ],
+    [
+     365,
+     0.999
+    ],
+    [
+     366,
+     0.999
+    ],
+    [
+     367,
+     0.999
+    ],
+    [
+     368,
+     0.999
+    ],
+    [
+     369,
+     0.999
+    ],
+    [
+     370,
+     0.999
+    ],
+    [
+     371,
+     0.999
+    ],
+    [
+     372,
+     0.999
+    ],
+    [
+     373,
+     0.999
+    ],
+    [
+     374,
+     0.999
+    ],
+    [
+     375,
+     0.999
+    ],
+    [
+     376,
+     0.999
+    ],
+    [
+     377,
+     0.999
+    ],
+    [
+     378,
+     0.999
+    ],
+    [
+     379,
+     0.999
+    ],
+    [
+     380,
+     0.999
+    ],
+    [
+     381,
+     0.999
+    ],
+    [
+     382,
+     0.999
+    ],
+    [
+     383,
+     0.999
+    ],
+    [
+     384,
+     0.999
+    ],
+    [
+     385,
+     0.999
+    ],
+    [
+     386,
+     0.999
+    ],
+    [
+     387,
+     0.999
+    ],
+    [
+     388,
+     0.999
+    ],
+    [
+     389,
+     0.999
+    ],
+    [
+     390,
+     0.999
+    ],
+    [
+     391,
+     0.999
+    ],
+    [
+     392,
+     0.999
+    ],
+    [
+     393,
+     0.999
+    ],
+    [
+     394,
+     0.999
+    ],
+    [
+     395,
+     0.999
+    ],
+    [
+     396,
+     0.999
+    ],
+    [
+     397,
+     0.999
+    ],
+    [
+     398,
+     0.999
+    ],
+    [
+     399,
+     0.999
+    ],
+    [
+     400,
+     0.999
+    ],
+    [
+     401,
+     0.999
+    ],
+    [
+     402,
+     0.999
+    ],
+    [
+     403,
+     0.999
+    ],
+    [
+     404,
+     0.999
+    ],
+    [
+     405,
+     0.999
+    ],
+    [
+     406,
+     0.999
+    ],
+    [
+     407,
+     0.999
+    ],
+    [
+     408,
+     0.999
+    ],
+    [
+     409,
+     0.999
+    ],
+    [
+     410,
+     0.999
+    ],
+    [
+     411,
+     0.999
+    ],
+    [
+     412,
+     0.999
+    ],
+    [
+     413,
+     0.999
+    ],
+    [
+     414,
+     0.999
+    ],
+    [
+     415,
+     0.999
+    ],
+    [
+     416,
+     0.999
+    ],
+    [
+     417,
+     0.999
+    ],
+    [
+     418,
+     0.999
+    ],
+    [
+     419,
+     0.999
+    ],
+    [
+     420,
+     0.999
+    ],
+    [
+     421,
+     0.999
+    ],
+    [
+     422,
+     0.999
+    ],
+    [
+     423,
+     0.999
+    ],
+    [
+     424,
+     0.999
+    ],
+    [
+     425,
+     0.999
+    ],
+    [
+     426,
+     0.999
+    ],
+    [
+     427,
+     0.999
+    ],
+    [
+     428,
+     0.999
+    ],
+    [
+     429,
+     0.999
+    ],
+    [
+     430,
+     0.999
+    ],
+    [
+     431,
+     0.999
+    ],
+    [
+     432,
+     0.999
+    ],
+    [
+     433,
+     0.999
+    ],
+    [
+     434,
+     0.999
+    ],
+    [
+     435,
+     0.999
+    ],
+    [
+     436,
+     0.999
+    ],
+    [
+     437,
+     0.999
+    ],
+    [
+     438,
+     0.999
+    ],
+    [
+     439,
+     0.999
+    ],
+    [
+     440,
+     0.999
+    ],
+    [
+     441,
+     0.999
+    ],
+    [
+     442,
+     0.999
+    ],
+    [
+     443,
+     0.999
+    ],
+    [
+     444,
+     0.999
+    ]
    ]
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.205,
+   "max": 0.218,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.59,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 43.6,
-  "crossing_actions": 28,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 15,
    "max": 0.994,
@@ -2554,13 +5323,34 @@
      0.957
     ]
    ]
-  }
+  },
+  "first_black_second": 43.6,
+  "crossing_actions": 28,
+  "recruited_minute": null
  },
  "25475f1a2e3d": {
   "agent": "gpt-6-astra",
-  "video_seconds": 423,
+  "video_seconds": 424,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 10.3,
+     "name": "\u5357\u8ce2\u5c45"
+    },
+    {
+     "minute": 24.3,
+     "name": "\u95bb\u57fa\u5c45"
+    },
+    {
+     "minute": 34.7,
+     "name": "\u7530\u4f2f\u5149\u5c45"
+    }
+   ],
+   "distinct": 3,
+   "first_minute": 10.3
+  },
   "hermit": {
-   "seconds": 43,
+   "seconds": 56,
    "max": 1.0,
    "first_minute": 12.0,
    "minutes": [
@@ -2570,11 +5360,14 @@
     12.5,
     12.7,
     12.8,
+    12.9,
     13.1,
     13.2,
     13.3,
+    13.5,
     13.6,
     13.7,
+    13.9,
     14.0,
     14.1,
     14.3,
@@ -2585,10 +5378,14 @@
     14.9,
     15.1,
     15.2,
+    15.3,
     15.5,
+    15.6,
+    15.7,
     15.9,
     16.0,
     16.3,
+    16.4,
     16.5,
     16.7,
     16.8,
@@ -2597,34 +5394,385 @@
     17.2,
     17.3,
     17.5,
+    17.6,
     17.7,
     17.9,
+    18.0,
     18.1,
+    18.3,
     18.4,
+    18.5,
     18.9,
     19.1,
+    19.2,
+    31.2,
     31.3,
     31.5,
     31.6,
     31.7
+   ],
+   "candidates": [
+    [
+     90,
+     1.0
+    ],
+    [
+     91,
+     1.0
+    ],
+    [
+     93,
+     0.993
+    ],
+    [
+     94,
+     0.993
+    ],
+    [
+     95,
+     0.993
+    ],
+    [
+     96,
+     0.993
+    ],
+    [
+     97,
+     0.993
+    ],
+    [
+     98,
+     1.0
+    ],
+    [
+     99,
+     1.0
+    ],
+    [
+     100,
+     1.0
+    ],
+    [
+     101,
+     0.993
+    ],
+    [
+     102,
+     0.993
+    ],
+    [
+     103,
+     0.993
+    ],
+    [
+     104,
+     0.993
+    ],
+    [
+     105,
+     0.994
+    ],
+    [
+     106,
+     0.994
+    ],
+    [
+     107,
+     0.994
+    ],
+    [
+     108,
+     0.994
+    ],
+    [
+     109,
+     0.994
+    ],
+    [
+     110,
+     0.993
+    ],
+    [
+     111,
+     0.993
+    ],
+    [
+     112,
+     0.993
+    ],
+    [
+     113,
+     0.993
+    ],
+    [
+     114,
+     0.993
+    ],
+    [
+     115,
+     0.993
+    ],
+    [
+     116,
+     0.994
+    ],
+    [
+     117,
+     0.994
+    ],
+    [
+     118,
+     1.0
+    ],
+    [
+     119,
+     1.0
+    ],
+    [
+     120,
+     1.0
+    ],
+    [
+     122,
+     0.993
+    ],
+    [
+     123,
+     0.993
+    ],
+    [
+     124,
+     0.993
+    ],
+    [
+     125,
+     0.993
+    ],
+    [
+     126,
+     0.993
+    ],
+    [
+     127,
+     0.993
+    ],
+    [
+     128,
+     0.993
+    ],
+    [
+     129,
+     0.993
+    ],
+    [
+     130,
+     0.993
+    ],
+    [
+     131,
+     1.0
+    ],
+    [
+     132,
+     0.993
+    ],
+    [
+     133,
+     0.993
+    ],
+    [
+     134,
+     0.993
+    ],
+    [
+     135,
+     0.993
+    ],
+    [
+     136,
+     0.993
+    ],
+    [
+     137,
+     0.993
+    ],
+    [
+     138,
+     0.994
+    ],
+    [
+     139,
+     0.994
+    ],
+    [
+     142,
+     0.993
+    ],
+    [
+     143,
+     0.993
+    ],
+    [
+     144,
+     0.993
+    ],
+    [
+     234,
+     0.993
+    ],
+    [
+     235,
+     0.993
+    ],
+    [
+     236,
+     0.993
+    ],
+    [
+     237,
+     0.993
+    ],
+    [
+     238,
+     0.993
+    ]
    ]
   },
   "compass": {
-   "seconds": 11,
+   "seconds": 24,
    "max": 0.935,
    "first_minute": 20.8,
    "minutes": [
     20.8,
     20.9,
+    21.1,
     21.3,
     21.5,
+    22.1,
     22.3,
+    22.4,
+    34.1,
     34.3,
     34.4,
+    40.1,
     40.3,
+    40.4,
+    42.4,
     42.5,
+    42.7,
+    43.1,
+    43.2,
+    44.9,
     45.1,
-    46.0
+    45.9,
+    46.0,
+    46.1
+   ],
+   "candidates": [
+    [
+     156,
+     0.935
+    ],
+    [
+     157,
+     0.935
+    ],
+    [
+     158,
+     0.935
+    ],
+    [
+     160,
+     0.931
+    ],
+    [
+     161,
+     0.931
+    ],
+    [
+     166,
+     0.92
+    ],
+    [
+     167,
+     0.92
+    ],
+    [
+     168,
+     0.92
+    ],
+    [
+     179,
+     0.892
+    ],
+    [
+     180,
+     0.892
+    ],
+    [
+     256,
+     0.931
+    ],
+    [
+     257,
+     0.932
+    ],
+    [
+     258,
+     0.932
+    ],
+    [
+     301,
+     0.908
+    ],
+    [
+     302,
+     0.908
+    ],
+    [
+     303,
+     0.908
+    ],
+    [
+     318,
+     0.901
+    ],
+    [
+     319,
+     0.901
+    ],
+    [
+     320,
+     0.901
+    ],
+    [
+     323,
+     0.907
+    ],
+    [
+     324,
+     0.907
+    ],
+    [
+     337,
+     0.913
+    ],
+    [
+     338,
+     0.913
+    ],
+    [
+     344,
+     0.911
+    ],
+    [
+     345,
+     0.908
+    ],
+    [
+     346,
+     0.908
+    ]
    ]
   },
   "battle": {
@@ -2634,25 +5782,52 @@
    "minutes": [
     26.9,
     27.1
+   ],
+   "candidates": [
+    [
+     202,
+     0.999
+    ],
+    [
+     203,
+     0.999
+    ],
+    [
+     206,
+     0.896
+    ],
+    [
+     207,
+     0.896
+    ]
    ]
   },
   "defeat": {
-   "seconds": 1,
+   "seconds": 2,
    "max": 1.0,
    "first_minute": 27.9,
    "minutes": [
-    27.9
+    27.9,
+    28.0
+   ],
+   "candidates": [
+    [
+     209,
+     1.0
+    ],
+    [
+     210,
+     1.0
+    ]
    ]
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.589,
+   "max": 0.592,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
-  "first_black_second": 46.2,
-  "crossing_actions": 43,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 13,
    "max": 1.0,
@@ -2726,18 +5901,40 @@
      0.97
     ]
    ]
-  }
+  },
+  "first_black_second": 46.2,
+  "crossing_actions": 43,
+  "recruited_minute": null
  },
  "40c05bfa3284": {
   "agent": "gpt-6-astra",
   "video_seconds": 448,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 9.3,
+     "name": "\u5357\u8ce2\u5c45"
+    },
+    {
+     "minute": 32.0,
+     "name": "\u5ce8\u5d4b\u6d3e"
+    },
+    {
+     "minute": 42.0,
+     "name": "\u9ad8\u6607\u5ba2\u68e7"
+    }
+   ],
+   "distinct": 3,
+   "first_minute": 9.3
+  },
   "hermit": {
-   "seconds": 41,
+   "seconds": 50,
    "max": 1.0,
    "first_minute": 10.9,
    "minutes": [
     10.9,
     11.1,
+    11.2,
     11.3,
     11.5,
     11.6,
@@ -2747,21 +5944,26 @@
     12.1,
     12.3,
     12.4,
+    12.5,
+    12.7,
     12.8,
     12.9,
     13.1,
     13.2,
     13.3,
     13.5,
+    13.6,
     13.7,
     13.9,
     14.0,
     14.1,
     14.3,
     14.4,
+    14.5,
     14.7,
     14.8,
     14.9,
+    15.1,
     15.2,
     15.3,
     15.5,
@@ -2772,65 +5974,502 @@
     16.3,
     16.4,
     16.5,
+    16.7,
     16.8,
     16.9,
     17.1,
+    17.2,
     17.3,
+    17.5,
     17.6
+   ],
+   "candidates": [
+    [
+     82,
+     0.994
+    ],
+    [
+     83,
+     0.994
+    ],
+    [
+     84,
+     0.994
+    ],
+    [
+     85,
+     0.994
+    ],
+    [
+     86,
+     0.993
+    ],
+    [
+     87,
+     0.993
+    ],
+    [
+     88,
+     0.993
+    ],
+    [
+     89,
+     1.0
+    ],
+    [
+     90,
+     1.0
+    ],
+    [
+     91,
+     1.0
+    ],
+    [
+     92,
+     0.993
+    ],
+    [
+     93,
+     0.993
+    ],
+    [
+     94,
+     0.993
+    ],
+    [
+     95,
+     0.993
+    ],
+    [
+     96,
+     0.994
+    ],
+    [
+     97,
+     0.994
+    ],
+    [
+     98,
+     0.994
+    ],
+    [
+     99,
+     0.994
+    ],
+    [
+     100,
+     0.994
+    ],
+    [
+     101,
+     0.997
+    ],
+    [
+     102,
+     0.997
+    ],
+    [
+     103,
+     0.993
+    ],
+    [
+     104,
+     0.993
+    ],
+    [
+     105,
+     0.993
+    ],
+    [
+     106,
+     0.993
+    ],
+    [
+     107,
+     0.993
+    ],
+    [
+     108,
+     0.993
+    ],
+    [
+     109,
+     0.993
+    ],
+    [
+     110,
+     0.993
+    ],
+    [
+     111,
+     0.993
+    ],
+    [
+     112,
+     0.993
+    ],
+    [
+     113,
+     0.993
+    ],
+    [
+     114,
+     0.994
+    ],
+    [
+     115,
+     0.994
+    ],
+    [
+     116,
+     0.993
+    ],
+    [
+     117,
+     0.993
+    ],
+    [
+     118,
+     0.993
+    ],
+    [
+     119,
+     0.993
+    ],
+    [
+     121,
+     0.993
+    ],
+    [
+     122,
+     0.993
+    ],
+    [
+     123,
+     0.993
+    ],
+    [
+     124,
+     0.993
+    ],
+    [
+     125,
+     0.993
+    ],
+    [
+     126,
+     0.994
+    ],
+    [
+     127,
+     0.994
+    ],
+    [
+     128,
+     0.994
+    ],
+    [
+     129,
+     1.0
+    ],
+    [
+     130,
+     1.0
+    ],
+    [
+     131,
+     0.993
+    ],
+    [
+     132,
+     0.993
+    ]
    ]
   },
   "compass": {
-   "seconds": 23,
+   "seconds": 35,
    "max": 0.944,
    "first_minute": 18.0,
    "minutes": [
     18.0,
     18.1,
+    20.0,
     20.1,
     20.3,
     20.4,
+    21.3,
     21.5,
+    21.6,
+    23.1,
     23.2,
+    23.3,
+    24.3,
     24.4,
+    24.5,
     25.6,
     25.7,
     28.0,
     28.1,
+    28.3,
+    38.8,
     38.9,
     39.1,
+    39.2,
     40.0,
     40.1,
     40.3,
+    56.5,
     56.7,
     56.8,
     56.9,
+    58.7,
     58.8,
     58.9,
     59.1
+   ],
+   "candidates": [
+    [
+     135,
+     0.907
+    ],
+    [
+     136,
+     0.907
+    ],
+    [
+     150,
+     0.942
+    ],
+    [
+     151,
+     0.944
+    ],
+    [
+     152,
+     0.944
+    ],
+    [
+     153,
+     0.944
+    ],
+    [
+     155,
+     0.897
+    ],
+    [
+     156,
+     0.895
+    ],
+    [
+     157,
+     0.895
+    ],
+    [
+     160,
+     0.931
+    ],
+    [
+     161,
+     0.931
+    ],
+    [
+     162,
+     0.931
+    ],
+    [
+     167,
+     0.895
+    ],
+    [
+     168,
+     0.895
+    ],
+    [
+     173,
+     0.912
+    ],
+    [
+     174,
+     0.912
+    ],
+    [
+     175,
+     0.912
+    ],
+    [
+     182,
+     0.922
+    ],
+    [
+     183,
+     0.922
+    ],
+    [
+     184,
+     0.922
+    ],
+    [
+     192,
+     0.928
+    ],
+    [
+     193,
+     0.928
+    ],
+    [
+     196,
+     0.883
+    ],
+    [
+     197,
+     0.888
+    ],
+    [
+     210,
+     0.925
+    ],
+    [
+     211,
+     0.925
+    ],
+    [
+     212,
+     0.926
+    ],
+    [
+     230,
+     0.888
+    ],
+    [
+     231,
+     0.888
+    ],
+    [
+     232,
+     0.888
+    ],
+    [
+     291,
+     0.923
+    ],
+    [
+     292,
+     0.924
+    ],
+    [
+     293,
+     0.924
+    ],
+    [
+     294,
+     0.924
+    ],
+    [
+     300,
+     0.93
+    ],
+    [
+     301,
+     0.929
+    ],
+    [
+     302,
+     0.929
+    ],
+    [
+     307,
+     0.841
+    ],
+    [
+     308,
+     0.841
+    ],
+    [
+     309,
+     0.841
+    ],
+    [
+     310,
+     0.841
+    ],
+    [
+     424,
+     0.929
+    ],
+    [
+     425,
+     0.929
+    ],
+    [
+     426,
+     0.929
+    ],
+    [
+     427,
+     0.929
+    ],
+    [
+     433,
+     0.888
+    ],
+    [
+     434,
+     0.889
+    ],
+    [
+     435,
+     0.889
+    ],
+    [
+     436,
+     0.889
+    ],
+    [
+     440,
+     0.928
+    ],
+    [
+     441,
+     0.93
+    ],
+    [
+     442,
+     0.93
+    ],
+    [
+     443,
+     0.93
+    ]
    ]
   },
   "battle": {
    "seconds": 0,
-   "max": 0.121,
+   "max": 0.132,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.277,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
-   "seconds": 26,
+   "seconds": 35,
    "max": 0.999,
-   "first_minute": 46.4,
+   "first_minute": 46.0,
    "minutes": [
+    46.0,
+    46.3,
     46.4,
     46.5,
     46.7,
+    46.9,
     47.1,
     47.2,
+    47.3,
     47.6,
     47.7,
     47.9,
@@ -2839,8 +6478,12 @@
     48.5,
     48.9,
     49.1,
+    49.2,
+    50.1,
     50.3,
     50.4,
+    50.5,
+    51.1,
     51.2,
     51.3,
     51.5,
@@ -2849,14 +6492,170 @@
     51.9,
     52.0,
     52.1,
+    52.5,
     52.7,
     52.8,
     52.9
+   ],
+   "candidates": [
+    [
+     339,
+     0.628
+    ],
+    [
+     340,
+     0.636
+    ],
+    [
+     341,
+     0.636
+    ],
+    [
+     342,
+     0.636
+    ],
+    [
+     345,
+     0.926
+    ],
+    [
+     347,
+     0.938
+    ],
+    [
+     348,
+     0.938
+    ],
+    [
+     349,
+     0.938
+    ],
+    [
+     350,
+     0.938
+    ],
+    [
+     352,
+     0.976
+    ],
+    [
+     353,
+     0.979
+    ],
+    [
+     354,
+     0.979
+    ],
+    [
+     355,
+     0.979
+    ],
+    [
+     357,
+     0.987
+    ],
+    [
+     358,
+     0.987
+    ],
+    [
+     359,
+     0.987
+    ],
+    [
+     362,
+     0.979
+    ],
+    [
+     363,
+     0.979
+    ],
+    [
+     364,
+     0.979
+    ],
+    [
+     367,
+     0.987
+    ],
+    [
+     368,
+     0.987
+    ],
+    [
+     369,
+     0.987
+    ],
+    [
+     376,
+     0.953
+    ],
+    [
+     377,
+     0.953
+    ],
+    [
+     378,
+     0.953
+    ],
+    [
+     379,
+     0.953
+    ],
+    [
+     383,
+     0.991
+    ],
+    [
+     384,
+     0.999
+    ],
+    [
+     385,
+     0.999
+    ],
+    [
+     386,
+     0.999
+    ],
+    [
+     387,
+     0.999
+    ],
+    [
+     388,
+     0.999
+    ],
+    [
+     389,
+     0.999
+    ],
+    [
+     390,
+     0.953
+    ],
+    [
+     391,
+     0.953
+    ],
+    [
+     394,
+     0.929
+    ],
+    [
+     395,
+     0.934
+    ],
+    [
+     396,
+     0.934
+    ],
+    [
+     397,
+     0.934
+    ]
    ]
   },
-  "first_black_second": 35.65,
-  "crossing_actions": 41,
-  "recruited_minute": 51.9,
   "obtained": {
    "seconds": 9,
    "max": 0.96,
@@ -2910,22 +6709,56 @@
      0.96
     ]
    ]
-  }
+  },
+  "first_black_second": 35.65,
+  "crossing_actions": 41,
+  "recruited_minute": 51.9
  },
  "f9435a1f803b": {
   "agent": "gpt-6-astra",
   "video_seconds": 447,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 17.1,
+     "name": "\u5357\u8ce2\u5c45"
+    },
+    {
+     "minute": 30.5,
+     "name": "\u7530\u4f2f\u5149\u5c45"
+    },
+    {
+     "minute": 37.5,
+     "name": "\u85e5\u738b\u838a"
+    },
+    {
+     "minute": 38.3,
+     "name": "\u85e5\u738b\u838a"
+    },
+    {
+     "minute": 54.4,
+     "name": "\u798f\u5a01\u93e2\u5c40"
+    }
+   ],
+   "distinct": 4,
+   "first_minute": 17.1
+  },
   "hermit": {
-   "seconds": 40,
+   "seconds": 53,
    "max": 1.0,
-   "first_minute": 19.2,
+   "first_minute": 19.1,
    "minutes": [
+    19.1,
     19.2,
     19.3,
+    19.5,
     19.6,
     19.7,
+    19.9,
+    20.0,
     20.1,
     20.3,
+    20.4,
     20.5,
     20.7,
     20.8,
@@ -2936,76 +6769,415 @@
     21.6,
     21.7,
     21.9,
+    22.1,
     22.3,
     22.4,
     22.5,
     22.7,
     22.8,
+    22.9,
     23.1,
+    23.3,
     23.5,
     23.6,
+    23.9,
     24.0,
+    24.1,
     24.3,
     24.4,
     24.5,
     24.8,
     24.9,
     25.1,
+    25.2,
     25.3,
     25.5,
     25.6,
+    25.7,
     25.9,
+    26.0,
     26.1,
     26.3,
     26.8,
     26.9,
     27.1
+   ],
+   "candidates": [
+    [
+     143,
+     0.994
+    ],
+    [
+     144,
+     0.994
+    ],
+    [
+     145,
+     0.994
+    ],
+    [
+     146,
+     0.993
+    ],
+    [
+     147,
+     0.993
+    ],
+    [
+     148,
+     0.993
+    ],
+    [
+     149,
+     0.993
+    ],
+    [
+     150,
+     0.993
+    ],
+    [
+     151,
+     0.993
+    ],
+    [
+     152,
+     0.993
+    ],
+    [
+     153,
+     0.993
+    ],
+    [
+     154,
+     0.994
+    ],
+    [
+     155,
+     0.994
+    ],
+    [
+     156,
+     1.0
+    ],
+    [
+     158,
+     0.993
+    ],
+    [
+     159,
+     0.993
+    ],
+    [
+     160,
+     0.993
+    ],
+    [
+     161,
+     0.993
+    ],
+    [
+     162,
+     0.993
+    ],
+    [
+     163,
+     0.993
+    ],
+    [
+     164,
+     0.993
+    ],
+    [
+     166,
+     1.0
+    ],
+    [
+     167,
+     1.0
+    ],
+    [
+     168,
+     1.0
+    ],
+    [
+     169,
+     1.0
+    ],
+    [
+     170,
+     1.0
+    ],
+    [
+     171,
+     1.0
+    ],
+    [
+     172,
+     0.993
+    ],
+    [
+     173,
+     0.993
+    ],
+    [
+     175,
+     1.0
+    ],
+    [
+     176,
+     1.0
+    ],
+    [
+     177,
+     1.0
+    ],
+    [
+     179,
+     0.993
+    ],
+    [
+     180,
+     0.993
+    ],
+    [
+     181,
+     0.993
+    ],
+    [
+     182,
+     0.993
+    ],
+    [
+     183,
+     0.993
+    ],
+    [
+     184,
+     0.993
+    ],
+    [
+     186,
+     0.993
+    ],
+    [
+     187,
+     0.993
+    ],
+    [
+     188,
+     0.993
+    ],
+    [
+     189,
+     0.993
+    ],
+    [
+     190,
+     0.994
+    ],
+    [
+     191,
+     0.994
+    ],
+    [
+     192,
+     0.994
+    ],
+    [
+     193,
+     0.994
+    ],
+    [
+     194,
+     1.0
+    ],
+    [
+     195,
+     1.0
+    ],
+    [
+     196,
+     0.993
+    ],
+    [
+     197,
+     0.993
+    ],
+    [
+     201,
+     0.993
+    ],
+    [
+     202,
+     0.993
+    ],
+    [
+     203,
+     0.993
+    ]
    ]
   },
   "compass": {
-   "seconds": 16,
+   "seconds": 22,
    "max": 0.999,
-   "first_minute": 28.8,
+   "first_minute": 28.7,
    "minutes": [
+    28.7,
     28.8,
+    29.6,
     29.7,
+    30.1,
     30.3,
     30.4,
+    34.8,
     34.9,
     35.1,
+    36.7,
     36.8,
     36.9,
     37.1,
     37.2,
+    37.3,
     48.8,
     48.9,
     49.1,
     49.2,
     49.3,
     49.5
+   ],
+   "candidates": [
+    [
+     215,
+     0.934
+    ],
+    [
+     216,
+     0.934
+    ],
+    [
+     222,
+     0.903
+    ],
+    [
+     223,
+     0.903
+    ],
+    [
+     226,
+     0.932
+    ],
+    [
+     227,
+     0.932
+    ],
+    [
+     228,
+     0.932
+    ],
+    [
+     261,
+     0.912
+    ],
+    [
+     262,
+     0.912
+    ],
+    [
+     263,
+     0.91
+    ],
+    [
+     275,
+     0.999
+    ],
+    [
+     276,
+     0.999
+    ],
+    [
+     277,
+     0.999
+    ],
+    [
+     278,
+     0.999
+    ],
+    [
+     279,
+     0.999
+    ],
+    [
+     280,
+     0.999
+    ],
+    [
+     366,
+     0.913
+    ],
+    [
+     367,
+     0.913
+    ],
+    [
+     368,
+     0.913
+    ],
+    [
+     369,
+     0.913
+    ],
+    [
+     370,
+     0.913
+    ],
+    [
+     371,
+     0.913
+    ],
+    [
+     387,
+     0.895
+    ],
+    [
+     388,
+     0.895
+    ],
+    [
+     389,
+     0.895
+    ]
    ]
   },
   "battle": {
    "seconds": 0,
    "max": 0.171,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.207,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.606,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     4,
+     0.606
+    ],
+    [
+     5,
+     0.606
+    ]
+   ]
   },
-  "first_black_second": 32.9,
-  "crossing_actions": 33,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 16,
    "max": 0.995,
@@ -3094,88 +7266,203 @@
      0.959
     ]
    ]
-  }
+  },
+  "first_black_second": 32.9,
+  "crossing_actions": 33,
+  "recruited_minute": null
  },
  "023cfd44be24": {
   "agent": "grok-4.6",
   "video_seconds": 448,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.244,
+   "max": 0.258,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
    "max": 0.153,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.122,
+   "max": 0.14,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.249,
+   "max": 0.255,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
    "max": 0.609,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     46,
+     0.609
+    ],
+    [
+     47,
+     0.609
+    ],
+    [
+     50,
+     0.605
+    ],
+    [
+     52,
+     0.607
+    ],
+    [
+     53,
+     0.607
+    ],
+    [
+     55,
+     0.605
+    ],
+    [
+     56,
+     0.605
+    ]
+   ]
   },
-  "first_black_second": 189.4,
-  "crossing_actions": 421,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 0,
    "max": 0.293,
    "first_minute": null,
    "minutes": [],
    "candidates": []
-  }
+  },
+  "first_black_second": 189.4,
+  "crossing_actions": 421,
+  "recruited_minute": null
  },
  "900fbb74ad21": {
   "agent": "grok-4.6",
   "video_seconds": 447,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 26.9,
+     "name": "\u6cb3\u6d1b\u5ba2\u68e7"
+    }
+   ],
+   "distinct": 1,
+   "first_minute": 26.9
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.313,
+   "max": 0.341,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.115,
+   "max": 0.153,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.105,
+   "max": 0.111,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.227,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.785,
+   "max": 0.786,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     93,
+     0.621
+    ],
+    [
+     94,
+     0.621
+    ],
+    [
+     95,
+     0.608
+    ],
+    [
+     96,
+     0.608
+    ],
+    [
+     97,
+     0.608
+    ],
+    [
+     255,
+     0.773
+    ],
+    [
+     256,
+     0.773
+    ],
+    [
+     259,
+     0.785
+    ],
+    [
+     260,
+     0.786
+    ],
+    [
+     261,
+     0.785
+    ],
+    [
+     262,
+     0.785
+    ],
+    [
+     263,
+     0.785
+    ],
+    [
+     264,
+     0.785
+    ],
+    [
+     265,
+     0.783
+    ],
+    [
+     266,
+     0.783
+    ]
+   ]
   },
-  "first_black_second": 116.05,
-  "crossing_actions": 130,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 2,
    "max": 0.92,
@@ -3194,44 +7481,87 @@
      0.92
     ]
    ]
-  }
+  },
+  "first_black_second": 116.05,
+  "crossing_actions": 130,
+  "recruited_minute": null
  },
  "6039f4b2bdbd": {
   "agent": "random-baseline",
   "video_seconds": 450,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
    "max": 0.213,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.11,
+   "max": 0.556,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.113,
+   "max": 0.114,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
-   "max": 0.217,
+   "max": 0.239,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.572,
+   "max": 0.61,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     88,
+     0.602
+    ],
+    [
+     89,
+     0.607
+    ],
+    [
+     94,
+     0.609
+    ],
+    [
+     95,
+     0.61
+    ],
+    [
+     111,
+     0.604
+    ],
+    [
+     112,
+     0.604
+    ],
+    [
+     115,
+     0.604
+    ],
+    [
+     116,
+     0.604
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 1,
    "max": 0.936,
@@ -3249,44 +7579,87 @@
      0.897
     ]
    ]
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  },
  "da3cba637fcb": {
   "agent": "random-baseline",
   "video_seconds": 450,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
   "hermit": {
    "seconds": 0,
-   "max": 0.213,
+   "max": 0.215,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "compass": {
    "seconds": 0,
-   "max": 0.11,
+   "max": 0.556,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "battle": {
    "seconds": 0,
-   "max": 0.111,
+   "max": 0.112,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "defeat": {
    "seconds": 0,
    "max": 0.239,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": []
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.579,
+   "max": 0.607,
    "first_minute": null,
-   "minutes": []
+   "minutes": [],
+   "candidates": [
+    [
+     83,
+     0.603
+    ],
+    [
+     88,
+     0.605
+    ],
+    [
+     89,
+     0.605
+    ],
+    [
+     94,
+     0.601
+    ],
+    [
+     95,
+     0.601
+    ],
+    [
+     112,
+     0.604
+    ],
+    [
+     115,
+     0.604
+    ],
+    [
+     116,
+     0.607
+    ]
+   ]
   },
-  "first_black_second": null,
-  "crossing_actions": null,
-  "recruited_minute": null,
   "obtained": {
    "seconds": 2,
    "max": 0.933,
@@ -3305,6 +7678,9 @@
      0.903
     ]
    ]
-  }
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
  }
 }
