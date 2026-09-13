@@ -192,23 +192,6 @@ class WithholdingTests(unittest.TestCase):
             hero.update(**was)
 
 
-class GateTests(unittest.TestCase):
-    def test_an_attempt_waits_for_a_move_on_the_world_map(self):
-        # The escape that opens the save menu must never land in a scene's
-        # dialogue, where any key advances a line. Only an action that moved
-        # the party's world position, which changes on the world map alone,
-        # lets an attempt through.
-        hero = game_server.hero
-        was = hero.get("moved_on_map")
-        try:
-            hero["moved_on_map"] = False
-            self.assertFalse(game_server.snapshot_wanted())
-            hero["moved_on_map"] = True
-            self.assertTrue(game_server.snapshot_wanted())
-        finally:
-            hero["moved_on_map"] = was
-
-
 class DisabledTests(unittest.TestCase):
     def test_zero_switches_the_macro_off(self):
         # The worker that authors the start state is driven through the

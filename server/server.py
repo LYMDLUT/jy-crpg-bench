@@ -535,29 +535,14 @@ async def game_snapshot(reason=""):
         stats["holder"] = ""
 
 
-def snapshot_wanted():
-    """Whether the party is where the game will save: on the world map.
-
-    The live read after every action records whether that action moved the
-    party's world position, and the world position changes on the world map
-    alone. Without this gate an attempt inside a scene opened and closed the
-    game's own menu, and one that landed in a dialogue advanced a line the
-    model had not read. A party that stepped into a scene on its last move
-    still gets one attempt, which finds a four-row menu and backs out.
-    """
-    return bool(hero.get("moved_on_map"))
-
-
 async def snapshotter():
     """Have the game save itself now and then, and once before time is up.
 
     Every attempt waits for a gap: nobody queued for the lock, and the agent
     idle since its last action, so a key of ours never lands inside one of
-    its own. It is made only after an action that moved the party on the
-    world map (snapshot_wanted), so it never lands in a scene's dialogue or
-    fight. One that finds the world map costs a few seconds and leaves a
-    save behind; the rare one that finds a scene just entered costs two taps
-    and puts the screen back exactly as it was.
+    its own. An attempt that finds a scene costs two taps and puts the screen
+    back exactly as it was; one that finds the world map costs a few seconds
+    and leaves a save behind.
     """
     if SNAPSHOT_EVERY <= 0:
         return
@@ -583,8 +568,6 @@ async def snapshotter():
         if time.time() - snap["last_action"] < SNAPSHOT_IDLE:
             continue
         if stats["queued"]:                # somebody is waiting to play
-            continue
-        if not snapshot_wanted():
             continue
         try:
             summary, why = await game_snapshot("last call" if last_call
