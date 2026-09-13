@@ -179,7 +179,7 @@ ACT_TICKS = (20, 50, 100, 200, 500, 1000, 2000)
 
 def figure_ladder():
     # one row per model with every session it played behind it, ordered by the
-    # median crossing with the fewest actions first; the random floor last
+    # mean crossing with the fewest actions first; the random floor last
     rows = _field.played(_field.load_runs(dedup=False))
     models = _field.model_rows([r for r in rows if not _field.is_random(r["agent"])])
     floor = _field.model_rows([r for r in rows if _field.is_random(r["agent"])])
@@ -242,19 +242,15 @@ def figure_ladder():
     leg = ax.legend(handles, texts, loc="upper center", bbox_to_anchor=(0.5, -0.01),
                     fontsize=8, frameon=False, ncol=3, handletextpad=0.2,
                     columnspacing=1.4, handler_map={tuple: HandlerTuple(ndivide=1)})
-    # the crossing panel: one thin box per model that crossed, on a log scale;
-    # the box is the quartiles, the line inside it the median, the whiskers the range
+    # the crossing panel: one light dot per session that crossed and a black
+    # marker for their mean, on a log scale; too few sessions for quartiles
     for row, m in enumerate(boxed):
         c = m["crossings"]
         if min(c) < ACT_LO or max(c) > ACT_HI:
             sys.exit(f"ladder: a crossing of {m['agent']} falls outside the {ACT_LO}-{ACT_HI} action scale")
-        q1, med, q3 = (float(v) for v in np.percentile(c, [25, 50, 75]))
-        bx.plot([min(c), max(c)], [row, row], color=BOX_MEDIAN, lw=0.7, zorder=1)
-        for v in (min(c), max(c)):
-            bx.plot([v, v], [row - 0.14, row + 0.14], color=BOX_MEDIAN, lw=0.7, zorder=1)
-        bx.add_patch(Rectangle((q1, row - 0.22), q3 - q1, 0.44, facecolor=BOX_FILL,
-                               edgecolor=BOX_MEDIAN, lw=0.7, zorder=2))
-        bx.plot([med, med], [row - 0.22, row + 0.22], color=ACCENT, lw=1.2, zorder=3)
+        bx.plot([min(c), max(c)], [row, row], color=BOX_FILL, lw=1.2, zorder=1)
+        bx.scatter(c, [row] * len(c), s=14, facecolors="white", edgecolors=BOX_MEDIAN, linewidths=0.9, zorder=2)
+        bx.scatter(sum(c) / len(c), row, s=22, marker="o", color=INK, zorder=3)
     bx.set_xscale("log")
     bx.set_xlim(ACT_LO, ACT_HI)
     bx.set_xticks(ACT_TICKS)

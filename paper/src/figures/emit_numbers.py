@@ -356,13 +356,13 @@ _cross = {m["agent"]: m["crossings"] for m in UNION}
 if any(not c for c in _cross.values()):
     sys.exit("every model reached the world map, so every model needs a crossing count")
 _within, _wlabel = max((max(c) / min(c), a) for a, c in _cross.items() if len(c) >= 2)
-_medians = {a: st.median(c) for a, c in _cross.items()}
-_between = max(_medians.values()) / min(_medians.values())
+_means = {a: sum(c) / len(c) for a, c in _cross.items()}
+_between = max(_means.values()) / min(_means.values())
 if _within <= _between:
     sys.exit("the prose says the count varies more within a model than between models; it does not")
 lines.append(("% the model whose crossings differ the most", "\\newcommand{\\LspreadLabel}{\\texttt{%s}}" % _wlabel))
 emit("LspreadRatio", _within, "factor between its slowest and fastest crossing", fmt="%.0f")
-emit("LbetweenRatio", _between, "factor between the largest and smallest model median", fmt="%.0f")
+emit("LbetweenRatio", _between, "factor between the largest and smallest model mean", fmt="%.0f")
 if len(_cross[_top["agent"]]) != _top["sessions"]:
     sys.exit("the prose says the top model crossed in every session; it did not")
 emit("LtopCrossMin", min(_cross[_top["agent"]]), "fewest actions the top model took to the world map")
