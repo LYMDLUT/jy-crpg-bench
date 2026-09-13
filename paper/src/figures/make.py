@@ -179,7 +179,7 @@ ACT_TICKS = (20, 50, 100, 200, 500, 1000, 2000)
 
 def figure_ladder():
     # one row per model with every session it played behind it, ordered by the
-    # mean crossing with the fewest actions first; the random floor last
+    # median crossing with the fewest actions first; the random floor last
     rows = _field.played(_field.load_runs(dedup=False))
     models = _field.model_rows([r for r in rows if not _field.is_random(r["agent"])])
     floor = _field.model_rows([r for r in rows if _field.is_random(r["agent"])])
@@ -255,8 +255,6 @@ def figure_ladder():
         bx.add_patch(Rectangle((q1, row - 0.22), q3 - q1, 0.44, facecolor=BOX_FILL,
                                edgecolor=BOX_MEDIAN, lw=0.7, zorder=2))
         bx.plot([med, med], [row - 0.22, row + 0.22], color=ACCENT, lw=1.2, zorder=3)
-        # the mean, which orders the rows
-        bx.scatter(sum(c) / len(c), row, s=11, marker="o", color=INK, zorder=4)
     bx.set_xscale("log")
     bx.set_xlim(ACT_LO, ACT_HI)
     bx.set_xticks(ACT_TICKS)

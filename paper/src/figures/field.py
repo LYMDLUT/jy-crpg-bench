@@ -208,10 +208,11 @@ def crossing_actions(row):
 
 def ladder_order(m):
     """Sort key for the model rows of the milestone figure and the effort table:
-    the mean number of actions to the world map over the sessions that
+    the median number of actions to the world map over the sessions that
     crossed, fewest first, then the name; a model with no crossing goes last."""
-    mean = sum(m["crossings"]) / len(m["crossings"]) if m["crossings"] else float("inf")
-    return (mean, m["agent"].lower())
+    import statistics
+    med = statistics.median(m["crossings"]) if m["crossings"] else float("inf")
+    return (med, m["agent"].lower())
 
 
 def model_rows(rows):
