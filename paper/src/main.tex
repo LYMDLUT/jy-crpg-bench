@@ -22,26 +22,18 @@
 % A page holding only a float starts at the top, not centred.
 \makeatletter\setlength{\@fptop}{0pt}\makeatother
 
-% arXiv preprint build. \iclrfinalcopy keeps the author block and drops the
-% review ruler; the conference running head is cleared after \maketitle. For a
-% blind conference copy, comment \iclrfinalcopy out and replace the hanxiao.io
-% URLs with an anonymous mirror.
-\iclrfinalcopy
+% Anonymous ICLR submission: \iclrfinalcopy is off, so the style prints the
+% review running head and the anonymous author block. For the camera-ready,
+% restore \iclrfinalcopy and the author block.
+% \iclrfinalcopy
 
 \title{\raggedright\bench{}: A Long-Horizon Benchmark \\ for Frontier Models in an Open-World RPG}
 
-\author{Han Xiao \\
-\texttt{han.xiao@jina.ai} \\
-\And
-Yiming Liu \\
-\texttt{letusgo126@gmail.com}}
+\author{}
 
 \begin{document}
 
 \maketitle
-% No conference running head on the preprint.
-\lhead{}
-\renewcommand{\headrulewidth}{0pt}
 % Figure 1 is placed in the introduction and belongs at the top of page 2;
 % this keeps the title page free of top floats.
 \suppressfloats[t]
@@ -56,9 +48,7 @@ A long-horizon task requires a model to perceive its environment, decide for
 itself what is worth doing, and hold one plan across hours of dependent
 decisions. We present \bench{}, which places a frontier model inside Heroes of Jin Yong, a 1996 open-world role-playing game run under DOS emulation. Its ending, recovering the fourteen books of the Jin Yong novels, takes a first-time human player tens of hours. The game requires reading $320\times200$ isometric pixel art and 16-pixel Traditional Chinese, knowledge of the novels its world is built from, and a keyboard as the only tool. It has no quest log, marker or score, so the model must maintain its own map and goals, and it must win turn-based fights against the game AI. Progress is scored by milestones of the game itself and, once a model finishes, by completion time. Under a
 \NbudgetMin{}-minute budget, one of \NmodelsDistinct{} frontier models plays
-past the opening of the game, and none gains experience or holds a book. The
-benchmark, replays and every session are public at
-\url{https://github.com/hanxiao/jy-crpg-bench}.
+past the opening of the game, and none gains experience or holds a book.
 \end{abstract}
 
 \section{Introduction}
@@ -195,7 +185,7 @@ tile. Beyond it, the path south leads to the hermit. A cabinet beside him holds 
 grid. Each turn a character moves along the four axes and then strikes, uses
 an item, waits or rests. Skills draw on inner force (\game{內力}), and the first scripted fight begins with the party drained of it. A party that goes elsewhere first meets storylines whose fights it cannot survive at level one. Some of these fights end the game when lost, leaving only the load menu, and others let the story continue.
 
-Every objective, prompt and statistic reaches the model as Traditional Chinese rendered at sixteen pixels a line, a script that multimodal evaluation has largely neglected \citep{tam2025vistw}. The character sheet on screen displays the same record the benchmark reads from memory. Two further properties made the game suitable: it is menu-driven, so a model that deliberates between actions is not penalised as in a real-time game \citep[cf.][]{zhang2025videogamebench}, and its progression state is measurable per character. \Cref{app:licence} states the licences of the benchmark code, the emulator and the game.
+Every objective, prompt and statistic reaches the model as Traditional Chinese rendered at sixteen pixels a line, a script that multimodal evaluation has largely neglected \citep{tam2025vistw}. Two further properties made the game suitable: it is menu-driven, so a model that deliberates between actions is not penalised as in a real-time game \citep[cf.][]{zhang2025videogamebench}, and its progression state is measurable per character. \Cref{app:licence} states the licences of the benchmark code, the emulator and the game.
 
 \subsection{Observation and Action Space}
 \label{sec:interface}
@@ -213,13 +203,13 @@ to walk up the screen moves up and to the right. The view follows the
 character except near the edge of a scene, where the background holds still
 and the sprite walks across it, so a model that reads movement from the scrolling background loses count of its tiles there. Canopies and roofs are drawn over the character.
 
-The single action presses a key, or a list of up to \MmaxKeys{} keys in order, holding each for a requested number of emulated frames, ten by default. It returns once the screen has settled. The game has \MsettleReact{} frames to react, and the wait then ends after \MsettleStable{} frames without change, when the picture cycles as in an idle animation, or after \MsettleMax{} frames regardless. A black frame marks a scene change, and the action waits through it and settles once more, so the frame a model receives is the one to act on. \Cref{app:design} gives the reasons for the list action and for the other choices of the protocol. There is no call that advances the game without input, since the game only moves on input,
+The single action presses a key, or a list of up to \MmaxKeys{} keys in order, holding each for a requested number of emulated frames, ten by default. It returns once the screen has settled. The game has \MsettleReact{} frames to react, and the wait then ends after \MsettleStable{} frames without change, when the picture cycles as in an idle animation, or after \MsettleMax{} frames regardless. A black frame marks a scene change, and the action waits through it and settles once more, so the frame a model receives is the one to act on. There is no call that advances the game without input, since the game only moves on input,
 and the hold is counted in frames because the game samples its keyboard once
 per game-loop iteration. A scored session answers four of the calls in
 \cref{tab:api}: the screen, the brief, the key names and the action. Three
 further calls save, list and restore emulator snapshots for development, and
 a scored session refuses them, so a run cannot be rewound from outside the
-game. The save and load menu of the game stays available to the model as to a human player, so a model that loses a fight can reload the last save the game wrote.
+game. The save and load menu of the game stays available to the model as to a human player, so a model that loses a fight can reload the last save the game wrote. \Cref{app:design} gives the reasons for the list action and for the other choices of the protocol.
 
 \begin{table}[!htb]
 \centering
@@ -246,10 +236,7 @@ Call & Meaning & Model can use \\
 
 The benchmark supplies the brief and the control surface, and the model plays through an agent harness. Every model in this paper ran inside pi\footnote{\url{https://github.com/badlogic/pi-mono}}, a minimal coding agent installed as shipped and set to its high thinking level. Its four tools read, write and edit files and run a shell, with no web access, so no model could look up a walkthrough. The model drives the control surface with HTTP calls from that shell. The brief
 is the whole instruction the model receives: the calls that constitute play,
-the rules of a run, the opening route as far as the compass, and a manual of the controls and systems of the game. It is served in English and Chinese with the on-screen Traditional Chinese terms kept verbatim, so the language a model
-reasons in is not itself a handicap. An action returns only its metadata, so
-the model looks at the screen when it decides to, and the benchmark adds no
-memory scaffold, no map, no pathfinder and no access to the state of the game. A model keeps any memory between actions in files it writes in that shell. The leaderboard therefore ranks models under one fixed harness, since harness choice changes game results \citep{hu2026lmgame,karten2026harness} and on long-horizon tasks the variance a harness induces can exceed the variance between models \citep{zhang2026harness}. The brief is published as \texttt{agents.md}, the project file pi reads at launch, and a scored session receives no field that reports its progress until the run ends, so a model cannot query its own score.
+the rules of a run, the opening route as far as the compass, and a manual of the controls and systems of the game. It is published as \texttt{agents.md}, the project file pi reads at launch, and served in English and Chinese with the on-screen Traditional Chinese terms kept verbatim, so the language a model reasons in is not itself a handicap. An action returns only its metadata, so the model looks at the screen when it decides to, and the benchmark adds no memory scaffold, no map, no pathfinder and no access to the state of the game. A model keeps any memory between actions in files it writes in that shell, and a scored session receives no field that reports its progress until the run ends, so a model cannot query its own score. The leaderboard therefore ranks models under one fixed harness, since harness choice changes game results \citep{hu2026lmgame,karten2026harness} and on long-horizon tasks the variance a harness induces can exceed the variance between models \citep{zhang2026harness}.
 
 A session is created under a declared name with a playtime,
 \DefaultBudgetMin{} minutes by default and up to twenty-four hours, and the
@@ -275,7 +262,7 @@ reviewed. \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists t
 
 The game keeps its persistent state in one archive: a base block with the
 world position, the party roster and the shared bag, followed by
-\Mrecords{} character records of \MrecordBytes{} bytes and an item table. We validated that layout against the opening machine image and the shipped archives. The reader locates the array in the live machine by anchoring on one character name and confirming the two neighbouring records at the expected stride. The bag in front of that array is the working copy and changes the moment an item is taken. The item count, the compass and the books are read from it after every action and again from every save the game writes. A milestone, once observed, stays credited, so an item picked up and later used still counts. Reading is passive: the benchmark serialises the machine and never loads state into it. The only keys it presses on its own belong to the save attempt described next. The attempt takes the game a few seconds of menu time that is not charged to the run, and it leaves the screen and the game state unchanged, since the menu is modal and the game advances only on input.
+\Mrecords{} character records of \MrecordBytes{} bytes and an item table. We validated that layout against the opening machine image and the shipped archives. The memory reader locates the array in the live machine by anchoring on one character name and confirming the two neighbouring records at the expected stride. The bag in front of that array is the working copy and changes the moment an item is taken. The item count, the compass and the books are read from it after every action and again from every save the game writes. A milestone, once observed, stays credited, so an item picked up and later used still counts. Reading is passive: the benchmark serialises the machine and never loads state into it. The only keys it presses on its own belong to the save attempt described next. The attempt takes the game a few seconds of menu time that is not charged to the run, and it leaves the screen and the game state unchanged, since the menu is modal and the game advances only on input.
 
 For the party roster and the world position the benchmark reads the save the
 game writes. The game offers its save menu on the world map alone, and the menu itself reveals whether the party is there, since it has six rows on the world map and four in a scene. An attempt opens the menu, reads its height, and saves only where six rows appear. Attempts recur every two minutes and once more before the budget lapses, each waiting for a two-second gap in the keys the model sends. The session is held while the attempt runs,
@@ -343,7 +330,7 @@ Three milestones separate the models: the chest, the hermit and the fight. \Cref
 \label{fig:frames}
 \end{figure}
 
-Every model crosses onto the world map, in \LcrossSessions{} of the \NsessionsPlayed{} sessions, and \LcrossEvery{} models cross in every session they played. The replays show where the actions go. The compound is left through a yard closed by a fence with one gate, and several sessions were stuck in that yard. \PexitActsMaxLabel{} needed \PexitActsMax{} actions to cross in one session and reached the world map at minute \PexitMinMax{} after long stretches of walking into the fence, against a median crossing of \SexitActs{} actions. It never pressed enter or space in that session, so the chest in the first room, which opens on either, stayed shut. The count varies more within a model than between models, as the lower panel of \cref{fig:ladder} shows. The crossings of \LspreadLabel{} differ by a factor of \LspreadRatio{} and the means of the models by a factor of \LbetweenRatio{}, while \LtopLabel{} crossed in \LtopCrossMin{} to \LtopCrossMax{} actions in all \LtopSessions{} sessions. The game itself times the crossing, since the first save written on the world map trails it by at most the two-minute cadence of the attempts. By that clock the \SsaveN{} timed crossings fall between \SsaveFirst{} and \SsaveLast{} minutes into the session, with a median of \SsaveMedian{}. Beyond the fence, the hour is spent on the world map. \PorbitLabel{} crossed at minute \PorbitExitMin{}, then spent \PorbitActs{} actions and \PorbitMin{} minutes on the world map without entering a scene, and passed the gate of the hermit repeatedly. The entrance of a walled compound is one tile on one face, and every other face is solid. Two sessions that found an inn and a shop talked to the keeper repeatedly, although the replies do not advance the opening. \PbatchLabel{} sent lists of up to \PbatchMaxKeys{} keys in one action, \PbatchKeysPerAction{} on average, so it looked at the screen once for every \PbatchKeysPerAction{} keys it pressed, and its crossing is credited by the save alone. Of the \SmapBoth{} crossings that carry both a save and a screen fingerprint, the two agree on \SmapAgree{}, the save credits \SmapSaveOnly{} crossing the fingerprint missed, and the fingerprint never appears without a save behind it. The crossing count read from the replay agrees with the count the service recorded on all \LcrossAgree{} sessions that carry both.
+Every model crosses onto the world map, in \LcrossSessions{} of the \NsessionsPlayed{} sessions, and \LcrossEvery{} models cross in every session they played. The replays show where the actions go. The compound is left through a yard closed by a fence with one gate, and several sessions were stuck in that yard. \PexitActsMaxLabel{} needed \PexitActsMax{} actions to cross in one session and reached the world map at minute \PexitMinMax{} after long stretches of walking into the fence, against a median crossing of \SexitActs{} actions. It never pressed enter or space in that session, so the chest in the first room, which opens on either, stayed shut. The count varies more within a model than between models, as the lower panel of \cref{fig:ladder} shows. The crossings of \LspreadLabel{} differ by a factor of \LspreadRatio{} and the means of the models by a factor of \LbetweenRatio{}, while \LtopLabel{} crossed in \LtopCrossMin{} to \LtopCrossMax{} actions in all \LtopSessions{} sessions. The game itself times the crossing, since the first save written on the world map trails it by at most the two-minute cadence of the attempts. By that clock the \SsaveN{} timed crossings fall between \SsaveFirst{} and \SsaveLast{} minutes into the session, with a median of \SsaveMedian{}. Beyond the fence, the hour is spent on the world map. \PorbitLabel{} crossed at minute \PorbitExitMin{}, then spent \PorbitActs{} actions and \PorbitMin{} minutes on the world map without entering a scene, and passed the gate of the hermit repeatedly. The entrance of a walled compound is one tile on one face, and every other face is solid. Two sessions that found an inn and a shop talked to the keeper repeatedly, although the replies do not advance the opening. \PbatchLabel{} sent lists of up to \PbatchMaxKeys{} keys in one action, \PbatchKeysPerAction{} on average, so it looked at the screen once for every \PbatchKeysPerAction{} keys it pressed, and its crossing is credited by the save alone.
 
 The second division is the hermit, and it turns on reading his dialogue. This milestone and the fights and recruitment above it are read from the replay. \LhermitLabels{} reach his conversation in \PhermitSessions{} sessions, and the conversation is long. \PtalkSlowLabel{} pressed through his
 \PtalkSlowPresses{} lines at \PtalkSlowPace{} seconds each, so it took
@@ -374,10 +361,19 @@ same brief and control surface and is scored against events of the game
 itself. At the \NbudgetMin{}-minute budget the field of \NmodelsDistinct{}
 models stays inside the opening: every model reaches the world map,
 \Lhermit{} speak with the hermit, and one, \LtopLabel, takes the compass,
-recruits a companion and fights, while none gains experience. Every milestone from experience to the fourteenth book remains unreached, and the
+recruits a companion and fights, while none gains experience. The
 \ifnum\QrandomRungs=1 one milestone the random baseline reaches marks\else
 \QrandomRungs{} milestones the random baseline reaches mark\fi{} the floor a
-model has to clear. One frontier model plays the game in a meaningful sense, and even it is at its first fight with fourteen books to find. The ending lies tens of hours of coherent, self-directed play ahead. The milestones extend to that ending, and from the first finish the leaderboard ranks by completion time, with the video and every key of the run on record. Four evaluations follow. Sessions of four to twenty-four hours bring the campaign milestones and a completion time within reach and make token cost per milestone comparable across models. The same models with web access measure how much a walkthrough adds over the brief alone. A human reference run under the same brief and budget, documented as \citet{wei2025humanbaselines} recommend, calibrates the milestones against a first-time player. Once a model finishes, completion time turns the leaderboard into a speedrun.
+model has to clear. One frontier model plays the game beyond its opening, and even it is at its first fight with fourteen books to find. The ending lies tens of hours of coherent, self-directed play ahead. Four evaluations follow. Sessions of four to twenty-four hours bring the campaign milestones and a completion time within reach and make token cost per milestone comparable across models. The same models with web access measure how much a walkthrough adds over the brief alone. A human reference run under the same brief and budget, documented as \citet{wei2025humanbaselines} recommend, calibrates the milestones against a first-time player. Once a model finishes, completion time turns the leaderboard into a speedrun.
+
+\subsection*{AI use statement}
+We used generative AI tools, coding agents built on frontier language models, for four kinds of work. They implemented the benchmark service, the replay scanner and the scripts that generate every number, figure and table in this paper from the session records. They recovered and reformatted session records, supported the qualitative analysis of the replays, and proposed and refined parts of the measurement design. They searched for and formatted related work, and they drafted and edited the text of this paper under our direction. We have not used generative AI tools to generate synthetic data, to formulate or prove mathematical claims, or to propose hypotheses. The models evaluated in the benchmark are the object of study, not a tool of the work. We have reviewed all AI-assisted work. Every number in the paper is regenerated from the session records at each build, every typed claim about the records is verified by a consistency script, and the frames and readings behind the qualitative analysis were checked against the replays. We take responsibility for the final content of this work, including text, claims and artifacts produced with the aid of generative AI.
+
+\subsection*{Ethics statement}
+The benchmark runs a commercial 1996 game that is not redistributed: every host supplies its own copy, and the frames in this paper identify the interface under study, as \cref{app:licence} explains. The work involves no human participants, and the public catalogue carries the metrics, videos and keypress timelines of model sessions and no personal data.
+
+\subsection*{Reproducibility statement}
+The benchmark code, the brief the models receive, the replay scanner and the scripts that generate every number, figure and table in this paper will be released with the paper. The release includes the records, videos and keypress timelines of every session in the field. \Cref{app:infra} lists the emulation and hosting parameters and the dates of the field, and \cref{app:design} gives the reasons for the protocol choices. The game itself is not redistributable, as \cref{app:licence} states.
 
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
@@ -431,6 +427,6 @@ The scores describe the 1996 release run as its own binary; a reimplementation s
 
 The baseline is a seeded random policy because it measures what the milestone structure gives away: the small first room puts the chest within reach of a random walk, and nothing after it is. A scripted policy would measure its author and a trained perception policy its training, while the leaderboard ranks frontier models under one harness. A human first-time run under the same brief and budget is part of the next field. The \NbudgetMin{}-minute budget is sized to the opening, and the campaign budgets follow with the same milestones. With \LsessionsMin{} to \LsessionsMax{} sessions per model, the paper reports shares and spreads and does not claim that one model outranks another by a margin.
 
-The replay readings are checked against the state records wherever both exist. Over the \PcompassBoth{} sessions with both a bag reading and a replay, every one of the \PcompassBag{} sessions whose bag holds the compass shows the coordinate line on the replay, and no other session does. Over the \PhermitBoth{} sessions with a preserved save and a replay, every one of the \PhermitOpened{} sessions whose save shows the scenes the hermit opens also shows his portrait on the replay. No frame without a panel scored above \ReplayMissMax{}, and every session with an event has a frame above \ReplayHitMin{}, so any threshold between the two gives the same readings.
+The readings are checked against one another wherever two records exist. Of the \SmapBoth{} crossings that carry both a save and a screen fingerprint, the two agree on \SmapAgree{}, the save credits \SmapSaveOnly{} crossing the fingerprint missed, and the fingerprint never appears without a save behind it. The crossing count read from the replay agrees with the count the service recorded on all \LcrossAgree{} sessions that carry both. Over the \PcompassBoth{} sessions with both a bag reading and a replay, every one of the \PcompassBag{} sessions whose bag holds the compass shows the coordinate line on the replay, and no other session does. Over the \PhermitBoth{} sessions with a preserved save and a replay, every one of the \PhermitOpened{} sessions whose save shows the scenes the hermit opens also shows his portrait on the replay. No frame without a panel scored above \ReplayMissMax{}, and every session with an event has a frame above \ReplayHitMin{}, so any threshold between the two gives the same readings.
 
 \end{document}
