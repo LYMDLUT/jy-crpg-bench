@@ -26,6 +26,9 @@ from matplotlib import ticker as mticker
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from display_names import display_agent
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 plt.rcParams.update({
     "font.family": "serif",
@@ -65,7 +68,7 @@ def load():
         low = low.replace("--pi", "")
         r["family"] = ("Random" if low.startswith("random")
                       else next((f for f in ORDER if low.startswith(f.lower())), "Other"))
-        r["short"] = low
+        r["short"] = display_agent(name)
         out.append(r)
     return out
 
@@ -222,7 +225,7 @@ def figure_ladder():
                          va="bottom", fontsize=6.6, color="#67676b")]
     counts = [ax.text(xsess, row, str(m["sessions"]), ha="center", va="center", fontsize=7.6, color=INK)
               for row, m in enumerate(entries)]
-    ax.set_yticks(range(n), [m["agent"] for m in entries], fontsize=8.5, fontfamily="monospace")
+    ax.set_yticks(range(n), [display_agent(m["agent"]) for m in entries], fontsize=8.5, fontfamily="monospace")
     ax.set_xticks(range(span), DEFINITION, fontsize=6.6)
     ax.xaxis.tick_top()
     ax.set_xlim(-0.55, span + 0.75)
@@ -256,7 +259,7 @@ def figure_ladder():
     bx.set_xticks(ACT_TICKS)
     bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=6.6, color="#67676b")
     bx.xaxis.set_minor_locator(mticker.NullLocator())
-    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=7.0, fontfamily="monospace")
+    bx.set_yticks(range(nb), [display_agent(m["agent"]) for m in boxed], fontsize=7.0, fontfamily="monospace")
     bx.set_ylim(nb - 0.5, -0.5)
     bx.tick_params(axis="y", length=0)
     bx.tick_params(axis="x", length=2, color="#c3c3c6")
@@ -436,7 +439,7 @@ def figure_behaviour():
     fig, axes = plt.subplots(1, 3, figsize=(6.0, 0.16 * len(PLAY) + 0.9), sharey=True)
     y = list(range(len(PLAY)))
     panels = [
-        ("screen reads per action", lambda r: r["reads"] / r["actions"]),
+        ("screen reads per action", lambda r: (r["reads"] or 0) / r["actions"]),
         ("think time p50 (s)", lambda r: r["gap_p50"] or 0),
         ("actions per minute", lambda r: r["actions"] / (r["played"] / 60)),
     ]
@@ -456,11 +459,17 @@ def figure_behaviour():
 
 
 if __name__ == "__main__":
+    # Rebuild every paper-facing figure in one pass.  Previously this entry
+    # point stopped after ladder.pdf, leaving the appendix figures with stale
+    # raw agent ids even after the display-name audit.
     figure_ladder()
+    figure_pareto()
+    figure_horizon()
+    figure_behaviour()
     cross = [r for r in PLAY if r.get("exit_secs") is not None]
     print(f"{len(RUNS)} sessions, {len(PLAY)} at the {_field.DEFAULT_BUDGET // 60}-minute budget")
     print(f"world map by fingerprint: {sum(1 for r in PLAY if r.get('bigmap') is True)}"
           f" | corroborated by a black frame: {len(cross)}"
           f" | unmeasured: {sum(1 for r in PLAY if r.get('bigmap') is None)}")
     print(f"first crossing median: {sorted(r['exit_secs'] for r in cross)[len(cross)//2]}s")
-    print("wrote ladder.pdf")
+    print("wrote ladder.pdf, pareto.pdf, horizon.pdf, and behaviour.pdf")

@@ -74,6 +74,7 @@ def pct(values, q):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import field
+from display_names import display_agent
 rows = json.load(open(CAT, encoding="utf-8"))
 probes = [r for r in rows if r["agent"].startswith("probe-")]
 data = field.load_runs()
@@ -145,7 +146,7 @@ Agent & Run & \thead{actions} & \thead{screen-changing} &
 """
 body = []
 for a, rid, acts, k, c, lo, hi, latch, how in sessions:
-    body.append(f"{a} & {rid} & {acts} & {k} & {c:.3f} & [{lo:.3f}, {hi:.3f}] "
+    body.append(f"{display_agent(a)} & {rid} & {acts} & {k} & {c:.3f} & [{lo:.3f}, {hi:.3f}] "
                 f"& {latch} & {how} \\\\")
 tail = """
 \\bottomrule
@@ -165,7 +166,7 @@ Agent & \thead{runs} & \thead{actions} & \thead{median ratio} &
 \thead{spread} & \thead{action rate} \\
 \midrule"""]
 for label, runs, acts, med, spread, ttfa_med, keys_med, ven, xr in agg_rows:
-    ag.append(f"{label} & {runs} & {acts} & {med:.3f} & {spread:.3f} & {xr:.1f}/min \\\\")
+    ag.append(f"{display_agent(label)} & {runs} & {acts} & {med:.3f} & {spread:.3f} & {xr:.1f}/min \\\\")
 ag.append(r"""\bottomrule
 \end{tabular}}""")
 wr("family.tex", "".join(ag))

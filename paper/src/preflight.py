@@ -57,10 +57,12 @@ facts={
 print("catalogue facts:",json.dumps(facts,indent=None))
 readable_levels = [r.get('level') for r in play if r.get('level') is not None]
 unknown_levels = len(play) - len(readable_levels)
-if readable_levels and all(level == 1 for level in readable_levels):
-    ok("all readable scored runs are level 1; %d scored runs have no readable level" % unknown_levels)
+if unknown_levels:
+    bad("%d scored runs have no readable level -- cannot verify the level-1 claim" % unknown_levels)
+elif readable_levels and all(level == 1 for level in readable_levels):
+    ok("all scored runs are level 1")
 else:
-    bad("readable scored runs include a non-level-1 value -- § claims this; confirm")
+    bad("no readable scored runs remain -- § claims level 1; confirm")
 print("cited keys:",len(cites),"| unused in bib:",unused)
 print("numbers.tex macros:",len(allproj))
 # anonymity: while \iclrfinalcopy is commented out, no source may name an

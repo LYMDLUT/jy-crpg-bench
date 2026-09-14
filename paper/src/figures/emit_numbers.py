@@ -78,6 +78,7 @@ def wil(k, n, z=1.96):
 
 # ------------------------------------------------------------------ field sets
 import field
+from display_names import display_agent
 raw = json.load(open(SNAPSHOT, encoding="utf-8"))
 probes = [r for r in raw if r["agent"].startswith("probe-")]
 rows = field.load_runs(dedup=False)
@@ -190,12 +191,12 @@ emit("Qbest", p_b)
 emit("QbestLow", lo_b)
 emit("QbestHigh", hi_b)
 emit("QbestN", best["actions"])
-emit("QbestLabel", best["agent"])
+emit("QbestLabel", display_agent(best["agent"]))
 emit("Qworst", p_w)
 emit("QworstLow", lo_w)
 emit("QworstHigh", hi_w)
 emit("QworstN", worst["actions"])
-emit("QworstLabel", worst["agent"])
+emit("QworstLabel", display_agent(worst["agent"]))
 if worst.get("ttfa") is not None and worst.get("reads") is not None:
     emit("QworstStart", worst["ttfa"] / 60.0, "minutes before its first key", fmt="%.1f")
     emit("QworstReads", 100.0 * worst["reads"] / worst["actions"],
@@ -226,8 +227,8 @@ emit("QrandomGap", st.median(r["gap_p50"] for r in RANDOM),
 # prose can name them and their pace without typing either.
 _slow = sorted((r for r in ACTIVE if r.get("gap_p50") is not None),
                key=lambda r: -r["gap_p50"])[:2]
-emit("QslowA", _slow[0]["agent"])
-emit("QslowB", _slow[1]["agent"])
+emit("QslowA", display_agent(_slow[0]["agent"]))
+emit("QslowB", display_agent(_slow[1]["agent"]))
 emit("QslowGap", min(r["gap_p50"] for r in _slow),
      "the shorter of their median think times, seconds", fmt="%.0f")
 emit("QslowActs", max(r["actions"] for r in _slow),
@@ -286,7 +287,7 @@ if _steady:
     emit("Qsteady", round(_steady["meaningful"], 3), "ratio of the steady-traversal run")
     emit("QsteadyOsc", round(_steady.get("oscillation") or 0.0, 3), "its oscillation rate")
     emit("QsteadyN", _steady["actions"], "its action count")
-    emit("QsteadyLabel", _steady["agent"], "its label")
+    emit("QsteadyLabel", display_agent(_steady["agent"]), "its label")
 emit("SmapFade", len(both), "of those, corroborated by a black frame")
 emit("SmapSolo", len(cross) - len(both))
 emit("SmapUnread", sum(1 for r in PLAY if r.get("bigmap") is None))
@@ -311,7 +312,7 @@ _COMPASS = field.DEFINITION.index("holds the\ncompass")
 _holders = sorted((r for r in PLAY if field.rungs_of(r)[_COMPASS] is True), key=lambda r: r["agent"])
 lines.append(("% the models holding the compass, by label",
               "\\newcommand{\\ScompassLabel}{" + (" and ".join(
-                  "\\texttt{%s}" % a for a in sorted({r["agent"] for r in _holders})) if _holders else "none") + "}"))
+                  "\\texttt{%s}" % display_agent(a) for a in sorted({r["agent"] for r in _holders})) if _holders else "none") + "}"))
 _timed = [r for r in _holders if r.get("first_saved_at") is not None and r.get("exit_acts") is not None]
 if _timed:
     emit("ScompassSaveMin", (_timed[0]["first_saved_at"] - _timed[0]["started"]) / 60.0,
@@ -359,7 +360,7 @@ def _distinct(r):
     return _scenes(r).get("distinct") or 0
 
 _top = max(UNION, key=lambda m: (m["reached"], m["agent"]))
-lines.append(("% the model with the most rungs", "\\newcommand{\\LtopLabel}{\\texttt{%s}}" % _top["agent"]))
+lines.append(("% the model with the most rungs", "\\newcommand{\\LtopLabel}{\\texttt{%s}}" % display_agent(_top["agent"])))
 emit("Ltop", _top["reached"], "rungs it reached")
 emit("LtopSessions", _top["sessions"], "sessions it played")
 # the actions each crossing took, per model: the spread within a model against the spread between them
@@ -371,7 +372,7 @@ _means = {a: sum(c) / len(c) for a, c in _cross.items()}
 _between = max(_means.values()) / min(_means.values())
 if _within <= _between:
     sys.exit("the prose says the count varies more within a model than between models; it does not")
-lines.append(("% the model whose crossings differ the most", "\\newcommand{\\LspreadLabel}{\\texttt{%s}}" % _wlabel))
+lines.append(("% the model whose crossings differ the most", "\\newcommand{\\LspreadLabel}{\\texttt{%s}}" % display_agent(_wlabel)))
 emit("LspreadRatio", _within, "factor between its slowest and fastest crossing", fmt="%.0f")
 emit("LbetweenRatio", _between, "factor between the largest and smallest model mean", fmt="%.0f")
 if len(_cross[_top["agent"]]) != _top["sessions"]:
@@ -402,8 +403,8 @@ if any(r["exit_acts"] != r["replay"]["crossing_actions"] for r in _both):
 emit("LcrossAgree", len(_both), "sessions carrying both crossing counts, which agree on every one")
 _hermit_models = sorted(m["agent"] for m in UNION if m["rungs"][_HERMIT] is True)
 lines.append(("% the models that spoke with the hermit", "\\newcommand{\\LhermitLabels}{" +
-              (", ".join("\\texttt{%s}" % a for a in _hermit_models[:-1]) + " and \\texttt{%s}" % _hermit_models[-1]
-               if len(_hermit_models) > 1 else "".join("\\texttt{%s}" % a for a in _hermit_models)) + "}"))
+              (", ".join("\\texttt{%s}" % display_agent(a) for a in _hermit_models[:-1]) + " and \\texttt{%s}" % display_agent(_hermit_models[-1])
+               if len(_hermit_models) > 1 else "".join("\\texttt{%s}" % display_agent(a) for a in _hermit_models)) + "}"))
 emit("QrandomSaved", sum(1 for r in RANDOM if r.get("saved_at")), "random runs that wrote a save")
 emit("Susage", sum(1 for r in PLAY if r.get("usage")), "sessions with a usage report")
 emit("Shelp", sum(1 for r in PLAY if r.get("help_langs")), "sessions that fetched the brief from the session")
@@ -487,7 +488,7 @@ CONFIRM = ("enter", "space")
 
 
 def emit_label(name, agent, note=""):
-    lines.append((f"% {note}".rstrip() if note else "", f"\\newcommand{{\\{name}}}{{\\texttt{{{agent}}}}}"))
+    lines.append((f"% {note}".rstrip() if note else "", f"\\newcommand{{\\{name}}}{{\\texttt{{{display_agent(agent)}}}}}"))
 
 
 def timeline(r):
@@ -669,7 +670,7 @@ if len(field.EXCLUDED) != 1:
 _excl = field.played([r for r in field.load_runs(dedup=False, keep_excluded=True) if r["agent"] in field.EXCLUDED])
 if not _excl:
     sys.exit("the excluded model has no session at the default budget; drop the sentence")
-lines.append(("% the model left out of the field", "\\newcommand{\\LexcludedLabel}{\\texttt{%s}}" % field.EXCLUDED[0]))
+lines.append(("% the model left out of the field", "\\newcommand{\\LexcludedLabel}{\\texttt{%s}}" % display_agent(field.EXCLUDED[0])))
 emit("NexcludedSessions", len(_excl), "its sessions at the default budget in the catalogue")
 # when the field ran
 import datetime as _dt
