@@ -135,7 +135,7 @@ open-world game Pok\'emon Legends: Z-A with no access to game state
 \citep{zhang2026pokegym}, and StarBench one on the turn-based Honkai: Star
 Rail \citep{zhang2025starbench}. Crafter established the single-environment,
 achievement-based design we follow \citep{hafner2021benchmarking}, and
-NetHack remains the deepest environment in use for learned agents \citep{kuttler2020nethack}. Cradle drives commercial games from the screen with keyboard and mouse through a foundation model and a skill library \citep{tan2024cradle}, and Voyager pursues open-ended goals in Minecraft through a code API \citep{wang2023voyager}.
+NetHack remains the deepest environment in use for learned agents, where a successful run lasts tens of thousands of turns and can run to hundreds of thousands \citep{kuttler2020nethack}. Cradle drives commercial games from the screen with keyboard and mouse through a foundation model and a skill library \citep{tan2024cradle}, and Voyager pursues open-ended goals in Minecraft through a code API \citep{wang2023voyager}.
 
 \subsection{Long-Horizon Evaluation and Its Measurement}
 
@@ -153,10 +153,11 @@ world-model quality through environment-level queries
 rules the task itself \citep{luo2025ultrahorizon}, and \citet{kapoor2026openworld}
 observe that benchmark design has favoured tasks that are precisely
 specified, automatically graded and short, and call for open-world
-evaluation. Navigation from rendered images is a documented weakness: on
-mazes, one-shot navigation collapses for every model by ten cells a side
-\citep{jiang2026lostaggregation}, and the failures are attributed to looping
-\citep{einarsson2025mazeeval}.
+evaluation. Navigation is a documented weakness even without perception. On
+mazes, one-shot navigation collapses by ten cells a side for every model
+tested, with rendered images the least navigable input
+\citep{jiang2026lostaggregation}, and from coordinates alone the failures are
+attributed to looping \citep{einarsson2025mazeeval}.
 
 Long horizons also complicate measurement. The ABC checklist
 catalogues task-validity and outcome-validity failures across agentic
