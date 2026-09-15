@@ -20,7 +20,7 @@ The build copies only the package lock, Pi extension and container adapter
 into a temporary context. It never sends the game, repository, credentials,
 recordings or other runs to the builder. The image includes pinned Pi 0.84.4,
 Node 24.7.0, Python 3, NumPy, Pillow, OpenCV and curl. Debian packages are
-resolved when building; reuse the recorded image digest for repeatable runs.
+resolved when building; keep the same built image for repeated runs.
 Extra dependencies must be installed in an audited client image before play,
 not downloaded from the web during a run.
 
@@ -47,12 +47,13 @@ as in the ordinary launcher. The container is non-interactive: `-p`,
 `--mode text|json` and prompt text are accepted, not arbitrary Pi options or
 host file attachments. Host `npm ci` is not needed for this profile: Pi runs
 from the image. `QUNXIA_CLIENT_IMAGE` selects an already-built trusted image;
-it is resolved to its immutable ID before launch and is never pulled during
-play. Unknown or unavailable runtimes/images fail closed.
+it is checked locally before launch and is never pulled during play.
+Unknown or unavailable runtimes/images fail closed.
 
 `QUNXIA_RUNS_DIR` changes the host artifact root (default `.runs/pi`). A run
 must be new unless `QUNXIA_RESUME=1`; resuming requires the same session, model,
-tools, image and isolation configuration. Simultaneous resumes are refused.
+tools, image name and isolation configuration. Do not replace the image behind
+that name while a run is resumable. Simultaneous resumes are refused.
 Do not start a different profile with an existing run ID. A hard-killed host
 launcher can leave `.open-client-active`; confirm its container is gone before
 removing that marker and resuming. Never reuse a run directory for a new session.
@@ -87,16 +88,16 @@ removing that marker and resuming. Never reuse a run directory for a new session
 
 `game_look` saves each observed PNG under `/client/workspace/frames` as well as
 returning it to the model. Built-in `read` can view it and local Python can
-compare frames. The independent `Scripts/play.py` helper now defaults to an
-API-and-agent-specific path under `TMPDIR`, not shared `/tmp/qunxia.png`;
+compare frames. The independent `Scripts/play.py` helper now defaults to a
+private temporary directory, not shared `/tmp/qunxia.png`;
 this naming fix alone is not a security boundary for host-native clients.
 
 ## Evidence and limits
 
 Host-only `run.json` records the profile, declared tools, model and brief;
-`isolation.json` records the client image ID, policy hash, runtime version,
-mounts, limits and harness commit. `nodeVersion` in `run.json` is the host
-preparation runtime; the client Node version belongs to the recorded image.
+`isolation.json` records the client image name, runtime version, mounts and
+limits. `nodeVersion` in `run.json` is the host preparation runtime; the
+client Node version belongs to the selected image.
 `network.jsonl` records allowed and denied requests, status, bytes and elapsed
 time without model credentials or request bodies. `launch.json` identifies
 the container and launcher for recovery after a host crash; `exit.json`
@@ -132,10 +133,8 @@ QUNXIA_TEST_CONTAINER=1 npm run test:open-client
 python3 -m unittest Scripts.test_agent_launchers
 ```
 
-The container suite uses the real pinned Pi CLI with scripted local model and
-game endpoints, not paid provider calls. It runs two clients concurrently,
-executes all six tools, imports OpenCV/Pillow/NumPy, checks source/tmp/process/
-credential/network isolation, rejects private routes and redirects, verifies
-Chat/Responses/Gemini requests, and terminates a long shell command on the
-broker deadline. Enable it explicitly in CI with a local container engine;
-skipped container cases are not evidence of enforced isolation.
+Two small policy checks cover the game and inference boundaries. The container
+smoke tests run two real Pi clients concurrently, execute all six tools and
+local CV, check host/network isolation, and stop shell work at the deadline.
+They use scripted endpoints, not paid providers. Enable them explicitly with
+a local container engine; skipped cases do not verify isolation.

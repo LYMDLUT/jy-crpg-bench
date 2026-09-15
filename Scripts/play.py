@@ -8,12 +8,11 @@
   ./Scripts/play.py save inn      /  load inn
   ./Scripts/play.py shot out.png
 
-Screens go to a session-specific directory under TMPDIR unless a path is given.
+Screens go to a private temporary directory unless a path is given.
 QUNXIA_SCREEN_DIR overrides that directory. This avoids filename collisions;
 untrusted concurrent clients still need OS-level isolation.
 """
 import base64
-import hashlib
 import json
 import os
 import shutil
@@ -26,10 +25,7 @@ import urllib.request
 
 API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")
 AGENT = os.environ.get("QUNXIA_AGENT", "play-cli")
-SCREEN_DIR = os.environ.get("QUNXIA_SCREEN_DIR") or os.path.join(
-    tempfile.gettempdir(), "qunxia-" + hashlib.sha256(
-        (API + "\0" + AGENT).encode()).hexdigest()[:24])
-OUT = os.path.join(SCREEN_DIR, "screen.png")
+SCREEN_DIR = os.environ.get("QUNXIA_SCREEN_DIR")
 
 
 def call(method, path, payload=None):
@@ -47,11 +43,13 @@ def call(method, path, payload=None):
             raise RuntimeError(f"game API returned HTTP {exc.code}") from exc
 
 
-def save_shot(res, path=OUT):
+def save_shot(res, path=None):
     img = res.pop("image", None)
     if img:
-        if path == OUT:
-            os.makedirs(SCREEN_DIR, mode=0o700, exist_ok=True)
+        if path is None:
+            directory = SCREEN_DIR or tempfile.mkdtemp(prefix="qunxia-")
+            os.makedirs(directory, mode=0o700, exist_ok=True)
+            path = os.path.join(directory, "screen.png")
         with open(path, "wb") as output:
             output.write(base64.b64decode(img.split(",", 1)[1]))
         res["saved"] = path
@@ -107,10 +105,11 @@ def main(argv):
                     res[field] = observed[field]
             res["observation"] = "follow-up (not atomic on a shared session)"
 
-    path = args[0] if cmd == "shot" and args else OUT
+    path = args[0] if cmd == "shot" and args else None
     result = save_shot(res, path)
     print(json.dumps(result, ensure_ascii=False))
-    if sys.stdout.isatty() and os.path.exists(path):
+    path = result.get("saved")
+    if sys.stdout.isatty() and path and os.path.exists(path):
         opener = next((name for name in ("open", "xdg-open") if shutil.which(name)), None)
         if opener:
             subprocess.run([opener, path], check=False)

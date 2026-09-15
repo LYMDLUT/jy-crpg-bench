@@ -127,7 +127,7 @@ class PlayClientTest(unittest.TestCase):
             server.server_close()
         self.assertEqual(recorded[0]["path"], "/api/reset")
 
-    def test_screenshots_are_scoped_by_api_and_use_the_private_tmpdir(self):
+    def test_screenshots_use_separate_private_tmpdirs(self):
         first, second = self._game_server([], True), self._game_server([], True)
         try:
             with tempfile.TemporaryDirectory() as directory:
@@ -141,7 +141,7 @@ class PlayClientTest(unittest.TestCase):
                     self.assertEqual(path.read_bytes(), b"fixture")
                     paths.append(path)
                 self.assertNotEqual(paths[0], paths[1])
-                self.assertEqual(paths[0], paths[2])
+                self.assertNotEqual(paths[0], paths[2])
         finally:
             for server in (first, second):
                 server.shutdown()

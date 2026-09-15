@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { randomUUID, createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, readFile, realpath, lstat, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -83,16 +83,12 @@ async function launch() {
     .dependencies["@earendil-works/pi-coding-agent"];
   const runtimeVersion = command(runtime, ["version", "--format", "{{.Client.Version}}"]);
   const inspected = JSON.parse(command(runtime, ["image", "inspect", image]));
-  const imageId = `sha256:${String(inspected[0]?.Id || "").replace(/^sha256:/, "")}`;
-  if (!/^sha256:[a-f0-9]{64}$/.test(imageId || "")) throw new Error("build the open-client image first");
-  const spec = { version: POLICY_VERSION, runtime, runtimeVersion, imageId,
+  if (!inspected[0]?.Id) throw new Error("build the open-client image first");
+  const spec = { version: POLICY_VERSION, runtime, runtimeVersion, image,
     network: "none", transport: "stdio", cpus: 2, memory: "2g", pids: 128, hostProxyEnvironment: "cleared",
     mounts: { "/client": "client (read/write)", "/launch": "launch (read-only)" },
     tools: ["read", "write", "edit", "bash", "game_look", "game_press"],
-    sourceCommit: command("git", ["rev-parse", "HEAD"], { cwd: root }),
   };
-  spec.policyHash = createHash("sha256").update(await readFile(fileURLToPath(
-    new URL("./open-client-policy.mjs", import.meta.url)))).digest("hex");
   if (resume) {
     const previous = JSON.parse(await readFile(join(runDir, "isolation.json"), "utf8"));
     if (JSON.stringify(previous) !== JSON.stringify(spec)) throw new Error("cannot resume: isolation configuration changed");
@@ -184,12 +180,12 @@ async function launch() {
     const policy = { gameApi, model: manifest.model, apiKey: env.QUNXIA_LLM_API_KEY || "local",
       agent: (env.QUNXIA_BENCH_AGENT || "pi").replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 40) || "pi" };
     await writeFile(join(runDir, "launch.json"), JSON.stringify({ container: name, launcherPid: process.pid,
-      startedAt: new Date().toISOString(), imageId }, null, 2) + "\n", { mode: 0o600 });
+      startedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
     if (stopping) return 130;
     // Create before starting: cancellation can now remove a known container,
     // even if attaching to its process has not finished yet.
     containerAttempted = true;
-    command(runtime, containerArgs({ name, image: imageId, clientDir, launchDir, runtime }));
+    command(runtime, containerArgs({ name, image: inspected[0].Id, clientDir, launchDir, runtime }));
     if (Date.now() >= deadline) { timedOut = true; return 124; }
     child = spawn(runtime, ["start", "--attach", "--interactive", name], {
       stdio: ["pipe", "pipe", "pipe"],
