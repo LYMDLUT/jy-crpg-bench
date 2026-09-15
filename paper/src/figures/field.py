@@ -9,7 +9,7 @@ was cleared for the final sweep. `aliases.json` maps variant spellings a run
 was created under to the model, and every generator lists them under the
 model; the declared name is kept on the row as `declared`. The field is the
 set of models in the final sweep; sessions of other models stay out of it.
-Service probes are dropped. The default budget is read from bench/broker.py.
+Service probes are dropped. The field budget is 60 minutes.
 Every preserved save in slots/ is decoded by slots.py, and the rung it alone
 carries, the scenes the hermit's conversation opens, is attached to its row.
 `replay_events.json`, written by replay_scan.py from the published replay
@@ -35,8 +35,9 @@ EARLIER = os.path.join(HERE, "catalog_snapshot_20min.json")
 ALIASES = json.load(open(os.path.join(HERE, "aliases.json"), encoding="utf-8"))
 SLOTS = _slots.load()
 EVENTS = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))
-_broker = open(os.path.join(HERE, "..", "..", "..", "bench", "broker.py"), encoding="utf-8").read()
-DEFAULT_BUDGET = int(re.search(r'"QUNXIA_RUN_SECONDS", "(\d+)"', _broker).group(1))
+# The budget of the field this paper reports. The broker's default has since
+# moved to four hours; the field is selected by this value, not by that default.
+DEFAULT_BUDGET = 3600
 
 
 def _rows(path):

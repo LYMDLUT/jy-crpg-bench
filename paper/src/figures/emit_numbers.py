@@ -671,6 +671,8 @@ if not _excl:
     sys.exit("the excluded model has no session at the default budget; drop the sentence")
 lines.append(("% the model left out of the field", "\\newcommand{\\LexcludedLabel}{\\texttt{%s}}" % field.EXCLUDED[0]))
 emit("NexcludedSessions", len(_excl), "its sessions at the default budget in the catalogue")
+emit("NidleSessions", sum(1 for r in PLAY if r.get("reason") == "idle"),
+     "sessions ended by the ten-minute idle rule the field ran with")
 # when the field ran
 import datetime as _dt
 _days = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in ALL if r.get("started"))

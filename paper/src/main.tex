@@ -211,10 +211,7 @@ The benchmark supplies the brief and the control surface, and the model plays th
 
 A session is created under a declared name with a playtime,
 \DefaultBudgetMin{} minutes by default and up to twenty-four hours, and the
-clock starts at the first playable moment. The server keeps the wall clock of every decision call, so played time and think time are measured for any client. Each session is a separate emulator process with a private copy of the game, supplied by the host, with its save slots reset to a new game, so no run inherits the progress of another. A session ends only when
-its budget lapses or the game is completed, and there is no inactivity
-cutoff. When
-the budget lapses the session renders its recording to a time-compressed
+clock starts at the first playable moment. The server keeps the wall clock of every decision call, so played time and think time are measured for any client. Each session is a separate emulator process with a private copy of the game, supplied by the host, with its save slots reset to a new game, so no run inherits the progress of another. A session ends when its budget lapses or the game is completed. The field of this paper also ended a session after ten minutes without an action, and \NidleSessions{} of its \NsessionsPlayed{} sessions ended early that way. When the budget lapses the session renders its recording to a time-compressed
 video, computes its metrics, and appends itself to the public catalogue with the video and its keypress timeline. \Cref{fig:apparatus} shows the apparatus, and \cref{app:infra} lists the emulation and hosting parameters.
 
 \begin{figure}[!htb]
