@@ -71,8 +71,9 @@ class ResultCacheTests(unittest.TestCase):
             self.assertEqual(second["actions"], 4)
 
 
-def echo_app():
-    """A stand-in session server: it says back what it was sent."""
+def echo_app(sid=""):
+    """A stand-in session server: it says back what it was sent, and names
+    its public address the way the real one does in its help page."""
     app = web.Application()
 
     async def last_frames(request):
@@ -89,7 +90,10 @@ def echo_app():
             "path": request.path,
             "x_agent": request.headers.get("X-Agent"),
             "x_forwarded_host": request.headers.get("X-Forwarded-Host"),
-            "x_forwarded_proto": request.headers.get("X-Forwarded-Proto")})
+            "x_forwarded_proto": request.headers.get("X-Forwarded-Proto"),
+            "help_text": "GET {0}://{1}/s/{2}/api/screen at {0}://{1}/s/{2}.".format(
+                request.headers.get("X-Forwarded-Proto"),
+                request.headers.get("X-Forwarded-Host"), sid)})
 
     app.add_routes([web.get("/ws", last_frames),
                     web.route("*", "/{tail:.*}", echo)])
@@ -105,7 +109,7 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
 
     async def asyncSetUp(self):
         self.addCleanup(broker._results.clear)
-        self.upstream = echo_app()
+        self.upstream = echo_app(self.SID)
         self.upstream_runner = web.AppRunner(self.upstream)
         await self.upstream_runner.setup()
         self.port = broker.free_port()
@@ -219,6 +223,23 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
         self.assertEqual(body["x_forwarded_host"],
                          f"127.0.0.1:{self.server.port}")
         self.assertEqual(body["x_forwarded_proto"], "http")
+
+    async def test_help_read_through_the_play_address_names_play_addresses(self):
+        # The session server prints its public address. Read through the
+        # play address, every address on the page carries the token, so a
+        # reader that copies a line into a call is not refused as a
+        # spectator; read through the public address, the page is unchanged.
+        with self.with_session():
+            play = await self.client.get(f"/s/{self.SID}/t/{self.TOKEN}/api/help")
+            public = await self.client.get(f"/s/{self.SID}/api/help")
+        self.assertEqual(play.status, 200)
+        self.assertIn("X-Bench-Remaining", play.headers)
+        origin = f"http://127.0.0.1:{self.server.port}"
+        self.assertEqual((await play.json())["help_text"],
+                         f"GET {origin}/s/{self.SID}/t/{self.TOKEN}/api/screen "
+                         f"at {origin}/s/{self.SID}/t/{self.TOKEN}.")
+        self.assertEqual((await public.json())["help_text"],
+                         f"GET {origin}/s/{self.SID}/api/screen at {origin}/s/{self.SID}.")
 
     async def test_a_view_ends_when_the_run_ends(self):
         # When the game's socket dies, the view must die with it: a

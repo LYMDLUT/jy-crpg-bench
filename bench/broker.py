@@ -704,12 +704,27 @@ async def proxy(request):
     # server can trust what arrives.
     headers["X-Forwarded-Host"] = request.host
     headers["X-Forwarded-Proto"] = public_scheme(request)
+    # The help page names the session's public address, built from those two
+    # headers. Read through the play address, the lines a reader copies into
+    # its calls must carry the token, or its first key press is refused as a
+    # spectator's; the token never reaches the server, so the page is
+    # rewritten here.
+    rewrite = None
+    if authenticated and request.method == "GET" and tail.strip("/") in ("api/help", "help"):
+        public = f"{public_scheme(request)}://{request.host}/s/{sid}"
+        rewrite = (public, f"{public}/t/{sess['token']}")
     out = None
     try:
         http = request.app["http"]
         async with http.request(request.method, url, params=request.query,
                                 data=data or None, headers=headers,
                                 timeout=aiohttp.ClientTimeout(total=180)) as r:
+            if rewrite is not None:
+                text = (await r.read()).decode("utf-8", "replace").replace(*rewrite)
+                return web.Response(
+                    text=text, status=r.status, charset="utf-8",
+                    content_type=r.headers.get("Content-Type", "text/plain").split(";")[0],
+                    headers={"X-Bench-Remaining": str(max(0, int(sess["ends_at"] - time.time())))})
             out = web.StreamResponse(status=r.status, headers={'Content-Type':r.headers.get('Content-Type','application/octet-stream')})
             out.headers['X-Bench-Remaining'] = str(max(0, int(sess['ends_at'] - time.time())))
             await out.prepare(request)
