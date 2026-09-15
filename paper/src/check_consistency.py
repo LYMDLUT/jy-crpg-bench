@@ -238,6 +238,20 @@ def main():
         ok &= claim("idle stub sent one key", bool(idle) and all(r["actions"] == 1 for r in idle),
                     "%d idle runs, actions %s" % (len(idle), [r["actions"] for r in idle]))
 
+    if "neither the fastest between actions nor the one that took the most actions" in flat:
+        # Section 4: the pace did not set the order. The medians are the ones
+        # tables/effort.tex prints, over every session of the model.
+        import statistics as st
+        top = max(field.model_rows(models), key=lambda m: (m["reached"], m["agent"]))["agent"]
+        acts = {a: st.median([r["actions"] for r in rs]) for a, rs in by_model.items()}
+        gaps = {a: st.median([r["gap_p50"] for r in rs]) for a, rs in by_model.items()
+                if all(r.get("gap_p50") is not None for r in rs)}
+        busiest = max(acts, key=acts.get)
+        fastest = min(gaps, key=gaps.get) if len(gaps) == len(by_model) else None
+        ok &= claim("the top model is neither the fastest between actions nor the busiest",
+                    fastest is not None and top not in (busiest, fastest),
+                    "top %s, most actions %s, fastest %s" % (top, busiest, fastest))
+
     print("\n%d runs scored, %d sessions with a map verdict, %d maps latched"
           % (len(scored), len(read), latched))
     return 0 if ok else 1
