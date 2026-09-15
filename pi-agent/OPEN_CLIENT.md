@@ -22,7 +22,6 @@ routes and cannot connect to other services. In-game saves through the
 keyboard are allowed; emulator save/load/reset tools are not available.
 
 The game has already started in the opening room with a named character.
-You do not create a session or choose an X-Agent identity. Ignore any generic
-wording about sharing the game. Stop when a tool reports BENCHMARK ENDED.
+You do not create a session. Stop when a tool reports BENCHMARK ENDED.
 
 --- BEGIN SESSION-SPECIFIC BENCHMARK BRIEF ---

@@ -1,165 +1,125 @@
 # Field manual: controls and game knowledge
 
-This manual covers controls, menus, combat, attributes, and suggestions for
-checking keyboard actions against screenshots. Apply those suggestions to the
-current screen and game text; a single observation is not a universal mechanic.
-
 ## First: get the compass
 
-Many locations open after the initial encounter with 南賢. Complete that
-encounter, then use visible entrances and story clues to continue exploring.
+Many locations open only after the opening encounter at 南賢居.
 
-1. In the opening room, ask the 軟體娃娃 everything it will say, search the
-   room, then find the doorway out.
-2. On the world map, **follow the small path south to 南賢居**, roughly
-   `[388,325]`. Talk to 南賢, then investigate the cabinet beside him to get
-   the 羅盤 (compass).
-3. The first conversation opens many locations. Prioritize it if unfinished.
-   If an entrance still resists you, check its position, your facing direction,
-   and game text rather than assuming a prerequisite is missing.
-4. In the original game, giving money to the waiter at 河洛客棧 provides clues
-   to 南賢居, including the small path and a circular landmark near the house.
-   The clue starts from the inn; obtaining it is not required to enter 南賢居.
-5. After obtaining the compass, highlight it in `esc → 物品` to read the person
-   and boat coordinates. Use the actual readings to check your position,
-   especially when you suspect a loop or are unsure of the route.
+1. In the opening room, talk to the 軟體娃娃 until nothing new is said, search
+   the room, then find the doorway out.
+2. On the world map, follow the small path south to 南賢居, near `[388,325]`.
+   Talk to 南賢, then investigate the cabinet beside him to get the 羅盤
+   (compass).
+3. Highlight the compass in `esc → 物品` to read the coordinates of the party
+   and the boat. Use them to check your position whenever the route is unclear.
+
+In the original game, paying the waiter at 河洛客棧 buys directions to 南賢居.
+They are not required to enter.
 
 ## Controls and menus
 
 - Move with `kp1 kp3 kp7 kp9` or the arrows; they are the same four axes.
-  **Holding a key keeps sending the same direction**, without following paths,
-  turning, or avoiding obstacles. Use short actions while the route is unclear
-  and longer holds on confirmed clear stretches.
-- For an ordinary person or container, stand adjacent, face the target, and
-  press space or enter to investigate. Stepping on a tile can trigger a
-  separate story event. In combat, choose commands and targets through its menu.
+  Holding a key keeps sending the same direction without following paths,
+  turning or avoiding obstacles.
+- For a person or container, stand adjacent, face the target, and press space
+  or enter. Stepping on a tile can trigger a separate story event. In combat,
+  choose commands and targets through its menu.
 - `esc` opens the menu anywhere. Arrows move the highlight, space or enter
   confirms, `esc` backs out.
-- `y` and `n` answer （Ｙ／Ｎ）. Any key can advance ordinary dialogue; read
-  choices and answer them with the appropriate keys.
+- `y` and `n` answer （Ｙ／Ｎ）. Any key advances ordinary dialogue.
 
-The world-map menu includes 醫療 heal, 解毒 cure poison, 物品 items, 狀態 status,
-離隊 dismiss a companion, and 系統 system. Inside a scene, the first four are
-available. In-game saving, loading, and the dismissal menu require the world
-map; recruitment usually happens through dialogue and story conditions.
+The world-map menu holds 醫療 heal, 解毒 cure poison, 物品 items, 狀態 status,
+離隊 dismiss a companion and 系統 system. Inside a scene the first four are
+available; saving, loading and dismissal need the world map. Recruitment
+happens through dialogue.
 
-- **醫療**: choose a healer and patient. Healing needs at least 50 體力 and
-  sufficient medical ability for the patient's injury.
-- **解毒**: choose a person to remove poison and a patient. Its effect depends
-  on the ability and poison severity; do not copy the healing stamina condition
-  to this command. Check selectable characters, available commands, and results.
-- **物品**: for a story item used on a scene person or object, stand adjacent
-  and face the target first. Medicines, equipment, and manuals select their
-  user through the item menu. The five kinds are story items; pills that restore
-  or raise attributes; hidden weapons, usable only in
-  combat; weapons and armour, equippable depending on the character; and
-  manuals, which a party member can study to gain attributes or learn a skill.
-- **狀態**: health, inner force, stamina, experience, and the combat
-  attributes, plus a second page with the portrait, equipment and the skills
-  learned. A character can learn at most ten martial arts, each to level ten,
-  but has only one currently assigned training manual.
-- **系統**: three save slots, load, and quit. Save regularly.
+- 醫療: choose a healer and a patient. Healing needs at least 50 體力 and
+  enough medical ability for the injury.
+- 解毒: choose a curer and a patient; the effect depends on the curing
+  ability and the poison.
+- 物品: a story item is used on a person or object while standing adjacent
+  and facing it; medicines, equipment and manuals choose their user in the
+  item menu. Five kinds: story items; pills that restore or raise attributes;
+  hidden weapons, usable only in combat; weapons and armour, equippable by
+  some characters; manuals, which a party member studies to gain attributes or
+  a skill.
+- 狀態: health, inner force, stamina, experience and the combat attributes,
+  with a second page of portrait, equipment and skills. A character learns at
+  most ten martial arts, each to level ten, and studies one manual at a time.
+- 系統: three save slots, load, and quit. Save often.
 
 ## Combat
 
-Combat is turn-based. The order usually follows combat agility; waiting can
-move the current character later in that order. Stamina, inner force, ability,
-and remaining movement affect available commands. Read the current menu and status.
+Combat is turn-based. Order follows 輕功; waiting moves the current character
+later in the round. Stamina, inner force, ability and remaining movement decide
+which commands are available; read the menu.
 
-- **Move**: choose a position in the available range. After moving, check which
-  commands remain instead of assuming their menu positions are fixed.
-- **Attack**: choose a martial art, then its target, direction, or area as
-  appropriate. Not every art uses the same targeting method.
-- **Poison / cure / heal**: use the relevant ability, resources, and a suitable
-  target. Injury also affects healing. Do not confuse a command's minimum
-  requirement with its per-use cost, or apply healing requirements to other commands.
-- **Items**: choose the use and target for that item, then check quantity and status.
-- **Wait**: delay the current character's action; this differs from ending it.
-- **Status**: inspect attributes, equipment, and martial arts before choosing an action.
-- **Rest**: end that character's current action and recover some stamina. Other
-  conditions affect whether health or inner force also recovers.
-- **Auto**: the game controls friendly combat actions, not necessarily only the
-  current actor. Watch the whole party and verify any attempt to cancel it.
+- 移動 move: choose a position in range. The commands that remain afterwards
+  change.
+- 攻擊 attack: choose a martial art, then its target, direction or area.
+- 用毒 poison, 解毒 cure, 醫療 heal: need the ability, the resource and a
+  suitable target.
+- 物品 items: choose the use and the target, then check the quantity.
+- 等待 wait: delay this character's action, which is not the same as ending
+  it.
+- 狀態 status: attributes, equipment and martial arts.
+- 休息 rest: end the action and recover some stamina.
+- 自動 auto: the game controls the whole party's combat actions.
 
-A character falling is not necessarily permanent death, and a lost battle is not
-always game over. Encounters have different defeat branches. Do not assume every
-defeat is survivable either; use the story and battle result, and watch party health,
-injury, and poison.
+A fallen character is not necessarily dead, and a lost fight is not always the
+end of the game. Some defeats end the run; read the story and the result.
 
 ## Attributes
 
-Visible: health, inner force, stamina, experience, attack, defence, 輕功
-agility, healing, poison, curing, and the weapon skills. Base attack, defence,
-and 輕功 cap at 100; equipment bonuses are separate. The listed ability and
-weapon attributes also cap at 100, and some skills or items require minimum values.
+Visible: health, inner force, stamina, experience, attack, defence, 輕功,
+healing, poison, curing and the weapon skills. Base attack, defence and 輕功
+cap at 100; equipment adds on top. Some skills and items need minimum values.
 
-Other attributes not fully listed on the ordinary status screen:
+Hidden:
 
-- **體質** affects health gained per level and is assigned an initial value at creation.
-- **資質** decides how fast you learn skills. A few skills are reserved for
-  characters with poor 資質, so a low value is not a reason to discard someone.
-- **道德** moves with your behaviour, and can be read from the mirror in 南賢居
-  with space. Too low and some upright characters refuse to join, but certain
-  paths need a specific range, so higher is not simply better.
-- **名望** changes through some story events and battle results and affects
-  later events. Gaining experience does not necessarily also increase reputation.
+- 體質 sets the health gained per level.
+- 資質 sets how fast skills are learned. A few skills are reserved for
+  characters with poor 資質.
+- 道德 moves with your actions and is read from the mirror in 南賢居 with
+  space. Too low and upright characters refuse to join; some paths need a
+  specific range.
+- 名望 changes with story events and fights and affects later events.
 
-## Checking actions against the screen
+## Reading the screen
 
-**A reply does not say whether you moved.** Compare landmarks or compass
-readings between pictures, and distinguish walking from menus or story
-sequences.
+- The camera follows the character while walking. Judge movement from the
+  background or the compass, not from the sprite's position on screen.
+- A short tap may move only a little. Do not assume a fixed fraction of the
+  screen per step.
+- The character can vanish behind a tree or a building drawn over it.
+- A menu is a narrow box of stacked two-character words; a dialogue box is
+  wide with full sentences; the item screen is a row of icon cells; a status
+  card has a portrait and numbers.
+- Animation and story events change the screen without input.
+- Whether animals, mist or specks are interactive is shown by the game text
+  and by interacting, not by their look.
 
-**During ordinary walking, the camera follows the character.** Judge movement
-from landmarks or the compass, not just the sprite position. A short tap may cause
-only a small shift; do not assume a fixed fraction of the screen per step or use a
-fixed similarity threshold to decide that movement was blocked.
+## Traps
 
-**Check the route.** Record landmarks you have actually seen and, after obtaining
-the compass, actual coordinates. Compare a new observation with several recent
-ones. Similar screens are not necessarily the same position; animation can change
-parts of a scene. If you suspect a loop, verify the current screen and direction
-before adjusting the route. Shorten actions and look again when the cause is unclear.
-
-**Choose action length from the visible route.** Use short actions at junctions,
-entrances, and unfamiliar terrain. Longer holds can help on confirmed clear stretches.
-Decide when to look again from the situation, not a fixed number of keys or a fixed
-screen-similarity rule. Do not blindly increase hold time to break a suspected blockage.
-
-**Alternating keys without progress does not establish a two-tile loop.** Check
-for menus or dialogue, try short movements, and use the observed results to find a
-passable direction. Record entrances and route segments confirmed in this run, and
-verify the starting position before reusing them elsewhere.
-
-**Read the current interface.** Menus show stacked choices, dialogue contains
-sentences and possible choices, inventory shows icons and descriptions, and status
-cards show portraits and attributes. Relative landmark descriptions can help; if
-comparing pixels, distinguish screen coordinates from map coordinates and allow for
-animation or occlusion. A sprite hidden by foreground art does not prove teleportation
-or a fault.
-
-**A fully black screen is a scene still loading.** An action waits through it;
-look again instead of pressing keys into it.
-
-**Entrances are at specific locations, not across the whole wall.** Use visible
-paths, doors, and other clues, and try short movements from different positions when
-needed. A failed attempt alone does not prove a missing prerequisite. Furniture can
-block routes indoors; when near an NPC, check the facing direction and investigate
-with enter or space, routing around obstacles according to the screen.
-
-**Repeated dialogue does not establish that an NPC has no function.** If the
-whole exchange has no new information, record that and consider another objective.
-Items or later story conditions may still enable another interaction with that NPC.
-
-**Appearance alone does not establish what is decorative.** Use game text and
-actual interactions rather than dismissing animals, mist, or other shapes solely
-because of their appearance.
+- A reply does not say whether you moved. Judge it from the next picture; a
+  blocked character can still turn or animate.
+- Similar terrain leads back to visited places. Record landmarks and, once
+  you have the compass, coordinates, and compare each new observation with
+  recent ones.
+- No progress while alternating keys has several causes. Check whether you
+  are on the map, in a menu or in dialogue, then find a passable direction
+  with short taps. Longer holds do not break a blockage.
+- A fully black screen is a scene still loading. Look again instead of
+  pressing keys into it.
+- Entrances are at specific tiles; a wall is not passable along its length.
+  Use paths, doorways and story clues. Furniture blocks routes indoors.
+- Repeated dialogue does not mean an NPC has no function; an item or a later
+  story condition may apply.
 
 ## Coordinates from community guides
 
-These are reference coordinates from original-game guides. An entrance and an
-adjacent outside tile may differ by one coordinate. Use actual compass readings
-and the visible entrance, not the table alone, to confirm arrival or entry.
+Reference coordinates from guides to the original game. An entrance and the
+tile outside it may differ by one; confirm arrival with the compass and the
+visible entrance.
 
 | Place | Coordinates |
 |---|---|

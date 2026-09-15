@@ -11,7 +11,6 @@ frame. The benchmark session has already been created; keep playing until a
 game tool explicitly reports `BENCHMARK ENDED`.
 
 This session is isolated and the character is already named in the opening
-room. Generic wording in the brief about sharing a game, choosing an `X-Agent`
-name, or another player changing the screen does not apply here.
+room.
 
 --- BEGIN SESSION-SPECIFIC BENCHMARK BRIEF ---

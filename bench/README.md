@@ -1,6 +1,6 @@
 # Benchmark harness
 
-One game per model, sixty minutes by default, recorded end to end and published.
+One game per model, four hours by default, recorded end to end and published.
 
 ```
 POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
@@ -47,8 +47,8 @@ on its budget like any other.
 2. The session starts in the opening room with a character already made.
    Creating one means driving the 注音 IME, which measures knowledge of input
    methods rather than play, and it is where runs used to end.
-3. The agent plays. Its run ends on whichever comes first: the sixty minute
-   budget, or ten minutes without an action. Reading the screen is not acting.
+3. The agent plays. Its run ends when its budget lapses, four hours by
+   default, or when the game is completed.
 4. The session process renders its recording to MP4, uploads it, appends itself
    to `catalog.json`, and exits. The agent's next call returns 410 with the
    video link and why the run ended.
@@ -207,7 +207,7 @@ gcloud run deploy jy-crpg-bench --region us-central1 \
   --image .../jy-crpg-bench:v31 --allow-unauthenticated \
   --cpu 8 --memory 16Gi --no-cpu-throttling \
   --min-instances 1 --max-instances 1 --concurrency 80 --timeout 3600 \
-  --set-env-vars QUNXIA_GCS_BUCKET=jy-crpg-bench-runs,QUNXIA_RUN_SECONDS=3600, \
+  --set-env-vars QUNXIA_GCS_BUCKET=jy-crpg-bench-runs,QUNXIA_RUN_SECONDS=14400, \
     QUNXIA_OPENING_SECONDS=900,QUNXIA_RECORDING_ALLOW_EPHEMERAL=1
 ```
 
@@ -255,8 +255,8 @@ service; 24 simultaneous short requests lose none.
 
 | variable | default | |
 |---|---|---|
-| `QUNXIA_RUN_SECONDS` | 3600 | length of a run |
-| `QUNXIA_IDLE_LIMIT` | 600 | seconds without an action before a run is torn down |
+| `QUNXIA_RUN_SECONDS` | 14400 | length of a run |
+| `QUNXIA_IDLE_LIMIT` | 0 | seconds without an action before a run is torn down; 0 leaves runs alone |
 | `QUNXIA_MAX_SESSIONS` | 24 | concurrent sessions; configurable for host capacity |
 | `QUNXIA_REAP_GRACE` | 600 | seconds a finished run's entry outlives its process, so late calls - the agent's final 410, a usage report - still find it; a held usage report holds it further until merged or dropped |
 | `QUNXIA_VIDEO_WAIT` | 300 | how long the final reply waits for the video |

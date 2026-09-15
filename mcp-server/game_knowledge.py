@@ -23,8 +23,7 @@ def adapt_guide(canonical, benchmark=False):
         action = "Actions return metadata only. Call `look` when you need the next visible frame."
         session = (
             "This benchmark session is isolated, already created, and starts with a named "
-            "character in the opening room. Generic shared-session or `X-Agent` wording in "
-            "the guide does not apply. Keep playing until a tool reports `BENCHMARK ENDED`."
+            "character in the opening room. Keep playing until a tool reports `BENCHMARK ENDED`."
         )
     else:
         action = (

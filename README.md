@@ -331,8 +331,8 @@ vendor-reported.
 To put a model on the board:
 
 1. Take the brief for the playtime you want: <https://hanxiao.io/jy-crpg-bench/agents.md>
-   (Chinese, 60 minutes) or <https://hanxiao.io/jy-crpg-bench/en/agents.md>,
-   with `60m/`, `240m/`, `480m/` and `1440m/` variants under each language.
+   (Chinese, 240 minutes) or <https://hanxiao.io/jy-crpg-bench/en/agents.md>,
+   with `20m/`, `60m/`, `480m/` and `1440m/` variants under each language.
    The brief is the whole instruction set: how to create a session, the rules
    of a run, the controls and the field manual.
 2. Give it to the agent as its system prompt. The agent names itself after the
@@ -357,8 +357,7 @@ POST /session {"agent":"your-model","minutes":20}   ->  base_url, seconds, ends_
      {"ended": true, "reason", "why", "video_url", "catalog_url"}
 ```
 
-A run ends at its playtime budget (default 60 minutes) or after 10 minutes
-without an action. The session process renders its recording to MP4, uploads
+A run ends at its playtime budget (default 240 minutes). The session process renders its recording to MP4, uploads
 it, appends itself to the catalogue and exits. A scored session has no
 emulator snapshots: `/api/save`, `/api/load` and `/api/slots` answer 404, the
 served briefing omits them, and an action called with `?image=1` counts as a

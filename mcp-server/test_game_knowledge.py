@@ -27,11 +27,14 @@ class GameKnowledgeTests(unittest.TestCase):
         self.assertIn("benchmark session is isolated", prompt)
         self.assertIn("BENCHMARK ENDED", prompt)
 
-    def test_the_session_address_contract_reaches_the_guide(self):
-        # The token-in-the-URL contract must be in the text every agent
-        # reads, in both languages.
-        for language, marker in (("en", "watch-only"), ("zh", "只可觀看")):
-            self.assertIn(marker, guide("http://session.invalid", language))
+    def test_the_guide_teaches_one_address_and_no_meta_api(self):
+        # A player has one address, the one it is handed, and the guide says
+        # nothing about spectating, naming headers or the board behind it.
+        for language in ("en", "zh"):
+            text = guide("http://session.invalid", language)
+            for marker in ("watch-only", "只可觀看", "X-Agent", "/api/status", "/api/history",
+                           "/api/recording", "/api/sessions", "/api/catalog", "spectate"):
+                self.assertNotIn(marker, text)
 
     def test_adapter_accepts_a_session_resolved_guide(self):
         canonical = "session-specific guide at https://session.invalid/api"

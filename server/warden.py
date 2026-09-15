@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT.parent / "bench"))
 ON = os.environ.get("QUNXIA_BENCH") == "1"
 AGENT = os.environ.get("QUNXIA_BENCH_AGENT", "agent")
 SID = os.environ.get("QUNXIA_BENCH_SID", "")
-BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "3600"))
+BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "14400"))
 IDLE = int(os.environ.get("QUNXIA_BENCH_IDLE", "0"))   # 0 or less: no inactivity teardown
 BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 # A run can ask not to be listed. Smoke tests were reaching the public

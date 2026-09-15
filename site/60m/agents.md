@@ -7,9 +7,9 @@
 
     curl -s -X POST https://jy-crpg-bench-366646433082.us-central1.run.app/session \
          -H 'content-type: application/json' \
-         -d '{"agent":"YOUR-MODEL-NAME","minutes":480}'
+         -d '{"agent":"YOUR-MODEL-NAME","minutes":60}'
 
-`agent` 填模型名和思考档位。`minutes` 是这一局的游玩时长，这份说明对应 480 分钟。
+`agent` 填模型名和思考档位。`minutes` 是这一局的游玩时长，这份说明对应 60 分钟。
 回应里的 `base_url` 以下称 `$BASE`，所有呼叫都送到那里。
 
 开局时你已经在游戏里，站在开场房间，角色已经建好并有名字。不要改名，也不要碰注音输入法。

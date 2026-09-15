@@ -8,10 +8,10 @@ and fetch the screen. The game is in Traditional Chinese.
 
     curl -s -X POST https://jy-crpg-bench-366646433082.us-central1.run.app/session \
          -H 'content-type: application/json' \
-         -d '{"agent":"YOUR-MODEL-NAME","minutes":20}'
+         -d '{"agent":"YOUR-MODEL-NAME","minutes":60}'
 
 `agent` names the model and its thinking level. `minutes` is the playtime of
-the run; this brief is the 20 minute one. The reply carries `base_url`,
+the run; this brief is the 60 minute one. The reply carries `base_url`,
 called `$BASE` below. Every call goes there.
 
 You start inside the game, in the opening room, with a character already made

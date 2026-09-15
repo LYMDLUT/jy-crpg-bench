@@ -16,12 +16,12 @@ ZH = {
     "lang": "zh-Hans", "other": "EN", "other_href": "en/", "home": ".",
     "url": "https://hanxiao.io/jy-crpg-bench/",
     "locale": "zh_CN", "locale_alt": "en_US",
-    "blurb": "面向前沿智能体的长程 CRPG 基准。每个模型一局，默认一小时，全程录像。",
+    "blurb": "面向前沿智能体的长程 CRPG 基准。每个模型一局，默认四小时，全程录像。",
     "tagline": "面向前沿智能体的长程 CRPG 基准",
     "oneline": "读 %U%，照着玩。",
     "base": "https://hanxiao.io/jy-crpg-bench/",
     "playtime": "总游玩时长",
-    "opts": [(60, "1 小时"), (20, "20 分钟"), (240, "4 小时"),
+    "opts": [(240, "4 小时"), (20, "20 分钟"), (60, "1 小时"),
              (480, "8 小时"), (1440, "24 小时")],
     "view": "查看", "raw": "原始档",
     "copy": "复制", "copied": "已复制",
@@ -102,12 +102,12 @@ EN = {
     "url": "https://hanxiao.io/jy-crpg-bench/en/",
     "locale": "en_US", "locale_alt": "zh_CN",
     "blurb": "A long-horizon CRPG benchmark for frontier agents. "
-             "One run per model, an hour by default, recorded.",
+             "One run per model, four hours by default, recorded.",
     "tagline": "A long-horizon CRPG benchmark for frontier agents",
     "oneline": "Read %U% and play it.",
     "base": "https://hanxiao.io/jy-crpg-bench/en/",
     "playtime": "total playtime",
-    "opts": [(60, "1 hour"), (20, "20 min"), (240, "4 hours"),
+    "opts": [(240, "4 hours"), (20, "20 min"), (60, "1 hour"),
              (480, "8 hours"), (1440, "24 hours")],
     "view": "view", "raw": "raw",
     "copy": "copy", "copied": "copied",
@@ -1648,7 +1648,7 @@ let brief = null;                    // cached text of the selected brief
 // The copied line shows the absolute address an agent will be handed; the
 // page's own links and the viewer use the relative one, so this works the same
 // on the deployed site and on a local server.
-function briefPath(mins) {{ return (mins === "60" ? "" : mins + "m/") + "agents.md"; }}
+function briefPath(mins) {{ return (mins === "240" ? "" : mins + "m/") + "agents.md"; }}
 function briefUrl(mins) {{ return T.base + briefPath(mins); }}
 
 // Monospace width is linear in font-size, so one ratio pass lands it; a second
@@ -2404,7 +2404,7 @@ def build(s, stamp="dev"):
     strings = {k: v for k, v in s.items() if k not in skip}
     # each language ships its own brief alongside its page
     c = s["cols"]
-    opts_html = "".join(f'<option value="{m}"{" selected" if m == 60 else ""}>{t}</option>'
+    opts_html = "".join(f'<option value="{m}"{" selected" if m == 240 else ""}>{t}</option>'
                         for m, t in s["opts"])
     fields = dict(s, stats_skeleton=skeleton, md="agents.md", opts_html=opts_html,
                   build=stamp,

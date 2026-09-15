@@ -42,7 +42,7 @@ SITE = os.environ.get("QUNXIA_SITE", "https://hanxiao.io/jy-crpg-bench/")
 # /health, so the version it shows is the backend actually answering, not
 # whatever the site was built beside.
 VERSION = os.environ.get("QUNXIA_VERSION", "dev")
-RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "3600"))     # 60 minutes
+RUN_SECONDS = int(os.environ.get("QUNXIA_RUN_SECONDS", "14400"))    # 240 minutes
 # A caller may ask for a longer game. Bounded at a day: past that the recording
 # hits its own size cap and the early history is dropped anyway.
 MAX_MINUTES = int(os.environ.get("QUNXIA_MAX_MINUTES", "1440"))
