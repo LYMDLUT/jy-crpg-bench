@@ -19,6 +19,10 @@ if [[ "$QUNXIA_LLM_MODEL" != */* || "$QUNXIA_LLM_MODEL" == */ || "$QUNXIA_LLM_MO
 fi
 MODEL_REF="$QUNXIA_LLM_MODEL"
 
+if [[ "${QUNXIA_PI_PROFILE:-strict}" == "benchmark-open-client" ]]; then
+  exec node "$ROOT/Scripts/play-open-client.mjs" "$@"
+fi
+
 PI_BIN="$ROOT/node_modules/.bin/pi"
 API="${QUNXIA_API:-http://127.0.0.1:8765}"
 API="${API%/}"

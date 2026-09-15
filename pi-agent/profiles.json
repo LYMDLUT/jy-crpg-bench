@@ -23,5 +23,14 @@
       "game_look",
       "game_press"
     ]
+  },
+  "benchmark-open-client": {
+    "description": "Timed benchmark with local file, shell and CV work in a network-isolated container",
+    "prompt": "session-help",
+    "isolation": "container",
+    "scale": 1,
+    "observeAfterAction": false,
+    "extensions": ["qunxia"],
+    "tools": ["read", "write", "edit", "bash", "game_look", "game_press"]
   }
 }

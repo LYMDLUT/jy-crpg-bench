@@ -25,6 +25,7 @@ paper/src/build.log
 
 # node dependencies: npm ci from package-lock.json (the tree itself is not content)
 node_modules/
+.runs/
 
 # python bytecode
 __pycache__/

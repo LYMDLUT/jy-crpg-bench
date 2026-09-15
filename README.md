@@ -249,8 +249,9 @@ Without `QUNXIA_API` the launcher starts the native game if needed and waits
 for the title screen. Every run gets its own directory under
 `.runs/pi/<run-id>/` with its own Pi configuration, sessions, empty workspace
 and a manifest recording the model, tools and whether the checkout was dirty.
-The API key stays in the environment. Pi's built-in shell and file tools,
-user extensions, skills and context files are not exposed.
+For `strict` and `benchmark`, the API key stays in the environment and Pi's
+built-in shell and file tools, user extensions, skills and context files are
+not exposed. These directories separate configuration, not host OS access.
 
 Tool exposure is declared in `pi-agent/profiles.json`:
 
@@ -258,6 +259,7 @@ Tool exposure is declared in `pi-agent/profiles.json`:
 |---|---|---|---|
 | `strict` (default) | `pi-agent/SYSTEM.md` | five `game_*` tools including save and load | return the frame |
 | `benchmark` | the session's `/api/help` | `game_look`, `game_press` | metadata only; call `game_look` |
+| `benchmark-open-client` | the session's `/api/help` plus local-computation rules | `read`, `write`, `edit`, `bash`, `game_look`, `game_press` | metadata only; frames also saved for local CV |
 
 ```sh
 # timed benchmark session: BASE_URL is the base_url returned by POST /session
@@ -291,6 +293,16 @@ Unsupported thinking levels are rejected before play rather than clamped. The
 resolved level and its mapping are recorded in `run.json`. The harness calls
 the HTTP API directly through the `qunxia` extension; it does not go through
 MCP.
+
+The opt-in `benchmark-open-client` profile runs Pi in a fresh Docker or Podman
+container with its own files, processes and temporary directory, no external
+network interface, and no game/source mounts. It permits client-side CV and
+file-based reasoning while a host gateway only forwards the current session's
+screen/help/key-list reads and keyboard input, plus inference with the declared
+model. The real model key and game token stay outside the container. There is
+no unsandboxed fallback. See [open-client setup and security boundary](pi-agent/open-client/README.md)
+for the image build, launch command, tests and limitations. Keep these runs
+separate from game-tool-only results; this does not relabel the paper's runs.
 
 ## Leaderboard
 

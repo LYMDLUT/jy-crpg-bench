@@ -8,21 +8,28 @@
   ./Scripts/play.py save inn      /  load inn
   ./Scripts/play.py shot out.png
 
-Every command writes the resulting screen to /tmp/qunxia.png unless a path is given.
+Screens go to a session-specific directory under TMPDIR unless a path is given.
+QUNXIA_SCREEN_DIR overrides that directory. This avoids filename collisions;
+untrusted concurrent clients still need OS-level isolation.
 """
 import base64
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 
 API = os.environ.get("QUNXIA_API", "http://127.0.0.1:8765").rstrip("/")
 AGENT = os.environ.get("QUNXIA_AGENT", "play-cli")
-OUT = "/tmp/qunxia.png"
+SCREEN_DIR = os.environ.get("QUNXIA_SCREEN_DIR") or os.path.join(
+    tempfile.gettempdir(), "qunxia-" + hashlib.sha256(
+        (API + "\0" + AGENT).encode()).hexdigest()[:24])
+OUT = os.path.join(SCREEN_DIR, "screen.png")
 
 
 def call(method, path, payload=None):
@@ -43,7 +50,10 @@ def call(method, path, payload=None):
 def save_shot(res, path=OUT):
     img = res.pop("image", None)
     if img:
-        open(path, "wb").write(base64.b64decode(img.split(",", 1)[1]))
+        if path == OUT:
+            os.makedirs(SCREEN_DIR, mode=0o700, exist_ok=True)
+        with open(path, "wb") as output:
+            output.write(base64.b64decode(img.split(",", 1)[1]))
         res["saved"] = path
     return res
 

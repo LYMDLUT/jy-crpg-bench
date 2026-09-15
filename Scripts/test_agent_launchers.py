@@ -67,7 +67,7 @@ print("ok")
 class PlayClientTest(unittest.TestCase):
     """The command-line client must speak the same API to both runners."""
 
-    def _game_server(self, recorded):
+    def _game_server(self, recorded, with_image=False):
         from http.server import BaseHTTPRequestHandler, HTTPServer
 
         class Handler(BaseHTTPRequestHandler):
@@ -76,7 +76,10 @@ class PlayClientTest(unittest.TestCase):
                 body = self.rfile.read(length) if length else None
                 recorded.append({"path": self.path,
                                  "body": body.decode() if body else None})
-                payload = json.dumps({"ok": True}).encode()
+                result = {"ok": True}
+                if with_image:
+                    result["image"] = "data:image/png;base64,Zml4dHVyZQ=="
+                payload = json.dumps(result).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
@@ -123,6 +126,26 @@ class PlayClientTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
         self.assertEqual(recorded[0]["path"], "/api/reset")
+
+    def test_screenshots_are_scoped_by_api_and_use_the_private_tmpdir(self):
+        first, second = self._game_server([], True), self._game_server([], True)
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                paths = []
+                for server in (first, second, first):
+                    result = self._run_client(server, "screen", TMPDIR=directory,
+                                              QUNXIA_AGENT="fixture", QUNXIA_SCREEN_DIR="")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    path = pathlib.Path(json.loads(result.stdout)["saved"])
+                    self.assertTrue(path.resolve().is_relative_to(pathlib.Path(directory).resolve()))
+                    self.assertEqual(path.read_bytes(), b"fixture")
+                    paths.append(path)
+                self.assertNotEqual(paths[0], paths[1])
+                self.assertEqual(paths[0], paths[2])
+        finally:
+            for server in (first, second):
+                server.shutdown()
+                server.server_close()
 
 
 if __name__ == "__main__":

@@ -4,6 +4,9 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 
 const API = (process.env.QUNXIA_API ?? "http://127.0.0.1:8765").replace(/\/+$/, "");
 const rawScale = Number(process.env.QUNXIA_SCALE ?? "1");
@@ -89,7 +92,7 @@ function toolFailure(err: unknown) {
 }
 
 /** Turn an API response into a status line plus the screen. */
-function frame(res: Record<string, any>, note: string) {
+async function frame(res: Record<string, any>, note: string) {
   if (res.ended) {
     return {
       content: [{
@@ -122,7 +125,16 @@ function frame(res: Record<string, any>, note: string) {
   if (typeof res.image === "string" && res.image.includes(",")) {
     const [header, data] = res.image.split(",", 2);
     const mimeType = header.match(/^data:([^;]+);base64$/)?.[1] ?? "image/png";
-    if (data) content.push({ type: "image", data, mimeType });
+    if (data) {
+      content.push({ type: "image", data, mimeType });
+      if (process.env.QUNXIA_SCREEN_DIR && mimeType === "image/png") {
+        const directory = process.env.QUNXIA_SCREEN_DIR;
+        await mkdir(directory, { recursive: true });
+        const path = join(directory, `${randomUUID()}.png`);
+        await writeFile(path, Buffer.from(data, "base64"), { flag: "wx", mode: 0o600 });
+        content.push({ type: "text", text: `Frame saved: ${path}` });
+      }
+    }
   }
   return {
     content,

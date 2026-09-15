@@ -50,6 +50,10 @@ if (!profileDefinition) {
     `unknown QUNXIA_PI_PROFILE ${profile}; available profiles: ${Object.keys(profiles).join(", ")}`,
   );
 }
+if (profileDefinition.isolation !== undefined
+    && (profile !== "benchmark-open-client" || profileDefinition.isolation !== "container")) {
+  throw new Error("container tools require the benchmark-open-client launcher");
+}
 if (!["standalone", "session-help"].includes(profileDefinition.prompt)) {
   throw new Error(`profile ${profile} has an invalid prompt source`);
 }
@@ -76,6 +80,9 @@ if (profileDefinition.extensions.some((name) => !(name in extensionTools))) {
   throw new Error(`profile ${profile} contains an unknown extension`);
 }
 const allowedTools = new Set(profileDefinition.extensions.flatMap((name) => extensionTools[name]));
+if (profileDefinition.isolation === "container") {
+  for (const name of ["read", "write", "edit", "bash"]) allowedTools.add(name);
+}
 if (!Array.isArray(profileDefinition.tools) || profileDefinition.tools.length === 0) {
   throw new Error(`profile ${profile} must declare at least one tool`);
 }
@@ -140,7 +147,7 @@ const thinkingLevels = new Set(["off", "minimal", "low", "medium", "high", "xhig
 if (thinkingLevel !== null && !thinkingLevels.has(thinkingLevel)) {
   throw new Error("QUNXIA_THINKING has an invalid level");
 }
-if (profile === "benchmark" && thinkingLevel === null) {
+if (profileDefinition.prompt === "session-help" && thinkingLevel === null) {
   throw new Error("benchmark runs require an explicit QUNXIA_THINKING level");
 }
 const thinkingLevelMap = modelDefinition.thinkingLevelMap ?? {};
@@ -251,7 +258,8 @@ if (profileDefinition.prompt === "session-help") {
     throw new Error(`benchmark help is incomplete; missing: ${missing.join(", ")}`);
   }
 
-  const adapter = await readFile(join(root, "pi-agent", "BENCHMARK.md"), "utf8");
+  const adapter = await readFile(join(root, "pi-agent",
+    profileDefinition.isolation === "container" ? "OPEN_CLIENT.md" : "BENCHMARK.md"), "utf8");
   systemPrompt = `${adapter}\n\n${benchmarkHelp}\n--- END SESSION-SPECIFIC BENCHMARK BRIEF ---\n`;
   promptMetadata = {
     source: "session-help",
@@ -276,6 +284,7 @@ const identity = {
   observeAfterAction: profileDefinition.observeAfterAction,
   extensions: profileDefinition.extensions,
   tools: profileDefinition.tools,
+  ...(profileDefinition.isolation ? { clientIsolation: profileDefinition.isolation } : {}),
   prompt: promptMetadata,
   model: {
     ref: modelRef,
@@ -336,6 +345,7 @@ if (resume) {
     "gameApi",
     "scale",
     "observeAfterAction",
+    "clientIsolation",
   ]) {
     if (manifest[field] !== identity[field]) {
       throw new Error(`cannot resume ${runId}: ${field} changed`);

@@ -181,6 +181,22 @@ test("benchmark profile exposes only broker-supported game tools", async () => {
   assert.doesNotMatch(prompt, /Entering a Chinese name/);
 });
 
+test("open-client enables built-in tools only under the declared container profile", async () => {
+  const runsDir = await mkdtemp(join(tmpdir(), "qunxia-open-profile-"));
+  const result = invoke(runsDir, "open-a", "benchmark-open-client", false, { QUNXIA_THINKING: "high" });
+  assert.equal(result.status, 0, result.stderr);
+  const manifest = JSON.parse(await readFile(join(runsDir, "open-a/run.json"), "utf8"));
+  assert.deepEqual(manifest.tools, ["read", "write", "edit", "bash", "game_look", "game_press"]);
+  assert.equal(manifest.observeAfterAction, false);
+  const prompt = await readFile(join(runsDir, "open-a/config/SYSTEM.md"), "utf8");
+  assert.match(prompt, /computer-vision pipeline/);
+  assert.match(prompt, /same running\nwall-clock budget/);
+  assert.doesNotMatch(prompt, /Use their Pi equivalents instead/);
+  const missing = invoke(runsDir, "open-b", "benchmark-open-client", false, { QUNXIA_THINKING: "" });
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /explicit QUNXIA_THINKING/);
+});
+
 test("game press leaves the server tap duration authoritative", async () => {
   const extension = await readFile(
     join(root, "pi-agent", "extensions", "qunxia", "index.ts"),
