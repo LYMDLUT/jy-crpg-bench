@@ -127,7 +127,7 @@ class PlayClientTest(unittest.TestCase):
             server.server_close()
         self.assertEqual(recorded[0]["path"], "/api/reset")
 
-    def test_screenshots_use_separate_private_tmpdirs(self):
+    def test_screenshots_land_in_one_private_directory_per_user(self):
         first, second = self._game_server([], True), self._game_server([], True)
         try:
             with tempfile.TemporaryDirectory() as directory:
@@ -140,13 +140,19 @@ class PlayClientTest(unittest.TestCase):
                     self.assertTrue(path.resolve().is_relative_to(pathlib.Path(directory).resolve()))
                     self.assertEqual(path.read_bytes(), b"fixture")
                     paths.append(path)
-                self.assertNotEqual(paths[0], paths[1])
-                self.assertNotEqual(paths[0], paths[2])
+                # one stable path per user, not a new directory per command
+                self.assertEqual(len(set(paths)), 1)
+                self.assertEqual(paths[0].parent.name, "qunxia-%d" % os.getuid())
+                self.assertEqual(paths[0].parent.stat().st_mode & 0o777, 0o700)
+                self.assertEqual(sum(1 for _ in pathlib.Path(directory).iterdir()), 1)
+                chosen = pathlib.Path(directory) / "chosen"
+                result = self._run_client(first, "screen", QUNXIA_SCREEN_DIR=str(chosen))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(pathlib.Path(json.loads(result.stdout)["saved"]), chosen / "screen.png")
         finally:
             for server in (first, second):
                 server.shutdown()
                 server.server_close()
-
 
 if __name__ == "__main__":
     unittest.main()

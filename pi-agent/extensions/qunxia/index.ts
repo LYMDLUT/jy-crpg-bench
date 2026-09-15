@@ -157,16 +157,16 @@ export default function (pi: ExtensionAPI) {
       const image = OBSERVE_AFTER_ACTION ? "&image=1" : "&image=0";
       const action = await call("POST", `${path}?scale=${SCALE}${image}${query}`, body, signal);
       if (action.ended || action.ok === false) {
-        return frame(action, note);
+        return await frame(action, note);
       }
       if (!OBSERVE_AFTER_ACTION) {
         const { image: _ignored, ...metadata } = action;
-        return frame(metadata, note);
+        return await frame(metadata, note);
       }
-      if (typeof action.image === "string") return frame(action, note);
+      if (typeof action.image === "string") return await frame(action, note);
       const screen = await call("GET", `/screen?scale=${SCALE}`, undefined, signal);
-      if (screen.ended) return frame(screen, note);
-      return frame({
+      if (screen.ended) return await frame(screen, note);
+      return await frame({
         ...screen,
         ok: action.ok !== false && screen.ok !== false,
         action: action.action,
@@ -187,7 +187,7 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({}),
     async execute(_id, params, signal) {
       try {
-        return frame(await call("GET", `/screen?scale=${SCALE}`, undefined, signal), "look");
+        return await frame(await call("GET", `/screen?scale=${SCALE}`, undefined, signal), "look");
       } catch (err) {
         return toolFailure(err);
       }

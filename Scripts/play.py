@@ -8,14 +8,15 @@
   ./Scripts/play.py save inn      /  load inn
   ./Scripts/play.py shot out.png
 
-Screens go to a private temporary directory unless a path is given.
-QUNXIA_SCREEN_DIR overrides that directory. This avoids filename collisions;
-untrusted concurrent clients still need OS-level isolation.
+Every command writes the resulting screen to screen.png in QUNXIA_SCREEN_DIR,
+or in a private per-user directory under the temp root, unless a path is
+given. Concurrent clients of one user still share that file.
 """
 import base64
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -43,13 +44,24 @@ def call(method, path, payload=None):
             raise RuntimeError(f"game API returned HTTP {exc.code}") from exc
 
 
+def screen_dir():
+    """QUNXIA_SCREEN_DIR, or one directory per user under the temp root, so the
+    path is the same from one command to the next and no other user's file is
+    ever overwritten. A directory that is a symlink or belongs to another user
+    is refused rather than written into."""
+    directory = SCREEN_DIR or os.path.join(tempfile.gettempdir(), "qunxia-%d" % os.getuid())
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    st = os.lstat(directory)
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
+        raise RuntimeError(f"{directory} is not a directory of this user")
+    return directory
+
+
 def save_shot(res, path=None):
     img = res.pop("image", None)
     if img:
         if path is None:
-            directory = SCREEN_DIR or tempfile.mkdtemp(prefix="qunxia-")
-            os.makedirs(directory, mode=0o700, exist_ok=True)
-            path = os.path.join(directory, "screen.png")
+            path = os.path.join(screen_dir(), "screen.png")
         with open(path, "wb") as output:
             output.write(base64.b64decode(img.split(",", 1)[1]))
         res["saved"] = path
