@@ -726,6 +726,92 @@ emit("PbatchBig", sum(1 for m in TL[_bid]["marks"] if len(m["keys"]) >= 50), "it
 if not _br.get("saved_at") or _br.get("bigmap"):
     sys.exit("the prose says the batching session was credited by the save alone; it no longer is")
 
+# ------------------------------------------------------- the four-hour sessions
+LONG = field.load_long()
+if not LONG:
+    sys.exit("no four-hour session on record")
+if len(LONG) != len({r["agent"] for r in LONG}):
+    sys.exit("the prose says one four-hour session per model")
+if {r["agent"] for r in LONG} - {r["agent"] for r in PLAY}:
+    sys.exit("a four-hour session belongs to a model outside the hour field")
+emit("NlongSessions", len(LONG), "four-hour sessions, one per model")
+emit("NlongBudgetMin", field.LONG_BUDGET // 60, "their budget, minutes")
+
+
+def _long_n(name):
+    k = field.DEFINITION.index(name)
+    return sum(1 for r in LONG if field.rungs_of(r)[k] is True)
+
+
+emit("NlongMap", _long_n("reached\nworld map"), "four-hour sessions that reached the world map")
+emit("NlongItem", _long_n("picked up\nan item"))
+emit("NlongScene", _long_n("entered\na scene"))
+emit("NlongHermit", _long_n("spoke with\nthe hermit"))
+emit("NlongCompass", _long_n("holds the\ncompass"))
+emit("NlongCompanion", _long_n("recruited\ncompanion"))
+emit("NlongFight", _long_n("entered\na fight"))
+emit("NlongExp", _long_n("gained\nexperience"))
+emit("NlongBook", _long_n("one of the\nfourteen"))
+_ltl = {r["id"]: json.load(open(os.path.join(HERE, "timelines", r["id"] + ".json"), encoding="utf-8")) for r in LONG}
+_last = {r["id"]: _ltl[r["id"]]["marks"][-1]["t"] * _ltl[r["id"]]["speed"] / 60 for r in LONG}
+emit("LlongLastMin", min(_last.values()), "earliest last key, minutes", fmt="%.0f")
+emit("LlongLastMax", max(_last.values()), "latest last key, minutes", fmt="%.0f")
+_short = min(LONG, key=lambda r: _last[r["id"]])
+emit_label("LlongShortLabel", _short["agent"], "the session that stopped first")
+emit("LlongShortMin", _last[_short["id"]], fmt="%.0f")
+emit("LlongShortActs", _short["actions"])
+if field.on_map(_short):
+    sys.exit("the prose says the session that stopped first never left the compound")
+_lcross = sorted((r["exit_secs"] / 60, r["agent"]) for r in LONG if r.get("exit_secs") is not None)
+if len(_lcross) != _long_n("reached\nworld map"):
+    sys.exit("a four-hour crossing carries no service time")
+emit("LlongCrossFirst", _lcross[0][0], "earliest crossing, minutes", fmt="%.0f")
+emit("LlongCrossLast", _lcross[-1][0], "latest crossing, minutes", fmt="%.0f")
+_late = [a for m, a in _lcross if m > BUDGET / 60]
+emit("NlongCrossLate", len(_late), "crossings after the first hour")
+
+
+def _join(names):
+    names = ["\\texttt{%s}" % a for a in names]
+    return (", ".join(names[:-1]) + " and " + names[-1]) if len(names) > 1 else "".join(names)
+
+
+lines.append(("% the models whose four-hour crossing came after the first hour",
+              "\\newcommand{\\LlongLateLabels}{" + _join(_late) + "}"))
+_COMPASS_K = field.DEFINITION.index("holds the\ncompass")
+_holders = sorted((r for r in LONG if field.rungs_of(r)[_COMPASS_K] is True), key=lambda r: r["exit_secs"])
+if len(_holders) != 2:
+    sys.exit("the prose describes two four-hour compass holders")
+for tag, r in (("Fast", _holders[0]), ("Slow", _holders[1])):
+    e = dict(r["replay"], speed=_ltl[r["id"]]["speed"])
+    emit_label("LlongHolder%sLabel" % tag, r["agent"])
+    emit("LlongHolder%sCross" % tag, r["exit_secs"] / 60, "its crossing, minutes", fmt="%.0f")
+    emit("LlongHolder%sHermit" % tag, e["hermit"]["first_minute"], fmt="%.0f")
+    emit("LlongHolder%sCompass" % tag, e["compass"]["first_minute"], fmt="%.0f")
+    if e.get("recruited_minute") is None:
+        sys.exit("the prose says both four-hour compass holders recruited a companion")
+    emit("LlongHolder%sRecruit" % tag, e["recruited_minute"], fmt="%.0f")
+    emit("LlongHolder%sScenes" % tag, e["scenes"]["distinct"], "distinct scenes it entered")
+    emit("LlongHolder%sLast" % tag, _last[r["id"]], "its last key, minutes", fmt="%.0f")
+    emit("LlongHolder%sActs" % tag, r["actions"])
+_hour = {m["agent"]: m["reached"] for m in UNION}
+_gain = sorted(r["agent"] for r in LONG if field.rungs_reached(r) > _hour[r["agent"]])
+_fewer = sorted(r["agent"] for r in LONG if field.rungs_reached(r) < _hour[r["agent"]])
+emit("NlongGained", len(_gain), "models whose four-hour session passed every hour session of theirs")
+emit("NlongFewer", len(_fewer), "models whose four-hour session fell short of their best hour session")
+emit("NlongSame", len(LONG) - len(_gain) - len(_fewer))
+lines.append(("% the models that gained from the four-hour budget",
+              "\\newcommand{\\LlongGainedLabels}{" + _join(_gain) + "}"))
+lines.append(("% the models that fell short of their best hour session",
+              "\\newcommand{\\LlongFewerLabels}{" + _join(_fewer) + "}"))
+_hour_compass = {m["agent"] for m in UNION if m["rungs"][_COMPASS_K] is True}
+emit("NlongNewCompass", len({r["agent"] for r in _holders} - _hour_compass),
+     "four-hour compass holders that held no compass in the hour")
+_ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG)
+if _ldays[0] != _ldays[-1]:
+    sys.exit("the four-hour sessions span more than one day; the date macro assumes one")
+lines.append(("% the day the four-hour sessions ran, UTC", "\\newcommand{\\LongDate}{%d %s}" % (_ldays[0].day, _ldays[0].strftime("%B %Y"))))
+
 print("% generated by figures/numbers.py from catalog_snapshot.json and start.state")
 print("% regenerate before editing any number in the paper")
 for comment, body in lines:

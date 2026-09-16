@@ -416,6 +416,71 @@
 \newcommand{\PbatchKeysPerAction}{22}
 % its actions of fifty keys or more
 \newcommand{\PbatchBig}{32}
+% four-hour sessions, one per model
+\newcommand{\NlongSessions}{8}
+% their budget, minutes
+\newcommand{\NlongBudgetMin}{240}
+% four-hour sessions that reached the world map
+\newcommand{\NlongMap}{7}
+\newcommand{\NlongItem}{6}
+\newcommand{\NlongScene}{5}
+\newcommand{\NlongHermit}{3}
+\newcommand{\NlongCompass}{2}
+\newcommand{\NlongCompanion}{2}
+\newcommand{\NlongFight}{0}
+\newcommand{\NlongExp}{0}
+\newcommand{\NlongBook}{0}
+% earliest last key, minutes
+\newcommand{\LlongLastMin}{10}
+% latest last key, minutes
+\newcommand{\LlongLastMax}{239}
+% the session that stopped first
+\newcommand{\LlongShortLabel}{\texttt{gpt-5.6-terra}}
+\newcommand{\LlongShortMin}{10}
+\newcommand{\LlongShortActs}{49}
+% earliest crossing, minutes
+\newcommand{\LlongCrossFirst}{4}
+% latest crossing, minutes
+\newcommand{\LlongCrossLast}{72}
+% crossings after the first hour
+\newcommand{\NlongCrossLate}{2}
+% the models whose four-hour crossing came after the first hour
+\newcommand{\LlongLateLabels}{\texttt{gemini-3.8-flash} and \texttt{gpt-5.6-luna}}
+\newcommand{\LlongHolderFastLabel}{\texttt{gpt-6-astra}}
+% its crossing, minutes
+\newcommand{\LlongHolderFastCross}{4}
+\newcommand{\LlongHolderFastHermit}{46}
+\newcommand{\LlongHolderFastCompass}{56}
+\newcommand{\LlongHolderFastRecruit}{72}
+% distinct scenes it entered
+\newcommand{\LlongHolderFastScenes}{4}
+% its last key, minutes
+\newcommand{\LlongHolderFastLast}{91}
+\newcommand{\LlongHolderFastActs}{277}
+\newcommand{\LlongHolderSlowLabel}{\texttt{gemini-3.8-flash}}
+% its crossing, minutes
+\newcommand{\LlongHolderSlowCross}{63}
+\newcommand{\LlongHolderSlowHermit}{126}
+\newcommand{\LlongHolderSlowCompass}{134}
+\newcommand{\LlongHolderSlowRecruit}{216}
+% distinct scenes it entered
+\newcommand{\LlongHolderSlowScenes}{2}
+% its last key, minutes
+\newcommand{\LlongHolderSlowLast}{239}
+\newcommand{\LlongHolderSlowActs}{442}
+% models whose four-hour session passed every hour session of theirs
+\newcommand{\NlongGained}{1}
+% models whose four-hour session fell short of their best hour session
+\newcommand{\NlongFewer}{4}
+\newcommand{\NlongSame}{3}
+% the models that gained from the four-hour budget
+\newcommand{\LlongGainedLabels}{\texttt{gemini-3.8-flash}}
+% the models that fell short of their best hour session
+\newcommand{\LlongFewerLabels}{\texttt{gemini-3.7-flash}, \texttt{glm-5.3-flash}, \texttt{gpt-5.6-terra} and \texttt{gpt-6-astra}}
+% four-hour compass holders that held no compass in the hour
+\newcommand{\NlongNewCompass}{1}
+% the day the four-hour sessions ran, UTC
+\newcommand{\LongDate}{16 September 2026}
 % --- derived strings used by the results table -------------------------
 % each row: agent & second & first & keys & screen-changing decisions/n & ratio\ci{n} & in-going & map & end
 % rows below are sorted by vendor then actions

@@ -6,5 +6,6 @@
  "glm-5.3-flash-high": "glm-5.3-flash",
  "claude-opus5-high": "claude-opus5",
  "claude-sonnet5-high": "claude-sonnet5",
- "claude-fable5.1-high": "claude-fable5.1"
+ "claude-fable5.1-high": "claude-fable5.1",
+ "gpt5.6-sol": "gpt-5.6-sol"
 }

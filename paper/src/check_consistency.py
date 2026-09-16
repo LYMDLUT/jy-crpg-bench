@@ -252,6 +252,27 @@ def main():
                     fastest is not None and top not in (busiest, fastest),
                     "top %s, most actions %s, fastest %s" % (top, busiest, fastest))
 
+    # The four-hour sessions of Section 4.3, one per model.
+    long_rows = field.load_long()
+    if "each with one session at the" in flat:
+        ok &= claim("one four-hour session per model", len(long_rows) == len({r["agent"] for r in long_rows}),
+                    "%d sessions, %d models" % (len(long_rows), len({r["agent"] for r in long_rows})))
+    if "no session enters a fight, and none gains experience or holds a book" in flat:
+        FIGHT = field.DEFINITION.index("entered\na fight")
+        ok &= claim("no four-hour session fought, gained experience or holds a book",
+                    bool(long_rows) and not any(field.rungs_of(r)[FIGHT] is True for r in long_rows)
+                    and all((r.get("exp") or 0) == 0 and (r.get("books") or 0) == 0 for r in long_rows),
+                    "exp %s, books %s" % ([r.get("exp") for r in long_rows], [r.get("books") for r in long_rows]))
+    if "came after the first hour" in flat:
+        late = [r["agent"] for r in long_rows if (r.get("exit_secs") or 0) > field.DEFAULT_BUDGET]
+        ok &= claim("late crossings match the macro", int(nums["NlongCrossLate"]) == len(late), "late: %s" % late)
+    if "one more model to the compass" in flat:
+        C = field.DEFINITION.index("holds the\ncompass")
+        hour = {m["agent"] for m in field.model_rows(models) if m["rungs"][C] is True}
+        long_c = {r["agent"] for r in long_rows if field.rungs_of(r)[C] is True}
+        ok &= claim("the four-hour sessions add one compass holder", len(long_c - hour) == 1,
+                    "hour %s, four hours %s" % (sorted(hour), sorted(long_c)))
+
     print("\n%d runs scored, %d sessions with a map verdict, %d maps latched"
           % (len(scored), len(read), latched))
     return 0 if ok else 1

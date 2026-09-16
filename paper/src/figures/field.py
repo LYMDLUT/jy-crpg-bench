@@ -38,6 +38,11 @@ EVENTS = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-
 # The budget of the field this paper reports. The broker's default has since
 # moved to four hours; the field is selected by this value, not by that default.
 DEFAULT_BUDGET = 3600
+# The four-hour sessions: the catalogue as fetched on 2026-09-16, holding one
+# session of each of eight models of the field at the budget that is now the
+# default. They are reported as a second experiment beside the hour field.
+LONG = os.path.join(HERE, "catalog_snapshot_240min.json")
+LONG_BUDGET = 14400
 
 
 def _rows(path):
@@ -110,6 +115,11 @@ def played(rows, budget=DEFAULT_BUDGET):
 
 def is_random(agent):
     return agent.lower().startswith("random")
+
+
+def load_long():
+    """The model sessions at the four-hour budget, listed under the model."""
+    return [r for r in played(_rows(LONG), LONG_BUDGET) if not is_random(r["agent"])]
 
 
 def random_rows(rows, budget=DEFAULT_BUDGET):
