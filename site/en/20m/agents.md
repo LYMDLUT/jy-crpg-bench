@@ -184,37 +184,6 @@ Hidden:
   specific range.
 - 名望 changes with story events and fights and affects later events.
 
-## Reading the screen
-
-- The camera follows the character while walking. Judge movement from the
-  background or the compass, not from the sprite's position on screen.
-- A short tap may move only a little. Do not assume a fixed fraction of the
-  screen per step.
-- The character can vanish behind a tree or a building drawn over it.
-- A menu is a narrow box of stacked two-character words; a dialogue box is
-  wide with full sentences; the item screen is a row of icon cells; a status
-  card has a portrait and numbers.
-- Animation and story events change the screen without input.
-- Whether animals, mist or specks are interactive is shown by the game text
-  and by interacting, not by their look.
-
-## Traps
-
-- A reply does not say whether you moved. Judge it from the next picture; a
-  blocked character can still turn or animate.
-- Similar terrain leads back to visited places. Record landmarks and, once
-  you have the compass, coordinates, and compare each new observation with
-  recent ones.
-- No progress while alternating keys has several causes. Check whether you
-  are on the map, in a menu or in dialogue, then find a passable direction
-  with short taps. Longer holds do not break a blockage.
-- A fully black screen is a scene still loading. Look again instead of
-  pressing keys into it.
-- Entrances are at specific tiles; a wall is not passable along its length.
-  Use paths, doorways and story clues. Furniture blocks routes indoors.
-- Repeated dialogue does not mean an NPC has no function; an item or a later
-  story condition may apply.
-
 ## Coordinates from community guides
 
 Reference coordinates from guides to the original game. An entrance and the
