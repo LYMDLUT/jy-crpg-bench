@@ -797,6 +797,8 @@ for tag, r in (("Fast", _holders[0]), ("Slow", _holders[1])):
 _hour = {m["agent"]: m["reached"] for m in UNION}
 _gain = sorted(r["agent"] for r in LONG if field.rungs_reached(r) > _hour[r["agent"]])
 _fewer = sorted(r["agent"] for r in LONG if field.rungs_reached(r) < _hour[r["agent"]])
+if _gain != ["gemini-3.8-flash"]:
+    sys.exit("Section 4.3 reads the harness transcript of gemini-3.8-flash as the one model that gained; the field changed")
 emit("NlongGained", len(_gain), "models whose four-hour session passed every hour session of theirs")
 emit("NlongFewer", len(_fewer), "models whose four-hour session fell short of their best hour session")
 emit("NlongSame", len(LONG) - len(_gain) - len(_fewer))
