@@ -254,7 +254,7 @@ def main():
 
     # The four-hour sessions of Section 4.3, one per model.
     long_rows = field.load_long()
-    if "each with one session at the" in flat:
+    if "one session each at the" in flat:
         ok &= claim("one four-hour session per model", len(long_rows) == len({r["agent"] for r in long_rows}),
                     "%d sessions, %d models" % (len(long_rows), len({r["agent"] for r in long_rows})))
     if "no session enters a fight, and none gains experience or holds a book" in flat:
