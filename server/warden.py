@@ -36,7 +36,7 @@ VIDEOS = pathlib.Path(os.environ.get("QUNXIA_VIDEO_DIR", "/tmp/qunxia-videos"))
 # catalogue and is not this service at all.
 PUBLIC_BASE = os.environ.get("QUNXIA_PUBLIC_BASE", "").rstrip("/")
 SITE = os.environ.get("QUNXIA_BENCH_SITE", "https://hanxiao.io/jy-crpg-bench/")
-CATALOG_OBJECT = "catalog.json"
+CATALOG_OBJECT = os.environ.get("QUNXIA_INDEX_PREFIX", "") + "catalog.json"
 
 # Filled in by the server as the agent plays. Kept here rather than in the
 # proxy so the numbers survive however the run is fronted.

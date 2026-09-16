@@ -18,6 +18,7 @@ import shutil
 import socket
 import subprocess
 import time
+import urllib.parse
 import uuid
 import sys
 
@@ -95,6 +96,43 @@ VIDEO_WAIT = float(os.environ.get("QUNXIA_VIDEO_WAIT", "300"))
 # The catalogue page is static and served from another origin, so the two
 # endpoints it reads have to say so.
 CORS = {"Access-Control-Allow-Origin": "*"}
+
+
+def _origin_of(url):
+    p = urllib.parse.urlsplit(url)
+    return f"{p.scheme}://{p.netloc}".lower() if p.scheme and p.netloc else ""
+
+
+# The board's reads - the catalogue, the live index, the session list and a
+# spectator's view of a run - answer a page served from the site and nothing
+# else. A run has no use for any of them, and a model with a shell would
+# otherwise read other runs' timelines off the board. The check is the
+# browser's own Origin or Referer header: it keeps the page working and keeps
+# a curl from a run's shell out. It is not a credential.
+BOARD_ORIGINS = {o for o in (_origin_of(SITE),) if o} | {
+    o.strip().lower() for o in os.environ.get("QUNXIA_BOARD_ORIGINS", "").split(",")
+    if o.strip()}
+
+
+def board_origin(request):
+    """The allowed origin a request came from, or None."""
+    for header in ("Origin", "Referer"):
+        value = request.headers.get(header, "")
+        if value:
+            origin = _origin_of(value)
+            return origin if origin in BOARD_ORIGINS else None
+    return None
+
+
+def board_headers(origin):
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"}
+
+
+def board_refusal():
+    return web.json_response(
+        {"ok": False, "error": "this is read by the board, from the site",
+         "hint": "a run needs only the calls in its brief"},
+        status=403, headers=CORS)
 LIVE_HERO_FIELDS = (
     "level", "exp", "hp", "maxhp", "skills", "items",
     "inventory_distinct", "picked_item", "compass",
@@ -175,7 +213,15 @@ def drop_published_artifacts(sess):
         (VIDEO_DIR / name).unlink(missing_ok=True)
 
 
-CATALOG_OBJECT = "catalog.json"
+# The catalogue and the live index are the only way to find runs, so they
+# sit under a prefix only this service knows and reach the site through it.
+# The artifacts they name keep their public, unguessable addresses, and the
+# bucket does not list.
+INDEX_PREFIX = os.environ.get("QUNXIA_INDEX_PREFIX", "")
+CATALOG_OBJECT = INDEX_PREFIX + "catalog.json"
+LIVE_OBJECT = INDEX_PREFIX + "live.json"
+CATALOG_CACHE_SECONDS = 3
+_catalog_cache = {"at": 0.0, "body": None}
 
 # The catalogue's blob generation at the moment a report's entry was
 # confirmed absent. The catalogue only gains entries when it is written, so
@@ -678,6 +724,14 @@ async def proxy(request):
              "hint": "the base_url from POST /session carries play access "
                      "in its path"},
             status=403, headers=CORS)
+    if not authenticated and board_origin(request) is None:
+        # A spectator's view belongs to the site's page. A run holds its own
+        # play address and has no use for a view of any run.
+        return web.json_response(
+            {"ok": False, "error": "this address watches, from the site; it does not play",
+             "hint": "the base_url from POST /session carries play access "
+                     "in its path"},
+            status=403, headers=CORS)
 
     res = result_of(sid)
     if res or sess["proc"].poll() is not None:
@@ -934,7 +988,10 @@ async def api_usage(request):
         status=202, headers=CORS)
 
 
-async def api_sessions(_request):
+async def api_sessions(request):
+    origin = board_origin(request)
+    if origin is None:
+        return board_refusal()
     now = time.time()
     return web.json_response(
         {"capacity": MAX_SESSIONS, "running": [
@@ -951,7 +1008,7 @@ async def api_sessions(_request):
              "remaining": max(0, round(s["ends_at"] - now))}
             for s in sessions.values()
             if s["proc"].poll() is None and not result_of(s["id"])]},
-        headers=CORS)
+        headers=board_headers(origin))
 
 
 async def video_file(request):
@@ -963,15 +1020,39 @@ async def video_file(request):
     return web.FileResponse(path)
 
 
-async def api_catalog(_request):
-    """The published catalogue lives in the bucket; this is the local mirror
-    so the static page can be developed without one."""
-    if GCS_BUCKET:
-        raise web.HTTPFound(
-            f"https://storage.googleapis.com/{GCS_BUCKET}/catalog.json")
-    f = pathlib.Path(os.environ.get("QUNXIA_CATALOG", "/tmp/qunxia-catalog.json"))
-    runs = json.loads(f.read_text()) if f.exists() else []
-    return web.json_response({"runs": runs}, headers=CORS)
+def read_catalog_bytes():
+    """The catalogue as published: the bucket object under the private
+    prefix, or the local mirror when there is no bucket."""
+    b = bucket()
+    if b is None:
+        f = pathlib.Path(os.environ.get("QUNXIA_CATALOG", "/tmp/qunxia-catalog.json"))
+        return f.read_bytes() if f.exists() else b"[]"
+    blob = b.get_blob(CATALOG_OBJECT)
+    return blob.download_as_bytes() if blob is not None else b"[]"
+
+
+async def api_catalog(request):
+    """The catalogue, for the site. The page reads it here and never learns
+    where the object sits; a run cannot read it at all."""
+    origin = board_origin(request)
+    if origin is None:
+        return board_refusal()
+    now = time.time()
+    if _catalog_cache["body"] is None or now - _catalog_cache["at"] > CATALOG_CACHE_SECONDS:
+        _catalog_cache["body"] = await asyncio.get_running_loop().run_in_executor(
+            None, read_catalog_bytes)
+        _catalog_cache["at"] = now
+    return web.Response(body=_catalog_cache["body"], content_type="application/json",
+                        headers={**board_headers(origin), "Cache-Control": "no-cache"})
+
+
+async def api_live(request):
+    """The runs in progress, for the site, straight from this process."""
+    origin = board_origin(request)
+    if origin is None:
+        return board_refusal()
+    return web.json_response(live_payload(),
+                             headers={**board_headers(origin), "Cache-Control": "no-store"})
 
 
 async def health(_request):
@@ -1177,7 +1258,7 @@ async def sweep(app):
                 last_live, last_sig = now, sig
                 try:
                     await loop.run_in_executor(
-                        None, put, "live.json",
+                        None, put, LIVE_OBJECT,
                         json.dumps(live_payload()).encode(), "application/json", 3)
                 except Exception as exc:
                     print(f"live publish failed: {exc}", flush=True)
@@ -1250,7 +1331,7 @@ async def spawn_sweep(app):
     # container; clear it before anything reads it
     try:
         await asyncio.get_running_loop().run_in_executor(
-            None, put, "live.json", json.dumps(live_payload()).encode(),
+            None, put, LIVE_OBJECT, json.dumps(live_payload()).encode(),
             "application/json", 3)
     except Exception as exc:
         print(f"live reset failed: {exc}", flush=True)
@@ -1392,6 +1473,7 @@ def build_app():
         web.post("/session", api_new),
         web.get("/api/sessions", api_sessions),
         web.get("/api/catalog", api_catalog),
+        web.get("/api/live", api_live),
         web.get("/videos/{name}", video_file),
         # Usage has no route of its own: the catch-all answers it after the
         # token check, so only the session's own address can file a report.

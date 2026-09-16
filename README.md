@@ -308,7 +308,9 @@ separate from game-tool-only results; this does not relabel the paper's runs.
 
 <https://hanxiao.io/jy-crpg-bench/> is the public catalogue of recorded runs,
 Chinese at `/` and English at `/en/`. It is a static page that reads
-`catalog.json` from the benchmark's bucket, so it has no backend of its own.
+the catalogue and the live index from the benchmark service, which answers
+those reads for the site alone. The videos and timelines they name are
+fetched from the bucket by address, and the bucket does not list.
 
 ![The public benchmark board](docs/board.png)
 

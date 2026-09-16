@@ -129,7 +129,10 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
 
     def get_app(self):
         app = web.Application()
-        app.add_routes([web.route("*", "/s/{sid}/{tail:.*}", broker.proxy)])
+        app.add_routes([web.get("/api/sessions", broker.api_sessions),
+                        web.get("/api/live", broker.api_live),
+                        web.get("/api/catalog", broker.api_catalog),
+                        web.route("*", "/s/{sid}/{tail:.*}", broker.proxy)])
         app.on_startup.append(broker.open_http)
         app.on_cleanup.append(broker.close_http)
         return app
@@ -147,7 +150,8 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
     async def test_the_bare_address_watches_and_the_record_names_the_run(self):
         with self.with_session():
             response = await self.client.get(
-                f"/s/{self.SID}/status", headers={"X-Agent": "impostor"})
+                f"/s/{self.SID}/status", headers={"X-Agent": "impostor",
+                                                 "Origin": "https://hanxiao.io"})
         self.assertEqual(response.status, 200)
         body = await response.json()
         self.assertEqual(body["path"], "/status")
@@ -215,7 +219,8 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
             response = await self.client.get(
                 f"/s/{self.SID}/api/help",
                 headers={"X-Forwarded-Host": "evil.example",
-                         "X-Forwarded-Proto": "http"})
+                         "X-Forwarded-Proto": "http",
+                         "Origin": "https://hanxiao.io"})
         self.assertEqual(response.status, 200)
         body = await response.json()
         # The host the proxy itself was reached under - its own address, not
@@ -231,7 +236,8 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
         # spectator; read through the public address, the page is unchanged.
         with self.with_session():
             play = await self.client.get(f"/s/{self.SID}/t/{self.TOKEN}/api/help")
-            public = await self.client.get(f"/s/{self.SID}/api/help")
+            public = await self.client.get(f"/s/{self.SID}/api/help",
+                                           headers={"Origin": "https://hanxiao.io"})
         self.assertEqual(play.status, 200)
         self.assertIn("X-Bench-Remaining", play.headers)
         origin = f"http://127.0.0.1:{self.server.port}"
@@ -241,11 +247,45 @@ class ProxyTests(aiohttp.test_utils.AioHTTPTestCase):
         self.assertEqual((await public.json())["help_text"],
                          f"GET {origin}/s/{self.SID}/api/screen at {origin}/s/{self.SID}.")
 
+    async def test_a_spectator_reads_only_from_the_site(self):
+        # The board's page carries the site's origin; a shell does not. The
+        # play address needs no origin at all.
+        with self.with_session():
+            bare = await self.client.get(f"/s/{self.SID}/api/help")
+            elsewhere = await self.client.get(
+                f"/s/{self.SID}/api/help", headers={"Origin": "https://evil.example"})
+            referred = await self.client.get(
+                f"/s/{self.SID}/api/help",
+                headers={"Referer": "https://hanxiao.io/jy-crpg-bench/en/"})
+            play = await self.client.get(f"/s/{self.SID}/t/{self.TOKEN}/api/help")
+        self.assertEqual(bare.status, 403)
+        self.assertIn("watches", (await bare.json())["error"])
+        self.assertEqual(elsewhere.status, 403)
+        self.assertEqual(referred.status, 200)
+        self.assertEqual(play.status, 200)
+
+    async def test_the_board_endpoints_answer_the_site_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalogue = pathlib.Path(directory) / "catalog.json"
+            catalogue.write_text(json.dumps([{"id": "r1", "agent": "gpt-5"}]))
+            with (mock.patch.dict(os.environ, {"QUNXIA_CATALOG": str(catalogue)}),
+                  mock.patch.object(broker, "_catalog_cache", {"at": 0.0, "body": None})):
+                for path in ("/api/sessions", "/api/live", "/api/catalog"):
+                    bare = await self.client.get(path)
+                    self.assertEqual(bare.status, 403, path)
+                    ok = await self.client.get(path, headers={"Origin": "https://hanxiao.io"})
+                    self.assertEqual(ok.status, 200, path)
+                    self.assertEqual(ok.headers["Access-Control-Allow-Origin"],
+                                     "https://hanxiao.io")
+                body = await ok.json()
+                self.assertEqual(body[0]["id"], "r1")
+
     async def test_a_view_ends_when_the_run_ends(self):
         # When the game's socket dies, the view must die with it: a
         # spectator is not left holding a live socket on a frozen frame.
         with self.with_session():
-            async with self.client.ws_connect(f"/s/{self.SID}/ws") as down:
+            async with self.client.ws_connect(f"/s/{self.SID}/ws",
+                                              headers={"Origin": "https://hanxiao.io"}) as down:
                 frame = await asyncio.wait_for(down.receive(), timeout=5)
                 self.assertEqual(frame.data, "last-frame")
                 close = await asyncio.wait_for(down.receive(), timeout=5)
@@ -319,7 +359,8 @@ class NewSessionUrlTests(aiohttp.test_utils.AioHTTPTestCase):
             response = await self.client.post(
                 "/session", json={"agent": "gpt-5", "minutes": 20},
                 headers={"X-Forwarded-Host": "evil.example",
-                         "X-Forwarded-Proto": "http"})
+                         "X-Forwarded-Proto": "http",
+                         "Origin": "https://hanxiao.io"})
         self.assertEqual(response.status, 200)
         body = await response.json()
         self.assertNotIn("evil.example", body["base_url"])

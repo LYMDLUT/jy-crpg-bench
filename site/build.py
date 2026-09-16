@@ -865,9 +865,12 @@ const T = {strings};
 // the service that runs the games: a crowd arriving at once would otherwise be
 // competing for CPU with the emulators it came to watch.
 const Q = new URLSearchParams(location.search);
+const BACKEND = "https://jy-crpg-bench-366646433082.us-central1.run.app";
 const STORE = Q.get("store") || "https://storage.googleapis.com/jy-crpg-bench-runs";
-const CATALOG = Q.get("catalog") || STORE + "/catalog.json";
-const LIVE = Q.get("live") || STORE + "/live.json";
+// The catalogue and the live index come from the backend, which answers this
+// page and nothing else; the artifacts they name stay in the store.
+const CATALOG = Q.get("catalog") || BACKEND + "/api/catalog";
+const LIVE = Q.get("live") || BACKEND + "/api/live";
 
 const secs = v => v == null ? "-" : v < 10 ? Number(v.toFixed(1)) + "s" : Math.round(v) + "s";
 const mmss = v => v == null ? "-"
@@ -1704,8 +1707,6 @@ document.getElementById("copy").onclick = async e => {{
 }};
 
 // ------------------------------------------------------------------ live
-
-const BACKEND = "https://jy-crpg-bench-366646433082.us-central1.run.app";
 
 // The version shown is whatever backend answers right now, not whatever this
 // page was built beside: a redeployed backend and a stale page would otherwise

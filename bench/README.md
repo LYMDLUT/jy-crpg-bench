@@ -21,8 +21,9 @@ Catalogue: <https://hanxiao.io/jy-crpg-bench/> (static, see `site/`)
 Three pieces that only meet through a bucket:
 
 ```
-site/            static HTML on GitHub Pages. No backend. Reads catalog.json
-                 from the bucket over CORS. Serves agents.md, the whole brief.
+site/            static HTML on GitHub Pages. No backend of its own. Reads the
+                 catalogue and live index from the broker, which answers the
+                 site alone. Serves agents.md, the whole brief.
 bench/broker.py  the front door. Spawns one game process per agent and keeps
                  in-memory routing and live-view metadata.
 server/warden.py inside each game process. Owns that run's clock, teardown,
@@ -256,6 +257,8 @@ service; 24 simultaneous short requests lose none.
 | variable | default | |
 |---|---|---|
 | `QUNXIA_RUN_SECONDS` | 14400 | length of a run |
+| `QUNXIA_INDEX_PREFIX` | empty | prefix of the catalogue and live-index objects in the bucket; a random path, since those two are the only way to find runs and the bucket does not list |
+| `QUNXIA_BOARD_ORIGINS` | the site | further origins, comma-separated, whose pages may read the catalogue, the live index, the session list and a spectator's view |
 | `QUNXIA_IDLE_LIMIT` | 0 | seconds without an action before a run is torn down; 0 leaves runs alone |
 | `QUNXIA_MAX_SESSIONS` | 24 | concurrent sessions; configurable for host capacity |
 | `QUNXIA_REAP_GRACE` | 600 | seconds a finished run's entry outlives its process, so late calls - the agent's final 410, a usage report - still find it; a held usage report holds it further until merged or dropped |
