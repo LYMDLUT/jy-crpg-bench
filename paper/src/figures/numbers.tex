@@ -25,7 +25,7 @@
 % distinct model names among the scored sessions
 \newcommand{\NmodelsDistinct}{11}
 % sessions that never sent a key
-\newcommand{\Nnever}{2}
+\newcommand{\Nnever}{3}
 % sessions at another playtime
 \newcommand{\NotherBudget}{0}
 % service probes, excluded
@@ -35,21 +35,21 @@
 % default playtime, minutes
 \newcommand{\NbudgetMin}{60}
 % sessions on record created under a variant spelling of the model name
-\newcommand{\Naliased}{7}
+\newcommand{\Naliased}{8}
 % the runs created under a name that was not the model, declared as listed
-\newcommand{\aliaslist}{\texttt{claude-fable-5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-fable5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-opus5-high} as \texttt{claude-opus5} and \texttt{claude-sonnet-5-high} as \texttt{claude-sonnet5} and \texttt{claude-sonnet5-high} as \texttt{claude-sonnet5} and \texttt{glm-5.3-flash-high} as \texttt{glm-5.3-flash}}
+\newcommand{\aliaslist}{\texttt{GPT-5} as \texttt{gpt-5.6-sol} and \texttt{claude-fable-5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-fable5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-opus5-high} as \texttt{claude-opus5} and \texttt{claude-sonnet-5-high} as \texttt{claude-sonnet5} and \texttt{claude-sonnet5-high} as \texttt{claude-sonnet5} and \texttt{glm-5.3-flash-high} as \texttt{glm-5.3-flash}}
 % reported sessions ended by the inactivity rule then in force
 \newcommand{\Nidle}{11}
 % reported sessions that played to their budget
 \newcommand{\Ntime}{29}
 % models with more than one session
-\newcommand{\NrepeatModels}{1}
+\newcommand{\NrepeatModels}{2}
 % sessions that give way to a longer one of the same model
-\newcommand{\NrepeatSessions}{2}
+\newcommand{\NrepeatSessions}{3}
 % of those, sessions that never sent a key
-\newcommand{\NrepeatNever}{2}
+\newcommand{\NrepeatNever}{3}
 % model sessions at the default budget on record
-\newcommand{\NsessionsRaw}{42}
+\newcommand{\NsessionsRaw}{43}
 % model sessions at the default budget that sent a key
 \newcommand{\NsessionsPlayed}{40}
 % most sessions any one model played
@@ -416,13 +416,23 @@
 \newcommand{\PbatchKeysPerAction}{22}
 % its actions of fifty keys or more
 \newcommand{\PbatchBig}{32}
-% four-hour sessions, one per model
-\newcommand{\NlongSessions}{8}
+% four-hour sessions
+\newcommand{\NlongSessions}{16}
+% models with a four-hour session
+\newcommand{\NlongModels}{10}
+% of them evaluated at the hour
+\newcommand{\NlongFieldModels}{8}
+% four-hour sessions of those models
+\newcommand{\NlongFieldSessions}{10}
 % their budget, minutes
 \newcommand{\NlongBudgetMin}{240}
+% four-hour sessions declared under another name
+\newcommand{\NlongAliased}{9}
+% four-hour sessions the paper leaves out
+\newcommand{\NlongExcluded}{2}
 % four-hour sessions that reached the world map
-\newcommand{\NlongMap}{7}
-\newcommand{\NlongItem}{6}
+\newcommand{\NlongMap}{11}
+\newcommand{\NlongItem}{9}
 \newcommand{\NlongScene}{5}
 \newcommand{\NlongHermit}{3}
 \newcommand{\NlongCompass}{2}
@@ -431,56 +441,60 @@
 \newcommand{\NlongExp}{0}
 \newcommand{\NlongBook}{0}
 % earliest last key, minutes
-\newcommand{\LlongLastMin}{10}
+\newcommand{\LlongLastMin}{2}
 % latest last key, minutes
 \newcommand{\LlongLastMax}{239}
 % the session that stopped first
-\newcommand{\LlongShortLabel}{\texttt{gpt-5.6-terra}}
-\newcommand{\LlongShortMin}{10}
-\newcommand{\LlongShortActs}{49}
+\newcommand{\LlongShortLabel}{\texttt{deepseek-v4-flash}}
+\newcommand{\LlongShortMin}{2}
+\newcommand{\LlongShortActs}{12}
 % earliest crossing, minutes
 \newcommand{\LlongCrossFirst}{4}
 % latest crossing, minutes
 \newcommand{\LlongCrossLast}{72}
 % crossings after the first hour
-\newcommand{\NlongCrossLate}{2}
+\newcommand{\NlongCrossLate}{3}
 % the models whose four-hour crossing came after the first hour
-\newcommand{\LlongLateLabels}{\texttt{gemini-3.8-flash} and \texttt{gpt-5.6-luna}}
+\newcommand{\LlongLateLabels}{\texttt{gemini-3.8-flash}, \texttt{gpt-5.6-luna} and \texttt{gpt-5.6-sol}}
 \newcommand{\LlongHolderFastLabel}{\texttt{gpt-6-astra}}
 % its crossing, minutes
 \newcommand{\LlongHolderFastCross}{4}
-\newcommand{\LlongHolderFastHermit}{46}
 \newcommand{\LlongHolderFastCompass}{56}
 \newcommand{\LlongHolderFastRecruit}{72}
-% distinct scenes it entered
-\newcommand{\LlongHolderFastScenes}{4}
 % its last key, minutes
 \newcommand{\LlongHolderFastLast}{91}
-\newcommand{\LlongHolderFastActs}{277}
 \newcommand{\LlongHolderSlowLabel}{\texttt{gemini-3.8-flash}}
 % its crossing, minutes
 \newcommand{\LlongHolderSlowCross}{63}
-\newcommand{\LlongHolderSlowHermit}{126}
 \newcommand{\LlongHolderSlowCompass}{134}
 \newcommand{\LlongHolderSlowRecruit}{216}
-% distinct scenes it entered
-\newcommand{\LlongHolderSlowScenes}{2}
 % its last key, minutes
 \newcommand{\LlongHolderSlowLast}{239}
-\newcommand{\LlongHolderSlowActs}{442}
-% models whose four-hour session passed every hour session of theirs
+% models whose four-hour sessions reached more milestones than their hour sessions
 \newcommand{\NlongGained}{1}
-% models whose four-hour session fell short of their best hour session
+% models whose four-hour sessions reached fewer
 \newcommand{\NlongFewer}{4}
 \newcommand{\NlongSame}{3}
 % the models that gained from the four-hour budget
 \newcommand{\LlongGainedLabels}{\texttt{gemini-3.8-flash}}
-% the models that fell short of their best hour session
+% the models that fell short of their hour sessions
 \newcommand{\LlongFewerLabels}{\texttt{gemini-3.7-flash}, \texttt{glm-5.3-flash}, \texttt{gpt-5.6-terra} and \texttt{gpt-6-astra}}
 % four-hour compass holders that held no compass in the hour
 \newcommand{\NlongNewCompass}{1}
-% the day the four-hour sessions ran, UTC
-\newcommand{\LongDate}{16 September 2026}
+\newcommand{\LlongQwenLabel}{\texttt{qwen3.8-27b}}
+% its crossing, minutes
+\newcommand{\LlongQwenCross}{48}
+% its last key, minutes
+\newcommand{\LlongQwenLast}{239}
+\newcommand{\LlongDeepLabel}{\texttt{deepseek-v4-flash}}
+% its sessions
+\newcommand{\LlongDeepSessions}{5}
+% of them on the world map
+\newcommand{\LlongDeepMap}{2}
+% latest last key among them, minutes
+\newcommand{\LlongDeepLastMax}{35}
+% the days the four-hour sessions ran, UTC
+\newcommand{\LongDates}{16 to 17 September 2026}
 % --- derived strings used by the results table -------------------------
 % each row: agent & second & first & keys & screen-changing decisions/n & ratio\ci{n} & in-going & map & end
 % rows below are sorted by vendor then actions

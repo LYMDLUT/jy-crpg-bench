@@ -8426,7 +8426,7 @@
     },
     {
      "minute": 85.8,
-     "name": "無量山洞"
+     "name": "\u7121\u91cf\u5c71\u6d1e"
     }
    ],
    "distinct": 4,
@@ -9045,6 +9045,673 @@
   },
   "first_black_second": 26.75,
   "crossing_actions": 77,
+  "recruited_minute": null
+ },
+ "2ade73b3f2bb": {
+  "agent": "claude-opus-4-8-thinking-high",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.267,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.152,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.128,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.272,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.604,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": [
+    [
+     4,
+     0.604
+    ],
+    [
+     5,
+     0.604
+    ],
+    [
+     6,
+     0.604
+    ]
+   ]
+  },
+  "obtained": {
+   "seconds": 1,
+   "max": 0.932,
+   "first_minute": 1.6,
+   "minutes": [
+    1.6
+   ],
+   "candidates": [
+    [
+     4,
+     0.932
+    ]
+   ]
+  },
+  "first_black_second": 118.45,
+  "crossing_actions": 74,
+  "recruited_minute": null
+ },
+ "32940e2cb2c0": {
+  "agent": "deepseek-v4-flashhigh",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.095,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.067,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.007,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.095,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.552,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 2,
+   "max": 0.993,
+   "first_minute": 1.2,
+   "minutes": [
+    1.2,
+    1.6
+   ],
+   "candidates": [
+    [
+     3,
+     0.993
+    ],
+    [
+     4,
+     0.993
+    ]
+   ]
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
+ },
+ "72e7251322d3": {
+  "agent": "GPT-5",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.209,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.163,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.152,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.303,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.615,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": [
+    [
+     17,
+     0.615
+    ],
+    [
+     18,
+     0.615
+    ],
+    [
+     20,
+     0.612
+    ],
+    [
+     21,
+     0.612
+    ],
+    [
+     137,
+     0.603
+    ],
+    [
+     138,
+     0.603
+    ],
+    [
+     139,
+     0.603
+    ],
+    [
+     140,
+     0.603
+    ],
+    [
+     142,
+     0.607
+    ],
+    [
+     143,
+     0.607
+    ],
+    [
+     144,
+     0.607
+    ],
+    [
+     145,
+     0.609
+    ],
+    [
+     146,
+     0.609
+    ],
+    [
+     147,
+     0.609
+    ]
+   ]
+  },
+  "obtained": {
+   "seconds": 2,
+   "max": 0.917,
+   "first_minute": 54.3,
+   "minutes": [
+    54.3,
+    54.7
+   ],
+   "candidates": [
+    [
+     136,
+     0.917
+    ],
+    [
+     137,
+     0.917
+    ]
+   ]
+  },
+  "first_black_second": 178.6,
+  "crossing_actions": 156,
+  "recruited_minute": null
+ },
+ "9e2b0a394814": {
+  "agent": "GPT-5-run2",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.028,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.036,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.006,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.102,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.552,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.197,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
+ },
+ "32ecf060c2ae": {
+  "agent": "deepseek-v4-flash-high",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.327,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.125,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.123,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.207,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.607,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": [
+    [
+     32,
+     0.607
+    ]
+   ]
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.3,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": 24.9,
+  "crossing_actions": 190,
+  "recruited_minute": null
+ },
+ "d8428f311f2c": {
+  "agent": "deepseek-v4-flash-high",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.243,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.127,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.188,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.218,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.557,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.31,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": 13.0,
+  "crossing_actions": 112,
+  "recruited_minute": null
+ },
+ "103843b6012a": {
+  "agent": "deepseek-v4-flash-high",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.206,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.123,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.112,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.254,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.556,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.286,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
+ },
+ "58e79307057b": {
+  "agent": "deepseek-v4-flash-high",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.071,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.121,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.104,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.164,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.239,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.231,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
+ },
+ "71aac2ce1f89": {
+  "agent": "gpt-6-astramax",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.142,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.075,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.036,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.156,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.587,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.207,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": null,
+  "crossing_actions": null,
+  "recruited_minute": null
+ },
+ "32a1d38bbfce": {
+  "agent": "claude-opus-4-5-high",
+  "video_seconds": 600,
+  "scenes": {
+   "entries": [
+    {
+     "minute": 16.8,
+     "name": "\u738b\u5c45"
+    },
+    {
+     "minute": 21.2,
+     "name": "\u738b\u5c45"
+    },
+    {
+     "minute": 32.4,
+     "name": "\u738b\u5c45"
+    },
+    {
+     "minute": 41.6,
+     "name": "\u738b\u5c45"
+    },
+    {
+     "minute": 56.0,
+     "name": "\u738b\u5c45"
+    }
+   ],
+   "distinct": 0,
+   "first_minute": null
+  },
+  "hermit": {
+   "seconds": 0,
+   "max": 0.229,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "compass": {
+   "seconds": 0,
+   "max": 0.541,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "battle": {
+   "seconds": 0,
+   "max": 0.143,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "defeat": {
+   "seconds": 0,
+   "max": 0.197,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "prompt": {
+   "seconds": 0,
+   "max": 0.576,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "obtained": {
+   "seconds": 0,
+   "max": 0.361,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
+  },
+  "first_black_second": 40.1,
+  "crossing_actions": 121,
   "recruited_minute": null
  }
 }

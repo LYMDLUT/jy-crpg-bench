@@ -28,7 +28,7 @@ ANCHOR = "程靈素".encode("big5")
 CHECK = (("胡斐", 1), ("苗人鳳", 3))
 RECORDS = 320
 
-VENDORS = ("claude", "gpt", "gemini", "qwen", "glm", "grok")
+VENDORS = ("claude", "gpt", "gemini", "qwen", "glm", "grok", "deepseek")
 DIAG = ("kp7", "kp9", "kp1", "kp3")
 ARROWS = ("up", "down", "left", "right")
 
@@ -730,12 +730,20 @@ if not _br.get("saved_at") or _br.get("bigmap"):
 LONG = field.load_long()
 if not LONG:
     sys.exit("no four-hour session on record")
-if len(LONG) != len({r["agent"] for r in LONG}):
-    sys.exit("the prose says one four-hour session per model")
-if {r["agent"] for r in LONG} - {r["agent"] for r in PLAY}:
-    sys.exit("a four-hour session belongs to a model outside the hour field")
-emit("NlongSessions", len(LONG), "four-hour sessions, one per model")
+_long_models = sorted({r["agent"] for r in LONG})
+_field_models = {r["agent"] for r in PLAY}
+_new_models = sorted(set(_long_models) - _field_models)
+if _new_models != ["deepseek-v4-flash", "qwen3.8-27b"]:
+    sys.exit("Section 4.3 names qwen3.8-27b and deepseek-v4-flash as the models beyond the hour; the field changed: %s" % _new_models)
+_lu = {m["agent"]: m for m in field.model_rows(LONG)}
+emit("NlongSessions", len(LONG), "four-hour sessions")
+emit("NlongModels", len(_long_models), "models with a four-hour session")
+emit("NlongFieldModels", len(set(_long_models) & _field_models), "of them evaluated at the hour")
+emit("NlongFieldSessions", sum(1 for r in LONG if r["agent"] in _field_models), "four-hour sessions of those models")
 emit("NlongBudgetMin", field.LONG_BUDGET // 60, "their budget, minutes")
+emit("NlongAliased", sum(1 for r in LONG if r["declared"] != r["agent"]), "four-hour sessions declared under another name")
+emit("NlongExcluded", sum(1 for r in field.load_long(keep_excluded=True) if r["declared"] in field.LONG_EXCLUDED),
+     "four-hour sessions the paper leaves out")
 
 
 def _long_n(name):
@@ -777,42 +785,56 @@ def _join(names):
 
 
 lines.append(("% the models whose four-hour crossing came after the first hour",
-              "\\newcommand{\\LlongLateLabels}{" + _join(_late) + "}"))
+              "\\newcommand{\\LlongLateLabels}{" + _join(sorted(set(_late))) + "}"))
 _COMPASS_K = field.DEFINITION.index("holds the\ncompass")
 _holders = sorted((r for r in LONG if field.rungs_of(r)[_COMPASS_K] is True), key=lambda r: r["exit_secs"])
 if len(_holders) != 2:
     sys.exit("the prose describes two four-hour compass holders")
 for tag, r in (("Fast", _holders[0]), ("Slow", _holders[1])):
-    e = dict(r["replay"], speed=_ltl[r["id"]]["speed"])
+    ev = dict(r["replay"], speed=_ltl[r["id"]]["speed"])
     emit_label("LlongHolder%sLabel" % tag, r["agent"])
     emit("LlongHolder%sCross" % tag, r["exit_secs"] / 60, "its crossing, minutes", fmt="%.0f")
-    emit("LlongHolder%sHermit" % tag, e["hermit"]["first_minute"], fmt="%.0f")
-    emit("LlongHolder%sCompass" % tag, e["compass"]["first_minute"], fmt="%.0f")
-    if e.get("recruited_minute") is None:
+    emit("LlongHolder%sCompass" % tag, ev["compass"]["first_minute"], fmt="%.0f")
+    if ev.get("recruited_minute") is None:
         sys.exit("the prose says both four-hour compass holders recruited a companion")
-    emit("LlongHolder%sRecruit" % tag, e["recruited_minute"], fmt="%.0f")
-    emit("LlongHolder%sScenes" % tag, e["scenes"]["distinct"], "distinct scenes it entered")
+    emit("LlongHolder%sRecruit" % tag, ev["recruited_minute"], fmt="%.0f")
     emit("LlongHolder%sLast" % tag, _last[r["id"]], "its last key, minutes", fmt="%.0f")
-    emit("LlongHolder%sActs" % tag, r["actions"])
 _hour = {m["agent"]: m["reached"] for m in UNION}
-_gain = sorted(r["agent"] for r in LONG if field.rungs_reached(r) > _hour[r["agent"]])
-_fewer = sorted(r["agent"] for r in LONG if field.rungs_reached(r) < _hour[r["agent"]])
+_both = [a for a in _long_models if a in _hour]
+_gain = sorted(a for a in _both if _lu[a]["reached"] > _hour[a])
+_fewer = sorted(a for a in _both if _lu[a]["reached"] < _hour[a])
 if _gain != ["gemini-3.8-flash"]:
     sys.exit("Section 4.3 reads the harness transcript of gemini-3.8-flash as the one model that gained; the field changed")
-emit("NlongGained", len(_gain), "models whose four-hour session passed every hour session of theirs")
-emit("NlongFewer", len(_fewer), "models whose four-hour session fell short of their best hour session")
-emit("NlongSame", len(LONG) - len(_gain) - len(_fewer))
+emit("NlongGained", len(_gain), "models whose four-hour sessions reached more milestones than their hour sessions")
+emit("NlongFewer", len(_fewer), "models whose four-hour sessions reached fewer")
+emit("NlongSame", len(_both) - len(_gain) - len(_fewer))
 lines.append(("% the models that gained from the four-hour budget",
               "\\newcommand{\\LlongGainedLabels}{" + _join(_gain) + "}"))
-lines.append(("% the models that fell short of their best hour session",
+lines.append(("% the models that fell short of their hour sessions",
               "\\newcommand{\\LlongFewerLabels}{" + _join(_fewer) + "}"))
 _hour_compass = {m["agent"] for m in UNION if m["rungs"][_COMPASS_K] is True}
 emit("NlongNewCompass", len({r["agent"] for r in _holders} - _hour_compass),
      "four-hour compass holders that held no compass in the hour")
+# the two models beyond the hour
+_q = [r for r in LONG if r["agent"] == "qwen3.8-27b"]
+_d = [r for r in LONG if r["agent"] == "deepseek-v4-flash"]
+if len(_q) != 1 or not field.on_map(_q[0]) or not field.rungs_of(_q[0])[field.DEFINITION.index("picked up\nan item")]:
+    sys.exit("the prose says qwen3.8-27b reached the world map and an item in its only session")
+emit_label("LlongQwenLabel", "qwen3.8-27b")
+emit("LlongQwenCross", _q[0]["exit_secs"] / 60, "its crossing, minutes", fmt="%.0f")
+emit("LlongQwenLast", _last[_q[0]["id"]], "its last key, minutes", fmt="%.0f")
+emit_label("LlongDeepLabel", "deepseek-v4-flash")
+emit("LlongDeepSessions", len(_d), "its sessions")
+emit("LlongDeepMap", sum(1 for r in _d if field.on_map(r)), "of them on the world map")
+emit("LlongDeepLastMax", max(_last[r["id"]] for r in _d), "latest last key among them, minutes", fmt="%.0f")
+if _lu["deepseek-v4-flash"]["reached"] > 2:
+    sys.exit("the prose says deepseek-v4-flash reached at most the item and the world map")
 _ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG)
-if _ldays[0] != _ldays[-1]:
-    sys.exit("the four-hour sessions span more than one day; the date macro assumes one")
-lines.append(("% the day the four-hour sessions ran, UTC", "\\newcommand{\\LongDate}{%d %s}" % (_ldays[0].day, _ldays[0].strftime("%B %Y"))))
+if _ldays[0].month != _ldays[-1].month:
+    sys.exit("the four-hour sessions span more than one month; the date macro assumes one")
+lines.append(("% the days the four-hour sessions ran, UTC", "\\newcommand{\\LongDates}{%s}" % (
+    "%d %s" % (_ldays[0].day, _ldays[0].strftime("%B %Y")) if _ldays[0] == _ldays[-1]
+    else "%d to %d %s" % (_ldays[0].day, _ldays[-1].day, _ldays[-1].strftime("%B %Y")))))
 
 print("% generated by figures/numbers.py from catalog_snapshot.json and start.state")
 print("% regenerate before editing any number in the paper")

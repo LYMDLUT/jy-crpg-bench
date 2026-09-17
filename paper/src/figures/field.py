@@ -43,6 +43,9 @@ DEFAULT_BUDGET = 3600
 # default. They are reported as a second experiment beside the hour field.
 LONG = os.path.join(HERE, "catalog_snapshot_240min.json")
 LONG_BUDGET = 14400
+# Four-hour sessions the paper leaves out: a declared name that names no model
+# of the paper, and a session at another thinking level.
+LONG_EXCLUDED = ("claude-opus-4-5-high", "gpt-6-astramax")
 
 
 def _rows(path):
@@ -117,9 +120,12 @@ def is_random(agent):
     return agent.lower().startswith("random")
 
 
-def load_long():
+def load_long(keep_excluded=False):
     """The model sessions at the four-hour budget, listed under the model."""
-    return [r for r in played(_rows(LONG), LONG_BUDGET) if not is_random(r["agent"])]
+    rows = [r for r in played(_rows(LONG), LONG_BUDGET) if not is_random(r["agent"])]
+    if not keep_excluded:
+        rows = [r for r in rows if r["declared"] not in LONG_EXCLUDED]
+    return rows
 
 
 def random_rows(rows, budget=DEFAULT_BUDGET):

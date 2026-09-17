@@ -254,9 +254,14 @@ def main():
 
     # The four-hour sessions of Section 4.3, one per model.
     long_rows = field.load_long()
-    if "one session each at the" in flat:
-        ok &= claim("one four-hour session per model", len(long_rows) == len({r["agent"] for r in long_rows}),
-                    "%d sessions, %d models" % (len(long_rows), len({r["agent"] for r in long_rows})))
+    if "two further models" in flat:
+        hour = {r["agent"] for r in models}
+        beyond = sorted({r["agent"] for r in long_rows} - hour)
+        ok &= claim("two models beyond the hour, as named", beyond == ["deepseek-v4-flash", "qwen3.8-27b"], "%s" % beyond)
+        ok &= claim("the four-hour session counts match the macros",
+                    (int(nums["NlongSessions"]), int(nums["NlongFieldSessions"]), int(nums["NlongFieldModels"]))
+                    == (len(long_rows), sum(1 for r in long_rows if r["agent"] in hour), len({r["agent"] for r in long_rows} & hour)),
+                    "%d sessions, %d of hour models" % (len(long_rows), sum(1 for r in long_rows if r["agent"] in hour)))
     if "no session enters a fight, and none gains experience or holds a book" in flat:
         FIGHT = field.DEFINITION.index("entered\na fight")
         ok &= claim("no four-hour session fought, gained experience or holds a book",

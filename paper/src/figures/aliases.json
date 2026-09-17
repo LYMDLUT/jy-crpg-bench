@@ -7,5 +7,10 @@
  "claude-opus5-high": "claude-opus5",
  "claude-sonnet5-high": "claude-sonnet5",
  "claude-fable5.1-high": "claude-fable5.1",
- "gpt5.6-sol": "gpt-5.6-sol"
+ "gpt5.6-sol": "gpt-5.6-sol",
+ "claude-opus-4-8-thinking-high": "qwen3.8-27b",
+ "deepseek-v4-flashhigh": "deepseek-v4-flash",
+ "deepseek-v4-flash-high": "deepseek-v4-flash",
+ "GPT-5": "gpt-5.6-sol",
+ "GPT-5-run2": "gpt-5.6-sol"
 }
