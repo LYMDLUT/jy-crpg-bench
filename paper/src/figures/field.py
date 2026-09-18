@@ -120,6 +120,37 @@ def is_random(agent):
     return agent.lower().startswith("random")
 
 
+HUMAN = os.path.join(HERE, "human_sessions.json")
+HUMAN_KEYS = ("map", "item", "scene", "hermit", "compass", "companion", "fight", "fought", "exp", "level2", "book")
+HUMAN_CLASSES = (("speedrun", "human speedrun"), ("playthrough", "human playthrough"))
+
+
+def human_videos():
+    """The published videos of human players the paper reads, as recorded in
+    human_sessions.json: for each, the class, the minute of every milestone
+    from the start of play (None when the video ends before it) and the tile
+    steps to the world map."""
+    return json.load(open(HUMAN, encoding="utf-8")) if os.path.exists(HUMAN) else []
+
+
+def human_rows():
+    """One reference row per class of human video, in the shape of a model row:
+    per milestone the videos that reached it, the videos with a reading and
+    the videos, and the steps each video took to the world map."""
+    out = []
+    for cls, label in HUMAN_CLASSES:
+        vs = [v for v in human_videos() if v["class"] == cls]
+        if not vs:
+            continue
+        cols = [(sum(1 for v in vs if v["milestones_min"].get(k) is not None), len(vs), len(vs)) for k in HUMAN_KEYS]
+        crossings = sorted(v["steps_to_map"] for v in vs if v.get("steps_to_map") is not None)
+        out.append({"agent": label, "sessions": len(vs), "ids": [v["id"] for v in vs],
+                    "rungs": [c[0] > 0 for c in cols], "reached": sum(1 for c in cols if c[0] > 0),
+                    "counts": cols, "crossings": crossings,
+                    "map_actions": min(crossings) if crossings else None, "human": True})
+    return out
+
+
 def load_long(keep_excluded=False):
     """The model sessions at the four-hour budget, listed under the model."""
     rows = [r for r in played(_rows(LONG), LONG_BUDGET) if not is_random(r["agent"])]

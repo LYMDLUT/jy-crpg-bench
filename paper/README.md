@@ -36,6 +36,22 @@ ICLR 2027 submission draft for jy-crpg-bench.
   `figures/emit_milestones.py` writes `tables/milestones.tex` (each
   milestone in actions and minutes from the replays and timelines), `figures/make.py` draws the data figures, and
   `check_consistency.py` fails if a claim drifts from the snapshot
+- `src/figures/human_sessions.json` - the published videos of human players
+  behind the two reference rows of Figure 3: for each, the class (speedrun or
+  playthrough), the crop that maps the capture onto the native frame, the start
+  of play, the minute of every milestone with the evidence it was read from, and
+  the keypresses to the world map. The tools are in `src/figures/human/`:
+  `gate.py` admits a capture when the opening room of a benchmark replay matches
+  it at 0.90 or above and records every rejection in `dropped.json`;
+  `read_video.py` locates the game frame (`findcrop`, `edgecrop`, `refinecrop`,
+  with `cropfit.py` for the whole-pixel fit), crops and scales the capture,
+  matches the panels and the messages, and counts tile steps and screen changes,
+  which `actions.py` prints per capture; `respawn.py` sets the start of play on
+  the first frame in which the hero stands on his spawn tile with his back to the
+  camera, frame zero of a benchmark replay, and `spawnscan.py` does the same for
+  one capture. The evidence sheets are under `human/evidence/<video id>/`, the
+  videos themselves are not tracked, and `field.human_rows()` turns the file into
+  the two rows.
 - `refs/` - the fourteen reference papers read while shaping the structure, by arXiv id
 - `iclr2027/` - the official style-file kit as downloaded
 

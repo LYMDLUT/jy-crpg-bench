@@ -1,0 +1,5 @@
+work/
+*.320.mp4
+*.scores.npz
+*.scan.json
+*.messages.npz

@@ -1,0 +1,34 @@
+{
+ "XxmUuRPTFsU-head": {
+  "video": "work/XxmUuRPTFsU-head.mp4",
+  "room_ncc": null,
+  "og": 0.9,
+  "reason": "the opening room of the 1996 binary does not reach 0.90 at any scale"
+ },
+ "zpUxPgagNy8-head": {
+  "video": "work/zpUxPgagNy8-head.mp4",
+  "room_ncc": 0.824,
+  "og": 0.9,
+  "reason": "the opening room of the 1996 binary does not reach 0.90 at any scale"
+ },
+ "y2P_L3utwWo-head": {
+  "video": "work/y2P_L3utwWo-head.mp4",
+  "room_ncc": 0.728,
+  "og": 0.9,
+  "reason": "the opening room of the 1996 binary does not reach 0.90 at any scale"
+ },
+ "Az3NsYoelZo-head": {
+  "video": "work/Az3NsYoelZo-head.mp4",
+  "room_ncc": 0.973,
+  "og": 0.9,
+  "usable": false,
+  "reason": "the room fits at 0.97, but only as a crop whose left edge lies 18 pixels outside the capture, so the panels at the side of the frame are not in the video"
+ },
+ "T2oyH32wo8I-head": {
+  "video": "work/T2oyH32wo8I-head.mp4",
+  "room_ncc": 0.941,
+  "og": 0.9,
+  "usable": false,
+  "reason": "the room fits at 0.94, but the capture is cut into fragments: the home is on screen for five frames in the first 52 seconds, so no route can be counted across the cuts"
+ }
+}

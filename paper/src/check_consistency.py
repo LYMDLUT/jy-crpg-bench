@@ -278,6 +278,33 @@ def main():
         ok &= claim("the four-hour sessions add one compass holder", len(long_c - hour) == 1,
                     "hour %s, four hours %s" % (sorted(hour), sorted(long_c)))
 
+    # The human references of Figure 3, read from human_sessions.json.
+    if "cross onto the world map within the first minute" in flat:
+        speed = [v for v in field.human_videos() if v["class"] == "speedrun"]
+        ok &= claim("every speedrun crosses within the first minute",
+                    bool(speed) and all(v["milestones_min"]["map"] is not None and v["milestones_min"]["map"] < 1 for v in speed),
+                    "%s" % [v["milestones_min"]["map"] for v in speed])
+    if "human references read from published videos" in flat:
+        vids = field.human_videos()
+        ok &= claim("every human video carries a reading for every milestone and its steps",
+                    bool(vids) and all(set(v["milestones_min"]) == set(field.HUMAN_KEYS) and v.get("steps_to_map") is not None for v in vids),
+                    "%d videos" % len(vids))
+    if "all of which finish the game" in flat:
+        speed = [v for v in field.human_videos() if v["class"] == "speedrun"]
+        ok &= claim("every speedrun finishes the game",
+                    bool(speed) and all(v.get("completion_min") is not None for v in speed),
+                    "%s" % [v.get("completion_min") for v in speed])
+    if "one of which reaches the ending" in flat:
+        plays = [v for v in field.human_videos() if v["class"] == "playthrough"]
+        ok &= claim("exactly one playthrough reaches the ending",
+                    sum(1 for v in plays if v.get("completion_min") is not None) == 1,
+                    "%s" % [v.get("completion_min") for v in plays])
+    if "in which a human speedrun finishes the game" in flat:
+        speed = [v for v in field.human_videos() if v["class"] == "speedrun"]
+        ok &= claim("a speedrun finishes the game within the hour budget",
+                    any(v.get("completion_min") is not None and v["completion_min"] <= field.DEFAULT_BUDGET / 60 for v in speed),
+                    "%s" % [v.get("completion_min") for v in speed])
+
     print("\n%d runs scored, %d sessions with a map verdict, %d maps latched"
           % (len(scored), len(read), latched))
     return 0 if ok else 1

@@ -184,8 +184,9 @@ def figure_ladder():
     models = _field.model_rows([r for r in rows if not _field.is_random(r["agent"])])
     floor = _field.model_rows([r for r in rows if _field.is_random(r["agent"])])
     models.sort(key=_field.ladder_order)
-    entries = models + floor
-    boxed = [m for m in models if m["crossings"]]
+    humans = _field.human_rows()
+    entries = humans + models + floor
+    boxed = [m for m in humans + models if m["crossings"]]
     n, nb, span = len(entries), len(boxed), len(DEFINITION)
     # the layout in inches: the milestone panel, its legend, the crossing panel
     top_pitch, bottom_pitch = 0.24, 0.12
