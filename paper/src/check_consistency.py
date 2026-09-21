@@ -87,31 +87,10 @@ def main():
     rk = sum(round(r["meaningful"] * r["actions"]) for r in randoms)
     rn = sum(r["actions"] for r in randoms)
     floor = rk / rn if rn else None
-    if "every active session in the field clears it" in flat:
-        ok &= claim("active sessions clear the floor",
-                    floor is not None and all(r["meaningful"] >= floor for r in active),
-                    "floor %.3f, lowest active %.3f" % (floor or 0, min((r["meaningful"] for r in active), default=0)))
-    if "the baseline never reaches the world map" in flat:
-        ok &= claim("random never on the map", not any(r.get("bigmap") is True for r in randoms),
+    if "the first milestone a random walk does not reach" in flat:
+        ok &= claim("random never on the map", bool(randoms) and not any(field.on_map(r) for r in randoms),
                     "%d random runs" % len(randoms))
-    if active:
-        slow = sorted((r for r in active if r.get("gap_p50") is not None), key=lambda r: -r["gap_p50"])[:2]
-        if "both of them reach the world map" in flat:
-            ok &= claim("deliberate runs cross", all(r.get("bigmap") is True for r in slow),
-                        ", ".join(r["agent"] for r in slow))
-        med = sorted(r["actions"] for r in active)[len(active) // 2]
-        steady = max((r for r in active if r["actions"] >= med), key=lambda r: r["meaningful"])
-        if "and also crosses" in flat:
-            ok &= claim("steady run crosses", steady.get("bigmap") is True, steady["agent"])
-        worst = min(active, key=lambda r: r["meaningful"])
-        if "without leaving the opening scene" in flat:
-            ok &= claim("lowest run stayed", worst.get("bigmap") is not True, worst["agent"])
-    if "Two of the sessions that left never searched the chest, and two that searched it never left" in flat:
-        left_no_item = sum(1 for r in scored if r.get("bigmap") is True and r.get("picked_item") is False)
-        item_no_left = sum(1 for r in scored if r.get("picked_item") and r.get("bigmap") is not True)
-        ok &= claim("chest and exit split", (left_no_item, item_no_left) == (2, 2),
-                    "%d left without the chest, %d searched without leaving" % (left_no_item, item_no_left))
-    if "no save succeeds during its hour" in flat:
+    if "save succeeds during its hour" in flat:
         ok &= claim("random floor never saved", not any(r.get("saved_at") for r in randoms),
                     "%d random runs" % len(randoms))
     on_map = [r for r in scored if field.on_map(r)]
@@ -139,9 +118,10 @@ def main():
         FIGHT = field.DEFINITION.index("entered\na fight")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True]
         ok &= claim("one model plays past the opening", len(past) == 1, "past the opening: %s" % past)
-    if "ended early" in flat:
-        ok &= claim("an idle-ended session is reported", any(r["reason"] == "idle" for r in scored),
-                    "reasons %s" % sorted({r["reason"] for r in scored}))
+    if "sessions before the hour" in flat:
+        idle = sum(1 for r in models if r.get("reason") == "idle")
+        ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
+                    "%d idle-ended" % idle)
     if "the fingerprint never appears without a save behind it" in flat:
         ok &= claim("no screen latch without a save",
                     not any(r.get("bigmap") is True and not field.on_map(r) for r in scored),
@@ -233,11 +213,6 @@ def main():
                     all(c[1] == c[2] for m in union for c in [m["counts"][SCENE]])
                     and (int(nums["Lscene"]), int(nums["LnoScene"])) == (len(entered), len(union) - len(entered)),
                     "%d models entered a scene: %s" % (len(entered), entered))
-    if "sent a single key before the idle rule" in flat:
-        idle = [r for r in scored if r["reason"] == "idle"]
-        ok &= claim("idle stub sent one key", bool(idle) and all(r["actions"] == 1 for r in idle),
-                    "%d idle runs, actions %s" % (len(idle), [r["actions"] for r in idle]))
-
     if "neither the fastest between actions nor the one that took the most actions" in flat:
         # Section 4: the pace did not set the order. The medians are the ones
         # tables/effort.tex prints, over every session of the model.
