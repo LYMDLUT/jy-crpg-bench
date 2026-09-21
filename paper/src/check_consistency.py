@@ -278,7 +278,7 @@ def main():
     if "came after the first hour" in flat:
         late = [r["agent"] for r in long_rows if (r.get("exit_secs") or 0) > field.DEFAULT_BUDGET]
         ok &= claim("late crossings match the macro", int(nums["NlongCrossLate"]) == len(late), "late: %s" % late)
-    if "the fight fought to its end, and changes no other count" in flat:
+    if "loses the fight fought to its end, and no other count changes" in flat:
         full = {m["agent"]: m for m in field.model_rows(models)}
         without = {m["agent"]: m for m in field.model_rows([r for r in models if r.get("reason") != "idle"])}
         FOUGHT = field.DEFINITION.index("fought to\nthe end")
