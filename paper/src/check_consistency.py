@@ -118,10 +118,6 @@ def main():
         FIGHT = field.DEFINITION.index("entered\na fight")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True]
         ok &= claim("one model plays past the opening", len(past) == 1, "past the opening: %s" % past)
-    if "sessions before the hour" in flat:
-        idle = sum(1 for r in models if r.get("reason") == "idle")
-        ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
-                    "%d idle-ended" % idle)
     if "the fingerprint never appears without a save behind it" in flat:
         ok &= claim("no screen latch without a save",
                     not any(r.get("bigmap") is True and not field.on_map(r) for r in scored),
@@ -244,6 +240,10 @@ def main():
                     bool(long_rows) and not any(field.rungs_of(r)[FIGHT] is True for r in long_rows)
                     and all((r.get("exp") or 0) == 0 and (r.get("books") or 0) == 0 for r in long_rows),
                     "exp %s, books %s" % ([r.get("exp") for r in long_rows], [r.get("books") for r in long_rows]))
+    if "sessions before the hour" in flat:
+        idle = sum(1 for r in models if r.get("reason") == "idle")
+        ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
+                    "%d idle-ended" % idle)
     if "stopped within their first minute" in flat:
         stub = 0
         for r in long_rows:
