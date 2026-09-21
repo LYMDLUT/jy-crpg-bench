@@ -417,23 +417,23 @@
 % its actions of fifty keys or more
 \newcommand{\PbatchBig}{32}
 % four-hour sessions
-\newcommand{\NlongSessions}{16}
+\newcommand{\NlongSessions}{34}
 % models with a four-hour session
-\newcommand{\NlongModels}{10}
+\newcommand{\NlongModels}{12}
 % of them evaluated at the hour
 \newcommand{\NlongFieldModels}{8}
 % four-hour sessions of those models
-\newcommand{\NlongFieldSessions}{10}
+\newcommand{\NlongFieldSessions}{21}
 % their budget, minutes
 \newcommand{\NlongBudgetMin}{240}
 % four-hour sessions declared under another name
-\newcommand{\NlongAliased}{9}
+\newcommand{\NlongAliased}{26}
 % four-hour sessions the paper leaves out
 \newcommand{\NlongExcluded}{2}
 % four-hour sessions that reached the world map
-\newcommand{\NlongMap}{11}
-\newcommand{\NlongItem}{9}
-\newcommand{\NlongScene}{5}
+\newcommand{\NlongMap}{21}
+\newcommand{\NlongItem}{13}
+\newcommand{\NlongScene}{12}
 \newcommand{\NlongHermit}{3}
 \newcommand{\NlongCompass}{2}
 \newcommand{\NlongCompanion}{2}
@@ -441,13 +441,15 @@
 \newcommand{\NlongExp}{0}
 \newcommand{\NlongBook}{0}
 % earliest last key, minutes
-\newcommand{\LlongLastMin}{2}
+\newcommand{\LlongLastMin}{0}
 % latest last key, minutes
-\newcommand{\LlongLastMax}{239}
+\newcommand{\LlongLastMax}{240}
+% four-hour sessions whose last key came within the first minute
+\newcommand{\NlongStub}{3}
 % the session that stopped first
-\newcommand{\LlongShortLabel}{\texttt{deepseek-v4-flash}}
-\newcommand{\LlongShortMin}{2}
-\newcommand{\LlongShortActs}{12}
+\newcommand{\LlongShortLabel}{\texttt{gpt-5.6-terra}}
+\newcommand{\LlongShortMin}{0}
+\newcommand{\LlongShortActs}{1}
 % earliest crossing, minutes
 \newcommand{\LlongCrossFirst}{4}
 % latest crossing, minutes
@@ -470,15 +472,17 @@
 \newcommand{\LlongHolderSlowRecruit}{216}
 % its last key, minutes
 \newcommand{\LlongHolderSlowLast}{239}
+% the model whose transcript shows the reward hacking
+\newcommand{\LlongHackLabel}{\texttt{gemini-3.8-flash}}
 % models whose four-hour sessions reached more milestones than their hour sessions
-\newcommand{\NlongGained}{1}
+\newcommand{\NlongGained}{2}
 % models whose four-hour sessions reached fewer
-\newcommand{\NlongFewer}{4}
+\newcommand{\NlongFewer}{3}
 \newcommand{\NlongSame}{3}
 % the models that gained from the four-hour budget
-\newcommand{\LlongGainedLabels}{\texttt{gemini-3.8-flash}}
+\newcommand{\LlongGainedLabels}{\texttt{gemini-3.8-flash} and \texttt{gpt-5.6-luna}}
 % the models that fell short of their hour sessions
-\newcommand{\LlongFewerLabels}{\texttt{gemini-3.7-flash}, \texttt{glm-5.3-flash}, \texttt{gpt-5.6-terra} and \texttt{gpt-6-astra}}
+\newcommand{\LlongFewerLabels}{\texttt{gemini-3.7-flash}, \texttt{gpt-5.6-terra} and \texttt{gpt-6-astra}}
 % four-hour compass holders that held no compass in the hour
 \newcommand{\NlongNewCompass}{1}
 \newcommand{\LlongQwenLabel}{\texttt{qwen3.8-27b}}
@@ -493,8 +497,16 @@
 \newcommand{\LlongDeepMap}{2}
 % latest last key among them, minutes
 \newcommand{\LlongDeepLastMax}{35}
+\newcommand{\LlongDeepNewLabel}{\texttt{deepseek-v4.1-flash}}
+% its sessions
+\newcommand{\LlongDeepNewSessions}{5}
+% of them on the world map
+\newcommand{\LlongDeepNewMap}{4}
+\newcommand{\LlongKimiLabel}{\texttt{kimi-k3}}
+% its sessions
+\newcommand{\LlongKimiSessions}{2}
 % the days the four-hour sessions ran, UTC
-\newcommand{\LongDates}{16 to 17 September 2026}
+\newcommand{\LongDates}{16 to 19 September 2026}
 % the least match of the opening room that admits a capture
 \newcommand{\HumanRoomGate}{0.90}
 % published videos of human players the paper reads

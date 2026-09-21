@@ -254,10 +254,11 @@ def main():
 
     # The four-hour sessions of Section 4.3, one per model.
     long_rows = field.load_long()
-    if "two further models" in flat:
+    if "four further models" in flat:
         hour = {r["agent"] for r in models}
         beyond = sorted({r["agent"] for r in long_rows} - hour)
-        ok &= claim("two models beyond the hour, as named", beyond == ["deepseek-v4-flash", "qwen3.8-27b"], "%s" % beyond)
+        ok &= claim("four models beyond the hour, as named",
+                    beyond == ["deepseek-v4-flash", "deepseek-v4.1-flash", "kimi-k3", "qwen3.8-27b"], "%s" % beyond)
         ok &= claim("the four-hour session counts match the macros",
                     (int(nums["NlongSessions"]), int(nums["NlongFieldSessions"]), int(nums["NlongFieldModels"]))
                     == (len(long_rows), sum(1 for r in long_rows if r["agent"] in hour), len({r["agent"] for r in long_rows} & hour)),
@@ -268,6 +269,12 @@ def main():
                     bool(long_rows) and not any(field.rungs_of(r)[FIGHT] is True for r in long_rows)
                     and all((r.get("exp") or 0) == 0 and (r.get("books") or 0) == 0 for r in long_rows),
                     "exp %s, books %s" % ([r.get("exp") for r in long_rows], [r.get("books") for r in long_rows]))
+    if "stopped within their first minute" in flat:
+        stub = 0
+        for r in long_rows:
+            tl = json.load(open(os.path.join(field.HERE, "timelines", r["id"] + ".json"), encoding="utf-8"))
+            stub += (tl["marks"][-1]["t"] * tl["speed"] / 60 if tl["marks"] else 0.0) < 1
+        ok &= claim("sessions that stopped within the first minute match the macro", int(nums["NlongStub"]) == stub, "%d" % stub)
     if "came after the first hour" in flat:
         late = [r["agent"] for r in long_rows if (r.get("exit_secs") or 0) > field.DEFAULT_BUDGET]
         ok &= claim("late crossings match the macro", int(nums["NlongCrossLate"]) == len(late), "late: %s" % late)

@@ -17,8 +17,9 @@ reported beside it so the margin is on record. The five events:
     compass   the coordinate line the compass adds to the item screen: the compass is held
     battle    the acting character's card in a fight: a fight was entered
     defeat    the banner the game draws when the party loses: the fight ran to a verdict
-    prompt    the yes-or-no prompt of a recruitable character; with a `y` key
-              in the timeline within a minute of it, the companion was asked to join
+    prompt    the yes-or-no prompt of a recruitable character; the game holds it
+              until a key is pressed, so the companion joined when the first key
+              pressed after it appeared is `y`
 
 A sixth event, the message the game draws when an item enters the bag, is
 centred on the screen and as wide as the name of the item, so its first two
@@ -263,16 +264,22 @@ def scan(path, timeline, known):
     out["first_black_second"] = black
     out["crossing_actions"] = (sum(1 for m in timeline["marks"] if m["t"] <= black)
                                if black is not None and timeline else None)
-    # recruitment: the prompt on screen, then a `y` within a minute of video
-    out["recruited_minute"] = None
-    if len(hits["prompt"]) and timeline:
-        ys = [m["t"] for m in timeline["marks"] if any(k == "y" for k, _ in m["keys"])]
-        for i in hits["prompt"]:
-            after = [t for t in ys if i <= t <= i + 60]
-            if after:
-                out["recruited_minute"] = round(after[0] * speed / 60, 1)
-                break
+    out["recruited_minute"] = recruited(hits["prompt"], timeline, speed)
     return out
+
+
+def recruited(prompt_seconds, timeline, speed):
+    """Minute of the yes that answered the join prompt, or None. The game holds
+    the prompt until a key is pressed, so the answer is the first key pressed
+    after the prompt appeared; any other key dismisses it."""
+    if not prompt_seconds or not timeline:
+        return None
+    marks = sorted(timeline["marks"], key=lambda m: m["t"])
+    for i in prompt_seconds:
+        after = [m for m in marks if m["t"] >= i]
+        if after and after[0]["keys"] and after[0]["keys"][0][0] == "y":
+            return round(after[0]["t"] * speed / 60, 1)
+    return None
 
 
 def main():

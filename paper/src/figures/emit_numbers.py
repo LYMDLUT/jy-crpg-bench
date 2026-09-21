@@ -733,8 +733,8 @@ if not LONG:
 _long_models = sorted({r["agent"] for r in LONG})
 _field_models = {r["agent"] for r in PLAY}
 _new_models = sorted(set(_long_models) - _field_models)
-if _new_models != ["deepseek-v4-flash", "qwen3.8-27b"]:
-    sys.exit("Section 4.3 names qwen3.8-27b and deepseek-v4-flash as the models beyond the hour; the field changed: %s" % _new_models)
+if _new_models != ["deepseek-v4-flash", "deepseek-v4.1-flash", "kimi-k3", "qwen3.8-27b"]:
+    sys.exit("Section 4.3 names four models beyond the hour; the field changed: %s" % _new_models)
 _lu = {m["agent"]: m for m in field.model_rows(LONG)}
 emit("NlongSessions", len(LONG), "four-hour sessions")
 emit("NlongModels", len(_long_models), "models with a four-hour session")
@@ -764,6 +764,7 @@ _ltl = {r["id"]: json.load(open(os.path.join(HERE, "timelines", r["id"] + ".json
 _last = {r["id"]: _ltl[r["id"]]["marks"][-1]["t"] * _ltl[r["id"]]["speed"] / 60 for r in LONG}
 emit("LlongLastMin", min(_last.values()), "earliest last key, minutes", fmt="%.0f")
 emit("LlongLastMax", max(_last.values()), "latest last key, minutes", fmt="%.0f")
+emit("NlongStub", sum(1 for r in LONG if _last[r["id"]] < 1), "four-hour sessions whose last key came within the first minute")
 _short = min(LONG, key=lambda r: _last[r["id"]])
 emit_label("LlongShortLabel", _short["agent"], "the session that stopped first")
 emit("LlongShortMin", _last[_short["id"]], fmt="%.0f")
@@ -803,8 +804,9 @@ _hour = {m["agent"]: m["reached"] for m in UNION}
 _both = [a for a in _long_models if a in _hour]
 _gain = sorted(a for a in _both if _lu[a]["reached"] > _hour[a])
 _fewer = sorted(a for a in _both if _lu[a]["reached"] < _hour[a])
-if _gain != ["gemini-3.8-flash"]:
-    sys.exit("Section 4.3 reads the harness transcript of gemini-3.8-flash as the one model that gained; the field changed")
+if "gemini-3.8-flash" not in _gain:
+    sys.exit("Section 4.3 reads the harness transcript of gemini-3.8-flash as a model that gained; the field changed: %s" % _gain)
+emit_label("LlongHackLabel", "gemini-3.8-flash", "the model whose transcript shows the reward hacking")
 emit("NlongGained", len(_gain), "models whose four-hour sessions reached more milestones than their hour sessions")
 emit("NlongFewer", len(_fewer), "models whose four-hour sessions reached fewer")
 emit("NlongSame", len(_both) - len(_gain) - len(_fewer))
@@ -829,6 +831,19 @@ emit("LlongDeepMap", sum(1 for r in _d if field.on_map(r)), "of them on the worl
 emit("LlongDeepLastMax", max(_last[r["id"]] for r in _d), "latest last key among them, minutes", fmt="%.0f")
 if _lu["deepseek-v4-flash"]["reached"] > 2:
     sys.exit("the prose says deepseek-v4-flash reached at most the item and the world map")
+_dn = [r for r in LONG if r["agent"] == "deepseek-v4.1-flash"]
+emit_label("LlongDeepNewLabel", "deepseek-v4.1-flash")
+emit("LlongDeepNewSessions", len(_dn), "its sessions")
+emit("LlongDeepNewMap", sum(1 for r in _dn if field.on_map(r)), "of them on the world map")
+_k = [r for r in LONG if r["agent"] == "kimi-k3"]
+emit_label("LlongKimiLabel", "kimi-k3")
+emit("LlongKimiSessions", len(_k), "its sessions")
+_ITEM_K = field.DEFINITION.index("picked up\nan item")
+if any(field.on_map(r) for r in _k) or not any(field.rungs_of(r)[_ITEM_K] is True for r in _k):
+    sys.exit("the prose says kimi-k3 searched the chest and never left the compound")
+_HERMIT_K = field.DEFINITION.index("spoke with\nthe hermit")
+if any(field.rungs_of(r)[_HERMIT_K] is True for r in LONG if r["agent"] in _new_models):
+    sys.exit("the prose says none of the further models reached the hermit")
 _ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG)
 if _ldays[0].month != _ldays[-1].month:
     sys.exit("the four-hour sessions span more than one month; the date macro assumes one")
