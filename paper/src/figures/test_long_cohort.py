@@ -56,13 +56,12 @@ class SubmissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             long_cohort.validate(self.rows, self.manifest)
 
-    def test_kimi_boundary_is_review_not_failure(self):
+    def test_kimi_boundary_is_recorded(self):
         entry = self.entry('16831128b3cf')
-        self.assertEqual(entry['status'], 'needs_review')
+        self.assertEqual(entry['status'], 'stopped_early')
         self.assertIn('HTTP 410', entry['reason'])
-        self.assertIn('author review', entry['reason'])
 
-    def test_metadata_and_window_changes_need_review(self):
+    def test_window_change_is_refused(self):
         self.manifest['last_key_window_seconds'] = 720
         with self.assertRaises(ValueError):
             long_cohort.validate(self.rows, self.manifest)

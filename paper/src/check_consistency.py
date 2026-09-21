@@ -223,7 +223,7 @@ def main():
                     fastest is not None and top not in (busiest, fastest),
                     "top %s, most actions %s, fastest %s" % (top, busiest, fastest))
 
-    # Validate the provisional submissions unconditionally, not by prose keywords.
+    # The four-hour sessions that count, validated against the manifest.
     import long_cohort
     attempts = field.long_attempts()
     manifest = long_cohort.validate(attempts)
@@ -231,15 +231,15 @@ def main():
     selected_ids = {r["id"] for r in long_rows}
     table = open(os.path.join(SRC, "tables/long.tex"), encoding="utf-8").read()
     table_ids = set(re.findall(r"[0-9a-f]{12}", table))
-    ok &= claim("curated table exactly matches the manifest", table_ids == selected_ids, str(sorted(table_ids)))
-    ok &= claim("one provisional submission per model", len(long_rows) == len({r["agent"] for r in long_rows}), str(len(long_rows)))
+    ok &= claim("the four-hour table lists exactly the sessions that count", table_ids == selected_ids, str(sorted(table_ids)))
+    ok &= claim("one four-hour session per model", len(long_rows) == len({r["agent"] for r in long_rows}), str(len(long_rows)))
     ok &= claim("attempt and submission counts match generated macros",
                 (int(nums["NlongAttempts"]), int(nums["NlongSessions"]), int(nums["NlongWithheld"]))
                 == (len(attempts), len(long_rows), len(attempts) - len(long_rows)), str(len(attempts)))
-    ok &= claim("documented protocol violation is not credited", field.HACK_SESSION not in selected_ids, field.HACK_SESSION)
-    for rung in ("holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
+    ok &= claim("the attempt that read earlier sessions does not count", field.HACK_SESSION not in selected_ids, field.HACK_SESSION)
+    for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
         k = field.DEFINITION.index(rung)
-        ok &= claim("selected submissions have no " + rung.replace("\n", " "),
+        ok &= claim("no four-hour session that counts reached " + rung.replace("\n", " "),
                     not any(field.rungs_of(r)[k] is True for r in long_rows), str(len(long_rows)))
     if "sessions before the hour" in flat:
         idle = sum(1 for r in models if r.get("reason") == "idle")

@@ -424,64 +424,70 @@
 \newcommand{\PbatchKeysPerAction}{22}
 % its actions of fifty keys or more
 \newcommand{\PbatchBig}{32}
-% all archived four-hour-budget attempts, not a scored denominator
+% attempts at the four-hour budget on record
 \newcommand{\NlongAttempts}{40}
-% provisional selected submissions; one per model
+% four-hour sessions that count, one per model
 \newcommand{\NlongSessions}{6}
-% models with a provisional selected submission
+% models with a four-hour session that counts
 \newcommand{\NlongModels}{6}
-% archived attempts outside the provisional submission table
+% attempts that do not count
 \newcommand{\NlongWithheld}{34}
-% compatible model names without a selected submission; pending review or rerun
+% models with a four-hour attempt and no session that counts
 \newcommand{\NlongPendingModels}{6}
-% selected models also present at the hour; not a matched experiment
+% of them evaluated at the hour
 \newcommand{\NlongFieldModels}{4}
 \newcommand{\NlongFieldSessions}{4}
 % requested wall-clock budget
 \newcommand{\NlongBudgetMin}{240}
-% retrospective final-key screening window
+% the last key must fall within this many final minutes
 \newcommand{\NlongWindowMin}{2}
 \newcommand{\NlongMinLastMin}{238}
 \newcommand{\NlongAliased}{5}
-% pre-existing name/configuration exclusions
+% attempts declared under names that identify no model of the paper
 \newcommand{\NlongExcluded}{2}
-% one- or two-action attempts withheld
+% attempts of one or two actions
 \newcommand{\NlongStartup}{3}
-% zero-action attempts withheld
+% attempts with no action
 \newcommand{\NlongZero}{4}
-% documented protocol-violating attempts withheld
+% attempts whose harness read earlier sessions
 \newcommand{\NlongProtocol}{1}
-% compatible model names pending confirmation or rerun
+% attempts whose last key came before the final minutes
+\newcommand{\NlongEarly}{23}
+% attempts that played to the budget for a model whose counted session ended later
+\newcommand{\NlongSuperseded}{1}
+% the model whose attempt read the timelines of earlier sessions
+\newcommand{\LlongHackLabel}{\texttt{gemini-3.8-flash}}
+% models with a four-hour attempt and no session that counts
 \newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra} and \texttt{kimi-k3}}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongMap}{5}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongItem}{3}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongScene}{4}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongHermit}{0}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongCompass}{0}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongCompanion}{0}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongFight}{0}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongExp}{0}
-% selected submissions only
+% among the four-hour sessions that count
 \newcommand{\NlongBook}{0}
 % earliest last key, minutes
 \newcommand{\LlongLastMin}{238.4}
 % latest last key, minutes
 \newcommand{\LlongLastMax}{239.8}
-% earliest selected crossing
+% earliest crossing, minutes
 \newcommand{\LlongCrossFirst}{9.6}
-% latest selected crossing
+% latest crossing, minutes
 \newcommand{\LlongCrossLast}{47.6}
 \newcommand{\NlongCrossLate}{0}
-% date range of the selected submissions, UTC
-\newcommand{\LongDates}{17 September 2026 to 19 September 2026}
+% the days the four-hour sessions that count ran, UTC
+\newcommand{\LongDates}{17 to 19 September 2026}
 % the least match of the opening room that admits a capture
 \newcommand{\HumanRoomGate}{0.90}
 % published videos of human players the paper reads

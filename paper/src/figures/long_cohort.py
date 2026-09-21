@@ -1,15 +1,18 @@
-"""Validate the explicitly reviewed, provisional four-hour submission cohort.
+"""The four-hour sessions that count, selected by the reviewed manifest.
 
-The historical catalogue is an attempt archive, not an IID evaluation sample.
-The retrospective last-key window is an auditable screen, not proof that a
-client ran continuously. Do not use this cohort to estimate a success rate.
+The catalogue at the four-hour budget is an archive of attempts, including
+retries and interrupted runs. A session counts when the service ended it at the
+budget and its last key falls within the final two minutes; where a model has
+several, the one whose last key is closest to the end counts. The manifest
+lists every attempt with its status and reason, and validation refuses an
+attempt the manifest does not list.
 """
 import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MANIFEST = HERE / "long_submissions.json"
-STATUSES = {"selected", "superseded", "needs_review", "startup_only",
+STATUSES = {"selected", "superseded", "stopped_early", "startup_only",
             "no_actions", "incompatible_config", "protocol_violation"}
 
 
@@ -27,20 +30,17 @@ def last_key_seconds(row, timeline_dir=None):
 
 
 def validate(rows, manifest=None, timeline_dir=None):
-    """Fail closed on new/unreviewed IDs, duplicate models or stale choices.
-
-    Rows must already have canonical ``agent`` and original ``declared`` names.
-    Return the full manifest so generators can report both the cohort and the
-    withheld attempt counts. Raw inputs are not changed.
-    """
+    """Refuse an attempt the manifest does not list, a duplicate id, a stale
+    model mapping or a selection that is not the closest last key. Rows carry
+    the canonical ``agent`` and the ``declared`` name. Returns the manifest."""
     if manifest is None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != 1 or manifest.get("state") != "provisional":
+    if manifest.get("schema_version") != 1 or manifest.get("state") != "reviewed":
         raise ValueError("unsupported submission manifest version/state")
     budget = manifest["budget_seconds"]
     window = manifest["last_key_window_seconds"]
     if budget != 14400 or window != 120:
-        raise ValueError("the documented provisional rule is a 240-minute budget and a two-minute window")
+        raise ValueError("the rule is a 240-minute budget and a two-minute window")
     ids = [r["id"] for r in rows]
     entries = manifest["attempts"]
     entry_ids = [e["id"] for e in entries]
@@ -74,7 +74,7 @@ def validate(rows, manifest=None, timeline_dir=None):
             expected = None
             eligible.setdefault(r["agent"], []).append(r)
         else:
-            expected = "needs_review"
+            expected = "stopped_early"
         if expected is not None and status != expected:
             raise ValueError("ineligible or misclassified attempt: " + r["id"])
         if expected is None and status not in {"selected", "superseded"}:
@@ -90,7 +90,7 @@ def validate(rows, manifest=None, timeline_dir=None):
     if selected != closest:
         raise ValueError("selection must use the closest last key, not the milestone score")
     if not selected:
-        raise ValueError("empty provisional submission cohort")
+        raise ValueError("no four-hour session counts")
     return manifest
 
 

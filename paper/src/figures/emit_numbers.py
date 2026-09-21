@@ -750,7 +750,7 @@ emit("PbatchBig", sum(1 for m in TL[_bid]["marks"] if len(m["keys"]) >= 50), "it
 if not _br.get("saved_at") or _br.get("bigmap"):
     sys.exit("the prose says the batching session was credited by the save alone; it no longer is")
 
-# ------------------------------------------------------- curated four-hour submissions
+# ------------------------------------------------------- the four-hour sessions
 import long_cohort
 LONG_ATTEMPTS = field.long_attempts()
 LONG_MANIFEST = long_cohort.validate(LONG_ATTEMPTS)
@@ -759,21 +759,33 @@ _long_models = {r["agent"] for r in LONG}
 _field_models = {r["agent"] for r in PLAY}
 _compatible_models = {r["agent"] for r in LONG_ATTEMPTS if r["declared"] not in field.LONG_EXCLUDED}
 _pending_models = sorted(_compatible_models - _long_models)
-emit("NlongAttempts", len(LONG_ATTEMPTS), "all archived four-hour-budget attempts, not a scored denominator")
-emit("NlongSessions", len(LONG), "provisional selected submissions; one per model")
-emit("NlongModels", len(_long_models), "models with a provisional selected submission")
-emit("NlongWithheld", len(LONG_ATTEMPTS) - len(LONG), "archived attempts outside the provisional submission table")
-emit("NlongPendingModels", len(_pending_models), "compatible model names without a selected submission; pending review or rerun")
-emit("NlongFieldModels", len(_long_models & _field_models), "selected models also present at the hour; not a matched experiment")
+emit("NlongAttempts", len(LONG_ATTEMPTS), "attempts at the four-hour budget on record")
+emit("NlongSessions", len(LONG), "four-hour sessions that count, one per model")
+emit("NlongModels", len(_long_models), "models with a four-hour session that counts")
+emit("NlongWithheld", len(LONG_ATTEMPTS) - len(LONG), "attempts that do not count")
+emit("NlongPendingModels", len(_pending_models), "models with a four-hour attempt and no session that counts")
+emit("NlongFieldModels", len(_long_models & _field_models), "of them evaluated at the hour")
 emit("NlongFieldSessions", sum(r["agent"] in _field_models for r in LONG))
 emit("NlongBudgetMin", field.LONG_BUDGET // 60, "requested wall-clock budget")
-emit("NlongWindowMin", LONG_MANIFEST["last_key_window_seconds"] // 60, "retrospective final-key screening window")
+emit("NlongWindowMin", LONG_MANIFEST["last_key_window_seconds"] // 60, "the last key must fall within this many final minutes")
 emit("NlongMinLastMin", (field.LONG_BUDGET - LONG_MANIFEST["last_key_window_seconds"]) // 60)
 emit("NlongAliased", sum(r["declared"] != r["agent"] for r in LONG))
-emit("NlongExcluded", len(long_cohort.entries_of(LONG_MANIFEST, "incompatible_config")), "pre-existing name/configuration exclusions")
-emit("NlongStartup", len(long_cohort.entries_of(LONG_MANIFEST, "startup_only")), "one- or two-action attempts withheld")
-emit("NlongZero", len(long_cohort.entries_of(LONG_MANIFEST, "no_actions")), "zero-action attempts withheld")
-emit("NlongProtocol", len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")), "documented protocol-violating attempts withheld")
+emit("NlongExcluded", len(long_cohort.entries_of(LONG_MANIFEST, "incompatible_config")), "attempts declared under names that identify no model of the paper")
+emit("NlongStartup", len(long_cohort.entries_of(LONG_MANIFEST, "startup_only")), "attempts of one or two actions")
+emit("NlongZero", len(long_cohort.entries_of(LONG_MANIFEST, "no_actions")), "attempts with no action")
+emit("NlongProtocol", len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")), "attempts whose harness read earlier sessions")
+emit("NlongEarly", len(long_cohort.entries_of(LONG_MANIFEST, "stopped_early")), "attempts whose last key came before the final minutes")
+emit("NlongSuperseded", len(long_cohort.entries_of(LONG_MANIFEST, "superseded")), "attempts that played to the budget for a model whose counted session ended later")
+if len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")) != 1:
+    sys.exit("the prose says one attempt read the timelines of earlier sessions")
+if sum(len(long_cohort.entries_of(LONG_MANIFEST, s)) for s in
+       ("no_actions", "startup_only", "stopped_early", "superseded", "incompatible_config", "protocol_violation")) != len(LONG_ATTEMPTS) - len(LONG):
+    sys.exit("the attempts that do not count do not add up to the manifest")
+_hack = [r for r in LONG_ATTEMPTS if r["id"] == field.HACK_SESSION]
+_CK, _RK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("recruited\ncompanion")
+if len(_hack) != 1 or _hack[0]["agent"] != "gemini-3.8-flash" or field.rungs_of(_hack[0])[_CK] is not True or field.rungs_of(_hack[0])[_RK] is not True:
+    sys.exit("the prose says the attempt that read earlier sessions is gemini-3.8-flash and held the compass and a companion")
+emit_label("LlongHackLabel", "gemini-3.8-flash", "the model whose attempt read the timelines of earlier sessions")
 
 
 def _join(names):
@@ -781,7 +793,7 @@ def _join(names):
     return (", ".join(names[:-1]) + " and " + names[-1]) if len(names) > 1 else "".join(names)
 
 
-lines.append(("% compatible model names pending confirmation or rerun",
+lines.append(("% models with a four-hour attempt and no session that counts",
               "\\newcommand{\\LlongPendingLabels}{" + _join(_pending_models) + "}"))
 for macro, rung in (("NlongMap", "reached\nworld map"), ("NlongItem", "picked up\nan item"),
                    ("NlongScene", "entered\na scene"), ("NlongHermit", "spoke with\nthe hermit"),
@@ -789,24 +801,27 @@ for macro, rung in (("NlongMap", "reached\nworld map"), ("NlongItem", "picked up
                    ("NlongFight", "entered\na fight"), ("NlongExp", "gained\nexperience"),
                    ("NlongBook", "one of the\nfourteen")):
     k = field.DEFINITION.index(rung)
-    emit(macro, sum(field.rungs_of(r)[k] is True for r in LONG), "selected submissions only")
+    emit(macro, sum(field.rungs_of(r)[k] is True for r in LONG), "among the four-hour sessions that count")
 _last = {r["id"]: long_cohort.last_key_seconds(r) / 60 for r in LONG}
 emit("LlongLastMin", min(_last.values()), "earliest last key, minutes", fmt="%.1f")
 emit("LlongLastMax", max(_last.values()), "latest last key, minutes", fmt="%.1f")
 _lcross = [r["exit_secs"] / 60 for r in LONG if field.on_map(r)]
 if not _lcross or any(r.get("exit_secs") is None for r in LONG if field.on_map(r)):
     sys.exit("a selected crossing has no service time")
-emit("LlongCrossFirst", min(_lcross), "earliest selected crossing", fmt="%.1f")
-emit("LlongCrossLast", max(_lcross), "latest selected crossing", fmt="%.1f")
+emit("LlongCrossFirst", min(_lcross), "earliest crossing, minutes", fmt="%.1f")
+emit("LlongCrossLast", max(_lcross), "latest crossing, minutes", fmt="%.1f")
 emit("NlongCrossLate", sum(t > BUDGET / 60 for t in _lcross))
-for rung in ("holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
+for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
     if any(field.rungs_of(r)[field.DEFINITION.index(rung)] is True for r in LONG):
-        sys.exit("revise selected-submission prose: a retained run reached " + rung.replace("\n", " "))
+        sys.exit("the prose says no four-hour session that counts reached " + rung.replace("\n", " "))
 if field.HACK_SESSION in {r["id"] for r in LONG}:
-    sys.exit("the documented protocol-violating attempt must not be scored")
+    sys.exit("the attempt that read earlier sessions must not count")
 _ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG)
-lines.append(("% date range of the selected submissions, UTC",
-              "\\newcommand{\\LongDates}{%s to %s}" % (_ldays[0].strftime("%d %B %Y"), _ldays[-1].strftime("%d %B %Y"))))
+if _ldays[0].month != _ldays[-1].month:
+    sys.exit("the four-hour sessions span more than one month; the date macro assumes one")
+lines.append(("% the days the four-hour sessions that count ran, UTC", "\\newcommand{\\LongDates}{%s}" % (
+    "%d %s" % (_ldays[0].day, _ldays[0].strftime("%B %Y")) if _ldays[0] == _ldays[-1]
+    else "%d to %d %s" % (_ldays[0].day, _ldays[-1].day, _ldays[-1].strftime("%B %Y")))))
 
 # ------------------------------------------------------- human reference videos
 HUMAN = field.human_videos()

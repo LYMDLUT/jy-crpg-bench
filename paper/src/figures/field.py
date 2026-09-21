@@ -38,9 +38,8 @@ EVENTS = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-
 # The budget of the field this paper reports. The broker's default has since
 # moved to four hours; the field is selected by this value, not by that default.
 DEFAULT_BUDGET = 3600
-# The four-hour catalogue is an attempt archive, including retries and
-# incomplete runs. long_submissions.json identifies the provisional curated
-# submissions separately; all original records remain available for audit.
+# The catalogue at the four-hour budget, every attempt including retries and
+# interrupted runs; long_submissions.json says which sessions count.
 LONG = os.path.join(HERE, "catalog_snapshot_240min.json")
 LONG_BUDGET = 14400
 # Four-hour sessions the paper leaves out: a declared name that names no model
@@ -158,7 +157,7 @@ def long_attempts():
 
 
 def load_long():
-    """One provisional submission per model, selected by the audited manifest."""
+    """The four-hour sessions that count, one per model, per the manifest."""
     import long_cohort
     return long_cohort.select(long_attempts())
 
