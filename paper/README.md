@@ -5,20 +5,12 @@ ICLR 2027 submission draft for jy-crpg-bench.
 - `src/` - LaTeX source (official ICLR 2027 style), `main.pdf` is the build
 - `src/figures/make.py` - regenerates the data figures from the published catalogue numbers
 - `src/figures/env.tex`, `keymap.tex` - TikZ sources of the environment and
-  action-space figures; compile each with `pdflatex` in `src/figures/`
-  to refresh its PDF
-- `src/figures/architecture.svg` - authoritative, manually adjusted Inkscape
-  source for Figure 2. All three screenshots are embedded. Save further edits
-  to the SVG and export the page to `architecture.pdf` with Inkscape 1.4.4:
+  action-space figures; compile each with `pdflatex` in `src/figures/` to refresh its PDF
+- `src/figures/architecture.svg` - the source of Figure 2, edited in Inkscape, with the
+  three screenshots embedded and the lettering as paths. Export it from `paper/` with
   `inkscape src/figures/architecture.svg --export-area-page --export-type=pdf --export-filename=src/figures/architecture.pdf`
-  (run from `paper/`). On macOS the executable is also available at
-  `/Applications/Inkscape.app/Contents/MacOS/inkscape`.
-  The imported lettering is vector paths, preserving the approved appearance
-  without requiring the original fonts. `architecture.tex` retains the TikZ
-  layout before the final manual adjustments; do not compile it over the
-  published PDF. The normal paper build uses the committed PDF and does not
-  require Inkscape. Commit the SVG, its PDF export and the rebuilt `main.pdf`
-  together when this figure changes.
+  and commit the SVG, the PDF and the rebuilt `main.pdf` together. `architecture.tex` is
+  the TikZ layout the SVG started from and is not compiled.
 - every number is generated from committed inputs: `src/figures/catalog_snapshot.json`
   and `src/figures/start.state` (the savestate every session boots into),
   plus `src/figures/timelines/<id>.json`, the published keypress timeline of
