@@ -221,6 +221,30 @@ emit("QworstOverRandom", worst["meaningful"] / p_r,
      "the lowest active ratio as a multiple of the random floor", fmt="%.1f")
 emit("QrandomGap", st.median(r["gap_p50"] for r in RANDOM),
      "median inter-action gap of the random baseline, seconds", fmt="%.1f")
+# the random policy as bench/random_baseline.py draws it, and the check that every
+# random session on record replays the seeded sequence key for key
+_BENCH = os.path.join(HERE, "..", "..", "..", "bench")
+sys.path.insert(0, _BENCH)
+import random_baseline as _rb  # noqa: E402
+import check_random_run as _crr  # noqa: E402
+_rsrc = open(os.path.join(_BENCH, "random_baseline.py"), encoding="utf-8").read()
+_rseed = int(re.search(r'"--seed", type=int, default=(\d+)', _rsrc).group(1))
+_rpace = float(re.search(r'"--pace", type=float, default=([0-9.]+)', _rsrc).group(1))
+emit("QrandomSeed", _rseed, "the seed of the random baseline")
+emit("QrandomPace", _rpace, "its mean seconds between actions", fmt="%.1f")
+emit("QrandomMoveShare", 100.0 * sum(1 for k in _rb.ACTIONS if k in DIAG) / len(_rb.ACTIONS),
+     "share of its draws that are a diagonal movement key, percent", fmt="%.0f")
+emit("QrandomEnterShare", 100.0 * _rb.ACTIONS.count("enter") / len(_rb.ACTIONS),
+     "share of its draws that are the confirm key, percent", fmt="%.0f")
+if len(set(_rb.ACTIONS)) != RANDOM[0]["distinct_keys"]:
+    sys.exit("the random policy draws from %d keys, the catalogue counted %d" % (len(set(_rb.ACTIONS)), RANDOM[0]["distinct_keys"]))
+for _r in RANDOM:
+    _tl = json.load(open(os.path.join(HERE, "timelines", _r["id"] + ".json"), encoding="utf-8"))
+    _sent = [k for m in _tl["marks"] for k, _ in m.get("keys", [])]
+    if _sent != _crr.intended(_rseed, len(_sent), _rpace):
+        sys.exit("random session %s does not replay the seeded sequence" % _r["id"])
+if len({tuple(field.rungs_of(r)) for r in RANDOM}) != 1:
+    sys.exit("the prose says the random sessions agree on every milestone")
 
 # The two model sessions that deliberate longest between actions, so the
 # prose can name them and their pace without typing either.
@@ -807,6 +831,9 @@ _fewer = sorted(a for a in _both if _lu[a]["reached"] < _hour[a])
 if "gemini-3.8-flash" not in _gain:
     sys.exit("Section 4.3 reads the harness transcript of gemini-3.8-flash as a model that gained; the field changed: %s" % _gain)
 emit_label("LlongHackLabel", "gemini-3.8-flash", "the model whose transcript shows the reward hacking")
+_hack = [r for r in LONG if r["id"] == field.HACK_SESSION]
+if len(_hack) != 1 or _hack[0]["agent"] != "gemini-3.8-flash" or field.rungs_of(_hack[0])[_COMPASS_K] is not True:
+    sys.exit("the session with the reward-hacking transcript is not a gemini-3.8-flash four-hour session holding the compass")
 emit("NlongGained", len(_gain), "models whose four-hour sessions reached more milestones than their hour sessions")
 emit("NlongFewer", len(_fewer), "models whose four-hour sessions reached fewer")
 emit("NlongSame", len(_both) - len(_gain) - len(_fewer))

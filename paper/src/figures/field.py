@@ -46,6 +46,7 @@ LONG_BUDGET = 14400
 # Four-hour sessions the paper leaves out: a declared name that names no model
 # of the paper, and a session at another thinking level.
 LONG_EXCLUDED = ("claude-opus-4-5-high", "gpt-6-astramax")
+HACK_SESSION = "3eb8f81b3592"    # the four-hour session whose harness transcript shows it reading earlier timelines
 
 
 def _rows(path):

@@ -55,7 +55,9 @@ ICLR 2027 submission draft for jy-crpg-bench.
   camera, frame zero of a benchmark replay, and `spawnscan.py` does the same for
   one capture. The evidence sheets are under `human/evidence/<video id>/`, the
   videos themselves are not tracked, and `field.human_rows()` turns the file into
-  the two rows.
+  the two rows. `src/figures/human/route.py` stitches the frames of a walk into
+  the panels of the route figure (`src/figures/route-*.png`) from the same
+  speedrun.
 - `refs/` - the fourteen reference papers read while shaping the structure, by arXiv id
 - `iclr2027/` - the official style-file kit as downloaded
 

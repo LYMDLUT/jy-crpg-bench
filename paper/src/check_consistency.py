@@ -278,6 +278,24 @@ def main():
     if "came after the first hour" in flat:
         late = [r["agent"] for r in long_rows if (r.get("exit_secs") or 0) > field.DEFAULT_BUDGET]
         ok &= claim("late crossings match the macro", int(nums["NlongCrossLate"]) == len(late), "late: %s" % late)
+    if "the fight fought to its end, and changes no other count" in flat:
+        full = {m["agent"]: m for m in field.model_rows(models)}
+        without = {m["agent"]: m for m in field.model_rows([r for r in models if r.get("reason") != "idle"])}
+        FOUGHT = field.DEFINITION.index("fought to\nthe end")
+        diff = {a: full[a]["reached"] - without[a]["reached"] for a in full if a in without and full[a]["reached"] != without[a]["reached"]}
+        top = nums["LtopLabel"].replace("\\texttt{", "").rstrip("}")
+        ok &= claim("excluding the idle-ended sessions lowers one count by one, the fight fought to its end",
+                    diff == {top: 1} and full[top]["rungs"][FOUGHT] is True and without[top]["rungs"][FOUGHT] is not True
+                    and all(a in without for a in full),
+                    "%s" % diff)
+    if "add no compass holder" in flat:
+        C = field.DEFINITION.index("holds the\ncompass")
+        hour_c = {m["agent"] for m in field.model_rows(models) if m["rungs"][C] is True}
+        rest = [r for r in long_rows if r["id"] != field.HACK_SESSION]
+        long_c = {r["agent"] for r in rest if field.rungs_of(r)[C] is True}
+        ok &= claim("without the reward-hacking session the four-hour field adds no compass holder",
+                    any(r["id"] == field.HACK_SESSION for r in long_rows) and long_c - hour_c == set(),
+                    "hour %s, four hours without it %s" % (sorted(hour_c), sorted(long_c)))
     if "one more model to the compass" in flat:
         C = field.DEFINITION.index("holds the\ncompass")
         hour = {m["agent"] for m in field.model_rows(models) if m["rungs"][C] is True}
