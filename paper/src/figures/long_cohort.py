@@ -2,8 +2,7 @@
 
 The catalogue at the four-hour budget is an archive of attempts, including
 retries and interrupted runs. A session counts when the service ended it at the
-budget and its last key falls within the final two minutes; where a model has
-several, the one whose last key is closest to the end counts. The manifest
+budget and its last key falls within the final two minutes. The manifest
 lists every attempt with its status and reason, and validation refuses an
 attempt the manifest does not list.
 """
@@ -12,7 +11,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MANIFEST = HERE / "long_submissions.json"
-STATUSES = {"selected", "superseded", "stopped_early", "startup_only",
+STATUSES = {"selected", "stopped_early", "startup_only",
             "no_actions", "incompatible_config", "protocol_violation"}
 
 
@@ -31,8 +30,8 @@ def last_key_seconds(row, timeline_dir=None):
 
 def validate(rows, manifest=None, timeline_dir=None):
     """Refuse an attempt the manifest does not list, a duplicate id, a stale
-    model mapping or a selection that is not the closest last key. Rows carry
-    the canonical ``agent`` and the ``declared`` name. Returns the manifest."""
+    model mapping, or a status that disagrees with the rule. Rows carry the
+    canonical ``agent`` and the ``declared`` name. Returns the manifest."""
     if manifest is None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     if manifest.get("schema_version") != 1 or manifest.get("state") != "reviewed":
@@ -51,8 +50,7 @@ def validate(rows, manifest=None, timeline_dir=None):
     indexed = {r["id"]: r for r in rows}
     blocked = set(manifest["protocol_violations"])
     incompatible = set(manifest["incompatible_declared_names"])
-    eligible = {}
-    selected = {}
+    selected = set()
     for entry in entries:
         r = indexed[entry["id"]]
         if r["budget"] != budget:
@@ -71,24 +69,13 @@ def validate(rows, manifest=None, timeline_dir=None):
         elif r["actions"] <= 2:
             expected = "startup_only"
         elif r.get("reason") == "time" and budget - window <= last_key_seconds(r, timeline_dir) <= budget:
-            expected = None
-            eligible.setdefault(r["agent"], []).append(r)
+            expected = "selected"
         else:
             expected = "stopped_early"
-        if expected is not None and status != expected:
-            raise ValueError("ineligible or misclassified attempt: " + r["id"])
-        if expected is None and status not in {"selected", "superseded"}:
-            raise ValueError("eligible attempt missing selection decision: " + r["id"])
+        if status != expected:
+            raise ValueError("status disagrees with the rule: " + r["id"])
         if status == "selected":
-            if r["agent"] in selected:
-                raise ValueError("multiple submissions for model: " + r["agent"])
-            selected[r["agent"]] = r["id"]
-    closest = {
-        model: max(rs, key=lambda r: (last_key_seconds(r, timeline_dir), r.get("started") or 0, r["id"]))["id"]
-        for model, rs in eligible.items()
-    }
-    if selected != closest:
-        raise ValueError("selection must use the closest last key, not the milestone score")
+            selected.add(r["id"])
     if not selected:
         raise ValueError("no four-hour session counts")
     return manifest

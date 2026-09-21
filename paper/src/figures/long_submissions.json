@@ -4,8 +4,8 @@
  "reviewed_on": "2026-09-22",
  "budget_seconds": 14400,
  "last_key_window_seconds": 120,
- "selection": "One session per model: among the attempts the service ended at the budget with a last key in the final two minutes, the one whose last key is closest to the end, then the latest start, then the session id.",
- "interpretation": "The sessions that count are one per model; every other attempt is listed with the reason it does not count.",
+ "selection": "Every attempt the service ended at the budget with a last key in the final two minutes counts, as every played session counts at the hour.",
+ "interpretation": "The sessions that count are listed in the paper; every other attempt is listed here with the reason it does not count.",
  "provenance": "The archive holds every attempt at the four-hour budget, including retries and interrupted runs.",
  "protocol_violations": [
   "3eb8f81b3592"
@@ -101,7 +101,7 @@
    "declared_model": "deepseek-v4.1-flash",
    "status": "selected",
    "source": "Client not established in this audit",
-   "reason": "Played to the budget; the last key of the model closest to the end."
+   "reason": "Played to the budget."
   },
   {
    "id": "f049819cfaaa",
@@ -141,7 +141,7 @@
    "declared_model": "glm5.3",
    "status": "selected",
    "source": "With workspace matched to session ID",
-   "reason": "Played to the budget; the last key of the model closest to the end."
+   "reason": "Played to the budget."
   },
   {
    "id": "ebe190fab9e3",
@@ -163,9 +163,9 @@
    "id": "d92f27b88228",
    "model": "glm-5.3-flash",
    "declared_model": "glm5.3flashhigh",
-   "status": "superseded",
+   "status": "selected",
    "source": "With workspace matched to session ID",
-   "reason": "Played to the budget; another session of the model has its last key closer to the end."
+   "reason": "Played to the budget."
   },
   {
    "id": "474dbf34ac11",
@@ -181,7 +181,7 @@
    "declared_model": "gpt5.6lunahigh",
    "status": "selected",
    "source": "Cursor CLI transcript matched to session ID",
-   "reason": "Played to the budget; the last key of the model closest to the end."
+   "reason": "Played to the budget."
   },
   {
    "id": "f0dae0e11d44",
@@ -213,7 +213,7 @@
    "declared_model": "gpt5.6solhigh",
    "status": "selected",
    "source": "Client not established in this audit",
-   "reason": "Played to the budget; the last key of the model closest to the end."
+   "reason": "Played to the budget."
   },
   {
    "id": "1a39922954a0",
@@ -309,7 +309,7 @@
    "declared_model": "grok4.6high",
    "status": "selected",
    "source": "Cursor CLI transcript matched to session ID",
-   "reason": "Played to the budget; the last key of the model closest to the end."
+   "reason": "Played to the budget."
   },
   {
    "id": "a9b408f53ec8",
@@ -333,7 +333,7 @@
    "declared_model": "claude-opus-4-8-thinking-high",
    "status": "selected",
    "source": "Client not established in this audit",
-   "reason": "Played to the budget; the last key of the model closest to the end."
+   "reason": "Played to the budget."
   }
  ]
 }

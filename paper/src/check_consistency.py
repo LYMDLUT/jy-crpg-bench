@@ -232,7 +232,7 @@ def main():
     table = open(os.path.join(SRC, "tables/long.tex"), encoding="utf-8").read()
     table_ids = set(re.findall(r"[0-9a-f]{12}", table))
     ok &= claim("the four-hour table lists exactly the sessions that count", table_ids == selected_ids, str(sorted(table_ids)))
-    ok &= claim("one four-hour session per model", len(long_rows) == len({r["agent"] for r in long_rows}), str(len(long_rows)))
+    ok &= claim("the four-hour model count matches the macro", int(nums["NlongModels"]) == len({r["agent"] for r in long_rows}), str(len(long_rows)))
     ok &= claim("attempt and submission counts match generated macros",
                 (int(nums["NlongAttempts"]), int(nums["NlongSessions"]), int(nums["NlongWithheld"]))
                 == (len(attempts), len(long_rows), len(attempts) - len(long_rows)), str(len(attempts)))

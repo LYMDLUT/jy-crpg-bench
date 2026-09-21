@@ -24,8 +24,7 @@ class SubmissionTests(unittest.TestCase):
         selected = field.load_long()
         self.assertEqual({r['id'] for r in selected}, {
             '2ade73b3f2bb', '7a7f8fa37e88', '8aa37740e5e8',
-            'a5c748b12df1', 'bd77396a227d', 'd8bcd235fd6d'})
-        self.assertEqual(len(selected), len({r['agent'] for r in selected}))
+            'a5c748b12df1', 'bd77396a227d', 'd8bcd235fd6d', 'd92f27b88228'})
         self.assertTrue(all(r['actions'] > 2 for r in selected))
         self.assertNotIn(field.HACK_SESSION, {r['id'] for r in selected})
         self.assertTrue(all(14280 <= long_cohort.last_key_seconds(r) <= 14400 for r in selected))
@@ -50,9 +49,8 @@ class SubmissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             long_cohort.validate(self.rows, self.manifest)
 
-    def test_does_not_choose_more_milestones_in_glm_retry(self):
-        self.entry('d8bcd235fd6d')['status'] = 'superseded'
-        self.entry('d92f27b88228')['status'] = 'selected'
+    def test_every_session_at_the_budget_counts(self):
+        self.entry('d92f27b88228')['status'] = 'stopped_early'
         with self.assertRaises(ValueError):
             long_cohort.validate(self.rows, self.manifest)
 

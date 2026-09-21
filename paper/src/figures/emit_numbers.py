@@ -760,7 +760,7 @@ _field_models = {r["agent"] for r in PLAY}
 _compatible_models = {r["agent"] for r in LONG_ATTEMPTS if r["declared"] not in field.LONG_EXCLUDED}
 _pending_models = sorted(_compatible_models - _long_models)
 emit("NlongAttempts", len(LONG_ATTEMPTS), "attempts at the four-hour budget on record")
-emit("NlongSessions", len(LONG), "four-hour sessions that count, one per model")
+emit("NlongSessions", len(LONG), "four-hour sessions that count")
 emit("NlongModels", len(_long_models), "models with a four-hour session that counts")
 emit("NlongWithheld", len(LONG_ATTEMPTS) - len(LONG), "attempts that do not count")
 emit("NlongPendingModels", len(_pending_models), "models with a four-hour attempt and no session that counts")
@@ -775,11 +775,10 @@ emit("NlongStartup", len(long_cohort.entries_of(LONG_MANIFEST, "startup_only")),
 emit("NlongZero", len(long_cohort.entries_of(LONG_MANIFEST, "no_actions")), "attempts with no action")
 emit("NlongProtocol", len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")), "attempts whose harness read earlier sessions")
 emit("NlongEarly", len(long_cohort.entries_of(LONG_MANIFEST, "stopped_early")), "attempts whose last key came before the final minutes")
-emit("NlongSuperseded", len(long_cohort.entries_of(LONG_MANIFEST, "superseded")), "attempts that played to the budget for a model whose counted session ended later")
 if len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")) != 1:
     sys.exit("the prose says one attempt read the timelines of earlier sessions")
 if sum(len(long_cohort.entries_of(LONG_MANIFEST, s)) for s in
-       ("no_actions", "startup_only", "stopped_early", "superseded", "incompatible_config", "protocol_violation")) != len(LONG_ATTEMPTS) - len(LONG):
+       ("no_actions", "startup_only", "stopped_early", "incompatible_config", "protocol_violation")) != len(LONG_ATTEMPTS) - len(LONG):
     sys.exit("the attempts that do not count do not add up to the manifest")
 _hack = [r for r in LONG_ATTEMPTS if r["id"] == field.HACK_SESSION]
 _CK, _RK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("recruited\ncompanion")

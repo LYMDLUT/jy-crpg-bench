@@ -1,6 +1,6 @@
 # Four-hour sessions
 
-The catalogue at the four-hour budget holds every attempt, including retries and interrupted runs. A session counts when the service ended it at the budget and its last key falls within the final two minutes; where a model has several, the one whose last key is closest to the end counts, then the latest start, then the session id. Milestone scores play no part in the choice. `src/figures/long_submissions.json` lists every attempt with its status and reason, and `src/figures/long_cohort.py` refuses an attempt the manifest does not list.
+The catalogue at the four-hour budget holds every attempt, including retries and interrupted runs. A session counts when the service ended it at the budget and its last key falls within the final two minutes, and every such session counts, as every played session counts at the hour. `src/figures/long_submissions.json` lists every attempt with its status and reason, and `src/figures/long_cohort.py` refuses an attempt the manifest does not list.
 
 | Model | Session | Actions | Last key (min) | Status |
 |---|---|---:|---:|---|
@@ -22,7 +22,7 @@ The catalogue at the four-hour budget holds every attempt, including retries and
 | glm-5.3-flash | `d8bcd235fd6d` | 378 | 238.39 | selected |
 | glm-5.3-flash | `ebe190fab9e3` | 129 | 26.11 | stopped_early |
 | glm-5.3-flash | `d602f7ce9ec3` | 304 | 94.71 | stopped_early |
-| glm-5.3-flash | `d92f27b88228` | 372 | 238.15 | superseded |
+| glm-5.3-flash | `d92f27b88228` | 372 | 238.15 | selected |
 | gpt-5.6-luna | `474dbf34ac11` | 175 | 89.60 | stopped_early |
 | gpt-5.6-luna | `7a7f8fa37e88` | 530 | 238.90 | selected |
 | gpt-5.6-sol | `f0dae0e11d44` | 255 | 89.13 | stopped_early |
