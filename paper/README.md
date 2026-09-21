@@ -58,6 +58,16 @@ ICLR 2027 submission draft for jy-crpg-bench.
   the two rows. `src/figures/human/route.py` stitches the frames of a walk into
   the panels of the route figure (`src/figures/route-*.png`) from the same
   speedrun.
+- `src/figures/long_submissions.json` - the explicit, provisional four-hour
+  submission manifest. The raw catalogue remains an attempt archive. The
+  retrospective final-two-minute last-key screen and one-candidate-per-model
+  choice are documented in `long-submissions.md`; they are not an all-attempt
+  success rate or proof of continuous execution. `long_cohort.py` validates
+  every attempt and refuses unreviewed additions; `field.long_attempts()` keeps
+  the archive separate from `field.load_long()`. The former 34-row table is
+  replaced by six selected candidates, with other models pending confirmation
+  or rerun rather than assigned zero. This provisional rule needs author review.
+  Run `python3 -B figures/test_long_cohort.py` from `src/` before regenerating.
 - `refs/` - the fourteen reference papers read while shaping the structure, by arXiv id
 - `iclr2027/` - the official style-file kit as downloaded
 

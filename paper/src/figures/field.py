@@ -38,9 +38,9 @@ EVENTS = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-
 # The budget of the field this paper reports. The broker's default has since
 # moved to four hours; the field is selected by this value, not by that default.
 DEFAULT_BUDGET = 3600
-# The four-hour sessions: the catalogue as fetched on 2026-09-16, holding one
-# session of each of eight models of the field at the budget that is now the
-# default. They are reported as a second experiment beside the hour field.
+# The four-hour catalogue is an attempt archive, including retries and
+# incomplete runs. long_submissions.json identifies the provisional curated
+# submissions separately; all original records remain available for audit.
 LONG = os.path.join(HERE, "catalog_snapshot_240min.json")
 LONG_BUDGET = 14400
 # Four-hour sessions the paper leaves out: a declared name that names no model
@@ -152,12 +152,15 @@ def human_rows():
     return out
 
 
-def load_long(keep_excluded=False):
-    """The model sessions at the four-hour budget, listed under the model."""
-    rows = [r for r in played(_rows(LONG), LONG_BUDGET) if not is_random(r["agent"])]
-    if not keep_excluded:
-        rows = [r for r in rows if r["declared"] not in LONG_EXCLUDED]
-    return rows
+def long_attempts():
+    """All model attempts at the four-hour budget, including empty starts."""
+    return [r for r in _rows(LONG) if r["budget"] == LONG_BUDGET and not is_random(r["agent"])]
+
+
+def load_long():
+    """One provisional submission per model, selected by the audited manifest."""
+    import long_cohort
+    return long_cohort.select(long_attempts())
 
 
 def random_rows(rows, budget=DEFAULT_BUDGET):

@@ -1,0 +1,339 @@
+{
+  "schema_version": 1,
+  "state": "provisional",
+  "reviewed_on": "2026-09-22",
+  "budget_seconds": 14400,
+  "last_key_window_seconds": 120,
+  "selection": "One candidate per canonical model; among otherwise eligible time-ended attempts with a last key in the final two minutes, choose the closest last key to the deadline, then the latest start, then the session ID. Milestone scores are not used.",
+  "interpretation": "Retrospective, selected submission examples, not all-attempt success rates, IID replicates or a controlled estimate of the effect of a longer budget. The screen and model mappings require author confirmation before final submission.",
+  "provenance": "The contributor clarified that the archive mixes retries, interrupted attempts and intended submissions. Exact per-attempt stop causes have not all been verified. The final-two-minute screen is a conservative proposal for review, not an original preregistered protocol.",
+  "protocol_violations": [
+    "3eb8f81b3592"
+  ],
+  "incompatible_declared_names": [
+    "claude-opus-4-5-high",
+    "gpt-6-astramax"
+  ],
+  "attempts": [
+    {
+      "id": "32a1d38bbfce",
+      "model": "claude-opus-4-5-high",
+      "declared_model": "claude-opus-4-5-high",
+      "status": "incompatible_config",
+      "source": "Client not established in this audit",
+      "reason": "Already excluded by the original paper for an unresolved declared model name or a different thinking level."
+    },
+    {
+      "id": "32940e2cb2c0",
+      "model": "deepseek-v4-flash",
+      "declared_model": "deepseek-v4-flashhigh",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "32ecf060c2ae",
+      "model": "deepseek-v4-flash",
+      "declared_model": "deepseek-v4-flash-high",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "d8428f311f2c",
+      "model": "deepseek-v4-flash",
+      "declared_model": "deepseek-v4-flash-high",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "103843b6012a",
+      "model": "deepseek-v4-flash",
+      "declared_model": "deepseek-v4-flash-high",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "58e79307057b",
+      "model": "deepseek-v4-flash",
+      "declared_model": "deepseek-v4-flash-high",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "82794b81135e",
+      "model": "deepseek-v4.1-flash",
+      "declared_model": "deepseekv4.1flash",
+      "status": "startup_only",
+      "source": "Client not established in this audit",
+      "reason": "Only one or two actions. Withheld from the provisional completed-submission table; the specific stop cause is not established."
+    },
+    {
+      "id": "52c0445822e2",
+      "model": "deepseek-v4.1-flash",
+      "declared_model": "deepseekv4.1flash",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "bb5cdbf34097",
+      "model": "deepseek-v4.1-flash",
+      "declared_model": "deepseekv4.1flash",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "913be91591d6",
+      "model": "deepseek-v4.1-flash",
+      "declared_model": "deepseekv4.1flash",
+      "status": "no_actions",
+      "source": "Local game workspace matched to session ID",
+      "reason": "No recorded action; not a completed submission."
+    },
+    {
+      "id": "8aa37740e5e8",
+      "model": "deepseek-v4.1-flash",
+      "declared_model": "deepseek-v4.1-flash",
+      "status": "selected",
+      "source": "Client not established in this audit",
+      "reason": "Last key lies in the final two minutes; closest last key to the budget among eligible attempts of this model. Provisional, not a certification of uninterrupted execution."
+    },
+    {
+      "id": "f049819cfaaa",
+      "model": "deepseek-v4.1-flash",
+      "declared_model": "deepseekv4.1flash",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "89e9f8d32e18",
+      "model": "gemini-3.7-flash",
+      "declared_model": "gemini-3.7-flash",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure. Last key is near minute 231; this is a near-complete boundary case, not proof of an invalid attempt."
+    },
+    {
+      "id": "3eb8f81b3592",
+      "model": "gemini-3.8-flash",
+      "declared_model": "gemini-3.8-flash",
+      "status": "protocol_violation",
+      "source": "Client not established in this audit",
+      "reason": "The existing paper documents this harness reading earlier sessions and their key sequences. Retained for audit, not credited as an independent submission."
+    },
+    {
+      "id": "b3e214868909",
+      "model": "glm-5.3-flash",
+      "declared_model": "glm-5.3-flash",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "d8bcd235fd6d",
+      "model": "glm-5.3-flash",
+      "declared_model": "glm5.3",
+      "status": "selected",
+      "source": "With workspace matched to session ID",
+      "reason": "Last key lies in the final two minutes; closest last key to the budget among eligible attempts of this model. Provisional, not a certification of uninterrupted execution."
+    },
+    {
+      "id": "ebe190fab9e3",
+      "model": "glm-5.3-flash",
+      "declared_model": "glm5.3-flash-high",
+      "status": "needs_review",
+      "source": "With workspace matched to session ID",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "d602f7ce9ec3",
+      "model": "glm-5.3-flash",
+      "declared_model": "glm5.3-flash-high",
+      "status": "needs_review",
+      "source": "With workspace matched to session ID",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "d92f27b88228",
+      "model": "glm-5.3-flash",
+      "declared_model": "glm5.3flashhigh",
+      "status": "superseded",
+      "source": "With workspace matched to session ID",
+      "reason": "Another near-budget attempt; represented by d8bcd235fd6d under the closest-last-key rule. This attempt is not labelled invalid."
+    },
+    {
+      "id": "474dbf34ac11",
+      "model": "gpt-5.6-luna",
+      "declared_model": "gpt-5.6-luna",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "7a7f8fa37e88",
+      "model": "gpt-5.6-luna",
+      "declared_model": "gpt5.6lunahigh",
+      "status": "selected",
+      "source": "Cursor CLI transcript matched to session ID",
+      "reason": "Last key lies in the final two minutes; closest last key to the budget among eligible attempts of this model. Provisional, not a certification of uninterrupted execution."
+    },
+    {
+      "id": "f0dae0e11d44",
+      "model": "gpt-5.6-sol",
+      "declared_model": "gpt5.6-sol",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "72e7251322d3",
+      "model": "gpt-5.6-sol",
+      "declared_model": "GPT-5",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "9e2b0a394814",
+      "model": "gpt-5.6-sol",
+      "declared_model": "GPT-5-run2",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "bd77396a227d",
+      "model": "gpt-5.6-sol",
+      "declared_model": "gpt5.6solhigh",
+      "status": "selected",
+      "source": "Client not established in this audit",
+      "reason": "Last key lies in the final two minutes; closest last key to the budget among eligible attempts of this model. Provisional, not a certification of uninterrupted execution."
+    },
+    {
+      "id": "1a39922954a0",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt-5.6-terra",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "134d1bd7c4b5",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt5.6terrahigh",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "971e304738f1",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt5.6terrahigh",
+      "status": "no_actions",
+      "source": "Client not established in this audit",
+      "reason": "No recorded action; not a completed submission."
+    },
+    {
+      "id": "686580504071",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt-5.6-terra-high",
+      "status": "startup_only",
+      "source": "Client not established in this audit",
+      "reason": "Only one or two actions. Withheld from the provisional completed-submission table; the specific stop cause is not established."
+    },
+    {
+      "id": "18a1c6b0c6b5",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt-5.6-terra-high",
+      "status": "no_actions",
+      "source": "Local game workspace matched to session ID",
+      "reason": "No recorded action; not a completed submission."
+    },
+    {
+      "id": "27ed2bc60b74",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt-5.6-terra-high",
+      "status": "startup_only",
+      "source": "Local game workspace matched to session ID",
+      "reason": "Only one or two actions. Withheld from the provisional completed-submission table; the specific stop cause is not established."
+    },
+    {
+      "id": "935863afc3ad",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt5.6terrahigh",
+      "status": "no_actions",
+      "source": "Client not established in this audit",
+      "reason": "No recorded action; not a completed submission."
+    },
+    {
+      "id": "5b4d449895c8",
+      "model": "gpt-5.6-terra",
+      "declared_model": "gpt5.6terrahigh",
+      "status": "needs_review",
+      "source": "Cursor CLI transcript matched to session ID",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure. Cursor contains repeated user continuation prompts and no observed full-budget closing response. Human intervention also needs review."
+    },
+    {
+      "id": "d07558b2651c",
+      "model": "gpt-6-astra",
+      "declared_model": "gpt-6-astra",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "71aac2ce1f89",
+      "model": "gpt-6-astramax",
+      "declared_model": "gpt-6-astramax",
+      "status": "incompatible_config",
+      "source": "Client not established in this audit",
+      "reason": "Already excluded by the original paper for an unresolved declared model name or a different thinking level."
+    },
+    {
+      "id": "7a3053e4a14f",
+      "model": "grok-4.6",
+      "declared_model": "grok-4.6",
+      "status": "needs_review",
+      "source": "Client not established in this audit",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure."
+    },
+    {
+      "id": "a5c748b12df1",
+      "model": "grok-4.6",
+      "declared_model": "grok4.6high",
+      "status": "selected",
+      "source": "Cursor CLI transcript matched to session ID",
+      "reason": "Last key lies in the final two minutes; closest last key to the budget among eligible attempts of this model. Provisional, not a certification of uninterrupted execution."
+    },
+    {
+      "id": "a9b408f53ec8",
+      "model": "kimi-k3",
+      "declared_model": "kimi-k3-high",
+      "status": "needs_review",
+      "source": "Cursor CLI transcript matched to session ID",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure. Cursor ended by asking the user what to do after claiming a soft lock; an actual environment defect was not independently established."
+    },
+    {
+      "id": "16831128b3cf",
+      "model": "kimi-k3",
+      "declared_model": "kimik3high",
+      "status": "needs_review",
+      "source": "Cursor CLI transcript matched to session ID",
+      "reason": "Last key precedes the final-two-minute window. Withheld pending confirmation or rerun; this does not establish provider failure, user cancellation or model failure. Cursor records continued to the four-hour deadline and received HTTP 410, while the last action was near minute 180. This boundary case needs author review, not automatic failure attribution."
+    },
+    {
+      "id": "2ade73b3f2bb",
+      "model": "qwen3.8-27b",
+      "declared_model": "claude-opus-4-8-thinking-high",
+      "status": "selected",
+      "source": "Client not established in this audit",
+      "reason": "Last key lies in the final two minutes; closest last key to the budget among eligible attempts of this model. Provisional, not a certification of uninterrupted execution."
+    }
+  ]
+}

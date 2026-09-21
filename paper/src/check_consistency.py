@@ -223,36 +223,28 @@ def main():
                     fastest is not None and top not in (busiest, fastest),
                     "top %s, most actions %s, fastest %s" % (top, busiest, fastest))
 
-    # The four-hour sessions of Section 4.3, one per model.
+    # Validate the provisional submissions unconditionally, not by prose keywords.
+    import long_cohort
+    attempts = field.long_attempts()
+    manifest = long_cohort.validate(attempts)
     long_rows = field.load_long()
-    if "four further models" in flat:
-        hour = {r["agent"] for r in models}
-        beyond = sorted({r["agent"] for r in long_rows} - hour)
-        ok &= claim("four models beyond the hour, as named",
-                    beyond == ["deepseek-v4-flash", "deepseek-v4.1-flash", "kimi-k3", "qwen3.8-27b"], "%s" % beyond)
-        ok &= claim("the four-hour session counts match the macros",
-                    (int(nums["NlongSessions"]), int(nums["NlongFieldSessions"]), int(nums["NlongFieldModels"]))
-                    == (len(long_rows), sum(1 for r in long_rows if r["agent"] in hour), len({r["agent"] for r in long_rows} & hour)),
-                    "%d sessions, %d of hour models" % (len(long_rows), sum(1 for r in long_rows if r["agent"] in hour)))
-    if "no session enters a fight, and none gains experience or holds a book" in flat:
-        FIGHT = field.DEFINITION.index("entered\na fight")
-        ok &= claim("no four-hour session fought, gained experience or holds a book",
-                    bool(long_rows) and not any(field.rungs_of(r)[FIGHT] is True for r in long_rows)
-                    and all((r.get("exp") or 0) == 0 and (r.get("books") or 0) == 0 for r in long_rows),
-                    "exp %s, books %s" % ([r.get("exp") for r in long_rows], [r.get("books") for r in long_rows]))
+    selected_ids = {r["id"] for r in long_rows}
+    table = open(os.path.join(SRC, "tables/long.tex"), encoding="utf-8").read()
+    table_ids = set(re.findall(r"[0-9a-f]{12}", table))
+    ok &= claim("curated table exactly matches the manifest", table_ids == selected_ids, str(sorted(table_ids)))
+    ok &= claim("one provisional submission per model", len(long_rows) == len({r["agent"] for r in long_rows}), str(len(long_rows)))
+    ok &= claim("attempt and submission counts match generated macros",
+                (int(nums["NlongAttempts"]), int(nums["NlongSessions"]), int(nums["NlongWithheld"]))
+                == (len(attempts), len(long_rows), len(attempts) - len(long_rows)), str(len(attempts)))
+    ok &= claim("documented protocol violation is not credited", field.HACK_SESSION not in selected_ids, field.HACK_SESSION)
+    for rung in ("holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
+        k = field.DEFINITION.index(rung)
+        ok &= claim("selected submissions have no " + rung.replace("\n", " "),
+                    not any(field.rungs_of(r)[k] is True for r in long_rows), str(len(long_rows)))
     if "sessions before the hour" in flat:
         idle = sum(1 for r in models if r.get("reason") == "idle")
         ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
                     "%d idle-ended" % idle)
-    if "stopped within their first minute" in flat:
-        stub = 0
-        for r in long_rows:
-            tl = json.load(open(os.path.join(field.HERE, "timelines", r["id"] + ".json"), encoding="utf-8"))
-            stub += (tl["marks"][-1]["t"] * tl["speed"] / 60 if tl["marks"] else 0.0) < 1
-        ok &= claim("sessions that stopped within the first minute match the macro", int(nums["NlongStub"]) == stub, "%d" % stub)
-    if "came after the first hour" in flat:
-        late = [r["agent"] for r in long_rows if (r.get("exit_secs") or 0) > field.DEFAULT_BUDGET]
-        ok &= claim("late crossings match the macro", int(nums["NlongCrossLate"]) == len(late), "late: %s" % late)
     if "loses the fight fought to its end, and no other count changes" in flat:
         full = {m["agent"]: m for m in field.model_rows(models)}
         without = {m["agent"]: m for m in field.model_rows([r for r in models if r.get("reason") != "idle"])}
@@ -263,21 +255,6 @@ def main():
                     diff == {top: 1} and full[top]["rungs"][FOUGHT] is True and without[top]["rungs"][FOUGHT] is not True
                     and all(a in without for a in full),
                     "%s" % diff)
-    if "add no compass holder" in flat:
-        C = field.DEFINITION.index("holds the\ncompass")
-        hour_c = {m["agent"] for m in field.model_rows(models) if m["rungs"][C] is True}
-        rest = [r for r in long_rows if r["id"] != field.HACK_SESSION]
-        long_c = {r["agent"] for r in rest if field.rungs_of(r)[C] is True}
-        ok &= claim("without the reward-hacking session the four-hour field adds no compass holder",
-                    any(r["id"] == field.HACK_SESSION for r in long_rows) and long_c - hour_c == set(),
-                    "hour %s, four hours without it %s" % (sorted(hour_c), sorted(long_c)))
-    if "one more model to the compass" in flat:
-        C = field.DEFINITION.index("holds the\ncompass")
-        hour = {m["agent"] for m in field.model_rows(models) if m["rungs"][C] is True}
-        long_c = {r["agent"] for r in long_rows if field.rungs_of(r)[C] is True}
-        ok &= claim("the four-hour sessions add one compass holder", len(long_c - hour) == 1,
-                    "hour %s, four hours %s" % (sorted(hour), sorted(long_c)))
-
     # The human references of Figure 3, read from human_sessions.json.
     if "cross onto the world map within the first minute" in flat:
         speed = [v for v in field.human_videos() if v["class"] == "speedrun"]
