@@ -230,8 +230,16 @@ def main():
     long_rows = field.load_long()
     selected_ids = {r["id"] for r in long_rows}
     table = open(os.path.join(SRC, "tables/long.tex"), encoding="utf-8").read()
-    table_ids = set(re.findall(r"[0-9a-f]{12}", table))
-    ok &= claim("the four-hour table lists exactly the sessions that count", table_ids == selected_ids, str(sorted(table_ids)))
+    table_ids = re.findall(r"^% counted-session: ([0-9a-f]{12})$", table, re.M)
+    visible_table = "\n".join(line for line in table.splitlines() if not line.startswith("%"))
+    ok &= claim("the counted rows match the audit IDs exactly",
+                set(table_ids) == selected_ids and len(table_ids) == len(selected_ids), str(sorted(table_ids)))
+    visible_rows = [line for line in visible_table.splitlines() if " & " in line and not line.startswith("Model &")]
+    ok &= claim("all counted runs use the same table without review rows",
+                len(visible_rows) == len(long_rows) and "Pending review" not in visible_table
+                and "review-session:" not in table and "\\dagger" not in visible_table, str(len(visible_rows)))
+    ok &= claim("session identifiers are hidden from the displayed table",
+                "Session &" not in visible_table and not re.search(r"[0-9a-f]{12}", visible_table), "IDs remain in source comments and manifest")
     ok &= claim("the four-hour model count matches the macro", int(nums["NlongModels"]) == len({r["agent"] for r in long_rows}), str(len(long_rows)))
     ok &= claim("attempt and submission counts match generated macros",
                 (int(nums["NlongAttempts"]), int(nums["NlongSessions"]), int(nums["NlongWithheld"]))

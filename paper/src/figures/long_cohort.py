@@ -1,10 +1,9 @@
-"""The four-hour sessions that count, selected by the reviewed manifest.
+"""Select four-hour sessions from the reviewed attempt manifest.
 
-The catalogue at the four-hour budget is an archive of attempts, including
-retries and interrupted runs. A session counts when the service ended it at the
-budget and its last key falls within the final two minutes. The manifest
-lists every attempt with its status and reason, and validation refuses an
-attempt the manifest does not list.
+A time-ended session needs near-deadline keys or reviewed client evidence of
+continued activity until expiry. Last key is not client runtime. Startup,
+configuration and protocol exclusions still take precedence. The archive is
+unchanged, and evidence is checked against each specific recorded attempt.
 """
 import json
 from pathlib import Path
@@ -28,18 +27,51 @@ def last_key_seconds(row, timeline_dir=None):
     return float(marks[-1]["t"] * timeline["speed"]) if marks else 0.0
 
 
+def verified_client_completion(row, entry):
+    """Validate a reviewed attestation, not a catalogue time/valid flag alone.
+
+    This checks the published evidence structure and its match to the archive;
+    it does not pretend to replay or automatically certify private transcripts.
+    No model name or session ID is special-cased here.
+    """
+    evidence = entry.get("client_completion")
+    if evidence is None:
+        return False
+    if not isinstance(evidence, dict):
+        raise ValueError("invalid client completion evidence: " + row["id"])
+    response = evidence.get("response", {})
+    matches = (
+        evidence.get("reviewed") is True
+        and evidence.get("session_id") == row["id"]
+        and evidence.get("budget_seconds") == row["budget"]
+        and evidence.get("activity_until_expiry") is True
+        and evidence.get("human_intervention_observed") is False
+        and bool(evidence.get("source"))
+        and bool(evidence.get("reference"))
+        and evidence.get("http_status") == 410
+        and isinstance(response, dict)
+        and response.get("agent") == row["declared"]
+        and response.get("actions") == row["actions"]
+        and response.get("reason") == row.get("reason") == "time"
+        and response.get("why") == "the full %d minutes budget was used" % (row["budget"] // 60)
+        and response.get("ended") is True
+        and response.get("error", "missing") is None
+    )
+    if not matches:
+        raise ValueError("unreviewed or mismatched client completion evidence: " + row["id"])
+    return True
+
+
 def validate(rows, manifest=None, timeline_dir=None):
-    """Refuse an attempt the manifest does not list, a duplicate id, a stale
-    model mapping, or a status that disagrees with the rule. Rows carry the
-    canonical ``agent`` and the ``declared`` name. Returns the manifest."""
+    """Refuse unlisted IDs, stale mappings, bad evidence and wrong statuses."""
     if manifest is None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != 1 or manifest.get("state") != "reviewed":
+    if manifest.get("schema_version") != 2 or manifest.get("state") != "reviewed":
         raise ValueError("unsupported submission manifest version/state")
     budget = manifest["budget_seconds"]
     window = manifest["last_key_window_seconds"]
     if budget != 14400 or window != 120:
-        raise ValueError("the rule is a 240-minute budget and a two-minute window")
+        raise ValueError("the budget is 240 minutes; the last-key evidence window is two minutes")
     ids = [r["id"] for r in rows]
     entries = manifest["attempts"]
     entry_ids = [e["id"] for e in entries]
@@ -60,6 +92,7 @@ def validate(rows, manifest=None, timeline_dir=None):
         status = entry["status"]
         if status not in STATUSES or not entry.get("reason"):
             raise ValueError("missing status or explanation: " + r["id"])
+        client_completed = verified_client_completion(r, entry)
         if r["id"] in blocked:
             expected = "protocol_violation"
         elif r["declared"] in incompatible:
@@ -68,7 +101,8 @@ def validate(rows, manifest=None, timeline_dir=None):
             expected = "no_actions"
         elif r["actions"] <= 2:
             expected = "startup_only"
-        elif r.get("reason") == "time" and budget - window <= last_key_seconds(r, timeline_dir) <= budget:
+        elif r.get("reason") == "time" and (
+                budget - window <= last_key_seconds(r, timeline_dir) <= budget or client_completed):
             expected = "selected"
         else:
             expected = "stopped_early"

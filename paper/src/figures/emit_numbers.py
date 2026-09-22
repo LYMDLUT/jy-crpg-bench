@@ -767,14 +767,14 @@ emit("NlongPendingModels", len(_pending_models), "models with a four-hour attemp
 emit("NlongFieldModels", len(_long_models & _field_models), "of them evaluated at the hour")
 emit("NlongFieldSessions", sum(r["agent"] in _field_models for r in LONG))
 emit("NlongBudgetMin", field.LONG_BUDGET // 60, "requested wall-clock budget")
-emit("NlongWindowMin", LONG_MANIFEST["last_key_window_seconds"] // 60, "the last key must fall within this many final minutes")
+emit("NlongWindowMin", LONG_MANIFEST["last_key_window_seconds"] // 60, "last-key evidence window; reviewed client completion is an alternative")
 emit("NlongMinLastMin", (field.LONG_BUDGET - LONG_MANIFEST["last_key_window_seconds"]) // 60)
 emit("NlongAliased", sum(r["declared"] != r["agent"] for r in LONG))
 emit("NlongExcluded", len(long_cohort.entries_of(LONG_MANIFEST, "incompatible_config")), "attempts declared under names that identify no model of the paper")
 emit("NlongStartup", len(long_cohort.entries_of(LONG_MANIFEST, "startup_only")), "attempts of one or two actions")
 emit("NlongZero", len(long_cohort.entries_of(LONG_MANIFEST, "no_actions")), "attempts with no action")
 emit("NlongProtocol", len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")), "attempts whose harness read earlier sessions")
-emit("NlongEarly", len(long_cohort.entries_of(LONG_MANIFEST, "stopped_early")), "attempts whose last key came before the final minutes")
+emit("NlongEarly", len(long_cohort.entries_of(LONG_MANIFEST, "stopped_early")), "attempts lacking both near-deadline keys and reviewed client-completion evidence")
 if len(long_cohort.entries_of(LONG_MANIFEST, "protocol_violation")) != 1:
     sys.exit("the prose says one attempt read the timelines of earlier sessions")
 if sum(len(long_cohort.entries_of(LONG_MANIFEST, s)) for s in
