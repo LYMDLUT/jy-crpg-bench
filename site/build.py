@@ -95,6 +95,7 @@ ZH = {
     "uptime": "已进行", "nolog": "还没有决策",
     "left": "剩余", "waiting": "等待画面", "dropped": "连接中断，重试中",
     "over": "已结束",
+    "rwin": "最近 {n} 个动作 · {a} 至 {b}",
 }
 
 EN = {
@@ -202,6 +203,7 @@ EN = {
     "uptime": "elapsed", "nolog": "no decisions yet",
     "left": "left", "waiting": "waiting for the first frame",
     "dropped": "disconnected, retrying", "over": "this run has ended",
+    "rwin": "last {n} actions · {a} to {b}",
 }
 
 TEMPLATE = r"""<!doctype html>
@@ -588,6 +590,8 @@ TEMPLATE = r"""<!doctype html>
   .rhead {{ position: absolute; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px;
            background: var(--accent); pointer-events: none; z-index: 2; }}
   #rate {{ height: 30px; }}
+  .rspan {{ font: 10px var(--mono); color: var(--dim); text-align: right;
+           margin-top: 4px; }}
   .wkeys {{ display: flex; gap: 6px; flex-wrap: wrap; min-height: 30px;
            padding: 12px 2px 0; font-size: 12px; }}
   .wkeys i {{ font-style: normal; border: 1px solid var(--line); border-radius: 5px;
@@ -823,6 +827,7 @@ TEMPLATE = r"""<!doctype html>
       <div class="rgrid" id="rollgrid"></div>
       <div class="rhead" id="rhead"></div>
       <div class="rcursor" id="rcursor" hidden></div>
+      <div class="rspan" id="rspan" hidden></div>
     </div>
   </div>
 
@@ -1977,6 +1982,10 @@ function rebuildLiveMarks() {{
             do: `${{e.verb}} ${{e.target || ""}}`,
             keys: keysOf(e.target).map(k => [k, hold]), hold}};
   }});
+  // The server keeps only the latest actions for a new watcher, so the roll
+  // spans the actions this page holds, from the oldest to now, not the budget.
+  const end = Date.now() / 1000 - liveStart;
+  liveFrom = marks.length ? Math.max(0, marks[0].t - (end - marks[0].t) * 0.02) : 0;
   drawMarks();
   liveHead();
 }}
@@ -1984,9 +1993,8 @@ function rebuildLiveMarks() {{
 // The sweep: where "now" sits on the budget. Red and slowly pulsing while the
 // run is going, so live reads as live.
 function liveHead() {{
-  if (!isLive() || !liveSpan) return;
-  const el = Date.now() / 1000 - liveStart;
-  $("rhead").style.left = Math.min(100, el / liveSpan * 100).toFixed(2) + "%";
+  if (!isLive() || !liveStart) return;
+  $("rhead").style.left = "100%";
 }}
 
 function connect(sid) {{
@@ -2050,7 +2058,6 @@ function open(sid, agent, push) {{
   shell(agent, push, sid, true);
   const l = live.find(x => x.id === sid) || {{}};
   liveStart = l.started || Date.now() / 1000;
-  liveSpan = l.budget || 1200;
   marks = [];
   drawMarks();
   liveHead();
@@ -2063,7 +2070,7 @@ function open(sid, agent, push) {{
 function close(push) {{
   const s = sock; sock = null; watchId = null; if (s) s.close();
   const v = $("vid"); v.pause(); v.removeAttribute("src"); v.load();
-  tl = null; marks = []; liveStart = 0; liveSpan = 0;
+  tl = null; marks = []; liveStart = 0; liveFrom = 0;
   clearTimeout(inspectTimer);
   document.body.classList.remove("watching", "islive");
   if (push) history.pushState({{}}, "", location.pathname);
@@ -2090,11 +2097,15 @@ function gt(videoSeconds) {{
   return fmt(videoSeconds * ((tl && tl.speed) || 1));
 }}
 
-// While a run is live the roll spans the whole budget, in real seconds; in a
-// replay it spans the compressed video. One helper so both drawers agree.
-let liveStart = 0, liveSpan = 0;
+// While a run is live the roll spans the actions the page holds, from the
+// oldest to now, in real seconds; in a replay it spans the compressed video.
+// One pair of helpers so both drawers agree.
+let liveStart = 0, liveFrom = 0;
 const isLive = () => document.body.classList.contains("islive");
-const rollSpan = () => isLive() ? liveSpan : (tl && tl.seconds) || 0;
+const rollFrom = () => isLive() ? liveFrom : 0;
+const rollSpan = () => isLive()
+  ? (liveStart ? Math.max(30, Date.now() / 1000 - liveStart - liveFrom) : 0)
+  : (tl && tl.seconds) || 0;
 const rollSpeed = () => isLive() ? 1 : (tl && tl.speed) || 1;
 
 function drawMarks() {{
@@ -2118,7 +2129,7 @@ function drawMarks() {{
     for (const [k, hold] of (m.keys || [])) {{
       const i = row.get(canon(k));   // lanes are canonical; a raw alias
       if (i === undefined) continue;  // would find no lane and vanish
-      const x = m.t / rollSpan() * 100;
+      const x = (m.t - rollFrom()) / rollSpan() * 100;
       const w = Math.max(0.25, (hold / rollSpeed()) / rollSpan() * 100);
       html += `<b class="${{hold > longest * 0.4 ? "long" : ""}}" title="${{k}} ${{
         hold.toFixed(2)}}s @ ${{fmt(m.t * rollSpeed())}}" data-t="${{m.t}}"
@@ -2126,6 +2137,10 @@ function drawMarks() {{
     }}
   }}
   $("rollgrid").innerHTML = html;
+  const rs = $("rspan");
+  rs.hidden = !isLive() || !marks.length;
+  if (!rs.hidden) rs.textContent = T.rwin.replace("{{n}}", marks.length)
+    .replace("{{a}}", fmt(liveFrom)).replace("{{b}}", fmt(liveFrom + rollSpan()));
 }}
 
 function atTime(t) {{
@@ -2185,7 +2200,7 @@ $("rhead").style.left = "0%";
 let inspectTimer = 0;
 function rollAt(e) {{
   const r = $("rollgrid").getBoundingClientRect();
-  const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * rollSpan();
+  const t = rollFrom() + Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * rollSpan();
   if (!rollSpan()) return;
   if (!isLive()) {{ if (tl) seek(t); return; }}
   const k = atTime(t);
@@ -2194,7 +2209,7 @@ function rollAt(e) {{
   drawKeys(m);
   const c = $("rcursor");
   c.hidden = false;
-  c.style.left = (m.t / rollSpan() * 100).toFixed(2) + "%";
+  c.style.left = ((m.t - rollFrom()) / rollSpan() * 100).toFixed(2) + "%";
   clearTimeout(inspectTimer);
   inspectTimer = setTimeout(() => {{ c.hidden = true; drawKeys(); }}, 2500);
 }}
