@@ -427,22 +427,22 @@
 % attempts at the four-hour budget on record
 \newcommand{\NlongAttempts}{40}
 % four-hour sessions that count
-\newcommand{\NlongSessions}{8}
+\newcommand{\NlongSessions}{7}
 % models with a four-hour session that counts
-\newcommand{\NlongModels}{8}
+\newcommand{\NlongModels}{7}
 % attempts that do not count
-\newcommand{\NlongWithheld}{32}
+\newcommand{\NlongWithheld}{33}
 % models with a four-hour attempt and no session that counts
-\newcommand{\NlongPendingModels}{5}
+\newcommand{\NlongPendingModels}{6}
 % of them evaluated at the hour
 \newcommand{\NlongFieldModels}{4}
 \newcommand{\NlongFieldSessions}{4}
 % requested wall-clock budget
 \newcommand{\NlongBudgetMin}{240}
-% last-key evidence window; reviewed client completion is an alternative
+% the last key must fall within this many final minutes
 \newcommand{\NlongWindowMin}{2}
 \newcommand{\NlongMinLastMin}{238}
-\newcommand{\NlongAliased}{7}
+\newcommand{\NlongAliased}{6}
 % attempts declared under names that identify no model of the paper
 \newcommand{\NlongExcluded}{2}
 % attempts of one or two actions
@@ -451,16 +451,16 @@
 \newcommand{\NlongZero}{4}
 % attempts whose harness read earlier sessions
 \newcommand{\NlongProtocol}{1}
-% attempts lacking both near-deadline keys and reviewed client-completion evidence
-\newcommand{\NlongEarly}{22}
+% attempts whose last key came before the final minutes
+\newcommand{\NlongEarly}{23}
 % the model whose attempt read the timelines of earlier sessions
 \newcommand{\LlongHackLabel}{\texttt{gemini-3.8-flash}}
 % models with a four-hour attempt and no session that counts
-\newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra} and \texttt{gpt-6-astra}}
+\newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra} and \texttt{kimi-k3}}
 % among the four-hour sessions that count
 \newcommand{\NlongMap}{6}
 % among the four-hour sessions that count
-\newcommand{\NlongItem}{5}
+\newcommand{\NlongItem}{4}
 % among the four-hour sessions that count
 \newcommand{\NlongScene}{4}
 % among the four-hour sessions that count
@@ -476,7 +476,7 @@
 % among the four-hour sessions that count
 \newcommand{\NlongBook}{0}
 % earliest last key, minutes
-\newcommand{\LlongLastMin}{179.8}
+\newcommand{\LlongLastMin}{238.1}
 % latest last key, minutes
 \newcommand{\LlongLastMax}{239.8}
 % earliest crossing, minutes

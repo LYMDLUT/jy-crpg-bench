@@ -1,7 +1,7 @@
-"""Print all counted four-hour sessions in a single table.
-
-Session IDs remain in source comments and the audit manifest, not a visible
-column. Last-key times and replay milestones are not altered by inclusion.
+"""The four-hour sessions that count, one row per session: the minute of the
+last key, the actions sent, the minute at which each milestone was first
+reached, and the milestones credited. The session id of each row is a comment
+above it. Prints tables/long.tex; preflight.py writes it.
 """
 import os
 import sys

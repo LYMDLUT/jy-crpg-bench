@@ -4,9 +4,9 @@
  "reviewed_on": "2026-09-22",
  "budget_seconds": 14400,
  "last_key_window_seconds": 120,
- "selection": "Every otherwise eligible time-ended attempt counts if its last key is in the final two minutes OR reviewed client-history evidence confirms continued activity until budget expiry without observed human interruption. Last key is not client runtime.",
+ "selection": "Every attempt the service ended at the budget with a last key in the final two minutes counts, as every played session counts at the hour.",
  "interpretation": "The sessions that count are listed in the paper; every other attempt is listed here with the reason it does not count.",
- "provenance": "The archive holds every attempt at the four-hour budget, including retries and interrupted runs. On 2026-09-22, original Cursor history was checked for an omitted deadline-ended run; reviewed client completion evidence was added as an alternative to the last-key proxy. This is a retrospective reporting correction, not an original preregistered rule.",
+ "provenance": "The archive holds every attempt at the four-hour budget, including retries and interrupted runs.",
  "protocol_violations": [
   "3eb8f81b3592"
  ],
@@ -323,27 +323,9 @@
    "id": "16831128b3cf",
    "model": "kimi-k3",
    "declared_model": "kimik3high",
-   "status": "selected",
+   "status": "stopped_early",
    "source": "Cursor CLI transcript matched to session ID",
-   "reason": "Original Cursor CLI history shows repeated screenshot requests after the last key and an HTTP 410 budget-expiry response, followed by the agent ending its task. Only the initial human request is present; later user-role entries are automatic compactions, a reminder and background notifications. No later human interruption or resume instruction was observed. Last key remains near minute 180.",
-   "client_completion": {
-    "reviewed": true,
-    "session_id": "16831128b3cf",
-    "budget_seconds": 14400,
-    "source": "Original Cursor CLI history inspected read-only, 2026-09-22",
-    "reference": "paper/long-submissions.md#client-completion-evidence",
-    "activity_until_expiry": true,
-    "human_intervention_observed": false,
-    "http_status": 410,
-    "response": {
-     "agent": "kimik3high",
-     "actions": 1183,
-     "reason": "time",
-     "why": "the full 240 minutes budget was used",
-     "ended": true,
-     "error": null
-    }
-   }
+   "reason": "Last key before the final two minutes of the budget. The client kept requesting the screen after its last key at minute 180 and received the budget-expiry response at four hours."
   },
   {
    "id": "2ade73b3f2bb",

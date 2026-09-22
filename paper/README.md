@@ -59,10 +59,9 @@ ICLR 2027 submission draft for jy-crpg-bench.
   the panels of the route figure (`src/figures/route-*.png`) from the same
   speedrun.
 - `src/figures/long_submissions.json` - every attempt at the four-hour budget with its
-  status and reason. `long_cohort.py` selects time-ended sessions with either
-  a last key in the final two minutes or reviewed client-history evidence of
-  activity until budget expiry. It checks the evidence against the specific
-  attempt and refuses unlisted attempts; last key is not client runtime;
+  status and reason. `long_cohort.py` selects the sessions that count (ended by the
+  service at the budget, last key in the final two minutes) and refuses an attempt
+  the manifest does not list;
   `field.long_attempts()` returns the archive and `field.load_long()` the sessions
   that count. `long-submissions.md` lists the decisions. Run
   `python3 -B figures/test_long_cohort.py` from `src/` after editing the manifest.
