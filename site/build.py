@@ -1768,6 +1768,9 @@ async function pollLive() {{
     const d = await fetch(LIVE).then(r => r.json());
     // a stale file from a dead container should not show phantom runs
     live = (Date.now() / 1000 - (d.t || 0) < 60) ? (d.running || []) : [];
+    // the run clock starts at the first playable frame, after the session is
+    // created; uptime is measured on that clock at the moment of d.t
+    for (const s of live) if (s.uptime != null && d.t) s.clock0 = d.t - s.uptime;
   }} catch {{ live = []; }}
   drawLive();
   drawStats();
@@ -2057,7 +2060,7 @@ function shell(agent, push, id, live) {{
 function open(sid, agent, push) {{
   shell(agent, push, sid, true);
   const l = live.find(x => x.id === sid) || {{}};
-  liveStart = l.started || Date.now() / 1000;
+  liveStart = l.clock0 || l.started || Date.now() / 1000;
   marks = [];
   drawMarks();
   liveHead();

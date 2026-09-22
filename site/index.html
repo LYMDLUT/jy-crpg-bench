@@ -29,7 +29,7 @@
 <meta name="twitter:description" content="面向前沿智能体的长程 CRPG 基准。每个模型一局，默认四小时，全程录像。">
 <meta name="twitter:image" content="https://hanxiao.io/jy-crpg-bench/og.png">
 <meta name="twitter:image:alt" content="jy-crpg-bench: a long-horizon CRPG benchmark for frontier agents">
-<meta name="build" content="16ec8d0f9377">
+<meta name="build" content="f350db9ee3aa">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap">
@@ -1560,6 +1560,9 @@ async function pollLive() {
     const d = await fetch(LIVE).then(r => r.json());
     // a stale file from a dead container should not show phantom runs
     live = (Date.now() / 1000 - (d.t || 0) < 60) ? (d.running || []) : [];
+    // the run clock starts at the first playable frame, after the session is
+    // created; uptime is measured on that clock at the moment of d.t
+    for (const s of live) if (s.uptime != null && d.t) s.clock0 = d.t - s.uptime;
   } catch { live = []; }
   drawLive();
   drawStats();
@@ -1849,7 +1852,7 @@ function shell(agent, push, id, live) {
 function open(sid, agent, push) {
   shell(agent, push, sid, true);
   const l = live.find(x => x.id === sid) || {};
-  liveStart = l.started || Date.now() / 1000;
+  liveStart = l.clock0 || l.started || Date.now() / 1000;
   marks = [];
   drawMarks();
   liveHead();
