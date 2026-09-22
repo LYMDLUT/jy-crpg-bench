@@ -57,7 +57,11 @@ ICLR 2027 submission draft for jy-crpg-bench.
   videos themselves are not tracked, and `field.human_rows()` turns the file into
   the two rows. `src/figures/human/route.py` stitches the frames of a walk into
   the panels of the route figure (`src/figures/route-*.png`) from the same
-  speedrun.
+  speedrun. `src/figures/model_route.py <session id>` draws the same compound
+  panel from a benchmark replay, up to its first black frame, into
+  `src/figures/route-model-<model>.png` with a `.txt` stamp naming the session;
+  `emit_numbers.py` reads the stamp and refuses to run if the panel of a model
+  was not drawn from the session the paper reports for it.
 - `src/figures/long_submissions.json` - every attempt at the four-hour budget with its
   status and reason. `long_cohort.py` selects the sessions that count (ended by the
   service at the budget, last key in the final two minutes) and refuses an attempt

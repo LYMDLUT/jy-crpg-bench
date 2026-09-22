@@ -558,6 +558,30 @@ emit("PnoConfirm", len(_noconfirm), "sessions that never pressed enter or space"
 if len(_noconfirm) != 1 or _slowest["id"] != _noconfirm[0]["id"]:
     sys.exit("the prose calls the slowest crossing the one session that never confirmed; it no longer is")
 
+# the two model panels of the route figure: the reported session of the model
+# with the most rungs and of claude-opus5, drawn by figures/model_route.py from
+# the replay up to its first black frame. The numbers read the same timelines.
+_MOVE = DIAG + ("up", "down", "left", "right")
+_reported = {r["agent"]: r for r in field.best_per_model(PLAY)}
+for _tag, _agent in (("A", _top["agent"]), ("B", "claude-opus5")):
+    _r = _reported.get(_agent)
+    _n = field.crossing_actions(_r) if _r else None
+    if _n is None:
+        sys.exit(f"route figure: {_agent} has no reported session that crossed")
+    _t = TL[_r["id"]]
+    _ms = _t["marks"][:_n]
+    _keys = [k for m in _ms for k, _ in m["keys"]]
+    emit_label(f"Proute{_tag}Label", _agent, f"model panel {_tag} of the route figure")
+    emit(f"Proute{_tag}Acts", _n, "actions to the crossing")
+    emit(f"Proute{_tag}Keys", len(_keys), "keys pressed before the crossing")
+    emit(f"Proute{_tag}Moves", sum(1 for k in _keys if k in _MOVE), "of them movement keys")
+    emit(f"Proute{_tag}Min", _r["replay"]["first_black_second"] * _t["speed"] / 60.0, "minute of the crossing, from the replay", fmt="%.0f")
+    if not os.path.exists(os.path.join(HERE, f"route-model-{_agent}.png")):
+        sys.exit(f"route figure: figures/route-model-{_agent}.png is missing; run figures/model_route.py {_r['id']}")
+    _stamp = os.path.join(HERE, f"route-model-{_agent}.txt")
+    if not os.path.exists(_stamp) or open(_stamp).read().strip() != _r["id"]:
+        sys.exit(f"route figure: figures/route-model-{_agent}.png was not drawn from session {_r['id']}")
+
 # the session that crossed and then never entered a scene, the home included
 _orbit = [r for r in _crossed if not _scenes(r).get("entries")]
 _orb = max(_orbit, key=lambda r: r["actions"] - r["exit_acts"])
