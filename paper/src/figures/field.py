@@ -153,7 +153,7 @@ def human_rows():
         crossings = sorted(v["steps_to_map"] for v in vs if v.get("steps_to_map") is not None)
         out.append({"agent": label, "sessions": len(vs), "ids": [v["id"] for v in vs],
                     "rungs": [c[0] > 0 for c in cols], "reached": sum(1 for c in cols if c[0] > 0),
-                    "counts": cols, "crossings": crossings,
+                    "counts": cols, "crossings": crossings, "cross_keys": crossings,
                     "map_actions": min(crossings) if crossings else None, "human": True})
     return out
 
@@ -268,12 +268,30 @@ def crossing_actions(row):
     return None
 
 
+def crossing_keys(row):
+    """Keys the session pressed before it reached the world map: every key of
+    the actions up to the crossing, from its keypress timeline. A human
+    reference counts keypresses too, so both kinds of row share this unit."""
+    n = crossing_actions(row)
+    if n is None:
+        return None
+    t = json.load(open(os.path.join(HERE, "timelines", row["id"] + ".json"), encoding="utf-8"))
+    return sum(len(m["keys"]) for m in t["marks"][:n])
+
+
+def crossing_order(m):
+    """Sort key for the crossing panel: the mean keypresses to the world map
+    over the sessions that crossed, fewest first, then the name."""
+    c = m["cross_keys"]
+    return (sum(c) / len(c) if c else float("inf"), m["agent"].lower())
+
+
 def ladder_order(m):
-    """Sort key for the model rows of the milestone figure and the effort table:
-    the mean number of actions to the world map over the sessions that
-    crossed, fewest first, then the name; a model with no crossing goes last."""
-    mean = sum(m["crossings"]) / len(m["crossings"]) if m["crossings"] else float("inf")
-    return (mean, m["agent"].lower())
+    """Sort key for the model rows of the milestone panel and the effort
+    table: the milestones reached, most first, then the summed share of
+    sessions that reached them, then the name."""
+    share = sum(c[0] / c[2] for c in m["counts"] if c[2])
+    return (-m["reached"], -share, m["agent"].lower())
 
 
 def model_rows(rows):
@@ -293,8 +311,9 @@ def model_rows(rows):
         counts = [(sum(1 for c in col if c is True), sum(1 for c in col if c is not None), len(col))
                   for col in cols]
         crossings = sorted(a for a in (crossing_actions(r) for r in rs) if a is not None)
+        cross_keys = sorted(k for k in (crossing_keys(r) for r in rs) if k is not None)
         out.append({"agent": agent, "sessions": len(rs), "ids": [r["id"] for r in rs],
                     "rungs": rungs, "reached": sum(1 for v in rungs if v is True),
-                    "counts": counts, "crossings": crossings,
+                    "counts": counts, "crossings": crossings, "cross_keys": cross_keys,
                     "map_actions": min(crossings) if crossings else None})
     return out

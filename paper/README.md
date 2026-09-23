@@ -61,7 +61,10 @@ ICLR 2027 submission draft for jy-crpg-bench.
   panel from a benchmark replay, up to its first black frame, into
   `src/figures/route-model-<model>.png` with a `.txt` stamp naming the session;
   `emit_numbers.py` reads the stamp and refuses to run if the panel of a model
-  was not drawn from the session the paper reports for it.
+  was not drawn from the session the paper reports for it. `src/figures/anchored_route.py
+  <session id>` draws the same panel for a replay recorded at a high speed, placing
+  each frame on `human/templates/compound-bg.png`, the compound of the speedrun with
+  the hero removed, where chaining frame shifts drifts on the open yard.
 - `src/figures/first_hour.py` - writes the first 60 minutes of each four-hour session of a
   model with no hour session as an hour session (`<id>-h1`): a row in
   `catalog_snapshot_firsthour.json`, the timeline cut at minute 60 and the replay

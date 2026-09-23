@@ -319,7 +319,8 @@ emit("SmapUnread", sum(1 for r in PLAY if r.get("bigmap") is None))
 emit("SexitMedian", st.median(r["exit_secs"] for r in fade) / 60.0, "minutes", fmt="%.1f")
 emit("SexitFirst", min(r["exit_secs"] for r in fade) / 60.0, fmt="%.1f")
 emit("SexitLast", max(r["exit_secs"] for r in fade) / 60.0, fmt="%.1f")
-emit("SexitActs", st.median(r["exit_acts"] for r in fade), "median keys before a crossing", fmt="%.0f")
+_ck = [k for k in (field.crossing_keys(r) for r in MODELS) if k is not None]
+emit("SexitActs", st.median(_ck), "median keypresses before a crossing", fmt="%.0f")
 emit("SexitVendors", len({fam(r["agent"]) for r in fade}),
      "vendor families with a corroborated crossing")
 
@@ -388,8 +389,8 @@ _top = max(UNION, key=lambda m: (m["reached"], m["agent"]))
 lines.append(("% the model with the most rungs", "\\newcommand{\\LtopLabel}{\\texttt{%s}}" % _top["agent"]))
 emit("Ltop", _top["reached"], "rungs it reached")
 emit("LtopSessions", _top["sessions"], "sessions it played")
-# the actions each crossing took, per model: the spread within a model against the spread between them
-_cross = {m["agent"]: m["crossings"] for m in UNION}
+# the keypresses each crossing took, per model: the spread within a model against the spread between them
+_cross = {m["agent"]: m["cross_keys"] for m in UNION}
 if any(not c for c in _cross.values()):
     sys.exit("every model reached the world map, so every model needs a crossing count")
 _within, _wlabel = max((max(c) / min(c), a) for a, c in _cross.items() if len(c) >= 2)
@@ -402,8 +403,15 @@ emit("LspreadRatio", _within, "factor between its slowest and fastest crossing",
 emit("LbetweenRatio", _between, "factor between the largest and smallest model mean", fmt="%.0f")
 if len(_cross[_top["agent"]]) != _top["sessions"]:
     sys.exit("the prose says the top model crossed in every session; it did not")
-emit("LtopCrossMin", min(_cross[_top["agent"]]), "fewest actions the top model took to the world map")
-emit("LtopCrossMax", max(_cross[_top["agent"]]), "most actions it took")
+emit("LtopCrossMin", min(_cross[_top["agent"]]), "fewest keypresses the top model took to the world map")
+emit("LtopCrossMax", max(_cross[_top["agent"]]), "most keypresses it took")
+_fewest = min((r for r in MODELS if field.crossing_keys(r) is not None), key=field.crossing_keys)
+lines.append(("% the model session with the fewest keypresses to the world map", "\\newcommand{\\LfewestKeysLabel}{\\texttt{%s}}" % _fewest["agent"]))
+emit("LfewestKeys", field.crossing_keys(_fewest), "fewest keypresses of any model session to the world map")
+emit("LfewestActs", field.crossing_actions(_fewest), "in that many actions")
+emit("LfewestMin", _fewest["exit_secs"] / 60.0, "minute of that crossing", fmt="%.0f")
+if _fewest["agent"] == _top["agent"] or field.crossing_keys(_fewest) >= min(_cross[_top["agent"]]):
+    sys.exit("the prose sets the fewest-keypress session against the top model; it is no longer below it")
 # reliability across sessions: the crossing and the hermit
 _HERMIT = field.DEFINITION.index("spoke with\nthe hermit")
 _bymodel = {}
@@ -549,8 +557,8 @@ TL = {r["id"]: timeline(r) for r in PLAY}
 
 # the crossing that took most actions, against the median crossing
 _crossed = [r for r in PLAY if r.get("exit_acts") is not None]
-_slowest = max(_crossed, key=lambda r: r["exit_acts"])
-emit("PexitActsMax", _slowest["exit_acts"], "actions the slowest crossing took")
+_slowest = max(_crossed, key=field.crossing_keys)
+emit("PexitActsMax", field.crossing_keys(_slowest), "keypresses the slowest crossing took")
 emit_label("PexitActsMaxLabel", _slowest["agent"])
 emit("PexitMinMax", _slowest["exit_secs"] / 60.0, "minute of that crossing", fmt="%.0f")
 _noconfirm = [r for r in PLAY if not any((r.get("keys") or {}).get(k) for k in CONFIRM)]
@@ -558,13 +566,17 @@ emit("PnoConfirm", len(_noconfirm), "sessions that never pressed enter or space"
 if len(_noconfirm) != 1 or _slowest["id"] != _noconfirm[0]["id"]:
     sys.exit("the prose calls the slowest crossing the one session that never confirmed; it no longer is")
 
-# the two model panels of the route figure: the reported session of the model
-# with the most rungs and of claude-opus5, drawn by figures/model_route.py from
-# the replay up to its first black frame. The numbers read the same timelines.
+# the three model panels of the route figure: the reported session of the model
+# with the most rungs, of the model whose session crossed in the fewest
+# keypresses, and of claude-opus-5, drawn from the replay up to its first black
+# frame by figures/model_route.py or figures/anchored_route.py. The numbers read
+# the same timelines.
 _MOVE = DIAG + ("up", "down", "left", "right")
 _reported = {r["agent"]: r for r in field.best_per_model(PLAY)}
-for _tag, _agent in (("A", _top["agent"]), ("B", "claude-opus5")):
+for _tag, _agent in (("A", _top["agent"]), ("B", "claude-opus-5"), ("C", _fewest["agent"])):
     _r = _reported.get(_agent)
+    if _tag == "C" and _r["id"] != _fewest["id"]:
+        sys.exit("route figure: the reported session of %s is not its fewest-keypress crossing" % _agent)
     _n = field.crossing_actions(_r) if _r else None
     if _n is None:
         sys.exit(f"route figure: {_agent} has no reported session that crossed")
@@ -666,6 +678,12 @@ if not (_first(_s2, "hermit") < _first(_s2, "battle") < _first(_s2, "compass")):
     sys.exit("the prose orders the second model's hermit, fight and compass read; the order changed")
 if field.rungs_reached(_sf[0][0]) != _second["reached"]:
     sys.exit("the prose says the second model reached all its milestones in one session")
+_inn = [x["minute"] for x in _s2["scenes"]["entries"] if x["name"].endswith("客棧")]
+_take = [m for m in _s2["obtained"]["minutes"] if _first(_s2, "hermit") <= m < _first(_s2, "battle")]
+if not _inn or not _inn[0] < _first(_s2, "hermit") or len(_take) != 1:
+    sys.exit("the prose says the second model entered an inn before the hermit and took one item, the compass, before its fight")
+emit("PsecondInnMin", _inn[0], "minute it entered the inn", fmt="%.0f")
+emit("PsecondTakeMin", _take[0], "minute the compass entered its bag", fmt="%.0f")
 emit("PsecondHermitMin", _first(_s2, "hermit"), "minute it reached the hermit", fmt="%.0f")
 emit("PsecondBattleMin", _first(_s2, "battle"), "minute its fight began", fmt="%.0f")
 emit("PsecondCompassMin", _first(_s2, "compass"), "minute it read the compass", fmt="%.0f")

@@ -178,15 +178,16 @@ ACT_TICKS = (20, 50, 100, 200, 500, 1000, 2000)
 
 
 def figure_ladder():
-    # one row per model with every session it played behind it, ordered by the
-    # mean crossing with the fewest actions first; the random floor last
+    # one row per model with every session it played behind it: the milestone
+    # panel ordered by the milestones reached, the crossing panel by the mean
+    # keypresses to the world map; the human rows first and the random floor last
     rows = _field.played(_field.load_runs(dedup=False))
     models = _field.model_rows([r for r in rows if not _field.is_random(r["agent"])])
     floor = _field.model_rows([r for r in rows if _field.is_random(r["agent"])])
     models.sort(key=_field.ladder_order)
     humans = _field.human_rows()
     entries = humans + models + floor
-    boxed = [m for m in humans + models if m["crossings"]]
+    boxed = humans + sorted((m for m in models if m["cross_keys"]), key=_field.crossing_order)
     n, nb, span = len(entries), len(boxed), len(DEFINITION)
     # the layout in inches: the milestone panel, its legend, the crossing panel
     top_pitch, bottom_pitch = 0.24, 0.12
@@ -246,9 +247,9 @@ def figure_ladder():
     # the crossing panel: one light dot per session that crossed and a black
     # marker for their mean, on a log scale; too few sessions for quartiles
     for row, m in enumerate(boxed):
-        c = m["crossings"]
+        c = m["cross_keys"]
         if min(c) < ACT_LO or max(c) > ACT_HI:
-            sys.exit(f"ladder: a crossing of {m['agent']} falls outside the {ACT_LO}-{ACT_HI} action scale")
+            sys.exit(f"ladder: a crossing of {m['agent']} falls outside the {ACT_LO}-{ACT_HI} keypress scale")
         bx.plot([min(c), max(c)], [row, row], color=BOX_FILL, lw=1.2, zorder=1)
         bx.scatter(c, [row] * len(c), s=14, facecolors="white", edgecolors=BOX_MEDIAN, linewidths=0.9, zorder=2)
         bx.scatter(sum(c) / len(c), row, s=22, marker="o", color=INK, zorder=3)
@@ -264,7 +265,7 @@ def figure_ladder():
     for side in ("left", "top", "right"):
         bx.spines[side].set_visible(False)
     bx.spines["bottom"].set_color("#c3c3c6")
-    xl = bx.set_xlabel("actions to reach the world map", fontsize=7.6, color="#67676b", labelpad=3)
+    xl = bx.set_xlabel("keypresses to reach the world map", fontsize=7.6, color="#67676b", labelpad=3)
     boxes = [box_at(ax, c, r, size) for c, r, size in cells]
     check_overlaps(fig, ax, list(ax.get_xticklabels()) + list(ax.get_yticklabels()) + heads + counts
                    + list(leg.get_texts()) + list(bx.get_xticklabels()) + list(bx.get_yticklabels()) + [xl],
