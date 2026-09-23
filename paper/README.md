@@ -62,6 +62,10 @@ ICLR 2027 submission draft for jy-crpg-bench.
   `src/figures/route-model-<model>.png` with a `.txt` stamp naming the session;
   `emit_numbers.py` reads the stamp and refuses to run if the panel of a model
   was not drawn from the session the paper reports for it.
+- `src/figures/first_hour.py` - writes the first 60 minutes of each four-hour session of a
+  model with no hour session as an hour session (`<id>-h1`): a row in
+  `catalog_snapshot_firsthour.json`, the timeline cut at minute 60 and the replay
+  readings cut at minute 60. `field.load_runs()` adds these rows to the hour field.
 - `src/figures/long_submissions.json` - every attempt at the four-hour budget with its
   status and reason. `long_cohort.py` selects the sessions that count (ended by the
   service at the budget, last key in the final two minutes) and refuses an attempt

@@ -77,7 +77,8 @@ import field
 rows = json.load(open(CAT, encoding="utf-8"))
 probes = [r for r in rows if r["agent"].startswith("probe-")]
 data = field.load_runs()
-play = field.played(data)
+# the screen-change ratio is known only for sessions read to their end
+play = [r for r in field.played(data) if r.get("meaningful") is not None]
 never = [r for r in data if not (r["actions"] or 0)]
 other = [r for r in data if r["budget"] != field.DEFAULT_BUDGET]
 models = [r for r in play if vendor(r["agent"]) != "random"]

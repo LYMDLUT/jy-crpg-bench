@@ -3,27 +3,27 @@
 % catalogue entries in the snapshot
 \newcommand{\NsessionsTotal}{15}
 % model sessions at the default budget that played
-\newcommand{\Nsessions}{40}
+\newcommand{\Nsessions}{42}
 % fewest sessions a model played
 \newcommand{\LsessionsMin}{2}
 % most sessions a model played
 \newcommand{\LsessionsMax}{6}
 % sessions at the default budget that played, the floor included
-\newcommand{\NsessionsAll}{42}
+\newcommand{\NsessionsAll}{44}
 % model sessions
-\newcommand{\Nmodels}{40}
+\newcommand{\Nmodels}{42}
 % random-baseline sessions
 \newcommand{\NrandomRuns}{2}
 % vendors in the field
 \newcommand{\Nvendors}{5}
 % distinct agent labels
-\newcommand{\Nlabels}{12}
+\newcommand{\Nlabels}{13}
 % distinct agent labels among the scored sessions
-\newcommand{\NlabelsPlay}{11}
+\newcommand{\NlabelsPlay}{12}
 % distinct model labels among the scored sessions
-\newcommand{\NmodelLabels}{11}
+\newcommand{\NmodelLabels}{12}
 % distinct model names among the scored sessions
-\newcommand{\NmodelsDistinct}{11}
+\newcommand{\NmodelsDistinct}{12}
 % sessions that never sent a key
 \newcommand{\Nnever}{3}
 % sessions at another playtime
@@ -35,13 +35,13 @@
 % default playtime, minutes
 \newcommand{\NbudgetMin}{60}
 % sessions on record created under a variant spelling of the model name
-\newcommand{\Naliased}{8}
+\newcommand{\Naliased}{10}
 % the runs created under a name that was not the model, declared as listed
-\newcommand{\aliaslist}{\texttt{GPT-5} as \texttt{gpt-5.6-sol} and \texttt{claude-fable-5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-fable5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-opus5-high} as \texttt{claude-opus5} and \texttt{claude-sonnet-5-high} as \texttt{claude-sonnet5} and \texttt{claude-sonnet5-high} as \texttt{claude-sonnet5} and \texttt{glm-5.3-flash-high} as \texttt{glm-5.3-flash}}
+\newcommand{\aliaslist}{\texttt{GPT-5} as \texttt{gpt-5.6-sol} and \texttt{claude-fable-5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-fable5.1-high} as \texttt{claude-fable5.1} and \texttt{claude-opus-5.5-high} as \texttt{claude-opus-5.5} and \texttt{claude-opus5-high} as \texttt{claude-opus5} and \texttt{claude-sonnet-5-high} as \texttt{claude-sonnet5} and \texttt{claude-sonnet5-high} as \texttt{claude-sonnet5} and \texttt{glm-5.3-flash-high} as \texttt{glm-5.3-flash} and \texttt{opus5.5high} as \texttt{claude-opus-5.5}}
 % reported sessions ended by the inactivity rule then in force
 \newcommand{\Nidle}{11}
 % reported sessions that played to their budget
-\newcommand{\Ntime}{29}
+\newcommand{\Ntime}{31}
 % models with more than one session
 \newcommand{\NrepeatModels}{2}
 % sessions that give way to a longer one of the same model
@@ -49,31 +49,31 @@
 % of those, sessions that never sent a key
 \newcommand{\NrepeatNever}{3}
 % model sessions at the default budget on record
-\newcommand{\NsessionsRaw}{43}
+\newcommand{\NsessionsRaw}{45}
 % model sessions at the default budget that sent a key
-\newcommand{\NsessionsPlayed}{40}
+\newcommand{\NsessionsPlayed}{42}
 % most sessions any one model played
 \newcommand{\NsessionsMaxPerModel}{6}
-\newcommand{\EactsTotal}{13706}
-\newcommand{\EactsModels}{13706}
+\newcommand{\EactsTotal}{15625}
+\newcommand{\EactsModels}{15625}
 \newcommand{\EactsRandom}{4236}
-\newcommand{\EactsMedian}{192.0}
+\newcommand{\EactsMedian}{199.5}
 \newcommand{\EactsMin}{31}
 \newcommand{\EactsMax}{1994}
 % pooled actions per second
-\newcommand{\Eaps}{0.109}
+\newcommand{\Eaps}{0.118}
 % screen reads by model sessions
 \newcommand{\Ereads}{9057}
 % key events submitted
-\newcommand{\EkeysTotal}{46255}
+\newcommand{\EkeysTotal}{49302}
 % distinct keys submitted
 \newcommand{\EkeysDistinct}{15}
 % share on the four isometric axes
-\newcommand{\EshareDiag}{0.935}
+\newcommand{\EshareDiag}{0.922}
 % share on the arrow keys
-\newcommand{\EshareArrow}{0.009}
-\newcommand{\EkeysEnter}{1764}
-\newcommand{\EkeysSpace}{544}
+\newcommand{\EshareArrow}{0.014}
+\newcommand{\EkeysEnter}{1915}
+\newcommand{\EkeysSpace}{751}
 % model sessions with at least thirty actions
 \newcommand{\Nactive}{40}
 \newcommand{\Qbest}{0.972}
@@ -119,7 +119,7 @@
 % the larger of their action counts
 \newcommand{\QslowActs}{185}
 % sessions whose character record was read
-\newcommand{\Sread}{35}
+\newcommand{\Sread}{37}
 \newcommand{\Sunread}{5}
 % distinct levels among read records
 \newcommand{\SlevelKinds}{1}
@@ -130,13 +130,13 @@
 \newcommand{\SexpAny}{0}
 \newcommand{\SlevelTwo}{0}
 % sessions credited with the world map by the save the game wrote
-\newcommand{\Smap}{30}
+\newcommand{\Smap}{32}
 % sessions whose screen latched the world-map signature
-\newcommand{\SmapScreen}{18}
+\newcommand{\SmapScreen}{20}
 % crossings carrying both a save and a fingerprint reading
-\newcommand{\SmapBoth}{10}
+\newcommand{\SmapBoth}{12}
 % of those, crossings the fingerprint also shows
-\newcommand{\SmapAgree}{9}
+\newcommand{\SmapAgree}{11}
 % crossings the save credits that the screen fingerprint missed
 \newcommand{\SmapSaveOnly}{1}
 % fingerprints with no save behind them, among sessions carrying both
@@ -146,10 +146,10 @@
 % scored sessions that never reached the world map
 \newcommand{\Sstayed}{10}
 % crossings carrying the time of the first save
-\newcommand{\SsaveN}{10}
+\newcommand{\SsaveN}{12}
 % minutes into the session, median
-\newcommand{\SsaveMedian}{26}
-\newcommand{\SsaveFirst}{9}
+\newcommand{\SsaveMedian}{21}
+\newcommand{\SsaveFirst}{5}
 \newcommand{\SsaveLast}{41}
 % ratio of the steady-traversal run
 \newcommand{\Qsteady}{0.972}
@@ -160,12 +160,12 @@
 % its label
 \newcommand{\QsteadyLabel}{gpt-6-astra}
 % of those, corroborated by a black frame
-\newcommand{\SmapFade}{18}
+\newcommand{\SmapFade}{20}
 \newcommand{\SmapSolo}{0}
 \newcommand{\SmapUnread}{16}
 % minutes
-\newcommand{\SexitMedian}{18.4}
-\newcommand{\SexitFirst}{4.9}
+\newcommand{\SexitMedian}{18.2}
+\newcommand{\SexitFirst}{2.9}
 \newcommand{\SexitLast}{36.6}
 % median keys before a crossing
 \newcommand{\SexitActs}{86}
@@ -182,20 +182,20 @@
 \newcommand{\Sopened}{3}
 \newcommand{\SopenedKnown}{28}
 % the models holding the compass, by label
-\newcommand{\ScompassLabel}{\texttt{gpt-6-astra}}
+\newcommand{\ScompassLabel}{\texttt{claude-opus-5.5} and \texttt{gpt-6-astra}}
 % minutes into the session when the compass holder's first save landed
-\newcommand{\ScompassSaveMin}{9}
+\newcommand{\ScompassSaveMin}{5}
 % actions the compass holder had taken at its crossing
-\newcommand{\ScompassExitActs}{33}
+\newcommand{\ScompassExitActs}{42}
 \newcommand{\ScompassKnown}{21}
 % sessions whose save the game wrote
-\newcommand{\Ssaved}{21}
+\newcommand{\Ssaved}{23}
 % sessions with a companion
 \newcommand{\Steam}{0}
 \newcommand{\SteamKnown}{21}
 % sessions holding a book
 \newcommand{\Sbooks}{0}
-\newcommand{\SbooksKnown}{21}
+\newcommand{\SbooksKnown}{23}
 % sessions that completed
 \newcommand{\Sdone}{0}
 % sessions that reached the map without the chest
@@ -211,21 +211,21 @@
 % rungs of the opening
 \newcommand{\Lopening}{6}
 % models on the ladder
-\newcommand{\Lmodels}{11}
+\newcommand{\Lmodels}{12}
 % models credited with rung 1
-\newcommand{\Lmap}{11}
+\newcommand{\Lmap}{12}
 % models credited with rung 2
-\newcommand{\Litem}{9}
+\newcommand{\Litem}{10}
 % models credited with rung 3
-\newcommand{\Lscene}{6}
+\newcommand{\Lscene}{7}
 % models credited with rung 4
-\newcommand{\Lhermit}{4}
+\newcommand{\Lhermit}{5}
 % models credited with rung 5
-\newcommand{\Lcompass}{1}
+\newcommand{\Lcompass}{2}
 % models credited with rung 6
 \newcommand{\Lparty}{1}
 % models credited with rung 7
-\newcommand{\Lfight}{1}
+\newcommand{\Lfight}{2}
 % models credited with rung 8
 \newcommand{\Lfought}{1}
 % models credited with rung 9
@@ -255,19 +255,15 @@
 % most actions it took
 \newcommand{\LtopCrossMax}{43}
 % model sessions credited with the world map
-\newcommand{\LcrossSessions}{30}
+\newcommand{\LcrossSessions}{32}
 % models that crossed in every session they played
-\newcommand{\LcrossEvery}{6}
+\newcommand{\LcrossEvery}{7}
 % other models that reached the hermit
-\newcommand{\LhermitOthers}{3}
-% most sessions any of them reached him in
-\newcommand{\LhermitOthersMax}{2}
-% sessions each of them played
-\newcommand{\LhermitOthersPlayed}{4}
+\newcommand{\LhermitOthers}{4}
 % sessions carrying both crossing counts, which agree on every one
-\newcommand{\LcrossAgree}{18}
+\newcommand{\LcrossAgree}{20}
 % the models that spoke with the hermit
-\newcommand{\LhermitLabels}{\texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-sol} and \texttt{gpt-6-astra}}
+\newcommand{\LhermitLabels}{\texttt{claude-opus-5.5}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-sol} and \texttt{gpt-6-astra}}
 % random runs that wrote a save
 \newcommand{\QrandomSaved}{0}
 % sessions with a usage report
@@ -362,15 +358,15 @@
 % arrow keys it pressed
 \newcommand{\PholderArrows}{42}
 % sessions that reached the hermit
-\newcommand{\PhermitSessions}{8}
+\newcommand{\PhermitSessions}{9}
 % earliest minute the top model reached the hermit
 \newcommand{\PhermitTopFirst}{11}
 % latest
 \newcommand{\PhermitTopLast}{19}
 % sessions of other models that reached him
-\newcommand{\PhermitRestSessions}{4}
+\newcommand{\PhermitRestSessions}{5}
 % earliest minute one of them did
-\newcommand{\PhermitRestFirst}{34}
+\newcommand{\PhermitRestFirst}{31}
 % latest
 \newcommand{\PhermitRestLast}{53}
 % earliest minute the top model read the compass
@@ -378,7 +374,18 @@
 % latest
 \newcommand{\PcompassTopLast}{29}
 % sessions that entered a fight
-\newcommand{\PfightSessions}{2}
+\newcommand{\PfightSessions}{3}
+\newcommand{\LsecondLabel}{\texttt{claude-opus-5.5}}
+% milestones the second model reached
+\newcommand{\Lsecond}{6}
+% its sessions
+\newcommand{\LsecondSessions}{2}
+% minute it reached the hermit
+\newcommand{\PsecondHermitMin}{31}
+% minute its fight began
+\newcommand{\PsecondBattleMin}{44}
+% minute it read the compass
+\newcommand{\PsecondCompassMin}{52}
 % minute the lost fight began
 \newcommand{\PlostFightMin}{27}
 % minute of the defeat banner
@@ -400,7 +407,7 @@
 % sessions with both a bag reading and the message scan, which agree
 \newcommand{\PobtainedAgree}{36}
 % sessions whose item milestone is read from the message alone
-\newcommand{\PobtainedRead}{6}
+\newcommand{\PobtainedRead}{8}
 % lowest best score of a session with the event
 \newcommand{\ReplayHitMin}{0.90}
 % sessions with both a bag reading and a replay
@@ -445,15 +452,15 @@
 % its actions of fifty keys or more
 \newcommand{\PbatchBig}{32}
 % attempts at the four-hour budget on record
-\newcommand{\NlongAttempts}{40}
+\newcommand{\NlongAttempts}{48}
 % four-hour sessions that count
 \newcommand{\NlongSessions}{7}
 % models with a four-hour session that counts
 \newcommand{\NlongModels}{7}
 % attempts that do not count
-\newcommand{\NlongWithheld}{33}
+\newcommand{\NlongWithheld}{41}
 % models with a four-hour attempt and no session that counts
-\newcommand{\NlongPendingModels}{6}
+\newcommand{\NlongPendingModels}{8}
 % of them evaluated at the hour
 \newcommand{\NlongFieldModels}{4}
 \newcommand{\NlongFieldSessions}{4}
@@ -468,15 +475,15 @@
 % attempts of one or two actions
 \newcommand{\NlongStartup}{3}
 % attempts with no action
-\newcommand{\NlongZero}{4}
+\newcommand{\NlongZero}{5}
 % attempts whose harness read earlier sessions
 \newcommand{\NlongProtocol}{1}
 % attempts whose last key came before the final minutes
-\newcommand{\NlongEarly}{23}
+\newcommand{\NlongEarly}{30}
 % the model whose attempt read the timelines of earlier sessions
 \newcommand{\LlongHackLabel}{\texttt{gemini-3.8-flash}}
 % models with a four-hour attempt and no session that counts
-\newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra} and \texttt{kimi-k3}}
+\newcommand{\LlongPendingLabels}{\texttt{claude-opus-5.5}, \texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra}, \texttt{grok-4.7} and \texttt{kimi-k3}}
 % among the four-hour sessions that count
 \newcommand{\NlongMap}{6}
 % among the four-hour sessions that count
@@ -504,8 +511,11 @@
 % latest crossing, minutes
 \newcommand{\LlongCrossLast}{48.6}
 \newcommand{\NlongCrossLate}{0}
+\newcommand{\LfirstHourLabel}{\texttt{claude-opus-5.5}}
+% its four-hour sessions read over their first hour
+\newcommand{\NfirstHourSessions}{2}
 % the days the four-hour sessions that count ran, UTC
-\newcommand{\LongDates}{17 to 19 September 2026}
+\newcommand{\LongDates}{17 to 22 September 2026}
 % the least match of the opening room that admits a capture
 \newcommand{\HumanRoomGate}{0.90}
 % published videos of human players the paper reads
@@ -568,6 +578,8 @@
 % each row: agent & second & first & keys & screen-changing decisions/n & ratio\ci{n} & in-going & map & end
 % rows below are sorted by vendor then actions
 % claude-fable5.1            n=1592 k=1321 ratio=0.830[0.811,0.847] map=True level=1 exp=0 ttfa=20.43 reason=time
+% claude-opus-5.5            n=1094 k=   0 ratio=0.000[0.000,0.003] map=True level=1 exp=0 ttfa=0.0 reason=time
+% claude-opus-5.5            n= 825 k=   0 ratio=0.000[0.000,0.005] map=True level=1 exp=0 ttfa=0.0 reason=time
 % claude-sonnet5             n= 377 k= 346 ratio=0.918[0.886,0.941] map=True level=1 exp=0 ttfa=17.04 reason=time
 % claude-sonnet5             n= 361 k= 289 ratio=0.801[0.756,0.839] map=True level=1 exp=0 ttfa=12.97 reason=time
 % claude-opus5               n= 341 k= 268 ratio=0.786[0.739,0.826] map=True level=1 exp=0 ttfa=15.83 reason=time
@@ -619,3 +631,4 @@
 % repeated grok-4.6: [0.8005780346820809, 0.7068676716917923] spread=0.094
 % repeated gemini-3.7-flash: [0.8823529411764706, 0.8808139534883721, 0.725, 0.8611111111111112] spread=0.157
 % repeated gemini-3.8-flash: [0.8324324324324325, 0.9354838709677419, 0.7975460122699386, 0.8442211055276382] spread=0.138
+% repeated claude-opus-5.5: [0.0, 0.0] spread=0.000

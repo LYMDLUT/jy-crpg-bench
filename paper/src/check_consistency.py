@@ -114,10 +114,10 @@ def main():
         ok &= claim("a fight fought to the end was entered",
                     all(m["rungs"][F] for m in union.values() if m["rungs"][D]),
                     "fought out %s" % [a for a, m in union.items() if m["rungs"][D]])
-    if "plays past the opening of the game" in flat:
-        FIGHT = field.DEFINITION.index("entered\na fight")
-        past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True]
-        ok &= claim("one model plays past the opening", len(past) == 1, "past the opening: %s" % past)
+    if "take the compass and enter a fight" in flat:
+        FIGHT, CMP = field.DEFINITION.index("entered\na fight"), field.DEFINITION.index("holds the\ncompass")
+        past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True and m["rungs"][CMP] is True]
+        ok &= claim("two models take the compass and enter a fight", len(past) == 2, "%s" % past)
     if "the fingerprint never appears without a save behind it" in flat:
         ok &= claim("no screen latch without a save",
                     not any(r.get("bigmap") is True and not field.on_map(r) for r in scored),
@@ -142,13 +142,13 @@ def main():
     if "reached him in every one of its" in flat:
         H = field.DEFINITION.index("spoke with\nthe hermit")
         FIGHT = field.DEFINITION.index("entered\na fight")
-        top = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True]
+        top = [nums["LtopLabel"].replace("\\texttt{", "").rstrip("}")]
         hermit = {a: sum(1 for r in rs if field.rungs_of(r)[H] is True) for a, rs in by_model.items()}
         others = {a: n for a, n in hermit.items() if n and a not in top}
-        ok &= claim("the top model reached the hermit in every session, the others in the stated share",
-                    len(top) == 1 and hermit[top[0]] == len(by_model[top[0]])
-                    and (int(nums["LhermitOthers"]), int(nums["LhermitOthersMax"])) == (len(others), max(others.values()))
-                    and all(len(by_model[a]) == int(nums["LhermitOthersPlayed"]) for a in others),
+        ok &= claim("the top model reached the hermit in every session, the others in at most half of theirs",
+                    hermit[top[0]] == len(by_model[top[0]])
+                    and int(nums["LhermitOthers"]) == len(others)
+                    and max(n / len(by_model[a]) for a, n in others.items()) == 0.5,
                     "top %s %s, others %s" % (top, {a: (hermit[a], len(by_model[a])) for a in top}, {a: (n, len(by_model[a])) for a, n in others.items()}))
     if "agrees with the count the service recorded" in flat:
         both = [r for r in models if r.get("exit_acts") is not None and (r.get("replay") or {}).get("crossing_actions") is not None]

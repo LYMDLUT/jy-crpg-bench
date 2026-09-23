@@ -32,6 +32,9 @@ SNAPSHOT = os.path.join(HERE, "catalog_snapshot.json")
 RECOVERED = os.path.join(HERE, "recovered_sessions.json")
 BACKUP = os.path.join(HERE, "catalog_backup_20260911T174413Z.json")
 EARLIER = os.path.join(HERE, "catalog_snapshot_20min.json")
+# The first hour of the four-hour sessions of a model with no hour session
+# (first_hour.py): hour sessions read over the same 60 minutes as the field.
+FIRST_HOUR = os.path.join(HERE, "catalog_snapshot_firsthour.json")
 ALIASES = json.load(open(os.path.join(HERE, "aliases.json"), encoding="utf-8"))
 SLOTS = _slots.load()
 EVENTS = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))
@@ -92,6 +95,10 @@ def load_runs(path=SNAPSHOT, dedup=True, keep_excluded=False):
                 continue
             seen.add(r["id"])
             rows.append(r)
+        for r in _rows(FIRST_HOUR) if os.path.exists(FIRST_HOUR) else []:
+            if r["agent"] not in field and r["id"] not in seen:
+                seen.add(r["id"])
+                rows.append(r)
     if not keep_excluded:
         rows = [r for r in rows if r["agent"] not in EXCLUDED]
     return best_per_model(rows) if dedup else rows

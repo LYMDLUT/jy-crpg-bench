@@ -178,10 +178,12 @@ emit("EshareArrow", arr / tot, "share on the arrow keys")
 emit("EkeysEnter", hist.get("enter", 0))
 emit("EkeysSpace", hist.get("space", 0))
 
-best = max(PLAY, key=lambda r: r["meaningful"])
+# the screen-change ratio is known only for sessions read to their end
+RATED = [r for r in PLAY if r.get("meaningful") is not None]
+best = max(RATED, key=lambda r: r["meaningful"])
 # Behavioural styles are read from sessions that played: a run the idle rule
 # ended after a handful of keys has no ratio worth naming.
-ACTIVE = [r for r in MODELS if r["actions"] >= 30]
+ACTIVE = [r for r in MODELS if r["actions"] >= 30 and r.get("meaningful") is not None]
 emit("Nactive", len(ACTIVE), "model sessions with at least thirty actions")
 worst = min(ACTIVE, key=lambda r: r["meaningful"])
 lo_b, p_b, hi_b = wil(round(best["meaningful"] * best["actions"]), best["actions"])
@@ -415,11 +417,9 @@ _top_a = _top["agent"]
 if _h[_top_a][0] != _h[_top_a][1]:
     sys.exit("the prose says the top model reached the hermit in every session; it did not")
 _others = {a: v for a, v in _h.items() if a != _top_a and v[0] > 0}
-if len({v[1] for v in _others.values()}) != 1:
-    sys.exit("the prose gives one session count for the other models that reached the hermit; they differ")
+if max(v[0] / v[1] for v in _others.values()) != 0.5:
+    sys.exit("the prose says the other models reached the hermit in at most half of their sessions")
 emit("LhermitOthers", len(_others), "other models that reached the hermit")
-emit("LhermitOthersMax", max(v[0] for v in _others.values()), "most sessions any of them reached him in")
-emit("LhermitOthersPlayed", next(iter(_others.values()))[1], "sessions each of them played")
 _both = [r for r in MODELS if r.get("exit_acts") is not None and (r.get("replay") or {}).get("crossing_actions") is not None]
 if any(r["exit_acts"] != r["replay"]["crossing_actions"] for r in _both):
     sys.exit("the replay crossing count disagrees with the service count on some session")
@@ -647,8 +647,31 @@ if _hermit_rest:
 _compass_top = sorted(_first(e, "compass") for i, (r, e) in EV.items() if i in _top_ids and e["compass"]["seconds"])
 emit("PcompassTopFirst", min(_compass_top), "earliest minute the top model read the compass", fmt="%.0f")
 emit("PcompassTopLast", max(_compass_top), "latest", fmt="%.0f")
-_fights = [(r, e) for r, e in EV.values() if e["battle"]["seconds"]]
-emit("PfightSessions", len(_fights), "sessions that entered a fight")
+_all_fights = [(r, e) for r, e in EV.values() if e["battle"]["seconds"]]
+emit("PfightSessions", len(_all_fights), "sessions that entered a fight")
+# the second model: the other one that took the compass and entered a fight
+_second = sorted(UNION, key=lambda m: (-m["reached"], m["agent"]))[1]
+_CK, _FK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("entered\na fight")
+_both_models = sorted(m["agent"] for m in UNION if m["rungs"][_CK] is True and m["rungs"][_FK] is True)
+if _both_models != sorted([_top["agent"], _second["agent"]]):
+    sys.exit("the prose says two models took the compass and entered a fight: %s" % _both_models)
+emit_label("LsecondLabel", _second["agent"])
+emit("Lsecond", _second["reached"], "milestones the second model reached")
+emit("LsecondSessions", _second["sessions"], "its sessions")
+_sf = [(r, e) for r, e in _all_fights if r["agent"] == _second["agent"]]
+if len(_sf) != 1 or _sf[0][1]["defeat"]["seconds"] or _sf[0][1].get("recruited_minute") is not None:
+    sys.exit("the prose describes one fight of the second model, without a defeat banner or a recruitment")
+_s2 = _sf[0][1]
+if not (_first(_s2, "hermit") < _first(_s2, "battle") < _first(_s2, "compass")):
+    sys.exit("the prose orders the second model's hermit, fight and compass read; the order changed")
+if field.rungs_reached(_sf[0][0]) != _second["reached"]:
+    sys.exit("the prose says the second model reached all its milestones in one session")
+emit("PsecondHermitMin", _first(_s2, "hermit"), "minute it reached the hermit", fmt="%.0f")
+emit("PsecondBattleMin", _first(_s2, "battle"), "minute its fight began", fmt="%.0f")
+emit("PsecondCompassMin", _first(_s2, "compass"), "minute it read the compass", fmt="%.0f")
+_fights = [(r, e) for r, e in _all_fights if r["agent"] == _top["agent"]]
+if len(_all_fights) != len(_fights) + len(_sf):
+    sys.exit("the prose attributes every fight to the two models")
 _lost = [(r, e) for r, e in _fights if e["defeat"]["seconds"]]
 if len(_lost) != 1:
     sys.exit("the prose describes one lost fight; the replays now show %d" % len(_lost))
@@ -674,9 +697,9 @@ emit("PpromptMin", _first(_re, "prompt"), "minute the companion's prompt first a
 emit("PrecruitMin", _re["recruited_minute"], "minute it was answered yes", fmt="%.0f")
 if _rr.get("team_size") is not None:
     sys.exit("the prose says the recruit session's record carries no party reading; it now does")
-for r, e in _fights + _recruits:
+for r, e in _recruits:
     if r["agent"] != _top["agent"]:
-        sys.exit("the prose attributes every fight and the recruitment to the top model")
+        sys.exit("the prose attributes the recruitment to the top model")
 _tm = json.load(open(os.path.join(HERE, "templates", "templates.json"), encoding="utf-8"))
 emit("ReplayThreshold", _tm["threshold"], "match threshold of the replay scan", fmt="%.1f")
 _miss = max(e[n]["max"] for _, e in EV.values() for n in ("hermit", "compass", "battle", "defeat", "prompt", "obtained") if e[n]["seconds"] == 0 and e[n]["max"] is not None)
@@ -723,8 +746,10 @@ emit("NidleSessions", sum(1 for r in PLAY if r.get("reason") == "idle"),
      "sessions ended by the ten-minute idle rule the field ran with")
 # when the field ran
 import datetime as _dt
-_days = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in ALL if r.get("started"))
-if len(_days) != len(ALL):
+# the first-hour rows are four-hour sessions; their days are the four-hour days
+_HOURLY = [r for r in ALL if not r["id"].endswith("-h1")]
+_days = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in _HOURLY if r.get("started"))
+if len(_days) != len(_HOURLY):
     sys.exit("a session carries no start time")
 if _days[0].year != _days[-1].year or _days[0].month != _days[-1].month:
     sys.exit("the field spans more than one month; the date macro assumes one")
@@ -839,7 +864,12 @@ for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na fight",
         sys.exit("the prose says no four-hour session that counts reached " + rung.replace("\n", " "))
 if field.HACK_SESSION in {r["id"] for r in LONG}:
     sys.exit("the attempt that read earlier sessions must not count")
-_ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG)
+_FH = [r for r in PLAY if r["id"].endswith("-h1")]
+if len({r["agent"] for r in _FH}) != 1:
+    sys.exit("the prose names one model read over the first hour of its four-hour sessions")
+emit_label("LfirstHourLabel", _FH[0]["agent"])
+emit("NfirstHourSessions", len(_FH), "its four-hour sessions read over their first hour")
+_ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG + _FH)
 if _ldays[0].month != _ldays[-1].month:
     sys.exit("the four-hour sessions span more than one month; the date macro assumes one")
 lines.append(("% the days the four-hour sessions that count ran, UTC", "\\newcommand{\\LongDates}{%s}" % (

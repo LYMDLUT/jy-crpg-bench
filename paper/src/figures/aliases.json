@@ -23,5 +23,9 @@
  "deepseekv4.1flash": "deepseek-v4.1-flash",
  "kimi-k3-high": "kimi-k3",
  "kimik3high": "kimi-k3",
- "glm5.3-flash-high": "glm-5.3-flash"
+ "glm5.3-flash-high": "glm-5.3-flash",
+ "claude-opus-5.5-high": "claude-opus-5.5",
+ "opus5.5high": "claude-opus-5.5",
+ "gpt6astra": "gpt-6-astra",
+ "gemini3.8flash": "gemini-3.8-flash"
 }

@@ -334,6 +334,70 @@
    "status": "selected",
    "source": "Client not established in this audit",
    "reason": "Played to the budget."
+  },
+  {
+   "id": "755a21baf0d7",
+   "model": "gpt-6-astra",
+   "declared_model": "gpt6astra",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "b90f223b4e54",
+   "model": "gemini-3.8-flash",
+   "declared_model": "gemini3.8flash",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "f9eb8dceb896",
+   "model": "gpt-6-astra",
+   "declared_model": "gpt6astra",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "54cd9429d714",
+   "model": "gemini-3.8-flash",
+   "declared_model": "gemini3.8flash",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "b0dbef24e731",
+   "model": "claude-opus-5.5",
+   "declared_model": "claude-opus-5.5-high",
+   "status": "no_actions",
+   "reason": "No action.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "ac1e0b048aa4",
+   "model": "claude-opus-5.5",
+   "declared_model": "claude-opus-5.5-high",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "7b8280a83748",
+   "model": "grok-4.7",
+   "declared_model": "grok-4.7",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
+  },
+  {
+   "id": "a424a8d10d55",
+   "model": "claude-opus-5.5",
+   "declared_model": "opus5.5high",
+   "status": "stopped_early",
+   "reason": "Last key before the final two minutes of the budget.",
+   "source": "Client not established in this audit"
   }
  ]
 }
