@@ -227,7 +227,7 @@
 % models credited with rung 7
 \newcommand{\Lfight}{2}
 % models credited with rung 8
-\newcommand{\Lfought}{1}
+\newcommand{\Lfought}{2}
 % models credited with rung 9
 \newcommand{\Lexp}{0}
 % models credited with rung 10
@@ -323,36 +323,6 @@
 \newcommand{\PexitMinMax}{37}
 % sessions that never pressed enter or space
 \newcommand{\PnoConfirm}{1}
-% model panel A of the route figure
-\newcommand{\ProuteALabel}{\texttt{gpt-6-astra}}
-% actions to the crossing
-\newcommand{\ProuteAActs}{43}
-% keys pressed before the crossing
-\newcommand{\ProuteAKeys}{134}
-% of them movement keys
-\newcommand{\ProuteAMoves}{111}
-% minute of the crossing, from the replay
-\newcommand{\ProuteAMin}{6}
-% model panel B of the route figure
-\newcommand{\ProuteBLabel}{\texttt{claude-opus-5}}
-% actions to the crossing
-\newcommand{\ProuteBActs}{146}
-% keys pressed before the crossing
-\newcommand{\ProuteBKeys}{839}
-% of them movement keys
-\newcommand{\ProuteBMoves}{789}
-% minute of the crossing, from the replay
-\newcommand{\ProuteBMin}{34}
-% model panel C of the route figure
-\newcommand{\ProuteCLabel}{\texttt{claude-opus-5.5}}
-% actions to the crossing
-\newcommand{\ProuteCActs}{42}
-% keys pressed before the crossing
-\newcommand{\ProuteCKeys}{110}
-% of them movement keys
-\newcommand{\ProuteCMoves}{84}
-% minute of the crossing, from the replay
-\newcommand{\ProuteCMin}{3}
 \newcommand{\PorbitLabel}{\texttt{claude-fable-5.1}}
 % minute it crossed
 \newcommand{\PorbitExitMin}{13}
@@ -395,7 +365,7 @@
 \newcommand{\PfightSessions}{3}
 \newcommand{\LsecondLabel}{\texttt{claude-opus-5.5}}
 % milestones the second model reached
-\newcommand{\Lsecond}{6}
+\newcommand{\Lsecond}{7}
 % its sessions
 \newcommand{\LsecondSessions}{2}
 % minute it entered the inn
@@ -405,9 +375,11 @@
 % minute it reached the hermit
 \newcommand{\PsecondHermitMin}{31}
 % minute its fight began
-\newcommand{\PsecondBattleMin}{44}
+\newcommand{\PsecondBattleMin}{43}
 % minute it read the compass
-\newcommand{\PsecondCompassMin}{52}
+\newcommand{\PsecondCompassMin}{34}
+% minute of its defeat banner
+\newcommand{\PsecondDefeatMin}{47}
 % minute the lost fight began
 \newcommand{\PlostFightMin}{27}
 % minute of the defeat banner
@@ -424,6 +396,8 @@
 \newcommand{\PrecruitMin}{52}
 % match threshold of the replay scan
 \newcommand{\ReplayThreshold}{0.9}
+% seconds of play a panel must stay above the threshold
+\newcommand{\ReplayHold}{0.8}
 % highest score of any frame without the event
 \newcommand{\ReplayMissMax}{0.79}
 % sessions with both a bag reading and the message scan, which agree

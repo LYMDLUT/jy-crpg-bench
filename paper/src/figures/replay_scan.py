@@ -5,12 +5,13 @@
 Five panels the game draws at a fixed screen position are matched against
 every frame of every published replay video, by normalised cross-correlation
 against the crops in templates/ (cut from frames of this field and described
-in templates.json). A panel counts when it scores above the threshold on two
-consecutive frames: the game holds every one of these panels until a key is
-pressed, so a panel the model read stays for seconds, while a single frame
-above the threshold is a transition fluke (two were found, at 0.90 and 0.91,
-on inn scenes without a prompt). Scores are kept per video second as the best
-two-frame minimum of that second; the maximum of a session with no hit is
+in templates.json). A panel counts when it scores above the threshold over
+HOLD seconds of play: two consecutive frames of a replay at 8 times speed and
+20 frames a second, one frame at 24 times speed, where a frame spans 1.2
+seconds of play. The game holds these panels for a second or more, while a
+single frame of an 8-times replay above the threshold is a transition fluke
+(two were found, at 0.90 and 0.91, on inn scenes without a prompt). Scores are
+kept per video second as the best minimum over the frames of one hold; the maximum of a session with no hit is
 reported beside it so the margin is on record. The five events:
 
     hermit    the hermit's portrait in the dialogue frame: the conversation began
@@ -73,6 +74,7 @@ BANNER_TOP, BANNER_H, BANNER_W = (7, 17), (20, 27), (24, 150)   # rows of the to
 WHITE = 235
 TPL = {n: np.asarray(Image.open(os.path.join(HERE, "templates", n + ".png")).convert("L"), dtype=np.float32)
        for n in NAMES + ("obtained",)}
+HOLD = 0.8        # seconds of play a panel must stay above the threshold
 CANDIDATE = 0.6   # scores above this are kept per second, so the threshold can be revisited without a rescan
 
 
@@ -171,7 +173,7 @@ def video_fps(path):
     return float(a) / float(b)
 
 
-def second_scores(path, known):
+def second_scores(path, known, speed):
     """Best normalised cross-correlation per video second for every panel, over
     every frame of the video: the five fixed panels in their boxes and the 得到
     glyphs slid along the row the game centres its obtained-item message on."""
@@ -185,7 +187,8 @@ def second_scores(path, known):
                              f"scale={W}:{H}", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
                             stdout=subprocess.PIPE)
     best = {n: [] for n in NAMES + ("obtained",)}
-    prev = {n: 0.0 for n in NAMES}          # the previous frame's score per panel
+    need = max(1, int(np.ceil(HOLD * fps / speed - 1e-9)))   # frames that span HOLD seconds of play
+    recent = {n: [] for n in NAMES}         # the scores of the last `need` frames per panel
     entries = []                             # (second, scene name) at each banner's rising edge
     pending = None                           # a banner just risen: settle a few frames before matching
     showing = False
@@ -202,8 +205,9 @@ def second_scores(path, known):
         for n in NAMES:
             bx0, by0, bx1, by1 = META[n]["box"]
             score = ncc(f[by0:by1, bx0:bx1], TPL[n])
-            best[n][s] = max(best[n][s], min(prev[n], score))
-            prev[n] = score
+            recent[n] = (recent[n] + [score])[-need:]
+            if len(recent[n]) == need:
+                best[n][s] = max(best[n][s], min(recent[n]))
         band = f[y0:y1]
         win = np.lib.stride_tricks.sliding_window_view(band, (h, w))[0, lo:hi + 1]
         wm = win - win.mean(axis=(1, 2), keepdims=True)
@@ -250,7 +254,7 @@ def first_black(path):
 
 def scan(path, timeline, known):
     speed = timeline["speed"] if timeline else 8.0
-    sec, entries = second_scores(path, known)
+    sec, entries = second_scores(path, known, speed)
     out = {"video_seconds": len(sec["obtained"])}
     away = [name for _, name in entries if name != HOME]
     out["scenes"] = {"entries": [{"minute": round(t * speed / 60, 1), "name": name} for t, name in entries],

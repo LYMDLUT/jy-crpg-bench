@@ -1,7 +1,7 @@
 """A model's walk through the opening compound, placed frame by frame on a
 fixed panorama of the compound, with its path drawn on it.
 
-    python anchored_route.py <session id> [<out.png>]
+    python anchored_route.py <session id>
 
 model_route.py chains the shift between consecutive frames, which drifts on
 the open grass of the yard when a replay is recorded at a high speed and the
@@ -28,10 +28,9 @@ moves between placed frames he stands on the spawn tile of the frame, and
 while the view is clamped at a border of the scene he is the densest 24x40
 block of pixels that differ from the panorama, from which he was removed,
 kept within 60 px of his last screen position. His place on the compound is
-the offset of the frame plus his
-screen position. The path is smoothed by a running mean of three and saved as
-a .npy beside the picture; route_panel.py draws the figure panels from it,
-and the .txt stamp names the session.
+the offset of the frame plus his screen position. The path is smoothed by a
+running mean of three and written to routes/compound-<session>.json, one row
+per placed frame with its minute of play; routes.py draws the figure from it.
 """
 import json
 import os
@@ -66,6 +65,13 @@ def frames(path, t1):
         yield np.frombuffer(buf, np.uint8).reshape(H0, W0, 3)
     p.stdout.close()
     p.wait()
+
+
+def fps_of(path):
+    o = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=r_frame_rate",
+                        "-of", "csv=p=0", path], capture_output=True, text=True).stdout.strip()
+    a, b = o.split("/") if "/" in o else (o, "1")
+    return float(a) / float(b)
 
 
 def dialogue_mask(f):
@@ -115,12 +121,13 @@ def main():
     sid = sys.argv[1]
     row = next(r for r in field.load_runs(dedup=False, keep_excluded=True) if r["id"] == sid)
     ev = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))[sid]
-    out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, f"route-model-{row['agent']}.png")
     video = os.path.join(HERE, "videos", sid + ".mp4")
     if not os.path.exists(video):
         import urllib.request
         os.makedirs(os.path.dirname(video), exist_ok=True)
         urllib.request.urlretrieve(row["video_url"], video)
+    speed = json.load(open(os.path.join(HERE, "timelines", sid + ".json"), encoding="utf-8"))["speed"]
+    fps = fps_of(video)
     pano = np.asarray(Image.open(PANO).convert("RGB"), np.float32)
     pg = pano.mean(axis=2)
     valid = pano.sum(axis=2) > 0
@@ -170,17 +177,16 @@ def main():
                 by, bx = np.unravel_index(np.argmax(s_), s_.shape)
                 if s_[by, bx] >= 60:
                     screen = (bx + bw / 2, by + bh * 0.75)
-        path.append((x + screen[0], y + screen[1]))
+        path.append((x + screen[0], y + screen[1], i / fps * speed / 60.0))
     print(sid, row["agent"], "frames placed", placed, "skipped", skipped, "path points", len(path))
     # a running mean of three, as in human/route.py
     if len(path) > 4:
-        path = [path[0]] + [((a[0] + p[0] + b[0]) / 3, (a[1] + p[1] + b[1]) / 3)
+        path = [path[0]] + [((a[0] + p[0] + b[0]) / 3, (a[1] + p[1] + b[1]) / 3, p[2])
                             for a, p, b in zip(path, path[1:], path[2:])] + [path[-1]]
-    np.save(out[:-4] + "-path.npy", np.array(path, np.float32))
-    import route_panel
-    route_panel.draw(np.array(path, np.float64), out)
-    with open(out[:-4] + ".txt", "w") as fh:
-        fh.write(sid + "\n")
+    os.makedirs(os.path.join(HERE, "routes"), exist_ok=True)
+    out = os.path.join(HERE, "routes", f"compound-{sid}.json")
+    json.dump({"session": sid, "agent": row["agent"], "columns": ["px", "py", "minute"],
+               "rows": [[round(float(a), 1), round(float(b), 1), round(float(c), 3)] for a, b, c in path]}, open(out, "w"))
     print("wrote", out)
 
 

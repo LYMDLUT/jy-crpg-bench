@@ -61,12 +61,15 @@ ICLR 2027 submission draft for jy-crpg-bench.
   of the whole compound (`src/figures/compound.png`) with the replay of a session
   that walked the whole yard, and `src/figures/anchored_route.py <session id>` places
   each frame of a benchmark replay, up to its first black frame, on that panorama by
-  masked cross-correlation and draws the hero's path through `src/figures/route_panel.py`
-  into `src/figures/route-model-<model>.png`, with a `.txt` stamp naming the session
-  and a `-path.npy` of the path; `emit_numbers.py` reads the stamp and refuses to run
-  if the panel of a model was not drawn from the session the paper reports for it.
-  `src/figures/model_route.py <session id>` is the earlier stitch of consecutive
-  frames, which drifts on the open yard when the view jumps between frames.
+  masked cross-correlation and writes the hero's path with the minute of each point
+  to `src/figures/routes/compound-<id>.json`.
+- `src/figures/worldmap.py` - renders the world map at native scale from the game's
+  EARTH, SURFACE and BUILDING grids and MMAP.GRP into `worldmap.png` (not tracked,
+  since it is game art; rerun it from the local game copy). `worldmap_route.py
+  <session id>` places every world-map frame of a replay on it and writes the hero's
+  tile and minute to `routes/world-<id>.json`; the hero stands at a fixed screen
+  point, fixed by a compass reading of a replay. `routes.py` draws
+  `routes-compound.pdf` and `routes-world.pdf` from the `routes/` files.
 - `src/figures/first_hour.py` - writes the first 60 minutes of each four-hour session of a
   model with no hour session as an hour session (`<id>-h1`): a row in
   `catalog_snapshot_firsthour.json`, the timeline cut at minute 60 and the replay

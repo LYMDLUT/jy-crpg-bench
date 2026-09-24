@@ -566,34 +566,6 @@ emit("PnoConfirm", len(_noconfirm), "sessions that never pressed enter or space"
 if len(_noconfirm) != 1 or _slowest["id"] != _noconfirm[0]["id"]:
     sys.exit("the prose calls the slowest crossing the one session that never confirmed; it no longer is")
 
-# the three model panels of the route figure: the reported session of the model
-# with the most rungs, of the model whose session crossed in the fewest
-# keypresses, and of claude-opus-5, drawn from the replay up to its first black
-# frame by figures/anchored_route.py on the panorama of figures/compound.png.
-# The numbers read the same timelines.
-_MOVE = DIAG + ("up", "down", "left", "right")
-_reported = {r["agent"]: r for r in field.best_per_model(PLAY)}
-for _tag, _agent in (("A", _top["agent"]), ("B", "claude-opus-5"), ("C", _fewest["agent"])):
-    _r = _reported.get(_agent)
-    if _tag == "C" and _r["id"] != _fewest["id"]:
-        sys.exit("route figure: the reported session of %s is not its fewest-keypress crossing" % _agent)
-    _n = field.crossing_actions(_r) if _r else None
-    if _n is None:
-        sys.exit(f"route figure: {_agent} has no reported session that crossed")
-    _t = TL[_r["id"]]
-    _ms = _t["marks"][:_n]
-    _keys = [k for m in _ms for k, _ in m["keys"]]
-    emit_label(f"Proute{_tag}Label", _agent, f"model panel {_tag} of the route figure")
-    emit(f"Proute{_tag}Acts", _n, "actions to the crossing")
-    emit(f"Proute{_tag}Keys", len(_keys), "keys pressed before the crossing")
-    emit(f"Proute{_tag}Moves", sum(1 for k in _keys if k in _MOVE), "of them movement keys")
-    emit(f"Proute{_tag}Min", _r["replay"]["first_black_second"] * _t["speed"] / 60.0, "minute of the crossing, from the replay", fmt="%.0f")
-    if not os.path.exists(os.path.join(HERE, f"route-model-{_agent}.png")):
-        sys.exit(f"route figure: figures/route-model-{_agent}.png is missing; run figures/anchored_route.py {_r['id']}")
-    _stamp = os.path.join(HERE, f"route-model-{_agent}.txt")
-    if not os.path.exists(_stamp) or open(_stamp).read().strip() != _r["id"]:
-        sys.exit(f"route figure: figures/route-model-{_agent}.png was not drawn from session {_r['id']}")
-
 # the session that crossed and then never entered a scene, the home included
 _orbit = [r for r in _crossed if not _scenes(r).get("entries")]
 _orb = max(_orbit, key=lambda r: r["actions"] - r["exit_acts"])
@@ -671,11 +643,11 @@ emit_label("LsecondLabel", _second["agent"])
 emit("Lsecond", _second["reached"], "milestones the second model reached")
 emit("LsecondSessions", _second["sessions"], "its sessions")
 _sf = [(r, e) for r, e in _all_fights if r["agent"] == _second["agent"]]
-if len(_sf) != 1 or _sf[0][1]["defeat"]["seconds"] or _sf[0][1].get("recruited_minute") is not None:
-    sys.exit("the prose describes one fight of the second model, without a defeat banner or a recruitment")
+if len(_sf) != 1 or not _sf[0][1]["defeat"]["seconds"] or _sf[0][1].get("recruited_minute") is not None:
+    sys.exit("the prose describes one fight of the second model, lost, and no recruitment")
 _s2 = _sf[0][1]
-if not (_first(_s2, "hermit") < _first(_s2, "battle") < _first(_s2, "compass")):
-    sys.exit("the prose orders the second model's hermit, fight and compass read; the order changed")
+if not (_first(_s2, "hermit") < _first(_s2, "compass") < _first(_s2, "battle") < _first(_s2, "defeat")):
+    sys.exit("the prose orders the second model's hermit, compass read, fight and defeat; the order changed")
 if field.rungs_reached(_sf[0][0]) != _second["reached"]:
     sys.exit("the prose says the second model reached all its milestones in one session")
 _inn = [x["minute"] for x in _s2["scenes"]["entries"] if x["name"].endswith("客棧")]
@@ -687,6 +659,7 @@ emit("PsecondTakeMin", _take[0], "minute the compass entered its bag", fmt="%.0f
 emit("PsecondHermitMin", _first(_s2, "hermit"), "minute it reached the hermit", fmt="%.0f")
 emit("PsecondBattleMin", _first(_s2, "battle"), "minute its fight began", fmt="%.0f")
 emit("PsecondCompassMin", _first(_s2, "compass"), "minute it read the compass", fmt="%.0f")
+emit("PsecondDefeatMin", _first(_s2, "defeat"), "minute of its defeat banner", fmt="%.0f")
 _fights = [(r, e) for r, e in _all_fights if r["agent"] == _top["agent"]]
 if len(_all_fights) != len(_fights) + len(_sf):
     sys.exit("the prose attributes every fight to the two models")
@@ -720,6 +693,11 @@ for r, e in _recruits:
         sys.exit("the prose attributes the recruitment to the top model")
 _tm = json.load(open(os.path.join(HERE, "templates", "templates.json"), encoding="utf-8"))
 emit("ReplayThreshold", _tm["threshold"], "match threshold of the replay scan", fmt="%.1f")
+import replay_scan as _rs  # noqa: E402
+emit("ReplayHold", _rs.HOLD, "seconds of play a panel must stay above the threshold", fmt="%.1f")
+_need = {v: math.ceil(_rs.HOLD * 20 / v - 1e-9) for v in {round(TL[k]["speed"]) for k in TL}}
+if _need != {8: 2, 24: 1}:
+    sys.exit("the prose names two frames at 8 times speed and one at 24 times; the replays give %s" % _need)
 _miss = max(e[n]["max"] for _, e in EV.values() for n in ("hermit", "compass", "battle", "defeat", "prompt", "obtained") if e[n]["seconds"] == 0 and e[n]["max"] is not None)
 emit("ReplayMissMax", _miss, "highest score of any frame without the event", fmt="%.2f")
 # the item milestone read from the obtained message where no record carries the bag
