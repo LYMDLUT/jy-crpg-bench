@@ -92,31 +92,34 @@ def compound_figure():
     models = [m for m in field.model_rows([r for r in rows if not field.is_random(r["agent"])])]
     models.sort(key=field.ladder_order)
     reported = {r["agent"]: r for r in field.best_per_model(rows)}
+    paths = {m["agent"]: load("compound", reported[m["agent"]]["id"]) for m in models}
     pano = Image.open(os.path.join(HERE, "compound.png"))
     cov = np.asarray(pano.convert("L")) > 0
-    ys, xs = np.where(cov)
-    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     bg = faded(pano)
     bg[~cov] = 255
-    ncol = 4
+    # the crop is the extent of every walk with a margin, so the panels show the
+    # compound as large as the width allows
+    allp = np.concatenate([p[:, :2] for p in paths.values()])
+    pad = 30
+    x0, x1 = max(0, int(allp[:, 0].min()) - pad), min(bg.shape[1], int(allp[:, 0].max()) + pad)
+    y0, y1 = max(0, int(allp[:, 1].min()) - pad), min(bg.shape[0], int(allp[:, 1].max()) + pad)
+    ncol, gap, head = 4, 0.05, 0.15
     nrow = -(-len(models) // ncol)
     w_in = 7.0
-    pw = w_in / ncol
+    pw = (w_in - gap * (ncol - 1)) / ncol
     ph = pw * (y1 - y0) / (x1 - x0)
-    fig = plt.figure(figsize=(w_in, nrow * (ph + 0.14) + 0.50))
+    fig = plt.figure(figsize=(w_in, nrow * (ph + head)))
     H = fig.get_figheight()
     for k, m in enumerate(models):
-        r = reported[m["agent"]]
-        p = load("compound", r["id"])
+        p = paths[m["agent"]]
         c, rr = k % ncol, k // ncol
-        ax = fig.add_axes([c * pw / w_in, (H - (rr + 1) * (ph + 0.14)) / H, pw / w_in, ph / H])
+        ax = fig.add_axes([c * (pw + gap) / w_in, (H - (rr + 1) * (ph + head)) / H, pw / w_in, ph / H])
         ax.imshow(bg[y0:y1, x0:x1], extent=(x0, x1, y1, y0), interpolation="nearest")
         ax.set_xlim(x0, x1)
         ax.set_ylim(y1, y0)
         ax.axis("off")
-        draw_path(ax, p[:, :2], p[:, 2], lw=0.9, arrows=5)
+        draw_path(ax, p[:, :2], p[:, 2], lw=1.0, arrows=5)
         ax.set_title(m["agent"], fontsize=6.5, pad=1.5, color=INK, family="monospace")
-    colorbar(fig, [0.35, 0.30 / H, 0.30, 0.07 / H])
     fig.savefig(os.path.join(HERE, "routes-compound.pdf"), dpi=300)
     plt.close(fig)
 
@@ -182,22 +185,26 @@ def smooth(xy, k=3):
 
 
 def world_figure():
+    """Two by two: the three walks, and in the fourth cell the list of each
+    walk's markers above the colour bar."""
     sess = world_sessions()
     tracks = [load("world", r["id"]) for r, _ in sess]
-    pad = 60
+    pad = 36
     allp = np.concatenate(tracks)
     bx0, bx1 = int(allp[:, 0].min() - pad), int(allp[:, 0].max() + pad)
     by0, by1 = int(allp[:, 1].min() - pad), int(allp[:, 1].max() + pad)
     crop = faded(Image.open(os.path.join(HERE, "worldmap.png")).crop((bx0, by0, bx1, by1)))
-    w_in, gap, n = 7.0, 0.1, len(sess)
-    pw = (w_in - gap * (n - 1)) / n
+    w_in, gap, head = 7.0, 0.12, 0.16
+    pw = (w_in - gap) / 2
     ph = pw * (by1 - by0) / (bx1 - bx0)
-    note_h = 0.52
-    fig = plt.figure(figsize=(w_in, 0.16 + ph + note_h))
+    fig = plt.figure(figsize=(w_in, 2 * (ph + head) + gap))
     H = fig.get_figheight()
-    for k, ((r, e), t) in enumerate(zip(sess, tracks)):
-        x = k * (pw + gap)
-        ax = fig.add_axes([x / w_in, (H - 0.16 - ph) / H, pw / w_in, ph / H])
+    cells = [(0, 0), (1, 0), (0, 1)]
+    notes = []
+    for ((r, e), t), (c, rr) in zip(zip(sess, tracks), cells):
+        x = c * (pw + gap)
+        y = H - (rr + 1) * (ph + head) - rr * gap
+        ax = fig.add_axes([x / w_in, y / H, pw / w_in, ph / H])
         ax.imshow(crop, extent=(bx0, bx1, by1, by0), interpolation="nearest")
         ax.set_xlim(bx0, bx1)
         ax.set_ylim(by1, by0)
@@ -205,17 +212,28 @@ def world_figure():
         ax.set_yticks([])
         for sp in ax.spines.values():
             sp.set_linewidth(0.4)
-            sp.set_color("#8a8a8e")
-        draw_path(ax, smooth(t[:, :2]), t[:, 4], lw=1.0, arrows=8, gaps=JUMP)
-        ax.set_title(r["agent"], fontsize=6.5, pad=1.5, color=INK, family="monospace")
+            sp.set_color(INK)
+        draw_path(ax, smooth(t[:, :2]), t[:, 4], lw=1.2, arrows=9, gaps=JUMP)
+        ax.set_title(r["agent"], fontsize=7.5, pad=2, color=INK, family="monospace")
         lines = []
         for i, (ex, ey, evs) in enumerate(events(e, t), 1):
-            ax.scatter([ex], [ey], s=34, marker="o", color="white", edgecolors=INK, linewidths=0.6, zorder=6)
-            ax.text(ex, ey, str(i), fontsize=4.6, ha="center", va="center", color=INK, zorder=7)
-            lines.append("%d %s" % (i, ", ".join("%s %d" % (lab, round(m)) for m, lab in evs)))
-        fig.text(x / w_in, (H - 0.16 - ph - 0.05) / H, "\n".join(lines) if lines else "no scene entered",
-                 fontsize=5.6, color=INK, ha="left", va="top")
-    colorbar(fig, [(w_in - pw * 0.9) / w_in, 0.27 / H, pw * 0.8 / w_in, 0.06 / H])
+            ax.scatter([ex], [ey], s=52, marker="o", color="white", edgecolors=INK, linewidths=0.7, zorder=6)
+            ax.text(ex, ey, str(i), fontsize=5.6, ha="center", va="center", color=INK, zorder=7)
+            lines.append("%d  %s" % (i, ", ".join("%s %d" % (lab, round(m)) for m, lab in evs)))
+        notes.append((r["agent"], lines or ["no scene entered"]))
+    # the fourth cell: the markers of each walk, then the colour bar
+    x = pw + gap
+    ty = H - (ph + head) - gap - head
+    fig.text(x / w_in, ty / H, "Markers, with the minute of each event", fontsize=7, color=INK, va="top", style="italic")
+    ty -= 0.2
+    for agent, lines in notes:
+        fig.text(x / w_in, ty / H, agent, fontsize=7.5, color=INK, family="monospace", va="top")
+        ty -= 0.15
+        for ln in lines:
+            fig.text((x + 0.08) / w_in, ty / H, ln, fontsize=7, color=INK, va="top")
+            ty -= 0.13
+        ty -= 0.08
+    colorbar(fig, [(x + 0.08) / w_in, (H - 2 * (ph + head) - gap + 0.24) / H, (pw - 0.5) / w_in, 0.08 / H])
     fig.savefig(os.path.join(HERE, "routes-world.pdf"), dpi=300)
     plt.close(fig)
 

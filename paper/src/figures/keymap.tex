@@ -13,7 +13,7 @@
 \definecolor{accentlt}{HTML}{A8C4DE}
 \definecolor{rule}{HTML}{DCDDE0}
 \definecolor{dead}{HTML}{F3F4F6}
-\definecolor{deadink}{HTML}{B9BBC0}
+\definecolor{deadink}{HTML}{6E7075}
 \definecolor{wash}{HTML}{EEF3F9}
 
 \newcommand{\KP}{0.63}   % key pitch
@@ -83,7 +83,7 @@
   \key{0}{4.2}{1}{$\leftarrow$}{alias}
   \key{1}{4.2}{1}{$\downarrow$}{alias}
   \key{2}{4.2}{1}{$\rightarrow$}{alias}
-  \node[font=\sffamily\scriptsize,text=soft,anchor=north] at (1.6*\KP,-6.25*\KP) {arrow keys};
+  \node[font=\sffamily\scriptsize,text=ink,anchor=north] at (1.6*\KP,-6.25*\KP) {arrow keys};
 \end{scope}
 
 \begin{scope}[shift={(19.2*\KP,0)}]
@@ -96,7 +96,7 @@
   \key{0}{4.2}{1}{1}{move}   \key{1}{4.2}{1}{2}{dead}
   \key{2}{4.2}{1}{3}{move}   \key{3}{4.2}{1}{ent}{dead}
   \key{0}{5.2}{2}{0}{dead}   \key{2}{5.2}{1}{.}{dead}
-  \node[font=\sffamily\scriptsize,text=soft,anchor=north] at (2*\KP,-6.25*\KP) {numeric keypad};
+  \node[font=\sffamily\scriptsize,text=ink,anchor=north] at (2*\KP,-6.25*\KP) {numeric keypad};
 \end{scope}
 
 % ---------------- L2: legend -----------------------------------------------
@@ -108,7 +108,7 @@
   \fill[white,draw=ink,line width=0.6pt,rounded corners=1.1pt] (7.3,0) rectangle (7.64,0.34);
   \node[font=\sffamily\scriptsize,text=ink,anchor=west] at (7.74,0.17) {confirms, opens a menu, answers};
   \fill[dead,draw=rule,line width=0.3pt,rounded corners=1.1pt] (11.8,0) rectangle (12.14,0.34);
-  \node[font=\sffamily\scriptsize,text=soft,anchor=west] at (12.24,0.17) {accepted, advances dialogue only};
+  \node[font=\sffamily\scriptsize,text=ink,anchor=west] at (12.24,0.17) {accepted, advances dialogue only};
 \end{scope}
 
 \end{tikzpicture}

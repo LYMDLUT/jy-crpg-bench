@@ -190,7 +190,7 @@ def figure_ladder():
     boxed = humans + sorted((m for m in models if m["cross_keys"]), key=_field.crossing_order)
     n, nb, span = len(entries), len(boxed), len(DEFINITION)
     # the layout in inches: the milestone panel, its legend, the crossing panel
-    top_pitch, bottom_pitch = 0.24, 0.12
+    top_pitch, bottom_pitch = 0.21, 0.11
     head, legend_h, gap, foot = 0.42, 0.28, 0.12, 0.42
     top_h, bottom_h = top_pitch * n, bottom_pitch * nb
     fig_h = head + top_h + legend_h + gap + bottom_h + foot
@@ -221,7 +221,7 @@ def figure_ladder():
     heads = [ax.annotate("sessions", xy=(xsess, 1.0),
                          xycoords=blended_transform_factory(ax.transData, ax.transAxes),
                          xytext=(0, 4), textcoords="offset points", ha="center",
-                         va="bottom", fontsize=6.6, color="#67676b")]
+                         va="bottom", fontsize=6.6, color=INK)]
     counts = [ax.text(xsess, row, str(m["sessions"]), ha="center", va="center", fontsize=7.6, color=INK)
               for row, m in enumerate(entries)]
     ax.set_yticks(range(n), [m["agent"] for m in entries], fontsize=8.5, fontfamily="monospace")
@@ -256,16 +256,16 @@ def figure_ladder():
     bx.set_xscale("log")
     bx.set_xlim(ACT_LO, ACT_HI)
     bx.set_xticks(ACT_TICKS)
-    bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=6.6, color="#67676b")
+    bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=6.6, color=INK)
     bx.xaxis.set_minor_locator(mticker.NullLocator())
-    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=7.0, fontfamily="monospace")
+    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=6.6, fontfamily="monospace")
     bx.set_ylim(nb - 0.5, -0.5)
     bx.tick_params(axis="y", length=0)
     bx.tick_params(axis="x", length=2, color="#c3c3c6")
     for side in ("left", "top", "right"):
         bx.spines[side].set_visible(False)
     bx.spines["bottom"].set_color("#c3c3c6")
-    xl = bx.set_xlabel("keypresses to reach the world map", fontsize=7.6, color="#67676b", labelpad=3)
+    xl = bx.set_xlabel("keypresses to reach the world map", fontsize=7.6, color=INK, labelpad=3)
     boxes = [box_at(ax, c, r, size) for c, r, size in cells]
     check_overlaps(fig, ax, list(ax.get_xticklabels()) + list(ax.get_yticklabels()) + heads + counts
                    + list(leg.get_texts()) + list(bx.get_xticklabels()) + list(bx.get_yticklabels()) + [xl],

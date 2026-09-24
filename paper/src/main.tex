@@ -210,7 +210,7 @@ video, computes its metrics, and appends itself to the public catalogue with the
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/architecture.pdf}
-\caption{A frontier model in pi drives the control API of its own session. The recording feeds the public replay, and progress is read from the emulated machine, the save the game writes and the replay, none of which the control API exposes.}
+\caption{A frontier model in pi plays through the control API of its own session. Blue marks the measurement, which reads the memory of the emulator, the saves of the game and the panels of the replay, and which the model cannot see.}
 \label{fig:apparatus}
 \end{figure}
 
@@ -254,7 +254,7 @@ Four milestones separate the models: the chest, the first scene beyond the home,
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/routes-compound.pdf}
-\caption{The walk of every model through the opening compound in its session with the most milestones, from the spawn tile (circle) to the crossing (square). The colour gives the minute of play and the arrowheads the direction. The panels follow the upper panel of \cref{fig:ladder}, and \cref{app:measure} describes how a walk is read.}
+\caption{The walk of every model through the opening compound in its session with the most milestones, from the spawn tile (circle) to the crossing (square). The colour gives the minute of play on the scale of \cref{fig:world} and the arrowheads the direction. The panels follow the upper panel of \cref{fig:ladder}, and \cref{app:measure} describes how a walk is read.}
 \label{fig:compound}
 \end{figure}
 
@@ -265,7 +265,7 @@ After the crossing, the rest of the hour is spent on the world map, and \cref{fi
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/routes-world.pdf}
-\caption{Three walks on the world map in the first hour, coloured by the minute of play: the session of \LtopLabel{} that entered the most scenes, the session of \LsecondLabel{} with the most milestones, and the session of \PorbitLabel{} that stayed longest on the world map without entering a scene. A numbered marker stands at the last point on the world map before a scene entered or a panel read from the replay, and the list under each panel gives their minutes. A gap in a path is a scene or a loaded save.}
+\caption{Three walks on the world map in the first hour, coloured by the minute of play: the session of \LtopLabel{} that entered the most scenes, the session of \LsecondLabel{} with the most milestones, and the session of \PorbitLabel{} that stayed longest on the world map without entering a scene. A numbered marker stands at the last point on the world map before a scene entered or a panel read from the replay, and the lower right lists the markers with their minutes. A gap in a path is a scene or a loaded save.}
 \label{fig:world}
 \end{figure}
 
