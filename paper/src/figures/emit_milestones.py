@@ -16,9 +16,9 @@ sys.path.insert(0, HERE)
 import field  # noqa: E402
 
 ROWS = (("reached the world map", "crossing"), ("picked up an item", "obtained"),
-        ("entered a scene", "scene"), ("spoke with the hermit", "hermit"), ("held the compass", "compass"),
-        ("recruited a companion", "recruited"), ("entered a fight", "battle"),
-        ("fought to the end", "defeat"))
+        ("entered a location", "scene"), ("spoke with the hermit", "hermit"), ("held the compass", "compass"),
+        ("recruited a party member", "recruited"), ("entered a battle", "battle"),
+        ("finished a battle", "defeat"))
 
 rows = [r for r in field.played(field.load_runs(dedup=False)) if not field.is_random(r["agent"])]
 

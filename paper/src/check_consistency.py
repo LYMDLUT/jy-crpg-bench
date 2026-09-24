@@ -107,15 +107,15 @@ def main():
                     all(union[a]["rungs"][k] is (True if any(field.rungs_of(r)[k] is True for r in models if r["agent"] == a) else union[a]["rungs"][k])
                         for a in union for k in range(len(field.DEFINITION))),
                     "%d models, %d sessions" % (len(union), len(models)))
-        H, C, F, D = (field.DEFINITION.index(x) for x in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na fight", "fought to\nthe end"))
+        H, C, F, D = (field.DEFINITION.index(x) for x in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "finished\na battle"))
         ok &= claim("the compass is never held without the hermit's conversation",
                     all(m["rungs"][H] for m in union.values() if m["rungs"][C]),
                     "compass %s" % [a for a, m in union.items() if m["rungs"][C]])
         ok &= claim("a fight fought to the end was entered",
                     all(m["rungs"][F] for m in union.values() if m["rungs"][D]),
                     "fought out %s" % [a for a, m in union.items() if m["rungs"][D]])
-    if "take the compass and enter a fight" in flat:
-        FIGHT, CMP = field.DEFINITION.index("entered\na fight"), field.DEFINITION.index("holds the\ncompass")
+    if "take the compass and enter a battle" in flat:
+        FIGHT, CMP = field.DEFINITION.index("entered\na battle"), field.DEFINITION.index("holds the\ncompass")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True and m["rungs"][CMP] is True]
         ok &= claim("two models take the compass and enter a fight", len(past) == 2, "%s" % past)
     if "the fingerprint never appears without a save behind it" in flat:
@@ -141,7 +141,7 @@ def main():
                     "%d of %d sessions crossed, every time: %s" % (crossed, len(models), every))
     if "reached him in every one of its" in flat:
         H = field.DEFINITION.index("spoke with\nthe hermit")
-        FIGHT = field.DEFINITION.index("entered\na fight")
+        FIGHT = field.DEFINITION.index("entered\na battle")
         top = [nums["LtopLabel"].replace("\\texttt{", "").rstrip("}")]
         hermit = {a: sum(1 for r in rs if field.rungs_of(r)[H] is True) for a, rs in by_model.items()}
         others = {a: n for a, n in hermit.items() if n and a not in top}
@@ -170,7 +170,7 @@ def main():
                         and m["crossings"] == sorted(a for a in (field.crossing_actions(r) for r in by_model[m["agent"]]) if a is not None)
                         for m in union),
                     "%s" % {m["agent"]: len(m["crossings"]) for m in union})
-    if "sessions with no bag reading" in flat:
+    if "sessions with no inventory reading" in flat:
         both = [r for r in scored if r.get("picked_item") is not None and (r.get("replay") or {}).get("obtained")]
         only = [r for r in scored if r.get("picked_item") is None and (r.get("replay") or {}).get("obtained")]
         ok &= claim("the obtained message agrees with every bag reading and covers the rest",
@@ -201,8 +201,8 @@ def main():
         ok &= claim("the replay threshold sits between the highest miss and the lowest hit",
                     miss < float(nums["ReplayThreshold"]) <= hit and abs(float(nums["ReplayMissMax"]) - miss) < 0.006 and abs(float(nums["ReplayHitMin"]) - hit) < 0.006,
                     "miss %.3f, threshold %s, hit %.3f" % (miss, nums["ReplayThreshold"], hit))
-    if "models entered a scene" in flat:
-        SCENE = field.DEFINITION.index("entered\na scene")
+    if "models entered a location" in flat:
+        SCENE = field.DEFINITION.index("entered\na location")
         union = field.model_rows(models)
         entered = [m["agent"] for m in union if m["rungs"][SCENE] is True]
         ok &= claim("the scene milestone is read for every session and the count matches the macro",
@@ -245,7 +245,7 @@ def main():
                 (int(nums["NlongAttempts"]), int(nums["NlongSessions"]), int(nums["NlongWithheld"]))
                 == (len(attempts), len(long_rows), len(attempts) - len(long_rows)), str(len(attempts)))
     ok &= claim("the attempt that read earlier sessions does not count", field.HACK_SESSION not in selected_ids, field.HACK_SESSION)
-    for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
+    for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "gained\nexperience", "one of the\nfourteen"):
         k = field.DEFINITION.index(rung)
         ok &= claim("no four-hour session that counts reached " + rung.replace("\n", " "),
                     not any(field.rungs_of(r)[k] is True for r in long_rows), str(len(long_rows)))
@@ -253,10 +253,10 @@ def main():
         idle = sum(1 for r in models if r.get("reason") == "idle")
         ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
                     "%d idle-ended" % idle)
-    if "loses the fight fought to its end, and no other count changes" in flat:
+    if "loses its finished battle, and no other count changes" in flat:
         full = {m["agent"]: m for m in field.model_rows(models)}
         without = {m["agent"]: m for m in field.model_rows([r for r in models if r.get("reason") != "idle"])}
-        FOUGHT = field.DEFINITION.index("fought to\nthe end")
+        FOUGHT = field.DEFINITION.index("finished\na battle")
         diff = {a: full[a]["reached"] - without[a]["reached"] for a in full if a in without and full[a]["reached"] != without[a]["reached"]}
         top = nums["LtopLabel"].replace("\\texttt{", "").rstrip("}")
         ok &= claim("excluding the idle-ended sessions lowers one count by one, the fight fought to its end",

@@ -365,16 +365,16 @@ emit("QrandomRungs", max((m["reached"] for m in RUNION), default=0),
 emit("Lrungs", len(field.DEFINITION), "rungs on the ladder")
 emit("Lopening", field.OPENING, "rungs of the opening")
 emit("Lmodels", len(UNION), "models on the ladder")
-_LNAMES = {"Lmap": "reached\nworld map", "Litem": "picked up\nan item", "Lscene": "entered\na scene", "Lhermit": "spoke with\nthe hermit",
-           "Lcompass": "holds the\ncompass", "Lparty": "recruited\ncompanion", "Lfight": "entered\na fight",
-           "Lfought": "fought to\nthe end", "Lexp": "gained\nexperience", "Llevel": "reached\nlevel 2",
+_LNAMES = {"Lmap": "reached\nworld map", "Litem": "picked up\nan item", "Lscene": "entered\na location", "Lhermit": "spoke with\nthe hermit",
+           "Lcompass": "holds the\ncompass", "Lparty": "recruited a\nparty\nmember", "Lfight": "entered\na battle",
+           "Lfought": "finished\na battle", "Lexp": "gained\nexperience", "Llevel": "reached\nlevel 2",
            "Lbook": "one of the\nfourteen"}
 for _n, _d in _LNAMES.items():
     _i = field.DEFINITION.index(_d)
     emit(_n, sum(1 for m in UNION if m["rungs"][_i] is True), "models credited with rung %d" % (_i + 1))
 _ITEM = field.DEFINITION.index("picked up\nan item")
 emit("LnoItem", sum(1 for m in UNION if m["rungs"][_ITEM] is False), "models that never picked anything up")
-_SCENE = field.DEFINITION.index("entered\na scene")
+_SCENE = field.DEFINITION.index("entered\na location")
 emit("LnoScene", sum(1 for m in UNION if m["rungs"][_SCENE] is False), "models that never entered a scene beyond the home")
 
 
@@ -635,7 +635,7 @@ _all_fights = [(r, e) for r, e in EV.values() if e["battle"]["seconds"]]
 emit("PfightSessions", len(_all_fights), "sessions that entered a fight")
 # the second model: the other one that took the compass and entered a fight
 _second = sorted(UNION, key=lambda m: (-m["reached"], m["agent"]))[1]
-_CK, _FK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("entered\na fight")
+_CK, _FK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("entered\na battle")
 _both_models = sorted(m["agent"] for m in UNION if m["rungs"][_CK] is True and m["rungs"][_FK] is True)
 if _both_models != sorted([_top["agent"], _second["agent"]]):
     sys.exit("the prose says two models took the compass and entered a fight: %s" % _both_models)
@@ -826,7 +826,7 @@ if sum(len(long_cohort.entries_of(LONG_MANIFEST, s)) for s in
        ("no_actions", "startup_only", "stopped_early", "incompatible_config", "protocol_violation")) != len(LONG_ATTEMPTS) - len(LONG):
     sys.exit("the attempts that do not count do not add up to the manifest")
 _hack = [r for r in LONG_ATTEMPTS if r["id"] == field.HACK_SESSION]
-_CK, _RK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("recruited\ncompanion")
+_CK, _RK = field.DEFINITION.index("holds the\ncompass"), field.DEFINITION.index("recruited a\nparty\nmember")
 if len(_hack) != 1 or _hack[0]["agent"] != "gemini-3.8-flash" or field.rungs_of(_hack[0])[_CK] is not True or field.rungs_of(_hack[0])[_RK] is not True:
     sys.exit("the prose says the attempt that read earlier sessions is gemini-3.8-flash and held the compass and a companion")
 emit_label("LlongHackLabel", "gemini-3.8-flash", "the model whose attempt read the timelines of earlier sessions")
@@ -840,9 +840,9 @@ def _join(names):
 lines.append(("% models with a four-hour attempt and no session that counts",
               "\\newcommand{\\LlongPendingLabels}{" + _join(_pending_models) + "}"))
 for macro, rung in (("NlongMap", "reached\nworld map"), ("NlongItem", "picked up\nan item"),
-                   ("NlongScene", "entered\na scene"), ("NlongHermit", "spoke with\nthe hermit"),
-                   ("NlongCompass", "holds the\ncompass"), ("NlongCompanion", "recruited\ncompanion"),
-                   ("NlongFight", "entered\na fight"), ("NlongExp", "gained\nexperience"),
+                   ("NlongScene", "entered\na location"), ("NlongHermit", "spoke with\nthe hermit"),
+                   ("NlongCompass", "holds the\ncompass"), ("NlongCompanion", "recruited a\nparty\nmember"),
+                   ("NlongFight", "entered\na battle"), ("NlongExp", "gained\nexperience"),
                    ("NlongBook", "one of the\nfourteen")):
     k = field.DEFINITION.index(rung)
     emit(macro, sum(field.rungs_of(r)[k] is True for r in LONG), "among the four-hour sessions that count")
@@ -855,7 +855,7 @@ if not _lcross or any(r.get("exit_secs") is None for r in LONG if field.on_map(r
 emit("LlongCrossFirst", min(_lcross), "earliest crossing, minutes", fmt="%.1f")
 emit("LlongCrossLast", max(_lcross), "latest crossing, minutes", fmt="%.1f")
 emit("NlongCrossLate", sum(t > BUDGET / 60 for t in _lcross))
-for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na fight", "gained\nexperience", "one of the\nfourteen"):
+for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "gained\nexperience", "one of the\nfourteen"):
     if any(field.rungs_of(r)[field.DEFINITION.index(rung)] is True for r in LONG):
         sys.exit("the prose says no four-hour session that counts reached " + rung.replace("\n", " "))
 if field.HACK_SESSION in {r["id"] for r in LONG}:

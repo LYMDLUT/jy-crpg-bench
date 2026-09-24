@@ -182,11 +182,11 @@ def aliased(rows):
     return sorted({(r["declared"], r["agent"]) for r in rows if r["declared"] != r["agent"]})
 
 
-DEFINITION = ("reached\nworld map", "picked up\nan item", "entered\na scene", "spoke with\nthe hermit",
-              "holds the\ncompass", "recruited\ncompanion",
-              "entered\na fight", "fought to\nthe end",
+DEFINITION = ("reached\nworld map", "picked up\nan item", "entered\na location", "spoke with\nthe hermit",
+              "holds the\ncompass", "recruited a\nparty\nmember",
+              "entered\na battle", "finished\na battle",
               "gained\nexperience", "reached\nlevel 2", "one of the\nfourteen")
-SHORT = ("map", "item", "scene", "hermit", "compass", "party", "fight", "fought out", "exp", "lv 2", "book")
+SHORT = ("map", "item", "location", "hermit", "compass", "party", "battle", "finished", "exp", "lv 2", "book")
 OPENING = 6     # the first six close the opening without a fight
 HOME = "王居"   # the banner of the home scene, which does not count as a scene entered
 MAP = DEFINITION.index("reached\nworld map")

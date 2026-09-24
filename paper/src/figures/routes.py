@@ -126,10 +126,10 @@ def compound_figure():
 
 # the scene banners the replay scan names, in English; the glossary gives the originals
 SCENES = {"南賢居": "house of the hermit", "河洛客棧": "Heluo Inn", "高昇客棧": "Gaosheng Inn",
-          "王居": "home", "閻基居": "house of Yan Ji", "田伯光居": "house of Tian Boguang",
+          "王居": "starting house", "閻基居": "house of Yan Ji", "田伯光居": "house of Tian Boguang",
           "藥王莊": "Yaowang Manor", "福威鏢局": "Fuwei Escort Agency", "峨嵋派": "Emei Sect"}
 PANELS = ("hermit", "compass", "battle", "defeat")
-PANEL_LABEL = {"hermit": "hermit", "compass": "compass read", "battle": "fight", "defeat": "fight lost"}
+PANEL_LABEL = {"hermit": "hermit", "compass": "compass read", "battle": "battle", "defeat": "battle lost"}
 JUMP = 12 * 18                 # px: a longer step between placed frames is a scene or a loaded save
 MERGE = 2 * 18                 # px: events this close share one marker
 
@@ -220,7 +220,7 @@ def world_figure():
             ax.scatter([ex], [ey], s=52, marker="o", color="white", edgecolors=INK, linewidths=0.7, zorder=6)
             ax.text(ex, ey, str(i), fontsize=5.6, ha="center", va="center", color=INK, zorder=7)
             lines.append("%d  %s" % (i, ", ".join("%s %d" % (lab, round(m)) for m, lab in evs)))
-        notes.append((r["agent"], lines or ["no scene entered"]))
+        notes.append((r["agent"], lines or ["no location entered"]))
     # the fourth cell: the markers of each walk, then the colour bar
     x = pw + gap
     ty = H - (ph + head) - gap - head
