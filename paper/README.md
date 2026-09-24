@@ -57,14 +57,16 @@ ICLR 2027 submission draft for jy-crpg-bench.
   videos themselves are not tracked, and `field.human_rows()` turns the file into
   the two rows. `src/figures/human/route.py` stitches the frames of a walk into
   the panels of the route figure (`src/figures/route-*.png`) from the same
-  speedrun. `src/figures/model_route.py <session id>` draws the same compound
-  panel from a benchmark replay, up to its first black frame, into
-  `src/figures/route-model-<model>.png` with a `.txt` stamp naming the session;
-  `emit_numbers.py` reads the stamp and refuses to run if the panel of a model
-  was not drawn from the session the paper reports for it. `src/figures/anchored_route.py
-  <session id>` draws the same panel for a replay recorded at a high speed, placing
-  each frame on `human/templates/compound-bg.png`, the compound of the speedrun with
-  the hero removed, where chaining frame shifts drifts on the open yard.
+  speedrun. `src/figures/compound_panorama.py` grows that stitch into one panorama
+  of the whole compound (`src/figures/compound.png`) with the replay of a session
+  that walked the whole yard, and `src/figures/anchored_route.py <session id>` places
+  each frame of a benchmark replay, up to its first black frame, on that panorama by
+  masked cross-correlation and draws the hero's path through `src/figures/route_panel.py`
+  into `src/figures/route-model-<model>.png`, with a `.txt` stamp naming the session
+  and a `-path.npy` of the path; `emit_numbers.py` reads the stamp and refuses to run
+  if the panel of a model was not drawn from the session the paper reports for it.
+  `src/figures/model_route.py <session id>` is the earlier stitch of consecutive
+  frames, which drifts on the open yard when the view jumps between frames.
 - `src/figures/first_hour.py` - writes the first 60 minutes of each four-hour session of a
   model with no hour session as an hour session (`<id>-h1`): a row in
   `catalog_snapshot_firsthour.json`, the timeline cut at minute 60 and the replay

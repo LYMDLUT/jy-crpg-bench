@@ -569,8 +569,8 @@ if len(_noconfirm) != 1 or _slowest["id"] != _noconfirm[0]["id"]:
 # the three model panels of the route figure: the reported session of the model
 # with the most rungs, of the model whose session crossed in the fewest
 # keypresses, and of claude-opus-5, drawn from the replay up to its first black
-# frame by figures/model_route.py or figures/anchored_route.py. The numbers read
-# the same timelines.
+# frame by figures/anchored_route.py on the panorama of figures/compound.png.
+# The numbers read the same timelines.
 _MOVE = DIAG + ("up", "down", "left", "right")
 _reported = {r["agent"]: r for r in field.best_per_model(PLAY)}
 for _tag, _agent in (("A", _top["agent"]), ("B", "claude-opus-5"), ("C", _fewest["agent"])):
@@ -589,7 +589,7 @@ for _tag, _agent in (("A", _top["agent"]), ("B", "claude-opus-5"), ("C", _fewest
     emit(f"Proute{_tag}Moves", sum(1 for k in _keys if k in _MOVE), "of them movement keys")
     emit(f"Proute{_tag}Min", _r["replay"]["first_black_second"] * _t["speed"] / 60.0, "minute of the crossing, from the replay", fmt="%.0f")
     if not os.path.exists(os.path.join(HERE, f"route-model-{_agent}.png")):
-        sys.exit(f"route figure: figures/route-model-{_agent}.png is missing; run figures/model_route.py {_r['id']}")
+        sys.exit(f"route figure: figures/route-model-{_agent}.png is missing; run figures/anchored_route.py {_r['id']}")
     _stamp = os.path.join(HERE, f"route-model-{_agent}.txt")
     if not os.path.exists(_stamp) or open(_stamp).read().strip() != _r["id"]:
         sys.exit(f"route figure: figures/route-model-{_agent}.png was not drawn from session {_r['id']}")
