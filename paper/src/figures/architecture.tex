@@ -1,8 +1,8 @@
 % Figure 2: the apparatus. Two rows on one grid.
 % Row 1 is the play loop, row 2 what is kept and scored.
-% Grid: 1 unit = 0.245 cm. Four columns of 11 units with gutters of 4 units
-% (x = 0, 15, 30, 45); rows of 5 units at y = 0 and y = -9; the return lane at
-% y = -16. Every coordinate is an integer number of units.
+% Grid: 1 unit = 0.245 cm. Boxes are 5 units tall with gutters of 4 units;
+% rows at y = 0 and y = -9, the return lane at y = -16. Boxes with a
+% screenshot are wider. Every coordinate is an integer number of units.
 % Colour: ink for all type and the play loop; one accent (blue) with one
 % meaning, the measurement the model cannot see (its arrows and the score);
 % greys for boxes and the session container.
@@ -32,38 +32,45 @@
   play/.style={->,ink,line width=0.7pt},
   meas/.style={->,accent,line width=0.7pt},
 ]
-% ---- z1: boxes (x0, y0 = top left; 11 x 5 units) -------------------------
-\newcommand{\Unit}[6][]{% style, name, x, y, title, subtitle
-  \begin{pgfonlayer}{z1}\draw[box,#1] (#3,#4) rectangle ++(11,-5);\end{pgfonlayer}
+% ---- z1: boxes (top left x, y; width w; 5 units tall) -----------------------
+% Three boxes carry a screenshot, 3.6 units tall, flush right inside the box.
+\newcommand{\Unit}[7][]{% style, name, x, y, width, title, subtitle
+  \begin{pgfonlayer}{z1}\draw[box,#1] (#3,#4) rectangle ++(#5,-5);\end{pgfonlayer}
   \coordinate (#2) at (#3,#4);
-  \node[title] at ($(#3,#4)+(0.8,-0.8)$) {#5};
-  \node[line] at ($(#3,#4)+(0.8,-2.3)$) {#6};}
-\Unit{brief}{0}{0}{Brief}{\texttt{agents.md}, read\\by the harness at launch}
-\Unit{model}{15}{0}{Frontier model}{in the pi harness,\\calls screen and key}
-\Unit{worker}{30}{0}{Session worker}{holds keys, waits for\\the screen to settle}
-\Unit{emu}{45}{0}{Emulator}{DOSBox Pure running\\the 1996 game}
-\Unit{board}{15}{-9}{Leaderboard}{ranks the models,\\links every replay}
-\Unit{replay}{30}{-9}{Replay}{video and\\keypress timeline}
-\Unit[fill=accentwash,draw=accent]{score}{45}{-9}{Score}{milestones reached,\\completion time}
+  \node[title] at ($(#3,#4)+(0.8,-0.8)$) {#6};
+  \node[line] at ($(#3,#4)+(0.8,-2.3)$) {#7};}
+\newcommand{\Shot}[4]{% x of the right edge, y of the top, file, clip
+  \node[inner sep=0,anchor=north east,draw=rule,line width=0.3pt] at (#1-0.7,#2-0.7)
+    {\includegraphics[height=0.882cm,#4]{#3}};}
+\Unit{brief}{0}{0}{9}{Brief}{\texttt{agents.md},\\read at launch}
+\Unit{model}{13}{0}{11}{Frontier model}{in the pi harness,\\calls screen and key}
+\Unit{worker}{28}{0}{11}{Session worker}{holds keys, waits for\\the screen to settle}
+\Unit{emu}{43}{0}{16}{Emulator}{DOSBox Pure,\\the 1996 game}
+\Shot{59}{0}{map-x3.png}{}
+\Unit{board}{0}{-9}{18}{Leaderboard}{ranks the models,\\links every replay}
+\Shot{18}{-9}{leaderboard.png}{}
+\Unit{replay}{22}{-9}{17}{Replay}{video and\\keypress timeline}
+\Shot{39}{-9}{frames/b-hermit-talk.png}{}
+\Unit[fill=accentwash,draw=accent]{score}{43}{-9}{16}{Score}{milestones reached,\\completion time}
 
 % ---- z0: containers -------------------------------------------------------
 \begin{pgfonlayer}{z0}
-  \fill[wash,rounded corners=2pt] (29,2.2) rectangle (57,-6);
+  \fill[wash,rounded corners=2pt] (27,2.2) rectangle (60,-6);
 \end{pgfonlayer}
-\node[tag,anchor=west] at (29.4,1.1) {one session: one process, one private copy of the game};
+\node[tag,anchor=west] at (27.4,1.1) {one session: one process, one private copy of the game};
 
 % ---- z2: connectors ---------------------------------------------------------
 \begin{pgfonlayer}{z2}
-  \draw[play] (11,-2.5) -- (15,-2.5);
-  \draw[play] (26,-1.8) -- node[tag,above] {key} (30,-1.8);
-  \draw[play] (30,-3.2) -- node[tag,below] {frame} (26,-3.2);
-  \draw[play] (41,-1.8) -- node[tag,above] {keys} (45,-1.8);
-  \draw[play] (45,-3.2) -- node[tag,below] {frames} (41,-3.2);
-  \draw[play] (35.5,-5) -- node[tag,right] {recorded} (35.5,-9);
-  \draw[meas] (50.5,-5) -- node[tag,right] {memory, saves} (50.5,-9);
-  \draw[meas] (41,-11.5) -- node[tag,above] {panels} (45,-11.5);
-  \draw[play] (30,-11.5) -- node[tag,above] {video} (26,-11.5);
-  \draw[meas] (50.5,-14) -- (50.5,-16) -- node[tag,below] {score} (20.5,-16) -- (20.5,-14);
+  \draw[play] (9,-2.5) -- (13,-2.5);
+  \draw[play] (24,-1.8) -- node[tag,above] {key} (28,-1.8);
+  \draw[play] (28,-3.2) -- node[tag,below] {frame} (24,-3.2);
+  \draw[play] (39,-1.8) -- node[tag,above] {keys} (43,-1.8);
+  \draw[play] (43,-3.2) -- node[tag,below] {frames} (39,-3.2);
+  \draw[play] (33.5,-5) -- node[tag,right] {recorded} (33.5,-9);
+  \draw[meas] (51,-5) -- node[tag,right] {memory, saves} (51,-9);
+  \draw[meas] (39,-11.5) -- node[tag,above] {panels} (43,-11.5);
+  \draw[play] (22,-11.5) -- node[tag,above] {video} (18,-11.5);
+  \draw[meas] (51,-14) -- (51,-16) -- node[tag,below] {score} (9,-16) -- (9,-14);
 \end{pgfonlayer}
 \end{tikzpicture}
 \end{document}
