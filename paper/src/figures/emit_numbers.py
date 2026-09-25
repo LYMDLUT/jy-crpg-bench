@@ -192,6 +192,11 @@ _cad = [r for r in MODELS if r["actions"]]
 _look = [r for r in _cad if r.get("reads") is not None]
 _rk = _spearman([r["key_events"] / r["actions"] for r in _cad], [field.rungs_reached(r) for r in _cad])
 _rr = _spearman([r["reads"] / r["actions"] for r in _look], [field.rungs_reached(r) for r in _look])
+_th = [r for r in _cad if r.get("gap_p50") is not None]
+_rt = _spearman([r["gap_p50"] for r in _th], [field.rungs_reached(r) for r in _th])
+if abs(_rt) >= 0.3:
+    sys.exit("the prose says think time does not set the order")
+lines.append(("% rank correlation of median think time with milestones", "\\newcommand{\\CrhoThink}{%.2f}" % _rt))
 if abs(_rk) >= 0.3 or abs(_rr) >= 0.3:
     sys.exit("the prose says the milestones barely follow keys per action or reads per action")
 emit("NcadenceSessions", len(_cad), "model sessions in the cadence correlation")
@@ -951,6 +956,48 @@ if not _lcross or any(r.get("exit_secs") is None for r in LONG if field.on_map(r
 emit("LlongCrossFirst", min(_lcross), "earliest crossing, minutes", fmt="%.1f")
 emit("LlongCrossLast", max(_lcross), "latest crossing, minutes", fmt="%.1f")
 emit("NlongCrossLate", sum(t > BUDGET / 60 for t in _lcross))
+# the filters: leaving the house, reaching the hermit, winning after a defeat.
+# A four-hour session passes a filter early or not at all.
+import emit_long as _el  # noqa: E402
+
+
+def _marks_min(r):
+    t = json.load(open(os.path.join(HERE, "timelines", r["id"] + ".json"), encoding="utf-8"))
+    return [m["t"] * t["speed"] / 60 for m in t["marks"]]
+
+
+def _after(r, t0):
+    ms = [m for m in _marks_min(r) if m >= t0]
+    return (ms[-1] - t0 if ms else 0.0), len(ms)
+
+
+_stay = [r for r in LONG if not field.on_map(r)]
+if len(_stay) != 1:
+    sys.exit("the prose says one four-hour session never left the house")
+emit("PfOneStuckMin", _after(_stay[0], 0)[0], "minutes the session that never left played", fmt="%.0f")
+_crossed = [r for r in LONG if field.on_map(r)]
+_hpass = [r for r in _crossed if r["replay"]["hermit"]["seconds"]]
+_hstuck = [r for r in _crossed if not r["replay"]["hermit"]["seconds"]]
+if len(_hpass) != 1:
+    sys.exit("the prose says one four-hour session reached the hermit")
+emit("PfTwoPassMin", _hpass[0]["replay"]["hermit"]["first_minute"] - _hpass[0]["exit_secs"] / 60, "minutes from its crossing to the hermit", fmt="%.0f")
+emit("NfTwoStuck", len(_hstuck), "four-hour sessions that left the house and never reached the hermit")
+_hs = [_after(r, r["exit_secs"] / 60) for r in _hstuck]
+emit("PfTwoStuckMinLo", min(m for m, _ in _hs), "fewest minutes one of them spent on the world map", fmt="%.0f")
+emit("PfTwoStuckMinHi", max(m for m, _ in _hs), "most minutes", fmt="%.0f")
+emit("PfTwoStuckActs", max(a for _, a in _hs), "most actions", fmt="%d")
+_lost4 = [(r, bt) for r in LONG for bt in field.battles(r) if bt["outcome"] == "lost"]
+if len(_lost4) != 1 or any(field.battles(r)[-1] != bt for r, bt in _lost4):
+    sys.exit("the prose says one four-hour session lost a battle and never fought again")
+_f3 = _after(_lost4[0][0], _lost4[0][1]["end"])
+emit("PfThreeMin", _f3[0], "minutes it played after the defeat", fmt="%.0f")
+emit("PfThreeActs", _f3[1], "actions it sent after the defeat", fmt="%d")
+# after the first hour the four-hour sessions add only items and locations
+for r in LONG:
+    for col, name in _el.COLUMNS:
+        m = (r["exit_secs"] / 60 if r.get("exit_secs") is not None else None) if name == "crossing" else _el.first_minute(r["replay"], name)
+        if m is not None and m > BUDGET / 60 and col not in ("Item", "Location"):
+            sys.exit("the prose says the four-hour sessions add only items and locations after the first hour")
 # the four-hour sessions that go beyond the opening, by milestone
 _LK = {k: field.DEFINITION.index(k) for k in ("spoke with\nthe hermit", "held the\ncompass", "entered\na battle", "ended\na battle", "gained\nexperience", "one of the\nfourteen")}
 _beyond = [r for r in LONG if field.rungs_of(r)[_LK["spoke with\nthe hermit"]] is True]
