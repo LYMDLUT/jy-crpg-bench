@@ -107,14 +107,14 @@ def main():
                     all(union[a]["rungs"][k] is (True if any(field.rungs_of(r)[k] is True for r in models if r["agent"] == a) else union[a]["rungs"][k])
                         for a in union for k in range(len(field.DEFINITION))),
                     "%d models, %d sessions" % (len(union), len(models)))
-        H, C, F, D = (field.DEFINITION.index(x) for x in ("spoke with\nthe hermit", "held the\ncompass", "entered\na battle", "finished\na battle"))
+        H, C, F, D = (field.DEFINITION.index(x) for x in ("spoke with\nthe hermit", "held the\ncompass", "entered\na battle", "ended\na battle"))
         ok &= claim("the compass is never held without the hermit's conversation",
                     all(m["rungs"][H] for m in union.values() if m["rungs"][C]),
                     "compass %s" % [a for a, m in union.items() if m["rungs"][C]])
         ok &= claim("a fight fought to the end was entered",
                     all(m["rungs"][F] for m in union.values() if m["rungs"][D]),
                     "fought out %s" % [a for a, m in union.items() if m["rungs"][D]])
-    if "two take the compass, enter a battle and finish it" in flat:
+    if "two take the compass, enter a battle and see it end" in flat:
         FIGHT, CMP = field.DEFINITION.index("entered\na battle"), field.DEFINITION.index("held the\ncompass")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True and m["rungs"][CMP] is True]
         ok &= claim("two models take the compass and enter a fight", len(past) == 2, "%s" % past)
@@ -170,15 +170,12 @@ def main():
                         and m["crossings"] == sorted(a for a in (field.crossing_actions(r) for r in by_model[m["agent"]]) if a is not None)
                         for m in union),
                     "%s" % {m["agent"]: len(m["crossings"]) for m in union})
-    if "sessions with no inventory reading" in flat:
-        both = [r for r in scored if r.get("picked_item") is not None and (r.get("replay") or {}).get("obtained")]
-        only = [r for r in scored if r.get("picked_item") is None and (r.get("replay") or {}).get("obtained")]
-        late = [r for r in both if bool(r["picked_item"]) != (r["replay"]["obtained"]["seconds"] > 0)]
-        ok &= claim("the obtained message agrees with the bag reading but for late pickups, and covers the rest",
-                    bool(both) and all(not r["picked_item"] and r["replay"]["obtained"]["first_minute"] >= 58 for r in late)
-                    and not any(r.get("picked_item") is None and not (r.get("replay") or {}).get("obtained") for r in scored)
-                    and (int(nums["PobtainedBoth"]), int(nums["PobtainedAgree"]), int(nums["PobtainedRead"])) == (len(both), len(both) - len(late), len(only)),
-                    "%d with both, %d late, %d from the message alone" % (len(both), len(late), len(only)))
+    if "whose inventory shows a new item also shows the item message" in flat:
+        bag = [r for r in scored if r.get("picked_item")]
+        ok &= claim("every inventory pickup also shows the item message",
+                    bool(bag) and all((r.get("replay") or {}).get("obtained", {}).get("seconds") for r in bag)
+                    and int(nums["PobtainedBag"]) == len(bag),
+                    "%d sessions whose inventory shows a new item" % len(bag))
     def seen(r, n):
         e = r.get("replay") or {}
         return bool(e.get(n) and e[n]["seconds"] > 0)
@@ -194,14 +191,18 @@ def main():
                     bool(hb) and not any(r["world_opened"] and not seen(r, "hermit") for r in hb)
                     and (int(nums["PhermitBoth"]), int(nums["PhermitOpened"])) == (len(hb), sum(1 for r in hb if r["world_opened"])),
                     "%d sessions with both, %d opened" % (len(hb), sum(1 for r in hb if r["world_opened"])))
-    if "any threshold between the two gives the same readings" in flat:
-        panels = ("hermit", "compass", "battle", "defeat", "prompt", "obtained")
+    if "the five held panels score at least" in flat:
         ev = [r["replay"] for r in scored if r.get("replay")]
-        miss = max(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] == 0 and e[n]["max"] is not None)
-        hit = min(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] > 0)
-        ok &= claim("the replay threshold sits between the highest miss and the lowest hit",
-                    miss < float(nums["ReplayThreshold"]) <= hit and abs(float(nums["ReplayMissMax"]) - miss) < 0.006 and abs(float(nums["ReplayHitMin"]) - hit) < 0.006,
-                    "miss %.3f, threshold %s, hit %.3f" % (miss, nums["ReplayThreshold"], hit))
+        def span(panels):
+            miss = max(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] == 0 and e[n]["max"] is not None)
+            hit = min(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] > 0)
+            return miss, hit
+        (hm, hh), (mm, mh) = span(("hermit", "compass", "battle", "defeat", "prompt")), span(("obtained", "won", "exp", "level"))
+        t = float(nums["ReplayThreshold"])
+        ok &= claim("the replay threshold sits between the highest miss and the lowest hit, for held panels and messages",
+                    hm < t <= hh and mm < t <= mh
+                    and all(abs(float(nums[k]) - v) < 0.006 for k, v in (("ReplayMissMax", hm), ("ReplayHitMin", hh), ("ReplayMsgMissMax", mm), ("ReplayMsgHitMin", mh))),
+                    "held %.3f/%.3f, messages %.3f/%.3f, threshold %s" % (hm, hh, mm, mh, nums["ReplayThreshold"]))
     if "models entered a location" in flat:
         SCENE = field.DEFINITION.index("entered\na location")
         union = field.model_rows(models)

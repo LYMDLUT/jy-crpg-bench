@@ -183,9 +183,9 @@ def aliased(rows):
 
 DEFINITION = ("reached\nworld map", "picked up\nan item", "entered\na location", "spoke with\nthe hermit",
               "held the\ncompass", "recruited a\nparty\nmember",
-              "entered\na battle", "finished\na battle",
+              "entered\na battle", "ended\na battle",
               "gained\nexperience", "reached\nlevel 2", "one of the\nfourteen")
-SHORT = ("map", "item", "location", "hermit", "compass", "party", "battle", "finished", "exp", "lv 2", "book")
+SHORT = ("map", "item", "location", "hermit", "compass", "party", "battle", "ended", "exp", "lv 2", "book")
 OPENING = 6     # the first six close the opening without a fight
 HOME = "王居"   # the banner of the home scene, which does not count as a scene entered
 MAP = DEFINITION.index("reached\nworld map")
@@ -224,7 +224,7 @@ def rungs_of(row):
     scenes = (ev or {}).get("scenes")
     known = [
         True if saved else row.get("bigmap") is not None,
-        row.get("picked_item") is not None or bool(ev and ev.get("obtained")),
+        bool(ev and ev.get("obtained")),
         scenes is not None,
         ev is not None,
         ev is not None or saved or row.get("compass") is not None,
@@ -240,7 +240,7 @@ def rungs_of(row):
          or row.get("world_map_at") is not None
          or slot is True) if saved
         else bool(row.get("bigmap")) and row.get("exit_secs") is not None,
-        bool(row.get("picked_item")) or seen("obtained"),
+        seen("obtained"),
         bool(scenes and any(x["name"] != HOME for x in scenes["entries"])),
         seen("hermit"),
         bool(row.get("compass")) or seen("compass"),

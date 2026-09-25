@@ -13,7 +13,7 @@ import long_cohort
 
 COLUMNS = (("Map", "crossing"), ("Item", "obtained"), ("Location", "scene"),
            ("Hermit", "hermit"), ("Compass", "compass"), ("Party", "recruited"),
-           ("Battle", "battle"))
+           ("Battle", "battle"), ("Ended", "ended"))
 
 
 def minute_text(minute):
@@ -29,6 +29,9 @@ def first_minute(events, name):
         return events.get("recruited_minute")
     if name == "scene":
         return (events.get("scenes") or {}).get("first_minute")
+    if name == "ended":         # won or lost, whichever came first
+        ms = [(events.get(n) or {}).get("minutes") or [] for n in ("defeat", "won")]
+        return min((m[0] for m in ms if m), default=None)
     minutes = (events.get(name) or {}).get("minutes")
     return minutes[0] if minutes else None
 

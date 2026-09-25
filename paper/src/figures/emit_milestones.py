@@ -18,7 +18,7 @@ import field  # noqa: E402
 ROWS = (("reached the world map", "crossing"), ("picked up an item", "obtained"),
         ("entered a location", "scene"), ("spoke with the hermit", "hermit"), ("held the compass", "compass"),
         ("recruited a party member", "recruited"), ("entered a battle", "battle"),
-        ("finished a battle", "defeat"))
+        ("ended a battle", "ended"))
 
 rows = [r for r in field.played(field.load_runs(dedup=False)) if not field.is_random(r["agent"])]
 
@@ -31,6 +31,9 @@ def first_second(e, name):
     if name == "scene":
         m = (e.get("scenes") or {}).get("first_minute")
         return None if m is None else m * 60 / e["speed"]
+    if name == "ended":         # won or lost, whichever came first
+        ms = [m for n in ("defeat", "won") for m in (e.get(n) or {}).get("minutes", [])[:1]]
+        return min(ms) * 60 / e["speed"] if ms else None
     p = e.get(name) or {}
     return None if not p.get("minutes") else p["minutes"][0] * 60 / e["speed"]
 

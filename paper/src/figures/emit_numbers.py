@@ -406,7 +406,7 @@ emit("Lopening", field.OPENING, "rungs of the opening")
 emit("Lmodels", len(UNION), "models on the ladder")
 _LNAMES = {"Lmap": "reached\nworld map", "Litem": "picked up\nan item", "Lscene": "entered\na location", "Lhermit": "spoke with\nthe hermit",
            "Lcompass": "held the\ncompass", "Lparty": "recruited a\nparty\nmember", "Lfight": "entered\na battle",
-           "Lfought": "finished\na battle", "Lexp": "gained\nexperience", "Llevel": "reached\nlevel 2",
+           "Lfought": "ended\na battle", "Lexp": "gained\nexperience", "Llevel": "reached\nlevel 2",
            "Lbook": "one of the\nfourteen"}
 for _n, _d in _LNAMES.items():
     _i = field.DEFINITION.index(_d)
@@ -735,8 +735,12 @@ _speeds = {round(json.load(open(os.path.join(HERE, "timelines", k + ".json"), en
 _need = {v: math.ceil(_rs.HOLD * 20 / v - 1e-9) for v in _speeds}
 if _need != {8: 2, 24: 1}:
     sys.exit("the prose names two frames at 8 times speed and one at 24 times; the replays give %s" % _need)
-_miss = max(e[n]["max"] for _, e in EV.values() for n in ("hermit", "compass", "battle", "defeat", "prompt", "obtained") if e[n]["seconds"] == 0 and e[n]["max"] is not None)
-emit("ReplayMissMax", _miss, "highest score of any frame without the event", fmt="%.2f")
+_HELD = ("hermit", "compass", "battle", "defeat", "prompt")
+_MSGS = ("obtained", "won", "exp", "level")
+_miss = max(e[n]["max"] for _, e in EV.values() for n in _HELD if e[n]["seconds"] == 0 and e[n]["max"] is not None)
+emit("ReplayMissMax", _miss, "highest score of a held panel in any session without it", fmt="%.2f")
+_msg_miss = max(e[n]["max"] for _, e in EV.values() for n in _MSGS if e[n]["seconds"] == 0 and e[n]["max"] is not None)
+emit("ReplayMsgMissMax", _msg_miss, "highest score of a single-frame message in any session without it", fmt="%.2f")
 # the first reading of every panel in the hour sessions, checked by eye (panel_audit.json)
 _audit = json.load(open(os.path.join(HERE, "panel_audit.json"), encoding="utf-8"))["checked"]
 _first = {(r["id"], n, [c for c in e[n]["candidates"] if c[1] > _tm["threshold"]][0][0])
@@ -745,26 +749,33 @@ _first = {(r["id"], n, [c for c in e[n]["candidates"] if c[1] > _tm["threshold"]
 if {(a["session"], a["panel"], a["video_second"]) for a in _audit if a["shows_panel"]} != _first:
     sys.exit("panel_audit.json does not cover every first panel reading of the hour sessions; check the new ones by eye")
 emit("NpanelAudited", len(_first), "first panel readings checked by eye")
+# every yes-or-no prompt on the replays was answered by a key of the model, not by the save attempt
+for _sid, _e in field.EVENTS.items():
+    _tp = os.path.join(HERE, "timelines", _sid + ".json")
+    if not _e["prompt"]["seconds"] or not os.path.exists(_tp):
+        continue
+    _marks = json.load(open(_tp, encoding="utf-8"))["marks"]
+    for _sec, _v in _e["prompt"]["candidates"]:
+        if _v > _tm["threshold"] and not any(_sec <= m["t"] <= _sec + 3 for m in _marks):
+            sys.exit("a yes-or-no prompt on %s at video second %s was left without a key of the model" % (_sid, _sec))
 # the item milestone read from the obtained message where no record carries the bag
-_ob_both = [r for r in ALL if r.get("picked_item") is not None and (r.get("replay") or {}).get("obtained")]
-_ob_only = [r for r in ALL if r.get("picked_item") is None and (r.get("replay") or {}).get("obtained")]
-# the live bag lags play: it may miss a pickup at the end of a session, never invent one
-_ob_late = [r for r in _ob_both if bool(r["picked_item"]) != (r["replay"]["obtained"]["seconds"] > 0)]
-if any(r["picked_item"] or r["replay"]["obtained"]["first_minute"] < BUDGET / 60 - 2 for r in _ob_late):
-    sys.exit("the obtained message disagrees with a bag reading other than by a pickup in the last two minutes")
-emit("PobtainedBoth", len(_ob_both), "sessions with both a bag reading and the message scan")
-emit("PobtainedLate", len(_ob_late), "of them whose message shows a pickup in the last two minutes that the bag does not hold")
-if any(r.get("picked_item") is None and not (r.get("replay") or {}).get("obtained") for r in ALL):
-    sys.exit("a session has neither a bag reading nor a scan for the obtained message")
-emit("PobtainedAgree", len(_ob_both) - len(_ob_late), "of them on which the two agree")
-emit("PobtainedRead", len(_ob_only), "sessions whose item milestone is read from the message alone")
+# the item milestone is the item message; every bag reading that shows a new item agrees
+if any(not (r.get("replay") or {}).get("obtained") for r in ALL):
+    sys.exit("a session has no scan for the item message")
+_ob_bag = [r for r in ALL if r.get("picked_item")]
+if any(not r["replay"]["obtained"]["seconds"] for r in _ob_bag):
+    sys.exit("a bag reading shows a new item that the item message does not")
+emit("PobtainedBag", len(_ob_bag), "sessions whose inventory shows a new item, all with the item message")
 # the threshold margin: every reading is the same for any threshold between the
 # highest score of a frame without the event and the lowest best score of a session with it
-_PANELS = ("hermit", "compass", "battle", "defeat", "prompt", "obtained")
-_hitmin = min(e[n]["max"] for _, e in EV.values() for n in _PANELS if e[n]["seconds"] > 0)
-if not _miss < _tm["threshold"] <= _hitmin:
+_hitmin = min(e[n]["max"] for _, e in EV.values() for n in _HELD if e[n]["seconds"] > 0)
+_msg_hit = min((e[n]["max"], n) for _, e in EV.values() for n in _MSGS if e[n]["seconds"] > 0)
+if not (_miss < _tm["threshold"] <= _hitmin and _msg_miss < _tm["threshold"] <= _msg_hit[0]):
     sys.exit("the threshold does not sit between the highest miss and the lowest hit")
-emit("ReplayHitMin", _hitmin, "lowest best score of a session with the event", fmt="%.2f")
+if _msg_hit[1] != "obtained":
+    sys.exit("the prose says the lowest message hit is an item message")
+emit("ReplayHitMin", _hitmin, "lowest best score of a session with a held panel", fmt="%.2f")
+emit("ReplayMsgHitMin", _msg_hit[0], "lowest best score of a session with a message", fmt="%.2f")
 # the replay readings against the state records where both exist
 def _seen(r, n):
     e = r.get("replay") or {}
@@ -907,7 +918,7 @@ emit("LlongCrossFirst", min(_lcross), "earliest crossing, minutes", fmt="%.1f")
 emit("LlongCrossLast", max(_lcross), "latest crossing, minutes", fmt="%.1f")
 emit("NlongCrossLate", sum(t > BUDGET / 60 for t in _lcross))
 # the four-hour sessions that go beyond the opening, by milestone
-_LK = {k: field.DEFINITION.index(k) for k in ("spoke with\nthe hermit", "held the\ncompass", "entered\na battle", "finished\na battle", "gained\nexperience", "one of the\nfourteen")}
+_LK = {k: field.DEFINITION.index(k) for k in ("spoke with\nthe hermit", "held the\ncompass", "entered\na battle", "ended\na battle", "gained\nexperience", "one of the\nfourteen")}
 _beyond = [r for r in LONG if field.rungs_of(r)[_LK["spoke with\nthe hermit"]] is True]
 for rung in ("gained\nexperience", "one of the\nfourteen"):
     if any(field.rungs_of(r)[_LK[rung]] is True for r in LONG):
@@ -985,6 +996,15 @@ _hour_rungs = {k for r in MODELS for k, v in enumerate(field.rungs_of(r)) if v i
 _long_rungs = {k for r in LONG for k, v in enumerate(field.rungs_of(r)) if v is True}
 if not _long_rungs <= _hour_rungs:
     sys.exit("the abstract says the four-hour sessions reach no milestone the hour sessions do not")
+# per model: what three more hours add, for the models that played both budgets
+def _union(rs):
+    return {k for r in rs for k, v in enumerate(field.rungs_of(r)) if v is True}
+_both_budgets = sorted({r["agent"] for r in LONG} & {r["agent"] for r in MODELS})
+_gain = {a: _union([r for r in LONG if r["agent"] == a]) - _union([r for r in MODELS if r["agent"] == a]) for a in _both_budgets}
+_gainers = {a: g for a, g in _gain.items() if g}
+if len(_gainers) != 1 or sum(len(g) for g in _gainers.values()) != 1:
+    sys.exit("the conclusion says four hours add one milestone to one of the models that played both budgets: %s" % _gainers)
+emit("NbothBudgets", len(_both_budgets), "models with sessions that count at both budgets")
 
 print("% generated by figures/numbers.py from catalog_snapshot.json and start.state")
 print("% regenerate before editing any number in the paper")
