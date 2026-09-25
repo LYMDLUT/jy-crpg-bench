@@ -5,7 +5,7 @@ steps a playthrough passes in order.
 
 Left, the share of sessions that passed each step. Right, per step, the
 minutes from the step before to passing it (filled) or, for a session that
-never passed it, to its last key (open).
+did not pass it, to its last key (open).
 """
 import os
 import sys
@@ -29,7 +29,7 @@ def rows():
 def main():
     ch = field.chain(rows())
     n = len(rows())
-    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 1.7), gridspec_kw={"width_ratios": [1, 1.25], "wspace": 0.28})
+    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 1.55), gridspec_kw={"width_ratios": [1, 1.25], "wspace": 0.28})
     xs = list(range(len(ch)))
     share = [len(s["passed"]) / n for s in ch]
     a.bar(xs, share, width=0.62, color="#d6d9df", edgecolor=INK, linewidth=0.6)
@@ -50,7 +50,7 @@ def main():
     b.set_xticklabels([s["step"] for s in ch], fontsize=6.2)
     b.set_ylabel("minutes since the step before", color=INK)
     b.scatter([], [], s=9, color=INK, label="passed")
-    b.scatter([], [], s=9, facecolors="none", edgecolors=INK, linewidths=0.6, label="never passed")
+    b.scatter([], [], s=9, facecolors="none", edgecolors=INK, linewidths=0.6, label="not passed")
     b.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, fontsize=6.5, frameon=False, handletextpad=0.2)
     for ax in (a, b):
         ax.tick_params(colors=INK, labelsize=6.5)
