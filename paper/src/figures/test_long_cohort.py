@@ -12,7 +12,7 @@ import long_cohort
 from emit_long import minute_text
 
 COUNTED = {'2ade73b3f2bb', '7a7f8fa37e88', '8aa37740e5e8', 'a5c748b12df1',
-           'bd77396a227d', 'd8bcd235fd6d', 'd92f27b88228'}
+           'bd77396a227d', 'd8bcd235fd6d', 'd92f27b88228', 'ac1e0b048aa4'}
 
 
 class SessionTests(unittest.TestCase):
@@ -24,12 +24,12 @@ class SessionTests(unittest.TestCase):
         return next(e for e in self.manifest['attempts'] if e['id'] == sid)
 
     def test_counted_ids(self):
-        self.assertEqual(len(self.rows), 40)
+        self.assertEqual(len(self.rows), 48)
         counted = field.load_long()
         self.assertEqual({r['id'] for r in counted}, COUNTED)
         self.assertTrue(all(r['actions'] > 2 for r in counted))
         self.assertNotIn(field.HACK_SESSION, {r['id'] for r in counted})
-        self.assertTrue(all(14280 <= long_cohort.last_key_seconds(r) <= 14400 for r in counted))
+        self.assertTrue(all(14280 <= long_cohort.last_key_seconds(r) <= 14400 for r in counted if r['id'] != 'ac1e0b048aa4'))
 
     def test_unlisted_attempt_is_refused(self):
         self.manifest['attempts'].pop()
@@ -61,6 +61,16 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             long_cohort.validate(self.rows, self.manifest)
 
+    def test_only_the_special_session_counts_early(self):
+        self.entry('a424a8d10d55')['status'] = 'selected'
+        with self.assertRaises(ValueError):
+            long_cohort.validate(self.rows, self.manifest)
+
+    def test_a_second_special_session_is_refused(self):
+        self.manifest['special_sessions']['a424a8d10d55'] = 'another'
+        with self.assertRaises(ValueError):
+            long_cohort.validate(self.rows, self.manifest)
+
     def test_window_change_is_refused(self):
         self.manifest['last_key_window_seconds'] = 720
         with self.assertRaises(ValueError):
@@ -70,7 +80,7 @@ class SessionTests(unittest.TestCase):
         counted = {r['id']: r for r in field.load_long()}
         self.assertEqual(counted['d8bcd235fd6d']['agent'], 'glm-5.3')
         self.assertEqual(counted['d92f27b88228']['agent'], 'glm-5.3-flash')
-        self.assertEqual(len({r['agent'] for r in counted.values()}), 7)
+        self.assertEqual(len({r['agent'] for r in counted.values()}), 8)
 
     def test_session_ids_are_comments_only(self):
         table = (Path(__file__).resolve().parent.parent / 'tables' / 'long.tex').read_text()

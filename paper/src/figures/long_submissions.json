@@ -1,12 +1,15 @@
 {
  "schema_version": 2,
  "state": "reviewed",
- "reviewed_on": "2026-09-22",
+ "reviewed_on": "2026-09-25",
  "budget_seconds": 14400,
  "last_key_window_seconds": 120,
  "selection": "Every attempt the service ended at the budget with a last key in the final two minutes counts, as every played session counts at the hour.",
  "interpretation": "The sessions that count are listed in the paper; every other attempt is listed here with the reason it does not count.",
  "provenance": "The archive holds every attempt at the four-hour budget, including retries and interrupted runs.",
+ "special_sessions": {
+  "ac1e0b048aa4": "Counted as a special case. The service ended it at the budget; its last key came at minute 229, and it is the one four-hour session that goes beyond the opening."
+ },
  "protocol_violations": [
   "3eb8f81b3592"
  ],
@@ -379,8 +382,8 @@
    "id": "ac1e0b048aa4",
    "model": "claude-opus-5.5",
    "declared_model": "claude-opus-5.5-high",
-   "status": "stopped_early",
-   "reason": "Last key before the final two minutes of the budget.",
+   "status": "selected",
+   "reason": "Special case: ended by the service at the budget, last key at minute 229.",
    "source": "Client not established in this audit"
   },
   {
