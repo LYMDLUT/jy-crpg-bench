@@ -117,23 +117,19 @@ def masked_ncc_map(img, valid, t, keep):
     return ncc
 
 
-def main():
-    sid = sys.argv[1]
-    row = next(r for r in field.load_runs(dedup=False, keep_excluded=True) if r["id"] == sid)
-    ev = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))[sid]
-    video = os.path.join(HERE, "videos", sid + ".mp4")
-    if not os.path.exists(video):
-        import urllib.request
-        os.makedirs(os.path.dirname(video), exist_ok=True)
-        urllib.request.urlretrieve(row["video_url"], video)
-    speed = json.load(open(os.path.join(HERE, "timelines", sid + ".json"), encoding="utf-8"))["speed"]
+def track(video, t_end, speed, t_start=0.0):
+    """The hero's path through the starting house in a video from t_start to
+    t_end seconds, one (x, y, minute of play) per placed frame on compound.png;
+    speed is the replay speed, 1 for a recording in real time."""
     fps = fps_of(video)
     pano = np.asarray(Image.open(PANO).convert("RGB"), np.float32)
     pg = pano.mean(axis=2)
     valid = pano.sum(axis=2) > 0
     path, placed, skipped = [], 0, 0
     screen, last_off, last_f = SPAWN, None, None
-    for i, f in enumerate(frames(video, ev["first_black_second"])):
+    for i, f in enumerate(frames(video, t_end)):
+        if i / fps < t_start:
+            continue
         # the replay holds a frame while the model thinks; a repeat adds nothing
         if last_f is not None and (np.abs(f.astype(np.int16) - last_f.astype(np.int16)).max(axis=2) > 30)[R0:R1].sum() < 30:
             continue
@@ -178,11 +174,25 @@ def main():
                 if s_[by, bx] >= 60:
                     screen = (bx + bw / 2, by + bh * 0.75)
         path.append((x + screen[0], y + screen[1], i / fps * speed / 60.0))
-    print(sid, row["agent"], "frames placed", placed, "skipped", skipped, "path points", len(path))
+    print(video, "frames placed", placed, "skipped", skipped, "path points", len(path))
     # a running mean of three, as in human/route.py
     if len(path) > 4:
         path = [path[0]] + [((a[0] + p[0] + b[0]) / 3, (a[1] + p[1] + b[1]) / 3, p[2])
                             for a, p, b in zip(path, path[1:], path[2:])] + [path[-1]]
+    return path
+
+
+def main():
+    sid = sys.argv[1]
+    row = next(r for r in field.load_runs(dedup=False, keep_excluded=True) if r["id"] == sid)
+    ev = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))[sid]
+    video = os.path.join(HERE, "videos", sid + ".mp4")
+    if not os.path.exists(video):
+        import urllib.request
+        os.makedirs(os.path.dirname(video), exist_ok=True)
+        urllib.request.urlretrieve(row["video_url"], video)
+    speed = json.load(open(os.path.join(HERE, "timelines", sid + ".json"), encoding="utf-8"))["speed"]
+    path = track(video, ev["first_black_second"], speed)
     os.makedirs(os.path.join(HERE, "routes"), exist_ok=True)
     out = os.path.join(HERE, "routes", f"compound-{sid}.json")
     json.dump({"session": sid, "agent": row["agent"], "columns": ["px", "py", "minute"],

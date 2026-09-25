@@ -48,24 +48,15 @@ def coords(px, py, meta):
     return round((v + u) / 2), round((v - u) / 2)
 
 
-def main():
-    sid = sys.argv[1]
-    minutes = float(sys.argv[2]) if len(sys.argv) > 2 else 60.0
-    row = next(r for r in field.load_runs(dedup=False, keep_excluded=True) if r["id"] == sid)
-    ev = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))[sid]
-    speed = json.load(open(os.path.join(HERE, "timelines", sid + ".json"), encoding="utf-8"))["speed"]
-    video = os.path.join(HERE, "videos", sid + ".mp4")
-    if not os.path.exists(video):
-        import urllib.request
-        os.makedirs(os.path.dirname(video), exist_ok=True)
-        urllib.request.urlretrieve(row["video_url"], video)
+def track(video, t0, t1, speed):
+    """The hero's tiles on the world map in a video from t0 to t1 seconds: one
+    row (px, py, x, y, minute of play, correlation) per placed frame; speed is
+    the replay speed, 1 for a recording in real time."""
     fps = fps_of(video)
     meta = json.load(open(os.path.join(HERE, "worldmap.json")))
     wm = np.asarray(Image.open(os.path.join(HERE, "worldmap.png")).convert("L"), np.float32)
     H, W = wm.shape
     small = wm[:H // K * K, :W // K * K].reshape(H // K, K, W // K, K).mean((1, 3))
-    t0 = ev["first_black_second"]
-    t1 = minutes * 60 / speed
     rows, last, last_f = [], None, None
     for i, f in enumerate(frames(video, t1)):
         if i / fps < t0:
@@ -103,6 +94,21 @@ def main():
         px, py = hit[0] + HERO[0], hit[1] + HERO[1]
         cx, cy = coords(px, py, meta)
         rows.append([int(px), int(py), cx, cy, round(i / fps * speed / 60.0, 3), round(hit[2], 3)])
+    return rows
+
+
+def main():
+    sid = sys.argv[1]
+    minutes = float(sys.argv[2]) if len(sys.argv) > 2 else 60.0
+    row = next(r for r in field.load_runs(dedup=False, keep_excluded=True) if r["id"] == sid)
+    ev = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))[sid]
+    speed = json.load(open(os.path.join(HERE, "timelines", sid + ".json"), encoding="utf-8"))["speed"]
+    video = os.path.join(HERE, "videos", sid + ".mp4")
+    if not os.path.exists(video):
+        import urllib.request
+        os.makedirs(os.path.dirname(video), exist_ok=True)
+        urllib.request.urlretrieve(row["video_url"], video)
+    rows = track(video, ev["first_black_second"], minutes * 60 / speed, speed)
     os.makedirs(OUT, exist_ok=True)
     out = os.path.join(OUT, f"world-{sid}.json")
     json.dump({"session": sid, "agent": row["agent"], "minutes": minutes,

@@ -107,7 +107,7 @@ def main():
                     all(union[a]["rungs"][k] is (True if any(field.rungs_of(r)[k] is True for r in models if r["agent"] == a) else union[a]["rungs"][k])
                         for a in union for k in range(len(field.DEFINITION))),
                     "%d models, %d sessions" % (len(union), len(models)))
-        H, C, F, D = (field.DEFINITION.index(x) for x in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "finished\na battle"))
+        H, C, F, D = (field.DEFINITION.index(x) for x in ("spoke with\nthe hermit", "held the\ncompass", "entered\na battle", "finished\na battle"))
         ok &= claim("the compass is never held without the hermit's conversation",
                     all(m["rungs"][H] for m in union.values() if m["rungs"][C]),
                     "compass %s" % [a for a, m in union.items() if m["rungs"][C]])
@@ -115,7 +115,7 @@ def main():
                     all(m["rungs"][F] for m in union.values() if m["rungs"][D]),
                     "fought out %s" % [a for a, m in union.items() if m["rungs"][D]])
     if "take the compass and enter a battle" in flat:
-        FIGHT, CMP = field.DEFINITION.index("entered\na battle"), field.DEFINITION.index("holds the\ncompass")
+        FIGHT, CMP = field.DEFINITION.index("entered\na battle"), field.DEFINITION.index("held the\ncompass")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True and m["rungs"][CMP] is True]
         ok &= claim("two models take the compass and enter a fight", len(past) == 2, "%s" % past)
     if "the fingerprint never appears without a save behind it" in flat:

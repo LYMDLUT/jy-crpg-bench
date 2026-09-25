@@ -51,10 +51,12 @@ ICLR 2027 submission draft for jy-crpg-bench.
   camera, frame zero of a benchmark replay, and `spawnscan.py` does the same for
   one capture. The evidence sheets are under `human/evidence/<video id>/`, the
   videos themselves are not tracked, and `field.human_rows()` turns the file into
-  the two rows. `src/figures/human/route.py` stitches the frames of a walk into
-  the panels of the route figure (`src/figures/route-*.png`) from the same
-  speedrun, and `src/figures/human_route.py` sets the two houses into the empty
-  corners of the world-map panel as `route-human.pdf`. `src/figures/compound_panorama.py` grows that stitch into one panorama
+  the two rows. `src/figures/human_route.py` draws the human route figure
+  (`route-human.pdf`) from the speedrun BV1UxvTz3Ehe: its walks through the starting
+  house and on the world map are read by the trackers of the model figures into
+  `routes/human-*.json`, and `src/figures/human/route.py` stitches the house of the
+  hermit (`route-house.png`) and its path. `src/figures/compound_panorama.py` grows the
+  human stitch `human/templates/compound-bg.png` into one panorama
   of the whole compound (`src/figures/compound.png`) with the replay of a session
   that walked the whole yard, and `src/figures/anchored_route.py <session id>` places
   each frame of a benchmark replay, up to its first black frame, on that panorama by

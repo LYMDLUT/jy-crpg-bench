@@ -183,7 +183,7 @@ def aliased(rows):
 
 
 DEFINITION = ("reached\nworld map", "picked up\nan item", "entered\na location", "spoke with\nthe hermit",
-              "holds the\ncompass", "recruited a\nparty\nmember",
+              "held the\ncompass", "recruited a\nparty\nmember",
               "entered\na battle", "finished\na battle",
               "gained\nexperience", "reached\nlevel 2", "one of the\nfourteen")
 SHORT = ("map", "item", "location", "hermit", "compass", "party", "battle", "finished", "exp", "lv 2", "book")

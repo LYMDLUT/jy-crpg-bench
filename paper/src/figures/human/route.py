@@ -1,5 +1,5 @@
-"""Panorama of a walk in a play video, with the hero's path drawn on it: the
-three panels of the route figure in the paper.
+"""Panorama of a walk in a play video and the hero's path through it, for the
+three panels of the human route figure in the paper.
 
     python route.py <clip.mp4> <t0> <t1> <out.png> [start=x,y] [centre|hybrid]
 
@@ -18,7 +18,7 @@ and the house of the hermit 20.6-22.7 s hybrid.
 
 import subprocess, sys
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 
 video, t0, t1, out = sys.argv[1], float(sys.argv[2]), float(sys.argv[3]), sys.argv[4]
 start, centre, hybrid = None, False, False
@@ -86,11 +86,11 @@ for ch in range(3):
         bg[:, :, ch] = np.nanmedian(stack.astype(np.float32), axis=0)
     del stack
 bgg = bg.mean(axis=2)
-path = [] if start is None else [(start[0] - minx, start[1] - miny)]
+path = [] if start is None else [(start[0] - minx, start[1] - miny, t0)]
 last = path[-1] if path else None
 for i, g in enumerate(gray):
     if centre or (hybrid and moved[i]):
-        last = (offs[i][0] - minx + W0 / 2, offs[i][1] - miny + H0 / 2 + 8); path.append(last); continue
+        last = (offs[i][0] - minx + W0 / 2, offs[i][1] - miny + H0 / 2 + 8, t0 + i / fps); path.append(last); continue
     ox, oy = offs[i][0] - minx, offs[i][1] - miny
     d = np.abs(g - bgg[oy:oy + H0, ox:ox + W0]) > 40
     d[:R0] = False; d[R1:] = False
@@ -105,22 +105,18 @@ for i, g in enumerate(gray):
         s = np.where(far, 0, s)
     yy, xx = np.unravel_index(np.argmax(s), s.shape)
     if s[yy, xx] >= 60:
-        last = (ox + xx + bw / 2, oy + yy + bh * 0.75); path.append(last)
+        last = (ox + xx + bw / 2, oy + yy + bh * 0.75, t0 + i / fps); path.append(last)
 # smooth: drop a point that jumps 50 px from both neighbours, then a running mean of three
 if len(path) > 4 and not centre:
     keep = [path[0]] + [p for a, p, b in zip(path, path[1:], path[2:])
                         if not (abs(p[0] - a[0]) + abs(p[1] - a[1]) > 50 and abs(p[0] - b[0]) + abs(p[1] - b[1]) > 50)] + [path[-1]]
-    path = [keep[0]] + [((a[0] + p[0] + b[0]) / 3, (a[1] + p[1] + b[1]) / 3) for a, p, b in zip(keep, keep[1:], keep[2:])] + [keep[-1]]
+    path = [keep[0]] + [((a[0] + p[0] + b[0]) / 3, (a[1] + p[1] + b[1]) / 3, p[2]) for a, p, b in zip(keep, keep[1:], keep[2:])] + [keep[-1]]
 print("path points", len(path))
-np.save(out[:-4] + "-path.npy", np.array(path, np.float32))
-im = Image.fromarray(np.nan_to_num(bg, nan=0).clip(0, 255).astype(np.uint8))
-im.save(out[:-4] + "-bg.png")
-scale = 1
-im = im.resize((W * scale, Hh * scale), Image.NEAREST)
-dr = ImageDraw.Draw(im)
-pts = [(x * scale, y * scale) for x, y in path]
-if len(pts) > 1:
-    dr.line(pts, fill=(230, 40, 40), width=3)
-    x, y = pts[0]; dr.ellipse((x - 6, y - 6, x + 6, y + 6), fill=(230, 40, 40), outline=(255, 255, 255), width=2)
-    x, y = pts[-1]; dr.rectangle((x - 6, y - 6, x + 6, y + 6), fill=(230, 40, 40), outline=(255, 255, 255), width=2)
-im.save(out); print("wrote", out, im.size)
+# the panel is the background alone; ../human_route.py draws the path from the
+# JSON beside it, one row per point with the second of the clip
+Image.fromarray(np.nan_to_num(bg, nan=0).clip(0, 255).astype(np.uint8)).save(out)
+import json
+json.dump({"clip": video, "t0": t0, "t1": t1, "columns": ["x", "y", "second"],
+           "rows": [[round(float(x), 1), round(float(y), 1), round(float(t), 2)] for x, y, t in path]},
+          open(out[:-4] + "-path.json", "w"))
+print("wrote", out, "and", out[:-4] + "-path.json", (W, Hh))

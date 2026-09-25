@@ -49,7 +49,7 @@ def faded(img):
     return (a * (1 - FADE) + 255 * FADE).clip(0, 255).astype(np.uint8)
 
 
-def draw_path(ax, xy, t, lw=1.2, arrows=6, gaps=None):
+def draw_path(ax, xy, t, lw=1.2, arrows=6, gaps=None, norm=NORM):
     """The path in segments coloured by minute over a white halo, with an
     arrowhead every len/arrows segments. A segment longer than `gaps` px is a
     jump (a scene, a loaded save) and is left out."""
@@ -59,7 +59,7 @@ def draw_path(ax, xy, t, lw=1.2, arrows=6, gaps=None):
         ok = np.hypot(*(xy[1:] - xy[:-1]).T) <= gaps
         segs, tm = segs[ok], tm[ok]
     ax.add_collection(LineCollection(segs, colors="white", linewidths=lw + 1.4, capstyle="round", zorder=2))
-    lc = LineCollection(segs, cmap=CMAP, norm=NORM, linewidths=lw, capstyle="round", zorder=3)
+    lc = LineCollection(segs, cmap=CMAP, norm=norm, linewidths=lw, capstyle="round", zorder=3)
     lc.set_array(tm)
     ax.add_collection(lc)
     d = np.hypot(*(segs[:, 1] - segs[:, 0]).T)
@@ -73,9 +73,9 @@ def draw_path(ax, xy, t, lw=1.2, arrows=6, gaps=None):
                 continue
             ax.annotate("", xy=(x1, y1), xytext=(x0, y0), zorder=4,
                         arrowprops=dict(arrowstyle="-|>,head_length=0.55,head_width=0.32", lw=0,
-                                        color=CMAP(NORM(tm[i])), shrinkA=0, shrinkB=0))
-    ax.scatter([xy[0, 0]], [xy[0, 1]], s=14, marker="o", color=CMAP(NORM(t[0])), edgecolors="white", linewidths=0.8, zorder=5)
-    ax.scatter([xy[-1, 0]], [xy[-1, 1]], s=14, marker="s", color=CMAP(NORM(t[-1])), edgecolors="white", linewidths=0.8, zorder=5)
+                                        color=CMAP(norm(tm[i])), shrinkA=0, shrinkB=0))
+    ax.scatter([xy[0, 0]], [xy[0, 1]], s=14, marker="o", color=CMAP(norm(t[0])), edgecolors="white", linewidths=0.8, zorder=5)
+    ax.scatter([xy[-1, 0]], [xy[-1, 1]], s=14, marker="s", color=CMAP(norm(t[-1])), edgecolors="white", linewidths=0.8, zorder=5)
 
 
 def colorbar(fig, rect):
