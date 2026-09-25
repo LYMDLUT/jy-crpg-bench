@@ -30,6 +30,16 @@ without the message.
 
     obtained  an item entered the bag
 
+Three more messages close a battle the party wins, each in the banner the game
+draws on the row of the defeat banner and dismisses at the next key, so, like
+the obtained message, a single frame counts; none of their templates scored
+above 0.3 on a frame without the message:
+
+    won       戰鬥勝利 (battle won), at a fixed position
+    exp       獲得經驗 (gained experience), after the name of the character,
+              so searched along the row
+    level     升級了 (levelled up), after the name, searched along the row
+
 A seventh reading is the scene the party is in. On entering a scene from the
 world map the game draws the scene's name in a banner at the top of the
 screen: a rounded cream border around a dark box with the name in gold, centred
@@ -71,8 +81,10 @@ SCENES_DIR = os.path.join(HERE, "templates", "scenes")
 HOME = "王居"                       # the banner of the home scene
 BANNER_TOP, BANNER_H, BANNER_W = (7, 17), (20, 27), (24, 150)   # rows of the top border, box height, box width
 WHITE = 235
+SINGLE = ("obtained", "won", "exp", "level")   # read from a single frame
+SLIDE = ("obtained", "exp", "level")          # searched along their row
 TPL = {n: np.asarray(Image.open(os.path.join(HERE, "templates", n + ".png")).convert("L"), dtype=np.float32)
-       for n in NAMES + ("obtained",)}
+       for n in NAMES + SINGLE}
 HOLD = 0.8        # seconds of play a panel must stay above the threshold
 CANDIDATE = 0.6   # scores above this are kept per second, so the threshold can be revisited without a rescan
 
@@ -176,16 +188,15 @@ def second_scores(path, known, speed):
     """Best normalised cross-correlation per video second for every panel, over
     every frame of the video: the five fixed panels in their boxes and the 得到
     glyphs slid along the row the game centres its obtained-item message on."""
-    x0, y0, x1, y1 = META["obtained"]["box"]
-    lo, hi = META["obtained"]["slide"]
-    t = TPL["obtained"] - TPL["obtained"].mean()
-    tn = np.sqrt((t * t).sum())
-    h, w = t.shape
+    slid = {}
+    for n in SLIDE:
+        t = TPL[n] - TPL[n].mean()
+        slid[n] = (META[n]["box"][1], META[n]["slide"], t, np.sqrt((t * t).sum()))
     fps = video_fps(path)
     proc = subprocess.Popen(["ffmpeg", "-nostdin", "-loglevel", "error", "-i", path, "-vf",
                              f"scale={W}:{H}", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
                             stdout=subprocess.PIPE)
-    best = {n: [] for n in NAMES + ("obtained",)}
+    best = {n: [] for n in NAMES + SINGLE}
     need = max(1, int(np.ceil(HOLD * fps / speed - 1e-9)))   # frames that span HOLD seconds of play
     recent = {n: [] for n in NAMES}         # the scores of the last `need` frames per panel
     entries = []                             # (second, scene name) at each banner's rising edge
@@ -207,12 +218,15 @@ def second_scores(path, known, speed):
             recent[n] = (recent[n] + [score])[-need:]
             if len(recent[n]) == need:
                 best[n][s] = max(best[n][s], min(recent[n]))
-        band = f[y0:y1]
-        win = np.lib.stride_tricks.sliding_window_view(band, (h, w))[0, lo:hi + 1]
-        wm = win - win.mean(axis=(1, 2), keepdims=True)
-        den = np.sqrt((wm * wm).sum(axis=(1, 2))) * tn
-        sc = (wm * t).sum(axis=(1, 2)) / np.where(den > 0, den, np.inf)
-        best["obtained"][s] = max(best["obtained"][s], float(sc.max()))
+        for n, (y0, (lo, hi), t, tn) in slid.items():
+            h, w = t.shape
+            win = np.lib.stride_tricks.sliding_window_view(f[y0:y0 + h], (h, w))[0, lo:hi + 1]
+            wm = win - win.mean(axis=(1, 2), keepdims=True)
+            den = np.sqrt((wm * wm).sum(axis=(1, 2))) * tn
+            sc = (wm * t).sum(axis=(1, 2)) / np.where(den > 0, den, np.inf)
+            best[n][s] = max(best[n][s], float(sc.max()))
+        bx0, by0, bx1, by1 = META["won"]["box"]
+        best["won"][s] = max(best["won"][s], ncc(f[by0:by1, bx0:bx1], TPL["won"]))
         b = scene_banner(f)
         if b is not None and not showing:
             pending = [s, b[0], 6]
@@ -260,7 +274,7 @@ def scan(path, timeline, known):
                      "distinct": len(set(away)),
                      "first_minute": round(min((t for t, n in entries if n != HOME), default=0) * speed / 60, 1) if away else None}
     hits = {}
-    for n in NAMES + ("obtained",):
+    for n in NAMES + SINGLE:
         out[n] = panel(sec[n], speed)
         hits[n] = [s for s, v in enumerate(sec[n]) if v > THRESH]
     black = first_black(path)
@@ -303,7 +317,7 @@ def main():
         events[r["id"]] = {"agent": r["agent"], **scan(path, tl, known)}
         e = events[r["id"]]
         print(f"{r['agent']:22s} {r['id']} " + " ".join(
-            f"{n}={e[n]['first_minute']}" for n in NAMES + ("obtained",)) + f" recruited={e['recruited_minute']} scenes={[x['name'] for x in e['scenes']['entries']]}",
+            f"{n}={e[n]['first_minute']}" for n in NAMES + SINGLE) + f" recruited={e['recruited_minute']} scenes={[x['name'] for x in e['scenes']['entries']]}",
             file=sys.stderr, flush=True)
     json.dump(events, open(os.path.join(HERE, "replay_events.json"), "w", encoding="utf-8"), indent=1)
 

@@ -18,9 +18,10 @@ ICLR 2027 submission draft for jy-crpg-bench.
   `field.py` merges the three, leaves out the models in its `EXCLUDED` list
   (a version with two later versions of its line in the field) and credits a
   model with every rung any of its sessions reached; `slots.py` decodes every preserved save in
-  `src/figures/slots/`; `replay_scan.py` matches five fixed panels of the game
-  (`src/figures/templates/`) and the message drawn when an item enters the
-  bag against every frame of every published replay video, keeping the best
+  `src/figures/slots/`, including the leader's level and experience, which the
+  live memory read does not follow; `replay_scan.py` matches five fixed panels of the game
+  (`src/figures/templates/`), the message drawn when an item enters the
+  bag and the three that close a won battle (win, experience, level) against every frame of every published replay video, keeping the best
   score of each second, and writes `replay_events.json`, the record of the
   events the game keeps only on screen, the item reading for sessions whose bag no record
   carries, the scenes each session entered (read by name from the banner
@@ -69,10 +70,6 @@ ICLR 2027 submission draft for jy-crpg-bench.
   tile and minute to `routes/world-<id>.json`; the hero stands at a fixed screen
   point, fixed by a compass reading of a replay. `routes.py` draws
   `routes-compound.pdf` and `routes-world.pdf` from the `routes/` files.
-- `src/figures/first_hour.py` - writes the first 60 minutes of each four-hour session of a
-  model with no hour session as an hour session (`<id>-h1`): a row in
-  `catalog_snapshot_firsthour.json`, the timeline cut at minute 60 and the replay
-  readings cut at minute 60. `field.load_runs()` adds these rows to the hour field.
 - `src/figures/emit_instructions.py` - sets the instructions every model reads
   (`site/60m/agents.md`, Chinese) beside their English translation
   (`site/en/60m/agents.md`) as `tables/instructions.tex`, the appendix of the

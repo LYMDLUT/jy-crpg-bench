@@ -48,13 +48,13 @@ def main():
                ("none clears any later rung" not in main_tex) or (latched == 0),
                "%d latched, %d corroborated" % (latched, corrob))
 
-    # progression claims must not use totals that include unread sessions
-    prog = sum(1 for r in read if (r.get("exp") or 0) > 0)
-    # the prose reads the experience total through its macro, so a run that
-    # gains experience changes the number and not a sentence
-    uses_macro = "\\SexpSum" in main_tex
-    ok &= claim("progression floor", uses_macro,
-               "sessions with exp>0 = %d, macro used = %s" % (prog, uses_macro))
+    # progression claims: experience is read from the save and the replay, and the
+    # prose credits it to exactly the sessions field.rungs_of credits
+    EXPK = field.DEFINITION.index("gained\nexperience")
+    prog = [r["id"] for r in scored if field.rungs_of(r)[EXPK] is True]
+    ok &= claim("progression floor", "No model gains" not in main_tex and "none wins a battle" not in main_tex
+                and "the only session that wins a battle" in " ".join(main_tex.split()) and len(prog) == 1,
+                "sessions that gained experience: %s" % prog)
 
     # no hardcoded run ratios in prose (they must come from macros)
     stray = re.findall(r"\b0\.\d{3}\b", main_tex)
@@ -142,10 +142,10 @@ def main():
     if "reached him in every one of its" in flat:
         H = field.DEFINITION.index("spoke with\nthe hermit")
         FIGHT = field.DEFINITION.index("entered\na battle")
-        top = [nums["LtopLabel"].replace("\\texttt{", "").rstrip("}")]
+        top = [nums["LsecondLabel"].replace("\\texttt{", "").rstrip("}")]
         hermit = {a: sum(1 for r in rs if field.rungs_of(r)[H] is True) for a, rs in by_model.items()}
         others = {a: n for a, n in hermit.items() if n and a not in top}
-        ok &= claim("the top model reached the hermit in every session, the others in at most half of theirs",
+        ok &= claim("the second model reached the hermit in every session, the others in at most half of theirs",
                     hermit[top[0]] == len(by_model[top[0]])
                     and int(nums["LhermitOthers"]) == len(others)
                     and max(n / len(by_model[a]) for a, n in others.items()) == 0.5,
@@ -173,11 +173,12 @@ def main():
     if "sessions with no inventory reading" in flat:
         both = [r for r in scored if r.get("picked_item") is not None and (r.get("replay") or {}).get("obtained")]
         only = [r for r in scored if r.get("picked_item") is None and (r.get("replay") or {}).get("obtained")]
-        ok &= claim("the obtained message agrees with every bag reading and covers the rest",
-                    bool(both) and all(bool(r["picked_item"]) == (r["replay"]["obtained"]["seconds"] > 0) for r in both)
+        late = [r for r in both if bool(r["picked_item"]) != (r["replay"]["obtained"]["seconds"] > 0)]
+        ok &= claim("the obtained message agrees with the bag reading but for late pickups, and covers the rest",
+                    bool(both) and all(not r["picked_item"] and r["replay"]["obtained"]["first_minute"] >= 58 for r in late)
                     and not any(r.get("picked_item") is None and not (r.get("replay") or {}).get("obtained") for r in scored)
-                    and (int(nums["PobtainedAgree"]), int(nums["PobtainedRead"])) == (len(both), len(only)),
-                    "%d with both, %d from the message alone" % (len(both), len(only)))
+                    and (int(nums["PobtainedBoth"]), int(nums["PobtainedAgree"]), int(nums["PobtainedRead"])) == (len(both), len(both) - len(late), len(only)),
+                    "%d with both, %d late, %d from the message alone" % (len(both), len(late), len(only)))
     def seen(r, n):
         e = r.get("replay") or {}
         return bool(e.get(n) and e[n]["seconds"] > 0)
@@ -209,19 +210,15 @@ def main():
                     all(c[1] == c[2] for m in union for c in [m["counts"][SCENE]])
                     and (int(nums["Lscene"]), int(nums["LnoScene"])) == (len(entered), len(union) - len(entered)),
                     "%d models entered a scene: %s" % (len(entered), entered))
-    if "neither the fastest between actions nor the one that took the most actions" in flat:
-        # Section 4: the pace did not set the order. The medians are the ones
-        # tables/effort.tex prints, over every session of the model.
-        import statistics as st
-        top = max(field.model_rows(models), key=lambda m: (m["reached"], m["agent"]))["agent"]
-        acts = {a: st.median([r["actions"] for r in rs]) for a, rs in by_model.items()}
-        gaps = {a: st.median([r["gap_p50"] for r in rs]) for a, rs in by_model.items()
-                if all(r.get("gap_p50") is not None for r in rs)}
-        busiest = max(acts, key=acts.get)
-        fastest = min(gaps, key=gaps.get) if len(gaps) == len(by_model) else None
-        ok &= claim("the top model is neither the fastest between actions nor the busiest",
-                    fastest is not None and top not in (busiest, fastest),
-                    "top %s, most actions %s, fastest %s" % (top, busiest, fastest))
+    if "than the other session of its model, which reached" in flat:
+        # Section 4: the pace did not set the order, within one model
+        best = max(models, key=lambda r: (field.rungs_reached(r), r["id"]))
+        sib = [r for r in models if r["agent"] == best["agent"] and r["id"] != best["id"]]
+        ok &= claim("the session with the most milestones took fewer actions, at a slower pace, than its sibling",
+                    len(sib) == 1 and sib[0]["actions"] > best["actions"] and sib[0]["gap_p50"] < best["gap_p50"]
+                    and int(nums["PpaceSiblingRungs"]) == field.rungs_reached(sib[0]),
+                    "best %s %s acts %s gap %s; sibling %s" % (best["agent"], best["id"], best["actions"], best["gap_p50"],
+                                                           [(r["id"], r["actions"], r["gap_p50"]) for r in sib]))
 
     # The four-hour sessions that count, validated against the manifest.
     import long_cohort

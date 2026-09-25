@@ -10,12 +10,16 @@ was created under to the model, and every generator lists them under the
 model; the declared name is kept on the row as `declared`. The field is the
 set of models in the final sweep; sessions of other models stay out of it.
 Service probes are dropped. The field budget is 60 minutes.
-Every preserved save in slots/ is decoded by slots.py, and the rung it alone
-carries, the scenes the hermit's conversation opens, is attached to its row.
+Every preserved save in slots/ is decoded by slots.py, and what it alone
+carries is attached to its row: the scenes the hermit's conversation opens,
+and the level and experience of the leader. The catalogue's own level and
+experience come from a live read of a copy of the character records that the
+game does not update during play, so they are not used.
 `replay_events.json`, written by replay_scan.py from the published replay
 videos, carries the events the game keeps only on screen: the conversation
-with the hermit, the compass in the item screen, a fight, its verdict, and
-the companion's prompt answered. A rung is credited from whichever record
+with the hermit, the compass in the item screen, a fight, its verdict, a
+fight won, the experience and level it pays, and the companion's prompt
+answered. A rung is credited from whichever record
 carries it, and a model is credited with every rung any of its sessions
 reached.
 """
@@ -32,9 +36,6 @@ SNAPSHOT = os.path.join(HERE, "catalog_snapshot.json")
 RECOVERED = os.path.join(HERE, "recovered_sessions.json")
 BACKUP = os.path.join(HERE, "catalog_backup_20260911T174413Z.json")
 EARLIER = os.path.join(HERE, "catalog_snapshot_20min.json")
-# The first hour of the four-hour sessions of a model with no hour session
-# (first_hour.py): hour sessions read over the same 60 minutes as the field.
-FIRST_HOUR = os.path.join(HERE, "catalog_snapshot_firsthour.json")
 ALIASES = json.load(open(os.path.join(HERE, "aliases.json"), encoding="utf-8"))
 SLOTS = _slots.load()
 EVENTS = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))
@@ -63,6 +64,8 @@ def _rows(path):
         if sl is not None:
             # save-gated: a session that wrote no save left the world closed
             r["world_opened"] = sl["world_opened"] if sl["saved"] else False
+            if sl["saved"]:
+                r["save_level"], r["save_exp"] = sl["level"], sl["exp"]
         r["replay"] = EVENTS.get(r["id"])
         out.append(r)
     return out
@@ -95,10 +98,6 @@ def load_runs(path=SNAPSHOT, dedup=True, keep_excluded=False):
                 continue
             seen.add(r["id"])
             rows.append(r)
-        for r in _rows(FIRST_HOUR) if os.path.exists(FIRST_HOUR) else []:
-            if r["agent"] not in field and r["id"] not in seen:
-                seen.add(r["id"])
-                rows.append(r)
     if not keep_excluded:
         rows = [r for r in rows if r["agent"] not in EXCLUDED]
     return best_per_model(rows) if dedup else rows
@@ -209,7 +208,9 @@ def rungs_of(row):
     record carries takes the item rung from the message the game draws when
     an item enters the bag, and a session whose replay shows no fight gained
     no experience, reached no level and holds no book, since victories pay
-    experience and every book sits behind a fight."""
+    experience and every book sits behind a fight. Experience and level are
+    read from the save and from the messages a won fight draws on the replay,
+    never from the catalogue's live read (see the module docstring)."""
     slot = row.get("slot_saved")
     saved = "saved_at" in row or "world_map_at" in row or slot is not None
     ev = row.get("replay")
@@ -218,6 +219,7 @@ def rungs_of(row):
         return bool(ev and ev.get(name) and ev[name]["seconds"] > 0)
 
     recruited = bool(ev and ev.get("recruited_minute") is not None)
+    gained = (row.get("save_exp") or 0) > 0 or seen("exp")
     no_fight = ev is not None and not seen("battle")
     scenes = (ev or {}).get("scenes")
     known = [
@@ -228,9 +230,9 @@ def rungs_of(row):
         ev is not None or saved or row.get("compass") is not None,
         ev is not None or saved or row.get("team_size") is not None,
         ev is not None,
-        ev is not None or row.get("exp") is not None,
-        row.get("exp") is not None or no_fight,
-        row.get("level") is not None or no_fight,
+        ev is not None or "save_exp" in row,
+        ev is not None or "save_exp" in row,
+        ev is not None or "save_level" in row,
         (True if saved else row.get("books") is not None) or no_fight,
     ]
     got = [
@@ -244,9 +246,9 @@ def rungs_of(row):
         bool(row.get("compass")) or seen("compass"),
         (row.get("team_size") or 0) > 1 or recruited,
         seen("battle"),
-        seen("defeat") or (row.get("exp") or 0) > 0,
-        (row.get("exp") or 0) > 0,
-        (row.get("level") or 0) > 1,
+        seen("defeat") or seen("won") or gained,
+        gained,
+        (row.get("save_level") or 0) > 1 or seen("level"),
         (row.get("books") or 0) > 0,
     ]
     return [(g if k else None) for g, k in zip(got, known)]

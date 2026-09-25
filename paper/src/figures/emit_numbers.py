@@ -296,21 +296,24 @@ emit("QslowActs", max(r["actions"] for r in _slow),
      "the larger of their action counts")
 
 # ---------------------------------------------------------------- machine state
-read = [r for r in PLAY if r.get("level") is not None]
-emit("Sread", len(read), "sessions whose character record was read")
-emit("Sunread", len(PLAY) - len(read))
-emit("SlevelKinds", len({r["level"] for r in read}), "distinct levels among read records")
-emit("Slevel", st.mode([r["level"] for r in read]))
-emit("SexpSum", sum(r["exp"] for r in read), "experience accumulated by every run")
-emit("Sskills", st.mode([r["skills"] for r in read if r.get("skills") is not None]))
-emit("SexpAny", sum(1 for r in read if r["exp"] > 0))
-emit("SlevelTwo", sum(1 for r in read if r["level"] > 1))
+# the leader's level and experience, from the save the game wrote
+read = [r for r in PLAY if "save_level" in r]
+emit("Sread", len(read), "sessions whose save carries the leader's character sheet")
+_EXP = field.DEFINITION.index("gained\nexperience")
+_LV2 = field.DEFINITION.index("reached\nlevel 2")
+_gainers = [r for r in PLAY if field.rungs_of(r)[_EXP] is True]
+# the live copy of the character records keeps the values the session started with
+if any(r.get("save_exp", 0) > 0 and (r.get("exp"), r.get("level")) != (0, 1) for r in PLAY) or not any(r.get("save_exp", 0) > 0 for r in PLAY):
+    sys.exit("the prose says the live character record kept its start values where the save shows experience")
+emit("SexpAny", len(_gainers), "hour sessions in which the party gained experience")
+emit("SlevelTwo", sum(1 for r in PLAY if field.rungs_of(r)[_LV2] is True), "hour sessions that reached level 2")
 
 _on_map = field.on_map
 crossed = [r for r in PLAY if _on_map(r)]
-cross = [r for r in read if r.get("bigmap") is True]
+_live = [r for r in PLAY if r.get("level") is not None]   # sessions with a live record
+cross = [r for r in _live if r.get("bigmap") is True]
 fade = [r for r in PLAY if r.get("exit_secs") is not None]
-both = [r for r in read if r.get("bigmap") is True and r.get("exit_secs") is not None]
+both = [r for r in _live if r.get("bigmap") is True and r.get("exit_secs") is not None]
 emit("Smap", len(crossed), "sessions credited with the world map by the save the game wrote")
 emit("SmapScreen", len(cross), "sessions whose screen latched the world-map signature")
 # sessions that carry both a save reading and a screen fingerprint, where the
@@ -421,10 +424,19 @@ def _scenes(r):
 def _distinct(r):
     return _scenes(r).get("distinct") or 0
 
+def emit_label(name, agent, note=""):
+    lines.append((f"% {note}".rstrip() if note else "", f"\\newcommand{{\\{name}}}{{\\texttt{{{agent}}}}}"))
+
+
 _top = max(UNION, key=lambda m: (m["reached"], m["agent"]))
 lines.append(("% the model with the most rungs", "\\newcommand{\\LtopLabel}{\\texttt{%s}}" % _top["agent"]))
 emit("Ltop", _top["reached"], "rungs it reached")
 emit("LtopSessions", _top["sessions"], "sessions it played")
+_second = sorted(UNION, key=lambda m: (-m["reached"], m["agent"]))[1]
+_second_agent = _second["agent"]
+emit_label("LsecondLabel", _second_agent)
+emit("Lsecond", _second["reached"], "milestones the second model reached")
+emit("LsecondSessions", _second["sessions"], "its sessions")
 # the keypresses each crossing took, per model: the spread within a model against the spread between them
 _cross = {m["agent"]: m["cross_keys"] for m in UNION}
 if any(not c for c in _cross.values()):
@@ -437,17 +449,15 @@ if _within <= _between:
 lines.append(("% the model whose crossings differ the most", "\\newcommand{\\LspreadLabel}{\\texttt{%s}}" % _wlabel))
 emit("LspreadRatio", _within, "factor between its slowest and fastest crossing", fmt="%.0f")
 emit("LbetweenRatio", _between, "factor between the largest and smallest model mean", fmt="%.0f")
-if len(_cross[_top["agent"]]) != _top["sessions"]:
-    sys.exit("the prose says the top model crossed in every session; it did not")
-emit("LtopCrossMin", min(_cross[_top["agent"]]), "fewest keypresses the top model took to the world map")
-emit("LtopCrossMax", max(_cross[_top["agent"]]), "most keypresses it took")
-_fewest = min((r for r in MODELS if field.crossing_keys(r) is not None), key=field.crossing_keys)
-lines.append(("% the model session with the fewest keypresses to the world map", "\\newcommand{\\LfewestKeysLabel}{\\texttt{%s}}" % _fewest["agent"]))
-emit("LfewestKeys", field.crossing_keys(_fewest), "fewest keypresses of any model session to the world map")
-emit("LfewestActs", field.crossing_actions(_fewest), "in that many actions")
-emit("LfewestMin", _fewest["exit_secs"] / 60.0, "minute of that crossing", fmt="%.0f")
-if _fewest["agent"] == _top["agent"] or field.crossing_keys(_fewest) >= min(_cross[_top["agent"]]):
-    sys.exit("the prose sets the fewest-keypress session against the top model; it is no longer below it")
+# the narrowest range of crossings, over the models that crossed in more than one session
+_steady = min((a for a, c in _cross.items() if len(c) >= 2), key=lambda a: max(_cross[a]) / min(_cross[a]))
+_steady_m = next(m for m in UNION if m["agent"] == _steady)
+if len(_cross[_steady]) != _steady_m["sessions"]:
+    sys.exit("the prose says the model with the narrowest range crossed in every session; it did not")
+emit_label("LsteadyLabel", _steady, "the model whose crossings vary least")
+emit("LsteadyMin", min(_cross[_steady]), "fewest keypresses it took to the world map")
+emit("LsteadyMax", max(_cross[_steady]), "most keypresses it took")
+emit("LsteadySessions", _steady_m["sessions"], "its sessions")
 # reliability across sessions: the crossing and the hermit
 _HERMIT = field.DEFINITION.index("spoke with\nthe hermit")
 _bymodel = {}
@@ -457,10 +467,11 @@ emit("LcrossSessions", sum(1 for r in MODELS if field.on_map(r)), "model session
 emit("LcrossEvery", sum(1 for rs in _bymodel.values() if all(field.on_map(r) for r in rs)),
      "models that crossed in every session they played")
 _h = {a: (sum(1 for r in rs if field.rungs_of(r)[_HERMIT] is True), len(rs)) for a, rs in _bymodel.items()}
-_top_a = _top["agent"]
-if _h[_top_a][0] != _h[_top_a][1]:
-    sys.exit("the prose says the top model reached the hermit in every session; it did not")
-_others = {a: v for a, v in _h.items() if a != _top_a and v[0] > 0}
+_every = [a for a, v in _h.items() if v[0] == v[1]]
+if len(_every) != 1:
+    sys.exit("the prose names one model that reached the hermit in every session: %s" % _every)
+_every_a = _every[0]
+_others = {a: v for a, v in _h.items() if a != _every_a and v[0] > 0}
 if max(v[0] / v[1] for v in _others.values()) != 0.5:
     sys.exit("the prose says the other models reached the hermit in at most half of their sessions")
 emit("LhermitOthers", len(_others), "other models that reached the hermit")
@@ -554,10 +565,6 @@ TIMELINES = os.path.join(HERE, "timelines")
 CONFIRM = ("enter", "space")
 
 
-def emit_label(name, agent, note=""):
-    lines.append((f"% {note}".rstrip() if note else "", f"\\newcommand{{\\{name}}}{{\\texttt{{{agent}}}}}"))
-
-
 def timeline(r):
     path = os.path.join(TIMELINES, r["id"] + ".json")
     if not os.path.exists(path):
@@ -616,10 +623,10 @@ emit("PscenesMax", _distinct(_wide), "distinct scenes the widest-ranging session
 emit_label("PscenesMaxLabel", _wide["agent"])
 emit("PscenesThree", sum(1 for r in PLAY if _distinct(r) >= 3), "sessions that entered three or more distinct scenes")
 
-# the prose says every model but the top one entered only an inn or the house of the hermit
+# the prose says every model but the top two entered only an inn or the house of the hermit
 _HERMIT_HOUSE = "南賢居"
 for _r in MODELS:
-    if _r["agent"] != _top["agent"]:
+    if _r["agent"] not in (_top["agent"], _second_agent):
         for _x in _scenes(_r).get("entries", []):
             if _x["name"] != field.HOME and _x["name"] != _HERMIT_HOUSE and not _x["name"].endswith("客棧"):
                 sys.exit(f"{_r['agent']} entered {_x['name']}, which is neither an inn nor the house of the hermit; the prose no longer holds")
@@ -629,21 +636,19 @@ _holder = max((r for r in PLAY if field.rungs_of(r)[_COMPASS] is True), key=lamb
 if _distinct(_holder) != _distinct(_wide):
     sys.exit("the prose calls the widest-ranging session a compass holder; it no longer is")
 _ht = TL[_holder["id"]]
-_hruns = confirm_runs(_ht)
-_talk = max(_hruns, key=lambda c: sum(len(m["keys"]) for m in c))
-emit("PtalkHolderPresses", sum(len(m["keys"]) for m in _talk), "confirm presses of its longest conversation")
-_hmin = minutes(_ht, _talk[-1]) - minutes(_ht, _talk[0])
-emit("PtalkHolderMin", _hmin, "minutes that conversation took", fmt="%.0f")
-emit("PtalkHolderPace", 60.0 * _hmin / sum(len(m["keys"]) for m in _talk), "seconds a press", fmt="%.0f")
 
 
 def opens_items(m):
+    """The item screen opened in one action: escape, then the menu walked
+    down to the items and confirmed."""
     ks = [k for k, _ in m["keys"]]
-    return any(ks[i:i + 4] == ["esc", "down", "down", "enter"] for i in range(len(ks) - 3))
+    return any(ks[i] in ("esc", "escape") and ks[i + 1:i + 3] == ["down", "down"] and ks[i + 3] in ("enter", "space")
+               for i in range(len(ks) - 3))
 
 
 emit("PholderMenuOpens", sum(1 for m in _ht["marks"] if opens_items(m)), "times it opened the item screen")
-emit("PholderArrows", sum(v for k, v in (_holder.get("keys") or {}).items() if k in ARROWS), "arrow keys it pressed")
+if not _holder["replay"]["compass"]["seconds"]:
+    sys.exit("the prose says the widest-ranging session read its coordinates from the compass")
 
 # Events read from the published replays (replay_events.json), by minute of
 # the session clock shown in the strip of the video.
@@ -654,84 +659,80 @@ def _first(ev, name):
     return ev[name]["first_minute"]
 
 
-_top_ids = set(_top["ids"])
-_hermit_top = sorted(_first(e, "hermit") for i, (r, e) in EV.items() if i in _top_ids and e["hermit"]["seconds"])
-_hermit_rest = sorted(_first(e, "hermit") for i, (r, e) in EV.items() if i not in _top_ids and e["hermit"]["seconds"])
-emit("PhermitSessions", len(_hermit_top) + len(_hermit_rest), "sessions that reached the hermit")
-emit("PhermitTopFirst", min(_hermit_top), "earliest minute the top model reached the hermit", fmt="%.0f")
-emit("PhermitTopLast", max(_hermit_top), "latest", fmt="%.0f")
-if _hermit_rest:
-    emit("PhermitRestSessions", len(_hermit_rest), "sessions of other models that reached him")
-    emit("PhermitRestFirst", min(_hermit_rest), "earliest minute one of them did", fmt="%.0f")
-    emit("PhermitRestLast", max(_hermit_rest), "latest", fmt="%.0f")
-_compass_top = sorted(_first(e, "compass") for i, (r, e) in EV.items() if i in _top_ids and e["compass"]["seconds"])
-emit("PcompassTopFirst", min(_compass_top), "earliest minute the top model read the compass", fmt="%.0f")
-emit("PcompassTopLast", max(_compass_top), "latest", fmt="%.0f")
+_every_ids = {r["id"] for r in _bymodel[_every_a]}
+if _every_a != _second_agent:
+    sys.exit("the prose says the second model reached the hermit in every session")
+_hermit_every = sorted(_first(e, "hermit") for i, (r, e) in EV.items() if i in _every_ids and e["hermit"]["seconds"])
+emit("PhermitSessions", sum(1 for r, e in EV.values() if e["hermit"]["seconds"]), "sessions that reached the hermit")
+emit("PhermitEveryFirst", min(_hermit_every), "earliest minute the second model reached the hermit", fmt="%.0f")
+emit("PhermitEveryLast", max(_hermit_every), "latest", fmt="%.0f")
+
+# the battles: every one began in the house of Yan Ji; alone at level one the hero lost
+# it or stalled in it; the one win came after recruiting Tian Boguang
+_YANJI, _TIAN = "閻基居", "田伯光居"
 _all_fights = [(r, e) for r, e in EV.values() if e["battle"]["seconds"]]
-emit("PfightSessions", len(_all_fights), "sessions that entered a fight")
-# the second model: the other one that took the compass and entered a fight
-_second = sorted(UNION, key=lambda m: (-m["reached"], m["agent"]))[1]
+emit("PfightSessions", len(_all_fights), "sessions that entered a battle")
+# the pace: the session with the most milestones against the other sessions of its model
+_best = max(PLAY, key=lambda r: (field.rungs_reached(r), r["id"]))
+_sib = [r for r in PLAY if r["agent"] == _best["agent"] and r["id"] != _best["id"]]
+if not _sib or any(r["actions"] <= _best["actions"] or r["gap_p50"] >= _best["gap_p50"] for r in _sib):
+    sys.exit("the prose says the session with the most milestones took fewer actions, at a slower pace, than the other sessions of its model")
+emit("PpaceSiblingRungs", max(field.rungs_reached(r) for r in _sib), "milestones its sibling session reached")
+for r, e in _all_fights:
+    _before = [x["name"] for x in e["scenes"]["entries"] if x["minute"] <= _first(e, "battle")]
+    if not _before or _before[-1] != _YANJI:
+        sys.exit("the prose says every battle began in the house of Yan Ji; %s did not" % r["id"])
+    if e.get("recruited_minute") is not None and e["recruited_minute"] < _first(e, "battle"):
+        sys.exit("the prose says the hero fought the first battle alone; %s had recruited before it" % r["id"])
 _CK, _FK = field.DEFINITION.index("held the\ncompass"), field.DEFINITION.index("entered\na battle")
 _both_models = sorted(m["agent"] for m in UNION if m["rungs"][_CK] is True and m["rungs"][_FK] is True)
-if _both_models != sorted([_top["agent"], _second["agent"]]):
-    sys.exit("the prose says two models took the compass and entered a fight: %s" % _both_models)
-emit_label("LsecondLabel", _second["agent"])
-emit("Lsecond", _second["reached"], "milestones the second model reached")
-emit("LsecondSessions", _second["sessions"], "its sessions")
-_sf = [(r, e) for r, e in _all_fights if r["agent"] == _second["agent"]]
-if len(_sf) != 1 or not _sf[0][1]["defeat"]["seconds"] or _sf[0][1].get("recruited_minute") is not None:
-    sys.exit("the prose describes one fight of the second model, lost, and no recruitment")
-_s2 = _sf[0][1]
-if not (_first(_s2, "hermit") < _first(_s2, "compass") < _first(_s2, "battle") < _first(_s2, "defeat")):
-    sys.exit("the prose orders the second model's hermit, compass read, fight and defeat; the order changed")
-if field.rungs_reached(_sf[0][0]) != _second["reached"]:
-    sys.exit("the prose says the second model reached all its milestones in one session")
-_inn = [x["minute"] for x in _s2["scenes"]["entries"] if x["name"].endswith("客棧")]
-_take = [m for m in _s2["obtained"]["minutes"] if _first(_s2, "hermit") <= m < _first(_s2, "battle")]
-if not _inn or not _inn[0] < _first(_s2, "hermit") or len(_take) != 1:
-    sys.exit("the prose says the second model entered an inn before the hermit and took one item, the compass, before its fight")
-emit("PsecondInnMin", _inn[0], "minute it entered the inn", fmt="%.0f")
-emit("PsecondTakeMin", _take[0], "minute the compass entered its bag", fmt="%.0f")
-emit("PsecondHermitMin", _first(_s2, "hermit"), "minute it reached the hermit", fmt="%.0f")
-emit("PsecondBattleMin", _first(_s2, "battle"), "minute its fight began", fmt="%.0f")
-emit("PsecondCompassMin", _first(_s2, "compass"), "minute it read the compass", fmt="%.0f")
-emit("PsecondDefeatMin", _first(_s2, "defeat"), "minute of its defeat banner", fmt="%.0f")
-_fights = [(r, e) for r, e in _all_fights if r["agent"] == _top["agent"]]
-if len(_all_fights) != len(_fights) + len(_sf):
-    sys.exit("the prose attributes every fight to the two models")
-_lost = [(r, e) for r, e in _fights if e["defeat"]["seconds"]]
-if len(_lost) != 1:
-    sys.exit("the prose describes one lost fight; the replays now show %d" % len(_lost))
-_lr, _le = _lost[0]
-emit("PlostFightMin", _first(_le, "battle"), "minute the lost fight began", fmt="%.0f")
-emit("PdefeatMin", _first(_le, "defeat"), "minute of the defeat banner", fmt="%.0f")
-_again = [m for m in _le["compass"]["minutes"] if m > _first(_le, "defeat")]
-if not _again:
-    sys.exit("the prose says the compass was read again after the defeat; the replay shows no such read")
-emit("PcompassAgainMin", min(_again), "minute the compass was next read after the defeat", fmt="%.0f")
-_stood = [(r, e) for r, e in _fights if not e["defeat"]["seconds"]]
-if len(_stood) != 1:
-    sys.exit("the prose describes one fight left standing; the replays now show %d" % len(_stood))
-_sr, _se = _stood[0]
-emit("PbattleMin", _first(_se, "battle"), "minute the standing fight began", fmt="%.0f")
-_st = TL[_sr["id"]]
-emit("PbattleLastMin", minutes(_st, _st["marks"][-1]), "minute of that session's last key", fmt="%.0f")
+if _both_models != sorted([_top["agent"], _second_agent]):
+    sys.exit("the prose says two models took the compass and entered a battle: %s" % _both_models)
+_wins = [(r, e) for r, e in _all_fights if e["won"]["seconds"]]
+if len(_wins) != 1 or _wins[0][0]["agent"] != _top["agent"]:
+    sys.exit("the prose describes one won battle, by the top model: %s" % [r["id"] for r, e in _wins])
+_wr, _we = _wins[0]
+if field.rungs_reached(_wr) != _top["reached"]:
+    sys.exit("the prose says the top model reached all its milestones in the session that won")
+_EXPK, _LVK = field.DEFINITION.index("gained\nexperience"), field.DEFINITION.index("reached\nlevel 2")
+if not (field.rungs_of(_wr)[_EXPK] and field.rungs_of(_wr)[_LVK]) or _first(_we, "exp") != _first(_we, "won") or _first(_we, "level") != _first(_we, "won"):
+    sys.exit("the prose says the win paid experience and the second level at once")
+if any(field.rungs_of(r)[_EXPK] for r in PLAY if r["id"] != _wr["id"]):
+    sys.exit("the prose says no other session gained experience")
+# its route: lost alone, walked to Tian Boguang, recruited him, returned to Yan Ji and won
+_yj = [x["minute"] for x in _we["scenes"]["entries"] if x["name"] == _YANJI]
+_tb = [x["minute"] for x in _we["scenes"]["entries"] if x["name"] == _TIAN]
+_rec = _we.get("recruited_minute")
+if not (len(_yj) >= 2 and _tb and _rec is not None
+        and _yj[0] < _first(_we, "battle") < _first(_we, "defeat") < _tb[0] < _rec < _yj[1] < _first(_we, "won")):
+    sys.exit("the prose orders the winning session: Yan Ji, defeat, Tian Boguang, recruitment, Yan Ji again, win")
+emit("PtopDefeatMin", _first(_we, "defeat"), "minute the winning session lost its first battle", fmt="%.0f")
+emit("PrecruitMin", _rec, "minute it answered yes to Tian Boguang", fmt="%.0f")
+emit("PreturnMin", _yj[1], "minute it entered the house of Yan Ji again", fmt="%.0f")
+emit("PwonMin", _first(_we, "won"), "minute of the battle-won banner", fmt="%.0f")
 _recruits = [(r, e) for r, e in EV.values() if e.get("recruited_minute") is not None]
-if len(_recruits) != 1:
-    sys.exit("the prose describes one recruitment; the replays now show %d" % len(_recruits))
-_rr, _re = _recruits[0]
-emit("PpromptMin", _first(_re, "prompt"), "minute the companion's prompt first appeared", fmt="%.0f")
-emit("PrecruitMin", _re["recruited_minute"], "minute it was answered yes", fmt="%.0f")
-if _rr.get("team_size") is not None:
-    sys.exit("the prose says the recruit session's record carries no party reading; it now does")
-for r, e in _recruits:
-    if r["agent"] != _top["agent"]:
-        sys.exit("the prose attributes the recruitment to the top model")
+# the second model's battles: one lost, one left open when its keys stopped
+_sf = [(r, e) for r, e in _all_fights if r["agent"] == _second_agent]
+if len(_all_fights) != len(_sf) + 1:
+    sys.exit("the prose attributes every battle to the two models")
+_sl = [(r, e) for r, e in _sf if e["defeat"]["seconds"]]
+_so = [(r, e) for r, e in _sf if not e["defeat"]["seconds"] and not e["won"]["seconds"]]
+if len(_sl) != 1 or len(_so) != 1:
+    sys.exit("the prose describes one lost and one open battle of the second model")
+emit("PsecondDefeatMin", _first(_sl[0][1], "defeat"), "minute its lost battle ended", fmt="%.0f")
+_st = TL[_so[0][0]["id"]]
+emit("PbattleLastMin", minutes(_st, _st["marks"][-1]), "minute of the open battle's last key", fmt="%.0f")
+_tian2 = [r for r in _bymodel[_second_agent] if any(x["name"] == _TIAN for x in _scenes(r).get("entries", []))]
+if any((r["replay"] or {}).get("recruited_minute") is not None and _TIAN in [x["name"] for x in _scenes(r)["entries"]] for r in _tian2):
+    sys.exit("the prose says the second model entered the house of Tian Boguang without recruiting him")
+emit("PsecondTianSessions", len(_tian2), "sessions of the second model that entered the house of Tian Boguang")
 _tm = json.load(open(os.path.join(HERE, "templates", "templates.json"), encoding="utf-8"))
 emit("ReplayThreshold", _tm["threshold"], "match threshold of the replay scan", fmt="%.1f")
 import replay_scan as _rs  # noqa: E402
 emit("ReplayHold", _rs.HOLD, "seconds of play a panel must stay above the threshold", fmt="%.1f")
-_need = {v: math.ceil(_rs.HOLD * 20 / v - 1e-9) for v in {round(TL[k]["speed"]) for k in TL}}
+_speeds = {round(json.load(open(os.path.join(HERE, "timelines", k + ".json"), encoding="utf-8"))["speed"])
+           for k in field.EVENTS if os.path.exists(os.path.join(HERE, "timelines", k + ".json"))}
+_need = {v: math.ceil(_rs.HOLD * 20 / v - 1e-9) for v in _speeds}
 if _need != {8: 2, 24: 1}:
     sys.exit("the prose names two frames at 8 times speed and one at 24 times; the replays give %s" % _need)
 _miss = max(e[n]["max"] for _, e in EV.values() for n in ("hermit", "compass", "battle", "defeat", "prompt", "obtained") if e[n]["seconds"] == 0 and e[n]["max"] is not None)
@@ -740,18 +741,22 @@ emit("ReplayMissMax", _miss, "highest score of any frame without the event", fmt
 _audit = json.load(open(os.path.join(HERE, "panel_audit.json"), encoding="utf-8"))["checked"]
 _first = {(r["id"], n, [c for c in e[n]["candidates"] if c[1] > _tm["threshold"]][0][0])
           for r, e in EV.values() if not field.is_random(r["agent"])
-          for n in ("hermit", "compass", "battle", "defeat", "prompt") if e[n]["seconds"]}
+          for n in ("hermit", "compass", "battle", "defeat", "prompt", "won", "exp", "level") if e[n]["seconds"]}
 if {(a["session"], a["panel"], a["video_second"]) for a in _audit if a["shows_panel"]} != _first:
     sys.exit("panel_audit.json does not cover every first panel reading of the hour sessions; check the new ones by eye")
 emit("NpanelAudited", len(_first), "first panel readings checked by eye")
 # the item milestone read from the obtained message where no record carries the bag
 _ob_both = [r for r in ALL if r.get("picked_item") is not None and (r.get("replay") or {}).get("obtained")]
 _ob_only = [r for r in ALL if r.get("picked_item") is None and (r.get("replay") or {}).get("obtained")]
-if any(bool(r["picked_item"]) != (r["replay"]["obtained"]["seconds"] > 0) for r in _ob_both):
-    sys.exit("the obtained message disagrees with a bag reading")
+# the live bag lags play: it may miss a pickup at the end of a session, never invent one
+_ob_late = [r for r in _ob_both if bool(r["picked_item"]) != (r["replay"]["obtained"]["seconds"] > 0)]
+if any(r["picked_item"] or r["replay"]["obtained"]["first_minute"] < BUDGET / 60 - 2 for r in _ob_late):
+    sys.exit("the obtained message disagrees with a bag reading other than by a pickup in the last two minutes")
+emit("PobtainedBoth", len(_ob_both), "sessions with both a bag reading and the message scan")
+emit("PobtainedLate", len(_ob_late), "of them whose message shows a pickup in the last two minutes that the bag does not hold")
 if any(r.get("picked_item") is None and not (r.get("replay") or {}).get("obtained") for r in ALL):
     sys.exit("a session has neither a bag reading nor a scan for the obtained message")
-emit("PobtainedAgree", len(_ob_both), "sessions with both a bag reading and the message scan, which agree")
+emit("PobtainedAgree", len(_ob_both) - len(_ob_late), "of them on which the two agree")
 emit("PobtainedRead", len(_ob_only), "sessions whose item milestone is read from the message alone")
 # the threshold margin: every reading is the same for any threshold between the
 # highest score of a frame without the event and the lowest best score of a session with it
@@ -786,8 +791,7 @@ emit("NidleSessions", sum(1 for r in PLAY if r.get("reason") == "idle"),
      "sessions ended by the ten-minute idle rule the field ran with")
 # when the field ran
 import datetime as _dt
-# the first-hour rows are four-hour sessions; their days are the four-hour days
-_HOURLY = [r for r in ALL if not r["id"].endswith("-h1")]
+_HOURLY = ALL
 _days = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in _HOURLY if r.get("started"))
 if len(_days) != len(_HOURLY):
     sys.exit("a session carries no start time")
@@ -874,6 +878,9 @@ _CK, _RK = field.DEFINITION.index("held the\ncompass"), field.DEFINITION.index("
 if len(_hack) != 1 or _hack[0]["agent"] != "gemini-3.8-flash" or field.rungs_of(_hack[0])[_CK] is not True or field.rungs_of(_hack[0])[_RK] is not True:
     sys.exit("the prose says the attempt that read earlier sessions is gemini-3.8-flash and held the compass and a companion")
 emit_label("LlongHackLabel", "gemini-3.8-flash", "the model whose attempt read the timelines of earlier sessions")
+# from the harness transcript of that attempt, which is not in the release: among
+# the sequences it read was a session of gpt-6-astra
+emit_label("LlongHackReadLabel", "gpt-6-astra", "a model whose timeline that attempt read")
 
 
 def _join(names):
@@ -911,9 +918,15 @@ _sp, = _beyond
 _spe = _sp["replay"]
 if not (_spe.get("defeat") or {}).get("minutes"):
     sys.exit("the prose says the four-hour session beyond the opening lost its battle")
-_h1 = next((r for r in PLAY if r["id"] == _sp["id"] + "-h1"), None)
-if _h1 is None or field.rungs_reached(_h1) != field.rungs_reached(_sp):
-    sys.exit("the prose says the four-hour session beyond the opening reached nothing new after its first hour")
+# every milestone it reached has its first reading inside the first hour
+_at = {"hermit": _spe["hermit"]["first_minute"], "compass": _spe["compass"]["first_minute"],
+       "battle": _spe["battle"]["first_minute"], "defeat": _spe["defeat"]["first_minute"],
+       "location": min((x["minute"] for x in _spe["scenes"]["entries"] if x["name"] != field.HOME), default=None),
+       "map": _sp["exit_secs"] / 60 if _sp.get("exit_secs") is not None else None}
+if any(m is None or m > BUDGET / 60 for m in _at.values()) or _spe.get("recruited_minute") is not None \
+        or any(_spe[n]["seconds"] for n in ("won", "exp", "level")) \
+        or field.rungs_reached(_sp) != 7:
+    sys.exit("the prose says the four-hour session beyond the opening reached nothing new after its first hour: %s" % _at)
 emit_label("LlongBeyondLabel", _sp["agent"], "the model of the four-hour session beyond the opening")
 emit("PlongBeyondLastMin", long_cohort.last_key_seconds(_sp) / 60, "minute of its last key", fmt="%.0f")
 emit("PlongBeyondHermitMin", _spe["hermit"]["minutes"][0], fmt="%.0f")
@@ -922,12 +935,7 @@ emit("PlongBeyondBattleMin", _spe["battle"]["minutes"][0], fmt="%.0f")
 emit("PlongBeyondDefeatMin", _spe["defeat"]["minutes"][0], fmt="%.0f")
 if field.HACK_SESSION in {r["id"] for r in LONG}:
     sys.exit("the attempt that read earlier sessions must not count")
-_FH = [r for r in PLAY if r["id"].endswith("-h1")]
-if len({r["agent"] for r in _FH}) != 1:
-    sys.exit("the prose names one model read over the first hour of its four-hour sessions")
-emit_label("LfirstHourLabel", _FH[0]["agent"])
-emit("NfirstHourSessions", len(_FH), "its four-hour sessions read over their first hour")
-_ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG + _FH)
+_ldays = sorted(_dt.datetime.fromtimestamp(r["started"], _dt.timezone.utc).date() for r in LONG)
 if _ldays[0].month != _ldays[-1].month:
     sys.exit("the four-hour sessions span more than one month; the date macro assumes one")
 lines.append(("% the days the four-hour sessions that count ran, UTC", "\\newcommand{\\LongDates}{%s}" % (

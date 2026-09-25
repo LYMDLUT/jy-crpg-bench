@@ -62,5 +62,40 @@
    148
   ],
   "shows": "the first two glyphs, 得到 (obtained), of the message the game centres on screen when an item enters the bag; the box is as wide as the name, so the glyphs are searched along the row"
+ },
+ "won": {
+  "box": [
+   128,
+   35,
+   192,
+   52
+  ],
+  "shows": "the glyphs 戰鬥勝利 (battle won) of the banner the game draws when the party wins a fight"
+ },
+ "exp": {
+  "box": [
+   118,
+   35,
+   182,
+   52
+  ],
+  "slide": [
+   40,
+   190
+  ],
+  "shows": "the glyphs 獲得經驗 (gained experience) of the message after a won fight, which follow the character's name, so they are searched along the row"
+ },
+ "level": {
+  "box": [
+   132,
+   35,
+   180,
+   52
+  ],
+  "slide": [
+   40,
+   190
+  ],
+  "shows": "the glyphs 升級了 (levelled up) of the message after a won fight, which follow the character's name, so they are searched along the row"
  }
 }

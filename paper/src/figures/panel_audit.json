@@ -98,27 +98,51 @@
    "shows_panel": true
   },
   {
-   "session": "ac1e0b048aa4-h1",
+   "session": "fd52a5a5f668",
    "panel": "hermit",
-   "video_second": 78,
+   "video_second": 72,
    "shows_panel": true
   },
   {
-   "session": "ac1e0b048aa4-h1",
+   "session": "fd52a5a5f668",
    "panel": "compass",
-   "video_second": 84,
+   "video_second": 83,
    "shows_panel": true
   },
   {
-   "session": "ac1e0b048aa4-h1",
+   "session": "fd52a5a5f668",
    "panel": "battle",
-   "video_second": 108,
+   "video_second": 114,
    "shows_panel": true
   },
   {
-   "session": "ac1e0b048aa4-h1",
+   "session": "fd52a5a5f668",
    "panel": "defeat",
-   "video_second": 117,
+   "video_second": 125,
+   "shows_panel": true
+  },
+  {
+   "session": "fd52a5a5f668",
+   "panel": "prompt",
+   "video_second": 165,
+   "shows_panel": true
+  },
+  {
+   "session": "fd52a5a5f668",
+   "panel": "won",
+   "video_second": 207,
+   "shows_panel": true
+  },
+  {
+   "session": "fd52a5a5f668",
+   "panel": "exp",
+   "video_second": 207,
+   "shows_panel": true
+  },
+  {
+   "session": "fd52a5a5f668",
+   "panel": "level",
+   "video_second": 207,
    "shows_panel": true
   }
  ]

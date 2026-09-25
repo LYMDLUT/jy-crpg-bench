@@ -53,11 +53,9 @@ facts={
  'never':[r['agent'] for r in cat if not (r['actions'] or 0)],
  'latched':sum(1 for r in play if r.get('bigmap')),
  'corroborated':sum(1 for r in play if r.get('bigmap') and r.get('exit_secs')),
- 'max_exp':max((r.get('exp') or 0) for r in play),
  'ratio_at_least_half':[r['agent'] for r in play if r['meaningful']>=0.5],
 }
 print("catalogue facts:",json.dumps(facts,indent=None))
-if all((r.get('level')==1 for r in play)): bad("every scored run is level 1 -- § claims this; confirm")
 print("cited keys:",len(cites),"| unused in bib:",unused)
 print("numbers.tex macros:",len(allproj))
 # anonymity: while \iclrfinalcopy is commented out, no source may name an

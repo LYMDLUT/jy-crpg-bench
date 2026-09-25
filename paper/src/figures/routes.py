@@ -7,8 +7,8 @@ routes-compound.pdf has one panel per model, in the order of the upper panel of
 Figure 3, with the path of its reported session from the spawn tile to the
 first black frame, read by anchored_route.py into routes/compound-<id>.json.
 routes-world.pdf has the world-map walks read by worldmap_route.py into
-routes/world-<id>.json: the gpt-6-astra session that entered the most distinct
-scenes, the claude-opus-5.5 session reported in Figure 3, and the session that
+routes/world-<id>.json: the claude-opus-5.5 session reported in Figure 3, the
+gpt-6-astra session that entered the most distinct scenes, and the session that
 spent longest on the world map without entering a scene. Scene entries and the
 replay panels (hermit, compass, fight, defeat, recruitment) are marked where
 the hero stood on the world map just before them. Both figures share one
@@ -17,6 +17,7 @@ colour scale of 0 to 60 minutes; arrowheads along the path give its direction.
 import json
 import os
 import sys
+import textwrap
 
 import numpy as np
 from PIL import Image
@@ -127,17 +128,19 @@ def compound_figure():
 # the scene banners the replay scan names, in English; the glossary gives the originals
 SCENES = {"南賢居": "house of the hermit", "河洛客棧": "Heluo Inn", "高昇客棧": "Gaosheng Inn",
           "王居": "starting house", "閻基居": "house of Yan Ji", "田伯光居": "house of Tian Boguang",
-          "藥王莊": "Yaowang Manor", "福威鏢局": "Fuwei Escort Agency", "峨嵋派": "Emei Sect"}
-PANELS = ("hermit", "compass", "battle", "defeat")
-PANEL_LABEL = {"hermit": "hermit", "compass": "compass read", "battle": "battle", "defeat": "battle lost"}
+          "藥王莊": "Yaowang Manor", "福威鏢局": "Fuwei Escort Agency", "峨嵋派": "Emei Sect",
+          "衡山派": "Hengshan Sect", "黑龍潭": "Black Dragon Pool"}
+PANELS = ("hermit", "compass", "battle", "defeat", "won")
+PANEL_LABEL = {"hermit": "hermit", "compass": "compass read", "battle": "battle", "defeat": "battle lost", "won": "battle won"}
 JUMP = 12 * 18                 # px: a longer step between placed frames is a scene or a loaded save
-MERGE = 2 * 18                 # px: events this close share one marker
+MERGE = 4 * 18                 # px: events this close to a marker join it
 
 
 def world_sessions():
-    """The three sessions of the world-map figure: the gpt-6-astra session that
-    entered the most distinct scenes, the reported session of claude-opus-5.5,
-    and the session that spent longest on the world map without a scene."""
+    """The three sessions of the world-map figure: the reported session of
+    claude-opus-5.5, the one with the most milestones, the gpt-6-astra session
+    that entered the most distinct scenes, and the session that spent longest
+    on the world map without a scene."""
     rows = field.played(field.load_runs(dedup=False))
     ev = json.load(open(os.path.join(HERE, "replay_events.json"), encoding="utf-8"))
 
@@ -147,7 +150,7 @@ def world_sessions():
     opus = next(r for r in field.best_per_model(rows) if r["agent"] == "claude-opus-5.5")
     crossed = [r for r in rows if r.get("exit_acts") is not None and not ev[r["id"]]["scenes"]["entries"]]
     orbit = max(crossed, key=lambda r: r["actions"] - r["exit_acts"])
-    return [(r, ev[r["id"]]) for r in (astra, opus, orbit)]
+    return [(r, ev[r["id"]]) for r in (opus, astra, orbit)]
 
 
 def events(e, track):
@@ -161,15 +164,16 @@ def events(e, track):
             out.append((x["minute"], SCENES[x["name"]]))
     out += [(e[n]["first_minute"], PANEL_LABEL[n]) for n in PANELS if e[n]["first_minute"] is not None]
     if e.get("recruited_minute") is not None:
-        out.append((e["recruited_minute"], "companion"))
+        out.append((e["recruited_minute"], "party member"))
     marks = []
     for m, lab in sorted(out):
         before = track[track[:, 4] <= m]
         if not len(before) or m > 60:
             continue
         x, y = before[-1, 0], before[-1, 1]
-        if marks and np.hypot(marks[-1][0] - x, marks[-1][1] - y) <= MERGE:
-            marks[-1][2].append((m, lab))
+        near = [k for k in marks if np.hypot(k[0] - x, k[1] - y) <= MERGE]
+        if near:
+            near[0][2].append((m, lab))
         else:
             marks.append((x, y, [(m, lab)]))
     return marks
@@ -185,29 +189,34 @@ def smooth(xy, k=3):
 
 
 def world_figure():
-    """Two by two: the three walks, and in the fourth cell the list of each
-    walk's markers above the colour bar."""
+    """Two rows, each walk on its own crop of the map: the first walk across the
+    top with its markers beside it, the other two below with their markers and
+    the colour bar in the last column."""
     sess = world_sessions()
     tracks = [load("world", r["id"]) for r, _ in sess]
-    pad = 36
-    allp = np.concatenate(tracks)
-    bx0, bx1 = int(allp[:, 0].min() - pad), int(allp[:, 0].max() + pad)
-    by0, by1 = int(allp[:, 1].min() - pad), int(allp[:, 1].max() + pad)
-    crop = faded(Image.open(os.path.join(HERE, "worldmap.png")).crop((bx0, by0, bx1, by1)))
-    w_in, gap, head = 7.0, 0.12, 0.16
-    pw = (w_in - gap) / 2
-    ph = pw * (by1 - by0) / (bx1 - bx0)
-    fig = plt.figure(figsize=(w_in, 2 * (ph + head) + gap))
-    H = fig.get_figheight()
-    cells = [(0, 0), (1, 0), (0, 1)]
+    tracks = [t[t[:, 4] <= 60] for t in tracks]
+    world = Image.open(os.path.join(HERE, "worldmap.png"))
+    pad = 90                   # px: room for a marker at the edge of a walk
+    boxes = []
+    for t in tracks:
+        boxes.append((int(t[:, 0].min() - pad), int(t[:, 1].min() - pad), int(t[:, 0].max() + pad), int(t[:, 1].max() + pad)))
+    aspect = [(x1 - x0) / (y1 - y0) for x0, y0, x1, y1 in boxes]
+    w_in, gap, head, listw = 7.0, 0.12, 0.16, 2.6
+    # row heights: the first walk fills the width left of its list; the other two share one height
+    h1 = (w_in - listw - gap) / aspect[0]
+    h2 = (w_in - listw - 2 * gap) / (aspect[1] + aspect[2])
+    H = head + h1 + gap + head + h2
+    fig = plt.figure(figsize=(w_in, H))
+    places = [(0.0, H - head - h1, aspect[0] * h1, h1),
+              (0.0, H - 2 * head - h1 - gap - h2, aspect[1] * h2, h2),
+              (aspect[1] * h2 + gap, H - 2 * head - h1 - gap - h2, aspect[2] * h2, h2)]
     notes = []
-    for ((r, e), t), (c, rr) in zip(zip(sess, tracks), cells):
-        x = c * (pw + gap)
-        y = H - (rr + 1) * (ph + head) - rr * gap
-        ax = fig.add_axes([x / w_in, y / H, pw / w_in, ph / H])
-        ax.imshow(crop, extent=(bx0, bx1, by1, by0), interpolation="nearest")
-        ax.set_xlim(bx0, bx1)
-        ax.set_ylim(by1, by0)
+    for ((r, e), t, box, (x, y, w, h)) in zip(sess, tracks, boxes, places):
+        x0, y0, x1, y1 = box
+        ax = fig.add_axes([x / w_in, y / H, w / w_in, h / H])
+        ax.imshow(faded(world.crop(box)), extent=(x0, x1, y1, y0), interpolation="nearest")
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y1, y0)
         ax.set_xticks([])
         ax.set_yticks([])
         for sp in ax.spines.values():
@@ -221,19 +230,23 @@ def world_figure():
             ax.text(ex, ey, str(i), fontsize=5.6, ha="center", va="center", color=INK, zorder=7)
             lines.append("%d  %s" % (i, ", ".join("%s %d" % (lab, round(m)) for m, lab in evs)))
         notes.append((r["agent"], lines or ["no location entered"]))
-    # the fourth cell: the markers of each walk, then the colour bar
-    x = pw + gap
-    ty = H - (ph + head) - gap - head
+
+    def listing(x, ty, items):
+        for agent, lines in items:
+            fig.text(x / w_in, ty / H, agent, fontsize=7.5, color=INK, family="monospace", va="top")
+            ty -= 0.15
+            for ln in lines:
+                for k, part in enumerate(textwrap.wrap(ln, 46, subsequent_indent="     ")):
+                    fig.text((x + 0.08) / w_in, ty / H, part, fontsize=7, color=INK, va="top")
+                    ty -= 0.13
+            ty -= 0.08
+        return ty
+    x = w_in - listw
+    ty = H - head
     fig.text(x / w_in, ty / H, "Markers, with the minute of each event", fontsize=7, color=INK, va="top", style="italic")
-    ty -= 0.2
-    for agent, lines in notes:
-        fig.text(x / w_in, ty / H, agent, fontsize=7.5, color=INK, family="monospace", va="top")
-        ty -= 0.15
-        for ln in lines:
-            fig.text((x + 0.08) / w_in, ty / H, ln, fontsize=7, color=INK, va="top")
-            ty -= 0.13
-        ty -= 0.08
-    colorbar(fig, [(x + 0.08) / w_in, (H - 2 * (ph + head) - gap + 0.24) / H, (pw - 0.5) / w_in, 0.08 / H])
+    listing(x, ty - 0.2, notes[:1])
+    ty = listing(x, H - 2 * head - h1 - gap + 0.12, notes[1:])
+    colorbar(fig, [(x + 0.08) / w_in, (H - 2 * head - h1 - gap - h2 + 0.24) / H, (listw - 0.5) / w_in, 0.08 / H])
     fig.savefig(os.path.join(HERE, "routes-world.pdf"), dpi=300)
     plt.close(fig)
 
