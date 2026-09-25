@@ -450,22 +450,22 @@
 % attempts at the four-hour budget on record
 \newcommand{\NlongAttempts}{48}
 % four-hour sessions that count
-\newcommand{\NlongSessions}{7}
+\newcommand{\NlongSessions}{8}
 % models with a four-hour session that counts
-\newcommand{\NlongModels}{7}
+\newcommand{\NlongModels}{8}
 % attempts that do not count
-\newcommand{\NlongWithheld}{41}
+\newcommand{\NlongWithheld}{40}
 % models with a four-hour attempt and no session that counts
-\newcommand{\NlongPendingModels}{8}
+\newcommand{\NlongPendingModels}{7}
 % of them evaluated at the hour
-\newcommand{\NlongFieldModels}{4}
-\newcommand{\NlongFieldSessions}{4}
+\newcommand{\NlongFieldModels}{5}
+\newcommand{\NlongFieldSessions}{5}
 % requested wall-clock budget
 \newcommand{\NlongBudgetMin}{240}
 % the last key must fall within this many final minutes
 \newcommand{\NlongWindowMin}{2}
 \newcommand{\NlongMinLastMin}{238}
-\newcommand{\NlongAliased}{6}
+\newcommand{\NlongAliased}{7}
 % attempts declared under names that identify no model of the paper
 \newcommand{\NlongExcluded}{2}
 % attempts of one or two actions
@@ -475,38 +475,48 @@
 % attempts whose harness read earlier sessions
 \newcommand{\NlongProtocol}{1}
 % attempts whose last key came before the final minutes
-\newcommand{\NlongEarly}{30}
+\newcommand{\NlongEarly}{29}
 % the model whose attempt read the timelines of earlier sessions
 \newcommand{\LlongHackLabel}{\texttt{gemini-3.8-flash}}
 % models with a four-hour attempt and no session that counts
-\newcommand{\LlongPendingLabels}{\texttt{claude-opus-5.5}, \texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra}, \texttt{grok-4.7} and \texttt{kimi-k3}}
+\newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra}, \texttt{grok-4.7} and \texttt{kimi-k3}}
 % among the four-hour sessions that count
-\newcommand{\NlongMap}{6}
+\newcommand{\NlongMap}{7}
 % among the four-hour sessions that count
-\newcommand{\NlongItem}{4}
+\newcommand{\NlongItem}{5}
 % among the four-hour sessions that count
-\newcommand{\NlongScene}{4}
+\newcommand{\NlongScene}{5}
 % among the four-hour sessions that count
-\newcommand{\NlongHermit}{0}
+\newcommand{\NlongHermit}{1}
 % among the four-hour sessions that count
-\newcommand{\NlongCompass}{0}
+\newcommand{\NlongCompass}{1}
 % among the four-hour sessions that count
 \newcommand{\NlongCompanion}{0}
 % among the four-hour sessions that count
-\newcommand{\NlongFight}{0}
+\newcommand{\NlongFight}{1}
 % among the four-hour sessions that count
 \newcommand{\NlongExp}{0}
 % among the four-hour sessions that count
 \newcommand{\NlongBook}{0}
 % earliest last key, minutes
-\newcommand{\LlongLastMin}{238.1}
+\newcommand{\LlongLastMin}{229.3}
 % latest last key, minutes
 \newcommand{\LlongLastMax}{239.8}
 % earliest crossing, minutes
-\newcommand{\LlongCrossFirst}{9.6}
+\newcommand{\LlongCrossFirst}{2.9}
 % latest crossing, minutes
 \newcommand{\LlongCrossLast}{48.6}
 \newcommand{\NlongCrossLate}{0}
+% the model of the special four-hour session
+\newcommand{\LlongSpecialLabel}{\texttt{claude-opus-5.5}}
+% minute of its last key
+\newcommand{\PlongSpecialLastMin}{229}
+\newcommand{\PlongSpecialHermitMin}{31}
+\newcommand{\PlongSpecialCompassMin}{34}
+\newcommand{\PlongSpecialBattleMin}{43}
+\newcommand{\PlongSpecialDefeatMin}{47}
+% four-hour sessions that count under the rule
+\newcommand{\NlongRegular}{7}
 \newcommand{\LfirstHourLabel}{\texttt{claude-opus-5.5}}
 % its four-hour sessions read over their first hour
 \newcommand{\NfirstHourSessions}{2}
