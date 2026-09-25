@@ -672,12 +672,6 @@ emit("PhermitEveryLast", max(_hermit_every), "latest", fmt="%.0f")
 _YANJI, _TIAN = "閻基居", "田伯光居"
 _all_fights = [(r, e) for r, e in EV.values() if e["battle"]["seconds"]]
 emit("PfightSessions", len(_all_fights), "sessions that entered a battle")
-# the pace: the session with the most milestones against the other sessions of its model
-_best = max(PLAY, key=lambda r: (field.rungs_reached(r), r["id"]))
-_sib = [r for r in PLAY if r["agent"] == _best["agent"] and r["id"] != _best["id"]]
-if not _sib or any(r["actions"] <= _best["actions"] or r["gap_p50"] >= _best["gap_p50"] for r in _sib):
-    sys.exit("the prose says the session with the most milestones took fewer actions, at a slower pace, than the other sessions of its model")
-emit("PpaceSiblingRungs", max(field.rungs_reached(r) for r in _sib), "milestones its sibling session reached")
 for r, e in _all_fights:
     _before = [x["name"] for x in e["scenes"]["entries"] if x["minute"] <= _first(e, "battle")]
     if not _before or _before[-1] != _YANJI:

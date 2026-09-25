@@ -199,16 +199,6 @@ def main():
                     all(c[1] == c[2] for m in union for c in [m["counts"][SCENE]])
                     and (int(nums["Lscene"]), int(nums["LnoScene"])) == (len(entered), len(union) - len(entered)),
                     "%d models entered a scene: %s" % (len(entered), entered))
-    if "than the other session of its model, which reached" in flat:
-        # Section 4: the pace did not set the order, within one model
-        best = max(models, key=lambda r: (field.rungs_reached(r), r["id"]))
-        sib = [r for r in models if r["agent"] == best["agent"] and r["id"] != best["id"]]
-        ok &= claim("the session with the most milestones took fewer actions, at a slower pace, than its sibling",
-                    len(sib) == 1 and sib[0]["actions"] > best["actions"] and sib[0]["gap_p50"] < best["gap_p50"]
-                    and int(nums["PpaceSiblingRungs"]) == field.rungs_reached(sib[0]),
-                    "best %s %s acts %s gap %s; sibling %s" % (best["agent"], best["id"], best["actions"], best["gap_p50"],
-                                                           [(r["id"], r["actions"], r["gap_p50"]) for r in sib]))
-
     # The four-hour sessions that count, validated against the manifest.
     import long_cohort
     attempts = field.long_attempts()
