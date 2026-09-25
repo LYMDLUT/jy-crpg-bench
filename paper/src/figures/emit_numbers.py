@@ -855,25 +855,27 @@ if not _lcross or any(r.get("exit_secs") is None for r in LONG if field.on_map(r
 emit("LlongCrossFirst", min(_lcross), "earliest crossing, minutes", fmt="%.1f")
 emit("LlongCrossLast", max(_lcross), "latest crossing, minutes", fmt="%.1f")
 emit("NlongCrossLate", sum(t > BUDGET / 60 for t in _lcross))
-_SPECIAL = long_cohort.special_ids(LONG_MANIFEST)
-for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "gained\nexperience", "one of the\nfourteen"):
-    if any(field.rungs_of(r)[field.DEFINITION.index(rung)] is True for r in LONG if r["id"] not in _SPECIAL):
-        sys.exit("the prose says no other four-hour session that counts reached " + rung.replace("\n", " "))
-# The special session: the prose gives its milestones by minute.
-_sp = [r for r in LONG if r["id"] in _SPECIAL]
-if len(_sp) != 1 or _sp[0]["agent"] != "claude-opus-5.5":
-    sys.exit("the prose says one special four-hour session counts, of claude-opus-5.5")
-_sp, = _sp
+# the four-hour sessions that go beyond the opening, by milestone
+_LK = {k: field.DEFINITION.index(k) for k in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "finished\na battle", "gained\nexperience", "one of the\nfourteen")}
+_beyond = [r for r in LONG if field.rungs_of(r)[_LK["spoke with\nthe hermit"]] is True]
+for rung in ("gained\nexperience", "one of the\nfourteen"):
+    if any(field.rungs_of(r)[_LK[rung]] is True for r in LONG):
+        sys.exit("the prose says no four-hour session that counts reached " + rung.replace("\n", " "))
+if len(_beyond) != 1 or _beyond[0]["agent"] != "claude-opus-5.5":
+    sys.exit("the prose says one four-hour session, of claude-opus-5.5, goes beyond the opening: %s" % [r["agent"] for r in _beyond])
+_sp, = _beyond
 _spe = _sp["replay"]
-if field.rungs_of(_sp)[field.DEFINITION.index("gained\nexperience")] is True or not (_spe.get("defeat") or {}).get("minutes"):
-    sys.exit("the prose says the special session lost its battle and gained no experience")
-emit_label("LlongSpecialLabel", _sp["agent"], "the model of the special four-hour session")
-emit("PlongSpecialLastMin", long_cohort.last_key_seconds(_sp) / 60, "minute of its last key", fmt="%.0f")
-emit("PlongSpecialHermitMin", _spe["hermit"]["minutes"][0], fmt="%.0f")
-emit("PlongSpecialCompassMin", _spe["compass"]["minutes"][0], fmt="%.0f")
-emit("PlongSpecialBattleMin", _spe["battle"]["minutes"][0], fmt="%.0f")
-emit("PlongSpecialDefeatMin", _spe["defeat"]["minutes"][0], fmt="%.0f")
-emit("NlongRegular", len(LONG) - 1, "four-hour sessions that count under the rule")
+if not (_spe.get("defeat") or {}).get("minutes"):
+    sys.exit("the prose says the four-hour session beyond the opening lost its battle")
+_h1 = next((r for r in PLAY if r["id"] == _sp["id"] + "-h1"), None)
+if _h1 is None or field.rungs_reached(_h1) != field.rungs_reached(_sp):
+    sys.exit("the prose says the four-hour session beyond the opening reached nothing new after its first hour")
+emit_label("LlongBeyondLabel", _sp["agent"], "the model of the four-hour session beyond the opening")
+emit("PlongBeyondLastMin", long_cohort.last_key_seconds(_sp) / 60, "minute of its last key", fmt="%.0f")
+emit("PlongBeyondHermitMin", _spe["hermit"]["minutes"][0], fmt="%.0f")
+emit("PlongBeyondCompassMin", _spe["compass"]["minutes"][0], fmt="%.0f")
+emit("PlongBeyondBattleMin", _spe["battle"]["minutes"][0], fmt="%.0f")
+emit("PlongBeyondDefeatMin", _spe["defeat"]["minutes"][0], fmt="%.0f")
 if field.HACK_SESSION in {r["id"] for r in LONG}:
     sys.exit("the attempt that read earlier sessions must not count")
 _FH = [r for r in PLAY if r["id"].endswith("-h1")]

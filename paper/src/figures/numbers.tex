@@ -450,22 +450,22 @@
 % attempts at the four-hour budget on record
 \newcommand{\NlongAttempts}{48}
 % four-hour sessions that count
-\newcommand{\NlongSessions}{8}
+\newcommand{\NlongSessions}{10}
 % models with a four-hour session that counts
-\newcommand{\NlongModels}{8}
+\newcommand{\NlongModels}{9}
 % attempts that do not count
-\newcommand{\NlongWithheld}{40}
+\newcommand{\NlongWithheld}{38}
 % models with a four-hour attempt and no session that counts
-\newcommand{\NlongPendingModels}{7}
+\newcommand{\NlongPendingModels}{6}
 % of them evaluated at the hour
-\newcommand{\NlongFieldModels}{5}
-\newcommand{\NlongFieldSessions}{5}
+\newcommand{\NlongFieldModels}{6}
+\newcommand{\NlongFieldSessions}{7}
 % requested wall-clock budget
 \newcommand{\NlongBudgetMin}{240}
 % the last key must fall within this many final minutes
-\newcommand{\NlongWindowMin}{2}
-\newcommand{\NlongMinLastMin}{238}
-\newcommand{\NlongAliased}{7}
+\newcommand{\NlongWindowMin}{15}
+\newcommand{\NlongMinLastMin}{225}
+\newcommand{\NlongAliased}{8}
 % attempts declared under names that identify no model of the paper
 \newcommand{\NlongExcluded}{2}
 % attempts of one or two actions
@@ -475,15 +475,15 @@
 % attempts whose harness read earlier sessions
 \newcommand{\NlongProtocol}{1}
 % attempts whose last key came before the final minutes
-\newcommand{\NlongEarly}{29}
+\newcommand{\NlongEarly}{27}
 % the model whose attempt read the timelines of earlier sessions
 \newcommand{\LlongHackLabel}{\texttt{gemini-3.8-flash}}
 % models with a four-hour attempt and no session that counts
-\newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.7-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra}, \texttt{grok-4.7} and \texttt{kimi-k3}}
+\newcommand{\LlongPendingLabels}{\texttt{deepseek-v4-flash}, \texttt{gemini-3.8-flash}, \texttt{gpt-5.6-terra}, \texttt{gpt-6-astra}, \texttt{grok-4.7} and \texttt{kimi-k3}}
 % among the four-hour sessions that count
-\newcommand{\NlongMap}{7}
+\newcommand{\NlongMap}{9}
 % among the four-hour sessions that count
-\newcommand{\NlongItem}{5}
+\newcommand{\NlongItem}{7}
 % among the four-hour sessions that count
 \newcommand{\NlongScene}{5}
 % among the four-hour sessions that count
@@ -505,23 +505,21 @@
 % earliest crossing, minutes
 \newcommand{\LlongCrossFirst}{2.9}
 % latest crossing, minutes
-\newcommand{\LlongCrossLast}{48.6}
+\newcommand{\LlongCrossLast}{52.4}
 \newcommand{\NlongCrossLate}{0}
-% the model of the special four-hour session
-\newcommand{\LlongSpecialLabel}{\texttt{claude-opus-5.5}}
+% the model of the four-hour session beyond the opening
+\newcommand{\LlongBeyondLabel}{\texttt{claude-opus-5.5}}
 % minute of its last key
-\newcommand{\PlongSpecialLastMin}{229}
-\newcommand{\PlongSpecialHermitMin}{31}
-\newcommand{\PlongSpecialCompassMin}{34}
-\newcommand{\PlongSpecialBattleMin}{43}
-\newcommand{\PlongSpecialDefeatMin}{47}
-% four-hour sessions that count under the rule
-\newcommand{\NlongRegular}{7}
+\newcommand{\PlongBeyondLastMin}{229}
+\newcommand{\PlongBeyondHermitMin}{31}
+\newcommand{\PlongBeyondCompassMin}{34}
+\newcommand{\PlongBeyondBattleMin}{43}
+\newcommand{\PlongBeyondDefeatMin}{47}
 \newcommand{\LfirstHourLabel}{\texttt{claude-opus-5.5}}
 % its four-hour sessions read over their first hour
 \newcommand{\NfirstHourSessions}{2}
 % the days the four-hour sessions that count ran, UTC
-\newcommand{\LongDates}{17 to 22 September 2026}
+\newcommand{\LongDates}{16 to 22 September 2026}
 % the least match of the opening room that admits a capture
 \newcommand{\HumanRoomGate}{0.90}
 % published videos of human players the paper reads

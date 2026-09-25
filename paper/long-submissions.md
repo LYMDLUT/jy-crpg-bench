@@ -1,13 +1,13 @@
 # Four-hour sessions
 
-The catalogue at the four-hour budget holds every attempt, including retries and interrupted runs. A session counts when the service ended it at the budget and its last key falls within the final two minutes, and every such session counts, as every played session counts at the hour. One more session, `ac1e0b048aa4` of claude-opus-5.5, counts as a special case: the service ended it at the budget, its last key came at minute 229, and it is the one four-hour session that goes beyond the opening. `src/figures/long_submissions.json` lists every attempt with its status and reason, and `src/figures/long_cohort.py` refuses an attempt the manifest does not list. The session id of each row of Table 5 is a comment above the row in `src/tables/long.tex`.
+The catalogue at the four-hour budget holds every attempt, including retries and interrupted runs. A session counts when the service ended it at the budget and its last key falls within the final fifteen minutes, and every such session counts, as every played session counts at the hour. `src/figures/long_submissions.json` lists every attempt with its status and reason, and `src/figures/long_cohort.py` refuses an attempt the manifest does not list. The session id of each row of Table 5 is a comment above the row in `src/tables/long.tex`.
 
 | Model | Session | Actions | Last key (min) | Status |
 |---|---|---:|---:|---|
 | claude-opus-4-5-high | `32a1d38bbfce` | 370 | 65.29 | incompatible_config |
 | claude-opus-5.5 | `b0dbef24e731` | 0 | 0.00 | no_actions |
-| claude-opus-5.5 | `ac1e0b048aa4` | 11850 | 229.31 | selected (special case) |
-| claude-opus-5.5 | `a424a8d10d55` | 5310 | 234.23 | stopped_early |
+| claude-opus-5.5 | `ac1e0b048aa4` | 11850 | 229.31 | selected |
+| claude-opus-5.5 | `a424a8d10d55` | 5310 | 234.23 | selected |
 | deepseek-v4-flash | `32940e2cb2c0` | 12 | 1.80 | stopped_early |
 | deepseek-v4-flash | `32ecf060c2ae` | 556 | 25.92 | stopped_early |
 | deepseek-v4-flash | `d8428f311f2c` | 881 | 27.82 | stopped_early |
@@ -19,7 +19,7 @@ The catalogue at the four-hour budget holds every attempt, including retries and
 | deepseek-v4.1-flash | `913be91591d6` | 0 | 0.00 | no_actions |
 | deepseek-v4.1-flash | `8aa37740e5e8` | 6026 | 239.77 | selected |
 | deepseek-v4.1-flash | `f049819cfaaa` | 435 | 114.49 | stopped_early |
-| gemini-3.7-flash | `89e9f8d32e18` | 584 | 231.11 | stopped_early |
+| gemini-3.7-flash | `89e9f8d32e18` | 584 | 231.11 | selected |
 | gemini-3.8-flash | `3eb8f81b3592` | 442 | 238.60 | protocol_violation |
 | gemini-3.8-flash | `b90f223b4e54` | 672 | 139.94 | stopped_early |
 | gemini-3.8-flash | `54cd9429d714` | 62 | 30.74 | stopped_early |

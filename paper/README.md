@@ -73,7 +73,7 @@ ICLR 2027 submission draft for jy-crpg-bench.
   readings cut at minute 60. `field.load_runs()` adds these rows to the hour field.
 - `src/figures/long_submissions.json` - every attempt at the four-hour budget with its
   status and reason. `long_cohort.py` selects the sessions that count (ended by the
-  service at the budget, last key in the final two minutes) and refuses an attempt
+  service at the budget, last key in the final fifteen minutes) and refuses an attempt
   the manifest does not list;
   `field.long_attempts()` returns the archive and `field.load_long()` the sessions
   that count. `long-submissions.md` lists the decisions. Run

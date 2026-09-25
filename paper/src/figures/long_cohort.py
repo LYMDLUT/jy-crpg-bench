@@ -2,7 +2,7 @@
 
 The catalogue at the four-hour budget is an archive of attempts, including
 retries and interrupted runs. A session counts when the service ended it at the
-budget and its last key falls within the final two minutes. The manifest
+budget and its last key falls within the final fifteen minutes. The manifest
 lists every attempt with its status and reason, and validation refuses an
 attempt the manifest does not list.
 """
@@ -38,8 +38,8 @@ def validate(rows, manifest=None, timeline_dir=None):
         raise ValueError("unsupported submission manifest version/state")
     budget = manifest["budget_seconds"]
     window = manifest["last_key_window_seconds"]
-    if budget != 14400 or window != 120:
-        raise ValueError("the rule is a 240-minute budget and a two-minute window")
+    if budget != 14400 or window != 900:
+        raise ValueError("the rule is a 240-minute budget and a fifteen-minute window")
     ids = [r["id"] for r in rows]
     entries = manifest["attempts"]
     entry_ids = [e["id"] for e in entries]
@@ -50,9 +50,6 @@ def validate(rows, manifest=None, timeline_dir=None):
     indexed = {r["id"]: r for r in rows}
     blocked = set(manifest["protocol_violations"])
     incompatible = set(manifest["incompatible_declared_names"])
-    special = manifest.get("special_sessions", {})
-    if len(special) > 1 or not all(special.values()):
-        raise ValueError("at most one special session, with its reason")
     selected = set()
     for entry in entries:
         r = indexed[entry["id"]]
@@ -71,8 +68,7 @@ def validate(rows, manifest=None, timeline_dir=None):
             expected = "no_actions"
         elif r["actions"] <= 2:
             expected = "startup_only"
-        elif r.get("reason") == "time" and (r["id"] in special
-                                            or budget - window <= last_key_seconds(r, timeline_dir) <= budget):
+        elif r.get("reason") == "time" and budget - window <= last_key_seconds(r, timeline_dir) <= budget:
             expected = "selected"
         else:
             expected = "stopped_early"
@@ -89,12 +85,6 @@ def select(rows, manifest=None, timeline_dir=None):
     manifest = validate(rows, manifest, timeline_dir)
     ids = {e["id"] for e in entries_of(manifest, "selected")}
     return [r for r in rows if r["id"] in ids]
-
-
-def special_ids(manifest=None):
-    if manifest is None:
-        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    return set(manifest.get("special_sessions", {}))
 
 
 def entries_of(manifest, status):

@@ -245,19 +245,15 @@ def main():
                 (int(nums["NlongAttempts"]), int(nums["NlongSessions"]), int(nums["NlongWithheld"]))
                 == (len(attempts), len(long_rows), len(attempts) - len(long_rows)), str(len(attempts)))
     ok &= claim("the attempt that read earlier sessions does not count", field.HACK_SESSION not in selected_ids, field.HACK_SESSION)
-    special = long_cohort.special_ids(manifest)
-    ok &= claim("one special four-hour session counts, of claude-opus-5.5",
-                len(special) == 1 and special <= selected_ids
-                and {r["agent"] for r in long_rows if r["id"] in special} == {"claude-opus-5.5"}, str(sorted(special)))
-    for rung in ("spoke with\nthe hermit", "holds the\ncompass", "entered\na battle", "gained\nexperience", "one of the\nfourteen"):
+    for rung in ("gained\nexperience", "one of the\nfourteen"):
         k = field.DEFINITION.index(rung)
-        ok &= claim("no other four-hour session that counts reached " + rung.replace("\n", " "),
-                    not any(field.rungs_of(r)[k] is True for r in long_rows if r["id"] not in special), str(len(long_rows)))
+        ok &= claim("no four-hour session that counts reached " + rung.replace("\n", " "),
+                    not any(field.rungs_of(r)[k] is True for r in long_rows), str(len(long_rows)))
     if "sessions before the hour" in flat:
         idle = sum(1 for r in models if r.get("reason") == "idle")
         ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
                     "%d idle-ended" % idle)
-    if "loses its finished battle, and no other count changes" in flat:
+    if "its finished battle and change no other count" in flat:
         full = {m["agent"]: m for m in field.model_rows(models)}
         without = {m["agent"]: m for m in field.model_rows([r for r in models if r.get("reason") != "idle"])}
         FOUGHT = field.DEFINITION.index("finished\na battle")
