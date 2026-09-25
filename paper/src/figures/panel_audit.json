@@ -1,0 +1,125 @@
+{
+ "about": "The first reading of every replay panel in the hour sessions, checked by eye against the frame of highest score in that video second: the frame shows the panel.",
+ "checked": [
+  {
+   "session": "f9435a1f803b",
+   "panel": "hermit",
+   "video_second": 143,
+   "shows_panel": true
+  },
+  {
+   "session": "f9435a1f803b",
+   "panel": "compass",
+   "video_second": 215,
+   "shows_panel": true
+  },
+  {
+   "session": "9f5557c5b6b5",
+   "panel": "hermit",
+   "video_second": 289,
+   "shows_panel": true
+  },
+  {
+   "session": "6e7750bb85e0",
+   "panel": "hermit",
+   "video_second": 259,
+   "shows_panel": true
+  },
+  {
+   "session": "25475f1a2e3d",
+   "panel": "hermit",
+   "video_second": 90,
+   "shows_panel": true
+  },
+  {
+   "session": "25475f1a2e3d",
+   "panel": "compass",
+   "video_second": 156,
+   "shows_panel": true
+  },
+  {
+   "session": "25475f1a2e3d",
+   "panel": "battle",
+   "video_second": 202,
+   "shows_panel": true
+  },
+  {
+   "session": "25475f1a2e3d",
+   "panel": "defeat",
+   "video_second": 209,
+   "shows_panel": true
+  },
+  {
+   "session": "8acf2fa93bf6",
+   "panel": "hermit",
+   "video_second": 329,
+   "shows_panel": true
+  },
+  {
+   "session": "0aaed52489f6",
+   "panel": "hermit",
+   "video_second": 98,
+   "shows_panel": true
+  },
+  {
+   "session": "0aaed52489f6",
+   "panel": "compass",
+   "video_second": 182,
+   "shows_panel": true
+  },
+  {
+   "session": "0aaed52489f6",
+   "panel": "battle",
+   "video_second": 296,
+   "shows_panel": true
+  },
+  {
+   "session": "40c05bfa3284",
+   "panel": "hermit",
+   "video_second": 82,
+   "shows_panel": true
+  },
+  {
+   "session": "40c05bfa3284",
+   "panel": "compass",
+   "video_second": 135,
+   "shows_panel": true
+  },
+  {
+   "session": "40c05bfa3284",
+   "panel": "prompt",
+   "video_second": 386,
+   "shows_panel": true
+  },
+  {
+   "session": "80848a636957",
+   "panel": "hermit",
+   "video_second": 396,
+   "shows_panel": true
+  },
+  {
+   "session": "ac1e0b048aa4-h1",
+   "panel": "hermit",
+   "video_second": 78,
+   "shows_panel": true
+  },
+  {
+   "session": "ac1e0b048aa4-h1",
+   "panel": "compass",
+   "video_second": 84,
+   "shows_panel": true
+  },
+  {
+   "session": "ac1e0b048aa4-h1",
+   "panel": "battle",
+   "video_second": 108,
+   "shows_panel": true
+  },
+  {
+   "session": "ac1e0b048aa4-h1",
+   "panel": "defeat",
+   "video_second": 117,
+   "shows_panel": true
+  }
+ ]
+}

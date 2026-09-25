@@ -1,6 +1,6 @@
 {
  "8b3e9ed4c230": {
-  "agent": "claude-fable5.1",
+  "agent": "claude-fable-5.1",
   "video_seconds": 427,
   "scenes": {
    "entries": [],
@@ -37,7 +37,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.564,
+   "max": 0.199,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -54,7 +54,7 @@
   "recruited_minute": null
  },
  "c84266b701e8": {
-  "agent": "claude-fable5.1",
+  "agent": "claude-fable-5.1",
   "video_seconds": 448,
   "scenes": {
    "entries": [],
@@ -91,23 +91,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.684,
+   "max": 0.294,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     246,
-     0.609
-    ],
-    [
-     255,
-     0.654
-    ],
-    [
-     256,
-     0.684
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -121,7 +108,7 @@
   "recruited_minute": null
  },
  "088b8aa5f658": {
-  "agent": "claude-opus5",
+  "agent": "claude-opus-5",
   "video_seconds": 447,
   "scenes": {
    "entries": [],
@@ -158,7 +145,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.574,
+   "max": 0.26,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -175,7 +162,7 @@
   "recruited_minute": null
  },
  "8806d294db69": {
-  "agent": "claude-opus5",
+  "agent": "claude-opus-5",
   "video_seconds": 448,
   "scenes": {
    "entries": [],
@@ -212,7 +199,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.578,
+   "max": 0.209,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -240,7 +227,7 @@
   "recruited_minute": null
  },
  "1398af63dfa6": {
-  "agent": "claude-sonnet5",
+  "agent": "claude-sonnet-5",
   "video_seconds": 449,
   "scenes": {
    "entries": [],
@@ -277,7 +264,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.562,
+   "max": 0.307,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -294,7 +281,7 @@
   "recruited_minute": null
  },
  "35b14cd224bf": {
-  "agent": "claude-sonnet5",
+  "agent": "claude-sonnet-5",
   "video_seconds": 448,
   "scenes": {
    "entries": [],
@@ -331,67 +318,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.681,
+   "max": 0.219,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     37,
-     0.605
-    ],
-    [
-     38,
-     0.605
-    ],
-    [
-     242,
-     0.634
-    ],
-    [
-     243,
-     0.633
-    ],
-    [
-     245,
-     0.655
-    ],
-    [
-     246,
-     0.66
-    ],
-    [
-     299,
-     0.681
-    ],
-    [
-     300,
-     0.681
-    ],
-    [
-     313,
-     0.647
-    ],
-    [
-     314,
-     0.647
-    ],
-    [
-     423,
-     0.649
-    ],
-    [
-     424,
-     0.647
-    ],
-    [
-     438,
-     0.672
-    ],
-    [
-     439,
-     0.665
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -442,7 +372,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.566,
+   "max": 0.189,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -496,7 +426,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.573,
+   "max": 0.11,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -706,59 +636,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.608,
+   "max": 0.149,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     66,
-     0.605
-    ],
-    [
-     67,
-     0.605
-    ],
-    [
-     73,
-     0.608
-    ],
-    [
-     74,
-     0.605
-    ],
-    [
-     75,
-     0.605
-    ],
-    [
-     76,
-     0.605
-    ],
-    [
-     77,
-     0.605
-    ],
-    [
-     78,
-     0.605
-    ],
-    [
-     81,
-     0.6
-    ],
-    [
-     82,
-     0.6
-    ],
-    [
-     83,
-     0.604
-    ],
-    [
-     84,
-     0.604
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 11,
@@ -874,167 +755,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.608,
+   "max": 0.493,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     57,
-     0.601
-    ],
-    [
-     58,
-     0.601
-    ],
-    [
-     59,
-     0.601
-    ],
-    [
-     60,
-     0.601
-    ],
-    [
-     61,
-     0.601
-    ],
-    [
-     62,
-     0.601
-    ],
-    [
-     63,
-     0.601
-    ],
-    [
-     64,
-     0.601
-    ],
-    [
-     65,
-     0.601
-    ],
-    [
-     66,
-     0.601
-    ],
-    [
-     67,
-     0.601
-    ],
-    [
-     68,
-     0.601
-    ],
-    [
-     69,
-     0.601
-    ],
-    [
-     82,
-     0.603
-    ],
-    [
-     83,
-     0.603
-    ],
-    [
-     95,
-     0.605
-    ],
-    [
-     96,
-     0.605
-    ],
-    [
-     97,
-     0.605
-    ],
-    [
-     98,
-     0.605
-    ],
-    [
-     99,
-     0.605
-    ],
-    [
-     100,
-     0.605
-    ],
-    [
-     101,
-     0.605
-    ],
-    [
-     102,
-     0.605
-    ],
-    [
-     103,
-     0.605
-    ],
-    [
-     104,
-     0.605
-    ],
-    [
-     105,
-     0.605
-    ],
-    [
-     106,
-     0.605
-    ],
-    [
-     107,
-     0.605
-    ],
-    [
-     108,
-     0.605
-    ],
-    [
-     109,
-     0.605
-    ],
-    [
-     110,
-     0.605
-    ],
-    [
-     111,
-     0.605
-    ],
-    [
-     112,
-     0.605
-    ],
-    [
-     113,
-     0.605
-    ],
-    [
-     114,
-     0.605
-    ],
-    [
-     115,
-     0.605
-    ],
-    [
-     118,
-     0.608
-    ],
-    [
-     119,
-     0.608
-    ],
-    [
-     120,
-     0.608
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 4,
@@ -1107,7 +831,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.595,
+   "max": 0.19,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -1161,35 +885,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.617,
+   "max": 0.193,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     12,
-     0.608
-    ],
-    [
-     13,
-     0.608
-    ],
-    [
-     24,
-     0.617
-    ],
-    [
-     25,
-     0.605
-    ],
-    [
-     26,
-     0.605
-    ],
-    [
-     27,
-     0.605
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 4,
@@ -1267,23 +966,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.608,
+   "max": 0.209,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     33,
-     0.608
-    ],
-    [
-     34,
-     0.608
-    ],
-    [
-     35,
-     0.607
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 8,
@@ -1798,19 +1484,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.603,
+   "max": 0.492,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     39,
-     0.603
-    ],
-    [
-     40,
-     0.603
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 5,
@@ -1888,7 +1565,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.02,
+   "max": 0.05,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -2449,55 +2126,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.609,
+   "max": 0.193,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     46,
-     0.603
-    ],
-    [
-     47,
-     0.603
-    ],
-    [
-     52,
-     0.605
-    ],
-    [
-     53,
-     0.605
-    ],
-    [
-     60,
-     0.606
-    ],
-    [
-     61,
-     0.609
-    ],
-    [
-     62,
-     0.603
-    ],
-    [
-     63,
-     0.603
-    ],
-    [
-     64,
-     0.603
-    ],
-    [
-     65,
-     0.603
-    ],
-    [
-     66,
-     0.603
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 9,
@@ -2595,19 +2227,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.61,
+   "max": 0.197,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     0,
-     0.605
-    ],
-    [
-     289,
-     0.61
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -2658,19 +2281,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.607,
+   "max": 0.153,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     416,
-     0.606
-    ],
-    [
-     417,
-     0.607
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -2738,23 +2352,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.602,
+   "max": 0.215,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     336,
-     0.602
-    ],
-    [
-     337,
-     0.602
-    ],
-    [
-     338,
-     0.602
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -2805,7 +2406,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.592,
+   "max": 0.147,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -2886,7 +2487,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.574,
+   "max": 0.215,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -2940,7 +2541,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.586,
+   "max": 0.196,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -2994,7 +2595,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.006,
+   "max": 0.0,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -3057,7 +2658,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.568,
+   "max": 0.202,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -3118,7 +2719,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.597,
+   "max": 0.143,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -3172,15 +2773,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.605,
+   "max": 0.139,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     121,
-     0.605
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -3231,7 +2827,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.006,
+   "max": 0.0,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -3285,19 +2881,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.617,
+   "max": 0.133,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     67,
-     0.617
-    ],
-    [
-     68,
-     0.608
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -3369,23 +2956,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.623,
+   "max": 0.176,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     13,
-     0.612
-    ],
-    [
-     14,
-     0.612
-    ],
-    [
-     106,
-     0.623
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 6,
@@ -3560,15 +3134,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.662,
+   "max": 0.255,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     368,
-     0.662
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 1,
@@ -3630,7 +3199,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.597,
+   "max": 0.17,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -3684,15 +3253,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.615,
+   "max": 0.12,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     290,
-     0.615
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -3743,35 +3307,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.603,
+   "max": 0.187,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     70,
-     0.603
-    ],
-    [
-     71,
-     0.603
-    ],
-    [
-     72,
-     0.603
-    ],
-    [
-     73,
-     0.603
-    ],
-    [
-     74,
-     0.603
-    ],
-    [
-     75,
-     0.603
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 4,
@@ -3853,7 +3392,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.565,
+   "max": 0.145,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -3907,27 +3446,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.608,
+   "max": 0.144,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     16,
-     0.608
-    ],
-    [
-     17,
-     0.608
-    ],
-    [
-     18,
-     0.606
-    ],
-    [
-     19,
-     0.606
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -3978,27 +3500,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.603,
+   "max": 0.108,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     64,
-     0.602
-    ],
-    [
-     65,
-     0.601
-    ],
-    [
-     66,
-     0.603
-    ],
-    [
-     67,
-     0.603
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -4049,7 +3554,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.594,
+   "max": 0.128,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -4108,23 +3613,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.605,
+   "max": 0.158,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     49,
-     0.603
-    ],
-    [
-     50,
-     0.605
-    ],
-    [
-     51,
-     0.605
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 1,
@@ -5235,7 +4727,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.59,
+   "max": 0.172,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -5823,7 +5315,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.592,
+   "max": 0.253,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -6457,202 +5949,31 @@
    "candidates": []
   },
   "prompt": {
-   "seconds": 35,
-   "max": 0.999,
-   "first_minute": 46.0,
+   "seconds": 4,
+   "max": 1.0,
+   "first_minute": 51.5,
    "minutes": [
-    46.0,
-    46.3,
-    46.4,
-    46.5,
-    46.7,
-    46.9,
-    47.1,
-    47.2,
-    47.3,
-    47.6,
-    47.7,
-    47.9,
-    48.3,
-    48.4,
-    48.5,
-    48.9,
-    49.1,
-    49.2,
-    50.1,
-    50.3,
-    50.4,
-    50.5,
-    51.1,
-    51.2,
-    51.3,
     51.5,
     51.6,
     51.7,
-    51.9,
-    52.0,
-    52.1,
-    52.5,
-    52.7,
-    52.8,
-    52.9
+    51.9
    ],
    "candidates": [
     [
-     339,
-     0.628
-    ],
-    [
-     340,
-     0.636
-    ],
-    [
-     341,
-     0.636
-    ],
-    [
-     342,
-     0.636
-    ],
-    [
-     345,
-     0.926
-    ],
-    [
-     347,
-     0.938
-    ],
-    [
-     348,
-     0.938
-    ],
-    [
-     349,
-     0.938
-    ],
-    [
-     350,
-     0.938
-    ],
-    [
-     352,
-     0.976
-    ],
-    [
-     353,
-     0.979
-    ],
-    [
-     354,
-     0.979
-    ],
-    [
-     355,
-     0.979
-    ],
-    [
-     357,
-     0.987
-    ],
-    [
-     358,
-     0.987
-    ],
-    [
-     359,
-     0.987
-    ],
-    [
-     362,
-     0.979
-    ],
-    [
-     363,
-     0.979
-    ],
-    [
-     364,
-     0.979
-    ],
-    [
-     367,
-     0.987
-    ],
-    [
-     368,
-     0.987
-    ],
-    [
-     369,
-     0.987
-    ],
-    [
-     376,
-     0.953
-    ],
-    [
-     377,
-     0.953
-    ],
-    [
-     378,
-     0.953
-    ],
-    [
-     379,
-     0.953
-    ],
-    [
-     383,
-     0.991
-    ],
-    [
-     384,
-     0.999
-    ],
-    [
-     385,
-     0.999
-    ],
-    [
      386,
-     0.999
+     1.0
     ],
     [
      387,
-     0.999
+     1.0
     ],
     [
      388,
-     0.999
+     1.0
     ],
     [
      389,
-     0.999
-    ],
-    [
-     390,
-     0.953
-    ],
-    [
-     391,
-     0.953
-    ],
-    [
-     394,
-     0.929
-    ],
-    [
-     395,
-     0.934
-    ],
-    [
-     396,
-     0.934
-    ],
-    [
-     397,
-     0.934
+     1.0
     ]
    ]
   },
@@ -7164,19 +6485,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.606,
+   "max": 0.17,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     4,
-     0.606
-    ],
-    [
-     5,
-     0.606
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 16,
@@ -7309,39 +6621,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.609,
+   "max": 0.186,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     46,
-     0.609
-    ],
-    [
-     47,
-     0.609
-    ],
-    [
-     50,
-     0.605
-    ],
-    [
-     52,
-     0.607
-    ],
-    [
-     53,
-     0.607
-    ],
-    [
-     55,
-     0.605
-    ],
-    [
-     56,
-     0.605
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -7397,71 +6680,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.786,
+   "max": 0.197,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     93,
-     0.621
-    ],
-    [
-     94,
-     0.621
-    ],
-    [
-     95,
-     0.608
-    ],
-    [
-     96,
-     0.608
-    ],
-    [
-     97,
-     0.608
-    ],
-    [
-     255,
-     0.773
-    ],
-    [
-     256,
-     0.773
-    ],
-    [
-     259,
-     0.785
-    ],
-    [
-     260,
-     0.786
-    ],
-    [
-     261,
-     0.785
-    ],
-    [
-     262,
-     0.785
-    ],
-    [
-     263,
-     0.785
-    ],
-    [
-     264,
-     0.785
-    ],
-    [
-     265,
-     0.783
-    ],
-    [
-     266,
-     0.783
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -7524,43 +6746,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.61,
+   "max": 0.121,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     88,
-     0.602
-    ],
-    [
-     89,
-     0.607
-    ],
-    [
-     94,
-     0.609
-    ],
-    [
-     95,
-     0.61
-    ],
-    [
-     111,
-     0.604
-    ],
-    [
-     112,
-     0.604
-    ],
-    [
-     115,
-     0.604
-    ],
-    [
-     116,
-     0.604
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 1,
@@ -7622,43 +6811,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.607,
+   "max": 0.122,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     83,
-     0.603
-    ],
-    [
-     88,
-     0.605
-    ],
-    [
-     89,
-     0.605
-    ],
-    [
-     94,
-     0.601
-    ],
-    [
-     95,
-     0.601
-    ],
-    [
-     112,
-     0.604
-    ],
-    [
-     115,
-     0.604
-    ],
-    [
-     116,
-     0.607
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -7721,23 +6877,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.619,
+   "max": 0.277,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     34,
-     0.609
-    ],
-    [
-     35,
-     0.609
-    ],
-    [
-     191,
-     0.619
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 5,
@@ -8026,183 +7169,31 @@
    "candidates": []
   },
   "prompt": {
-   "seconds": 32,
-   "max": 0.987,
-   "first_minute": 204.5,
+   "seconds": 4,
+   "max": 0.997,
+   "first_minute": 212.5,
    "minutes": [
-    204.5,
-    204.9,
-    205.3,
-    205.7,
-    206.1,
-    206.5,
-    206.9,
-    207.3,
-    207.7,
-    208.1,
-    208.5,
-    208.9,
-    209.3,
-    209.7,
-    210.1,
-    210.9,
-    211.3,
     212.5,
     212.9,
-    213.3,
-    213.6,
-    214.0,
-    214.4,
     214.8,
-    215.2,
-    215.6,
-    216.0,
-    216.4,
-    217.2,
-    217.6,
-    218.0,
-    218.4
+    215.2
    ],
    "candidates": [
     [
-     33,
-     0.607
-    ],
-    [
-     34,
-     0.607
-    ],
-    [
-     221,
-     0.62
-    ],
-    [
-     513,
-     0.95
-    ],
-    [
-     514,
-     0.95
-    ],
-    [
-     515,
-     0.95
-    ],
-    [
-     516,
-     0.95
-    ],
-    [
-     517,
-     0.95
-    ],
-    [
-     518,
-     0.95
-    ],
-    [
-     519,
-     0.957
-    ],
-    [
-     520,
-     0.957
-    ],
-    [
-     521,
-     0.985
-    ],
-    [
-     522,
-     0.987
-    ],
-    [
-     523,
-     0.987
-    ],
-    [
-     524,
-     0.983
-    ],
-    [
-     525,
-     0.964
-    ],
-    [
-     526,
-     0.964
-    ],
-    [
-     527,
-     0.964
-    ],
-    [
-     529,
-     0.979
-    ],
-    [
-     530,
-     0.979
-    ],
-    [
      533,
-     0.987
+     0.997
     ],
     [
      534,
-     0.986
-    ],
-    [
-     535,
-     0.985
-    ],
-    [
-     536,
-     0.985
-    ],
-    [
-     537,
-     0.985
-    ],
-    [
-     538,
-     0.953
+     0.997
     ],
     [
      539,
-     0.953
+     0.995
     ],
     [
      540,
-     0.953
-    ],
-    [
-     541,
-     0.953
-    ],
-    [
-     542,
-     0.953
-    ],
-    [
-     543,
-     0.953
-    ],
-    [
-     545,
-     0.96
-    ],
-    [
-     546,
-     0.96
-    ],
-    [
-     547,
-     0.96
-    ],
-    [
-     548,
-     0.959
+     0.995
     ]
    ]
   },
@@ -8312,7 +7303,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.596,
+   "max": 0.518,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -8366,27 +7357,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.612,
+   "max": 0.215,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     2,
-     0.61
-    ],
-    [
-     3,
-     0.61
-    ],
-    [
-     11,
-     0.612
-    ],
-    [
-     12,
-     0.612
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 4,
@@ -8459,7 +7433,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.598,
+   "max": 0.148,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -8726,66 +7700,21 @@
    "candidates": []
   },
   "prompt": {
-   "seconds": 7,
-   "max": 0.966,
-   "first_minute": 69.5,
+   "seconds": 2,
+   "max": 0.995,
+   "first_minute": 71.5,
    "minutes": [
-    69.5,
-    69.9,
-    70.3,
-    70.7,
     71.5,
-    71.9,
-    72.3
+    71.9
    ],
    "candidates": [
     [
-     3,
-     0.602
-    ],
-    [
-     63,
-     0.785
-    ],
-    [
-     64,
-     0.785
-    ],
-    [
-     65,
-     0.779
-    ],
-    [
-     66,
-     0.779
-    ],
-    [
-     174,
-     0.932
-    ],
-    [
-     175,
-     0.932
-    ],
-    [
-     176,
-     0.966
-    ],
-    [
-     177,
-     0.966
-    ],
-    [
      179,
-     0.965
+     0.995
     ],
     [
      180,
-     0.965
-    ],
-    [
-     181,
-     0.953
+     0.995
     ]
    ]
   },
@@ -9022,15 +7951,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.605,
+   "max": 0.254,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     3,
-     0.605
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 4,
@@ -9108,7 +8032,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.592,
+   "max": 0.532,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9169,23 +8093,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.604,
+   "max": 0.267,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     4,
-     0.604
-    ],
-    [
-     5,
-     0.604
-    ],
-    [
-     6,
-     0.604
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 1,
@@ -9243,7 +8154,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.552,
+   "max": 0.098,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9309,67 +8220,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.615,
+   "max": 0.227,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     17,
-     0.615
-    ],
-    [
-     18,
-     0.615
-    ],
-    [
-     20,
-     0.612
-    ],
-    [
-     21,
-     0.612
-    ],
-    [
-     137,
-     0.603
-    ],
-    [
-     138,
-     0.603
-    ],
-    [
-     139,
-     0.603
-    ],
-    [
-     140,
-     0.603
-    ],
-    [
-     142,
-     0.607
-    ],
-    [
-     143,
-     0.607
-    ],
-    [
-     144,
-     0.607
-    ],
-    [
-     145,
-     0.609
-    ],
-    [
-     146,
-     0.609
-    ],
-    [
-     147,
-     0.609
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -9432,7 +8286,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.552,
+   "max": 0.003,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9486,15 +8340,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.607,
+   "max": 0.227,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     32,
-     0.607
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -9545,15 +8394,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.695,
+   "max": 0.223,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     30,
-     0.695
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -9604,7 +8448,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.578,
+   "max": 0.154,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9658,7 +8502,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.239,
+   "max": 0.086,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9712,7 +8556,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.588,
+   "max": 0.008,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9787,15 +8631,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.62,
+   "max": 0.235,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     62,
-     0.62
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -9846,7 +8685,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.006,
+   "max": 0.0,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9905,7 +8744,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.599,
+   "max": 0.229,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -9967,81 +8806,11 @@
    "candidates": []
   },
   "prompt": {
-   "seconds": 4,
-   "max": 0.921,
-   "first_minute": 156.6,
-   "minutes": [
-    156.6,
-    166.6,
-    167.0,
-    193.0
-   ],
-   "candidates": [
-    [
-     57,
-     0.607
-    ],
-    [
-     58,
-     0.603
-    ],
-    [
-     76,
-     0.625
-    ],
-    [
-     77,
-     0.615
-    ],
-    [
-     392,
-     0.907
-    ],
-    [
-     395,
-     0.894
-    ],
-    [
-     399,
-     0.899
-    ],
-    [
-     417,
-     0.903
-    ],
-    [
-     418,
-     0.903
-    ],
-    [
-     421,
-     0.89
-    ],
-    [
-     424,
-     0.765
-    ],
-    [
-     425,
-     0.894
-    ],
-    [
-     483,
-     0.921
-    ],
-    [
-     486,
-     0.887
-    ],
-    [
-     490,
-     0.896
-    ],
-    [
-     491,
-     0.896
-    ]
-   ]
+   "seconds": 0,
+   "max": 0.232,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -10122,19 +8891,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.676,
+   "max": 0.519,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     11,
-     0.611
-    ],
-    [
-     265,
-     0.676
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -10198,19 +8958,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.613,
+   "max": 0.271,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     202,
-     0.613
-    ],
-    [
-     203,
-     0.613
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -10278,27 +9029,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.615,
+   "max": 0.249,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     328,
-     0.603
-    ],
-    [
-     353,
-     0.606
-    ],
-    [
-     354,
-     0.608
-    ],
-    [
-     501,
-     0.615
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -10369,35 +9103,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.609,
+   "max": 0.311,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     31,
-     0.605
-    ],
-    [
-     32,
-     0.605
-    ],
-    [
-     33,
-     0.605
-    ],
-    [
-     34,
-     0.605
-    ],
-    [
-     35,
-     0.609
-    ],
-    [
-     36,
-     0.609
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -10453,7 +9162,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.579,
+   "max": 0.259,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -10511,52 +9220,11 @@
    "candidates": []
   },
   "prompt": {
-   "seconds": 3,
-   "max": 0.918,
-   "first_minute": 176.4,
-   "minutes": [
-    176.4,
-    179.2,
-    231.4
-   ],
-   "candidates": [
-    [
-     95,
-     0.668
-    ],
-    [
-     196,
-     0.601
-    ],
-    [
-     429,
-     0.893
-    ],
-    [
-     442,
-     0.918
-    ],
-    [
-     449,
-     0.918
-    ],
-    [
-     538,
-     0.782
-    ],
-    [
-     548,
-     0.784
-    ],
-    [
-     575,
-     0.772
-    ],
-    [
-     580,
-     0.913
-    ]
-   ]
+   "seconds": 0,
+   "max": 0.534,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -10607,15 +9275,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.611,
+   "max": 0.051,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     141,
-     0.611
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 0,
@@ -10666,7 +9329,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.558,
+   "max": 0.488,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -10732,7 +9395,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.584,
+   "max": 0.081,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -10786,15 +9449,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.603,
+   "max": 0.182,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     36,
-     0.603
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -10857,7 +9515,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.013,
+   "max": 0.0,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -10911,7 +9569,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.006,
+   "max": 0.0,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -10965,7 +9623,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.589,
+   "max": 0.243,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -11019,7 +9677,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.071,
+   "max": 0.001,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -11073,39 +9731,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.614,
+   "max": 0.217,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     25,
-     0.601
-    ],
-    [
-     26,
-     0.614
-    ],
-    [
-     27,
-     0.614
-    ],
-    [
-     28,
-     0.614
-    ],
-    [
-     29,
-     0.607
-    ],
-    [
-     30,
-     0.607
-    ],
-    [
-     31,
-     0.607
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 3,
@@ -11194,98 +9823,11 @@
    "candidates": []
   },
   "prompt": {
-   "seconds": 5,
-   "max": 0.904,
-   "first_minute": 118.4,
-   "minutes": [
-    118.4,
-    118.8,
-    119.2,
-    119.6,
-    120.0
-   ],
-   "candidates": [
-    [
-     272,
-     0.696
-    ],
-    [
-     275,
-     0.789
-    ],
-    [
-     276,
-     0.787
-    ],
-    [
-     277,
-     0.787
-    ],
-    [
-     279,
-     0.785
-    ],
-    [
-     280,
-     0.784
-    ],
-    [
-     281,
-     0.784
-    ],
-    [
-     282,
-     0.79
-    ],
-    [
-     283,
-     0.791
-    ],
-    [
-     284,
-     0.791
-    ],
-    [
-     285,
-     0.791
-    ],
-    [
-     287,
-     0.79
-    ],
-    [
-     288,
-     0.79
-    ],
-    [
-     291,
-     0.787
-    ],
-    [
-     297,
-     0.904
-    ],
-    [
-     298,
-     0.904
-    ],
-    [
-     299,
-     0.904
-    ],
-    [
-     300,
-     0.904
-    ],
-    [
-     301,
-     0.904
-    ],
-    [
-     393,
-     0.606
-    ]
-   ]
+   "seconds": 0,
+   "max": 0.221,
+   "first_minute": null,
+   "minutes": [],
+   "candidates": []
   },
   "obtained": {
    "seconds": 7,
@@ -11373,7 +9915,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.576,
+   "max": 0.147,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -11427,15 +9969,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.605,
+   "max": 0.161,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     45,
-     0.605
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 3,
@@ -11503,7 +10040,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.554,
+   "max": 0.118,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -13389,71 +11926,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.786,
+   "max": 0.228,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     47,
-     0.773
-    ],
-    [
-     48,
-     0.773
-    ],
-    [
-     49,
-     0.762
-    ],
-    [
-     52,
-     0.775
-    ],
-    [
-     53,
-     0.753
-    ],
-    [
-     54,
-     0.747
-    ],
-    [
-     55,
-     0.786
-    ],
-    [
-     438,
-     0.668
-    ],
-    [
-     439,
-     0.666
-    ],
-    [
-     446,
-     0.62
-    ],
-    [
-     447,
-     0.609
-    ],
-    [
-     537,
-     0.603
-    ],
-    [
-     538,
-     0.644
-    ],
-    [
-     539,
-     0.645
-    ],
-    [
-     541,
-     0.665
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,
@@ -13516,7 +11992,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.567,
+   "max": 0.232,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -13570,7 +12046,7 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.6,
+   "max": 0.282,
    "first_minute": null,
    "minutes": [],
    "candidates": []
@@ -13828,39 +12304,10 @@
   },
   "prompt": {
    "seconds": 0,
-   "max": 0.786,
+   "max": null,
    "first_minute": null,
    "minutes": [],
-   "candidates": [
-    [
-     47,
-     0.773
-    ],
-    [
-     48,
-     0.773
-    ],
-    [
-     49,
-     0.762
-    ],
-    [
-     52,
-     0.775
-    ],
-    [
-     53,
-     0.753
-    ],
-    [
-     54,
-     0.747
-    ],
-    [
-     55,
-     0.786
-    ]
-   ]
+   "candidates": []
   },
   "obtained": {
    "seconds": 2,

@@ -163,6 +163,42 @@ emit("EactsMin", min(acts))
 emit("EactsMax", max(acts))
 emit("Eaps", sum(acts) / sum(r["played"] for r in PLAY), "pooled actions per second")
 emit("Ereads", sum(r["reads"] for r in MODELS if r.get("reads") is not None), "screen reads by model sessions")
+# how often a model looks and how many keys it sends per look, against the
+# milestones its session reached: rank correlations over the model sessions
+
+
+def _rank(v):
+    order = sorted(range(len(v)), key=lambda i: v[i])
+    ranks = [0.0] * len(v)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and v[order[j + 1]] == v[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = (i + j) / 2
+        i = j + 1
+    return ranks
+
+
+def _spearman(x, y):
+    rx, ry = _rank(x), _rank(y)
+    mx, my = st.mean(rx), st.mean(ry)
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    return num / math.sqrt(sum((a - mx) ** 2 for a in rx) * sum((b - my) ** 2 for b in ry))
+
+
+_cad = [r for r in MODELS if r["actions"]]
+_look = [r for r in _cad if r.get("reads") is not None]
+_rk = _spearman([r["key_events"] / r["actions"] for r in _cad], [field.rungs_reached(r) for r in _cad])
+_rr = _spearman([r["reads"] / r["actions"] for r in _look], [field.rungs_reached(r) for r in _look])
+if abs(_rk) >= 0.3 or abs(_rr) >= 0.3:
+    sys.exit("the prose says the milestones barely follow keys per action or reads per action")
+emit("NcadenceSessions", len(_cad), "model sessions in the cadence correlation")
+emit("NlookSessions", len(_look), "of them with a count of screen reads")
+emit("ClookMedian", st.median(r["reads"] / r["actions"] for r in _look), "median screen reads per action", fmt="%.2f")
+emit("CrhoKeys", _rk, "rank correlation of keys per action with milestones", fmt="%.2f")
+emit("CrhoReads", _rr, "rank correlation of reads per action with milestones", fmt="%.2f")
 
 hist = {}
 for r in PLAY:
@@ -700,6 +736,14 @@ if _need != {8: 2, 24: 1}:
     sys.exit("the prose names two frames at 8 times speed and one at 24 times; the replays give %s" % _need)
 _miss = max(e[n]["max"] for _, e in EV.values() for n in ("hermit", "compass", "battle", "defeat", "prompt", "obtained") if e[n]["seconds"] == 0 and e[n]["max"] is not None)
 emit("ReplayMissMax", _miss, "highest score of any frame without the event", fmt="%.2f")
+# the first reading of every panel in the hour sessions, checked by eye (panel_audit.json)
+_audit = json.load(open(os.path.join(HERE, "panel_audit.json"), encoding="utf-8"))["checked"]
+_first = {(r["id"], n, [c for c in e[n]["candidates"] if c[1] > _tm["threshold"]][0][0])
+          for r, e in EV.values() if not field.is_random(r["agent"])
+          for n in ("hermit", "compass", "battle", "defeat", "prompt") if e[n]["seconds"]}
+if {(a["session"], a["panel"], a["video_second"]) for a in _audit if a["shows_panel"]} != _first:
+    sys.exit("panel_audit.json does not cover every first panel reading of the hour sessions; check the new ones by eye")
+emit("NpanelAudited", len(_first), "first panel readings checked by eye")
 # the item milestone read from the obtained message where no record carries the bag
 _ob_both = [r for r in ALL if r.get("picked_item") is not None and (r.get("replay") or {}).get("obtained")]
 _ob_only = [r for r in ALL if r.get("picked_item") is None and (r.get("replay") or {}).get("obtained")]

@@ -8,9 +8,8 @@ against the crops in templates/ (cut from frames of this field and described
 in templates.json). A panel counts when it scores above the threshold over
 HOLD seconds of play: two consecutive frames of a replay at 8 times speed and
 20 frames a second, one frame at 24 times speed, where a frame spans 1.2
-seconds of play. The game holds these panels for a second or more, while a
-single frame of an 8-times replay above the threshold is a transition fluke
-(two were found, at 0.90 and 0.91, on inn scenes without a prompt). Scores are
+seconds of play. The game holds these panels for a second or more, so a
+shorter match is a screen transition. Scores are
 kept per video second as the best minimum over the frames of one hold; the maximum of a session with no hit is
 reported beside it so the margin is on record. The five events:
 

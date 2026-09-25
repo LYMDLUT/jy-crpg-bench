@@ -28,12 +28,12 @@
  },
  "prompt": {
   "box": [
-   36,
-   14,
-   122,
-   32
+   66,
+   43,
+   178,
+   63
   ],
-  "shows": "the yes-or-no prompt of a character who can be asked to join"
+  "shows": "the first six glyphs of the yes-or-no prompt of a character who can be asked to join"
  },
  "threshold": 0.9,
  "frames_per_second": "every frame of the video, kept per second",

@@ -64,6 +64,16 @@
 \newcommand{\Eaps}{0.118}
 % screen reads by model sessions
 \newcommand{\Ereads}{9057}
+% model sessions in the cadence correlation
+\newcommand{\NcadenceSessions}{42}
+% of them with a count of screen reads
+\newcommand{\NlookSessions}{24}
+% median screen reads per action
+\newcommand{\ClookMedian}{1.00}
+% rank correlation of keys per action with milestones
+\newcommand{\CrhoKeys}{-0.17}
+% rank correlation of reads per action with milestones
+\newcommand{\CrhoReads}{-0.28}
 % key events submitted
 \newcommand{\EkeysTotal}{49302}
 % distinct keys submitted
@@ -391,7 +401,7 @@
 % minute of that session's last key
 \newcommand{\PbattleLastMin}{42}
 % minute the companion's prompt first appeared
-\newcommand{\PpromptMin}{46}
+\newcommand{\PpromptMin}{52}
 % minute it was answered yes
 \newcommand{\PrecruitMin}{52}
 % match threshold of the replay scan
@@ -399,7 +409,9 @@
 % seconds of play a panel must stay above the threshold
 \newcommand{\ReplayHold}{0.8}
 % highest score of any frame without the event
-\newcommand{\ReplayMissMax}{0.79}
+\newcommand{\ReplayMissMax}{0.71}
+% first panel readings checked by eye
+\newcommand{\NpanelAudited}{20}
 % sessions with both a bag reading and the message scan, which agree
 \newcommand{\PobtainedAgree}{36}
 % sessions whose item milestone is read from the message alone
