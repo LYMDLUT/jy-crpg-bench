@@ -48,7 +48,7 @@
 A long-horizon task requires a model to perceive its environment, decide for
 itself what is worth doing, and hold one plan across hours of dependent
 decisions. We present \bench{}, which places a frontier model inside Heroes of Jin Yong, a 1996 open-world role-playing game run under DOS emulation. Its ending requires the fourteen books of the Jin Yong novels and takes a first-time human player tens of hours. The game requires reading $320\times200$ isometric pixel art and 16-pixel Traditional Chinese, knowledge of the novels its world is built from, and a keyboard as the only input. It has no quest log, marker or score, so the model must keep its own map and goals, and it must win turn-based battles against the game AI. Progress is scored by milestones of the game itself and by completion time. Under a
-\NbudgetMin{}-minute budget, in which a human speedrun finishes the game, two of \NmodelsDistinct{} frontier models take the compass and enter a battle, and none gains experience or holds a book. The models stall at four points of the opening: the gate of the starting house, the entrances on the world map, the instructions of the hermit and the first battle. Four-hour sessions of \NlongModels{} models gain no experience either, far behind experienced human players, who hold a book within \LhumanBookLast{} minutes.
+\NbudgetMin{}-minute budget, in which a human speedrun finishes the game, the best of \NmodelsDistinct{} frontier models reaches \Ltop{} of the \Lrungs{} milestones, and none wins a battle or holds a book. The models stall at four points: leaving the first area, finding the entrances on the world map, acting on instructions given in dialogue, and winning the first battle. Four-hour sessions of \NlongModels{} models get no further, while experienced human players hold a book within \LhumanBookLast{} minutes.
 \end{abstract}
 
 \section{Introduction}
@@ -249,7 +249,7 @@ start of the game, so every milestone from experience onward remains unreached. 
 
 \subsection{Qualitative Analysis}
 
-The random policy reaches \QrandomRungs{} of the \Lrungs{} milestones in \QrandomBudgetMin{} minutes, since a random walk in a small room reaches the chest within the hour. No save succeeds during its hour, so the world map is the first milestone a random walk does not reach. The chest therefore separates models from one another but not from the baseline: \Litem{} models searched it and \LnoItem{} never did. Beyond the chest the models stall at four points of the opening.
+The random policy reaches \QrandomRungs{} of the \Lrungs{} milestones in \QrandomBudgetMin{} minutes, since a random walk in a small room reaches the chest within the hour. No save succeeds during its hour, so the world map is the first milestone a random walk does not reach. The chest therefore separates models from one another but not from the baseline: \Litem{} models searched it and \LnoItem{} never did. Beyond the chest the models stall at four points of the opening, and \cref{fig:frames} in \cref{app:measure} shows frames from each.
 
 \begin{figure}[!htb]
 \centering
