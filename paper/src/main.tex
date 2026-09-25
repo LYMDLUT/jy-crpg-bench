@@ -254,7 +254,7 @@ Four milestones separate the models: the chest, the first location beyond the st
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/routes-compound.pdf}
-\caption{The walk of every model through the starting house in its session with the most milestones, from the spawn tile (circle) to the crossing (square). The colour gives the minute of play on the scale of \cref{fig:world} and the arrowheads the direction. The panels follow the upper panel of \cref{fig:ladder}, and \cref{app:measure} describes how a walk is read.}
+\caption{The walk of every model through the starting house in its session with the most milestones, from the spawn tile (circle) to the crossing (square). The colour gives the minute of play, on the scale shared with \cref{fig:world}, and the arrowheads the direction. The panels follow the upper panel of \cref{fig:ladder}, and \cref{app:measure} describes how a walk is read.}
 \label{fig:compound}
 \end{figure}
 
@@ -265,7 +265,7 @@ After the crossing, the rest of the hour is spent on the world map, and \cref{fi
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/routes-world.pdf}
-\caption{Three walks on the world map in the first hour, coloured by the minute of play: the session of \LtopLabel{} that entered the most locations, the session of \LsecondLabel{} with the most milestones, and the session of \PorbitLabel{} that stayed longest on the world map without entering a location. A numbered marker stands at the last point on the world map before a location entered or a panel read from the replay, and the lower right lists the markers with their minutes. A gap in a path is a visit to a location or a loaded save.}
+\caption{Three walks on the world map in the first hour, coloured by the minute of play: the session of \LtopLabel{} that entered the most locations, the session of \LsecondLabel{} with the most milestones, and the session of \PorbitLabel{} that stayed longest on the world map without entering a location. A numbered marker stands at the last point on the world map before a location entered or a panel read from the replay, and the list under each panel gives its markers with their minutes. A gap in a path is a visit to a location or a loaded save.}
 \label{fig:world}
 \end{figure}
 
@@ -358,15 +358,8 @@ Call & Meaning & Model can use \\
 
 \begin{figure}[!htb]
 \centering
-\setlength{\tabcolsep}{2pt}
-\begin{tabular}{@{}cc@{}}
-\includegraphics[width=0.41\linewidth]{figures/route-compound.png} &
-\includegraphics[width=0.55\linewidth]{figures/route-house.png} \\
-{\footnotesize (a)} & {\footnotesize (b)} \\
-\multicolumn{2}{c}{\includegraphics[width=0.93\linewidth]{figures/route-map.png}} \\
-\multicolumn{2}{c}{\footnotesize (c)} \\
-\end{tabular}
-\caption{The opening route as far as the hermit, from a human speedrun: (a) the starting house from the spawn tile to the gate, (b) the house of the hermit from its door to the hermit, and (c) the world map between them. In each panel the frames of the walk are registered by phase correlation and merged by a per-pixel median, which removes the hero, and his path is drawn in red from the circle to the square.}
+\includegraphics[width=\linewidth]{figures/route-human.pdf}
+\caption{The opening route as far as the hermit, from a human speedrun: (a) the starting house from the spawn tile to the gate, (b) the house of the hermit from its door to the hermit, and (c) the world map between them, with the two houses set into its empty corners at their own scale. In each panel the frames of the walk are registered by phase correlation and merged by a per-pixel median, which removes the hero, and his path is drawn in red from the circle to the square.}
 \label{fig:route}
 \end{figure}
 

@@ -53,7 +53,8 @@ ICLR 2027 submission draft for jy-crpg-bench.
   videos themselves are not tracked, and `field.human_rows()` turns the file into
   the two rows. `src/figures/human/route.py` stitches the frames of a walk into
   the panels of the route figure (`src/figures/route-*.png`) from the same
-  speedrun. `src/figures/compound_panorama.py` grows that stitch into one panorama
+  speedrun, and `src/figures/human_route.py` sets the two houses into the empty
+  corners of the world-map panel as `route-human.pdf`. `src/figures/compound_panorama.py` grows that stitch into one panorama
   of the whole compound (`src/figures/compound.png`) with the replay of a session
   that walked the whole yard, and `src/figures/anchored_route.py <session id>` places
   each frame of a benchmark replay, up to its first black frame, on that panorama by
