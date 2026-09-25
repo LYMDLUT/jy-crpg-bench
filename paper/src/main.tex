@@ -143,7 +143,7 @@ Rail \citep{zhang2025starbench}. Crafter established the single-environment,
 achievement-based design we follow \citep{hafner2021benchmarking}, and
 NetHack remains the deepest environment in use for learned agents, with runs of tens of thousands of turns \citep{kuttler2020nethack}. Cradle and Voyager drive games through a foundation model with a skill library or a code API \citep{tan2024cradle,wang2023voyager}.
 
-\subsection{Long-Horizon Evaluation and Its Measurement}
+\subsection{Long-Horizon Evaluation}
 
 Vending-Bench established long-term coherence as the property that separates
 long-horizon tasks from long chains of short ones
@@ -171,7 +171,7 @@ outcome signals by building denser step-level ones
 games, where $\tau$-bench compares the final database state with an
 annotated goal \citep{yao2024taubench}.
 
-\section{\bench{}}
+\section{Benchmark Design}
 \label{sec:bench}
 
 \subsection{Environment}
@@ -216,7 +216,7 @@ video, computes its metrics, and appends itself to the public catalogue with the
 \label{fig:apparatus}
 \end{figure}
 
-\subsection{Measuring Progress}
+\subsection{Progress Measurement}
 \label{sec:measure}
 
 Progress is read from records the model never sees: the state of the game, in the memory of the emulated machine and in the saves the game writes, and the published replay. The state gives the inventory, the compass, the books, the party and the level and experience of the leader. Seven events the game keeps only on screen: the model enters a location from the world map, speaks with the hermit, opens the item screen with the compass in it, enters a battle, loses it or wins it, or answers the prompt of a party member who asks to join. Each draws fixed art at a fixed screen position, so these events are read by matching every frame of the replay against that art. A milestone, once observed, stays credited, so an item picked up and later used still counts. \Cref{app:measure} lists the record behind each milestone and checks the readings against one another.
@@ -244,7 +244,7 @@ Of the \Lmodels{} models, \ifnum\Lmap=\Lmodels all \Lmap{}\else\Lmap{}\fi{} reac
 \label{fig:ladder}
 \end{figure}
 
-\subsection{Qualitative Analysis}
+\subsection{Behavioural Analysis}
 
 The random policy reaches \QrandomRungs{} of the \Lrungs{} milestones in \QrandomBudgetMin{} minutes, since a random walk in a small room reaches the chest within the hour. The world map is the first milestone a random walk does not reach. The chest therefore separates models from one another but not from the baseline: \Litem{} models searched it and \LnoItem{} never did. Beyond the chest the models stall at four points of the opening, and \cref{fig:frames} in \cref{app:measure} shows frames from each.
 
@@ -423,7 +423,7 @@ The human rows of \cref{fig:ladder} are read from \NhumanVideos{} published vide
 
 The readings agree wherever two records exist. Each of the \PobtainedBag{} sessions whose inventory shows a new item also shows the item message.  The crossing count read from the replay agrees with the count the service recorded on all \LcrossAgree{} sessions that carry both. Of the \PcompassBoth{} sessions with both an inventory reading and a replay, every one of the \PcompassBag{} whose inventory holds the compass shows the coordinate line on the replay, and no other session does. Of the \PhermitBoth{} sessions with a preserved save and a replay, every one of the \PhermitOpened{} whose save shows the locations the hermit opens also shows his portrait on the replay. Where an event occurs, the five held panels score at least \ReplayHitMin{} and the four single-frame messages at least \ReplayMsgHitMin{}; elsewhere they score at most \ReplayMissMax{} and \ReplayMsgMissMax{}. The first reading of every panel in the hour sessions, \NpanelAudited{} in all, was also checked by eye against its frame, and each shows the panel.
 
-\section{Battles}
+\section{Battle Analysis}
 \label{app:battles}
 A battle is turn-based tactics on the grid of the location. The player chooses which party members fight, and on its turn a character moves along the four axes and then attacks with a martial art, uses poison, a cure, medicine or an item, waits, rests or hands the battle to the game. An attack draws on internal energy, so a character without it has no attack in its menu. \Cref{tab:battles} lists every battle on record, and \cref{fig:battles} sets the two battles of one session side by side.
 
@@ -456,7 +456,7 @@ All \Nbattles{} battles are fought against Yan Ji in the yard of his house. Of t
 \label{fig:battles}
 \end{figure}
 
-\section{Instructions}
+\section{Prompt and Instructions}
 \label{app:instructions}
 The first row is the prompt each model is sent to start a session, given as sent, and the rows after it are the instructions the prompt names. Every model in this paper reads the Chinese in the right column; the left column is its English translation, in the names of \cref{app:glossary}. In the prompt, \texttt{\{PLAYTIME\}} names the budget and \texttt{\{MODEL\_NAME\}} the model. The instructions are those of the 60-minute budget. Those of the four-hour budget differ only in the minutes value of the session call, and the addresses of the site and of the hosted service are withheld as \texttt{SITE\_URL} and \texttt{SERVICE\_URL}.
 
