@@ -612,10 +612,16 @@ def read_stats():
         return
     b = mem[base: base + CHAR_SZ]
     hero["found"] = True
-    hero["level"] = struct.unpack_from("<h", b, C_LEVEL)[0]
-    hero["exp"] = struct.unpack_from("<H", b, C_EXP)[0]
-    hero["hp"] = struct.unpack_from("<h", b, C_HP)[0]
-    hero["maxhp"] = struct.unpack_from("<h", b, C_MAXHP)[0]
+    # This copy of the records keeps the values the session started with: a
+    # run that won a fight and reached level 2 still read level 1 and no
+    # experience here, while the save the game wrote showed both. The live
+    # value only seeds the reading; absorb_archive raises it from the save, and
+    # nothing here lowers it.
+    hero["level"] = max(hero["level"] or 0, struct.unpack_from("<h", b, C_LEVEL)[0])
+    hero["exp"] = max(hero["exp"] or 0, struct.unpack_from("<H", b, C_EXP)[0])
+    if hero["hp"] is None or hero["maxhp"] is None or hero["maxhp"] <= struct.unpack_from("<h", b, C_MAXHP)[0]:
+        hero["hp"] = struct.unpack_from("<h", b, C_HP)[0]
+        hero["maxhp"] = struct.unpack_from("<h", b, C_MAXHP)[0]
     hero["reputation"] = struct.unpack_from("<h", b, C_REPUTATION)[0]
     hero["potential"] = struct.unpack_from("<h", b, C_POTENTIAL)[0]
     hero["skills"] = sum(1 for v in struct.unpack_from("<10h", b, C_SKILLS) if v > 0)
@@ -672,7 +678,7 @@ def played_now(now=None):
 
 
 def absorb_archive(summary):
-    """Fold the bag the game itself wrote into the live reading.
+    """Fold the bag and the leader's record the game itself wrote into the live reading.
 
     The bag beside the character records is the game's own working copy, but
     an item a script hands over was seen to reach it late, after the next
@@ -690,6 +696,13 @@ def absorb_archive(summary):
         # A later save that carries the compass still latches it to True.
         hero["compass"] = False
     hero["books"] = max(hero["books"] or 0, summary.get("books") or 0)
+    # The leader's level and experience, which the live copy of the records
+    # does not follow: the save is the reading, and they only climb.
+    for k in ("level", "exp", "skills"):
+        if summary.get(k) is not None:
+            hero[k] = max(hero[k] or 0, summary[k])
+    if summary.get("maxhp") is not None and summary["maxhp"] >= (hero["maxhp"] or 0):
+        hero["hp"], hero["maxhp"] = summary.get("hp"), summary["maxhp"]
     opening = hero["inventory_baseline"]
     if opening is not None and bag and inventory_gained(opening, bag):
         hero["picked_item"] = True

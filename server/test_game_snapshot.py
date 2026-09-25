@@ -173,6 +173,25 @@ class WithholdingTests(unittest.TestCase):
         finally:
             hero.update(**was)
 
+    def test_the_archive_sets_level_and_experience_the_live_copy_misses(self):
+        hero = game_server.hero
+        keys = ("level", "exp", "hp", "maxhp", "skills", "compass", "books", "picked_item",
+                "inventory_baseline", "completion_secs")
+        was = {k: hero[k] for k in keys}
+        try:
+            game_server.warden.ON = False
+            hero.update(level=1, exp=0, hp=47, maxhp=47, skills=1, compass=False, books=0,
+                        picked_item=False, completion_secs=None, inventory_baseline={0: 3})
+            game_server.absorb_archive({"bag": {0: 3}, "books": 0, "level": 2, "exp": 110,
+                                        "hp": 71, "maxhp": 71, "skills": 1})
+            self.assertEqual((hero["level"], hero["exp"], hero["hp"], hero["maxhp"]), (2, 110, 71, 71))
+            # an older save cannot take the level back
+            game_server.absorb_archive({"bag": {0: 3}, "books": 0, "level": 1, "exp": 0,
+                                        "hp": 47, "maxhp": 47, "skills": 1})
+            self.assertEqual((hero["level"], hero["exp"], hero["maxhp"]), (2, 110, 71))
+        finally:
+            hero.update(**was)
+
     def test_completion_latches_at_fourteen_books_and_stays(self):
         hero = game_server.hero
         was = dict(books=hero["books"], completion_secs=hero["completion_secs"])
