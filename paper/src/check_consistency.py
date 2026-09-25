@@ -114,7 +114,7 @@ def main():
         ok &= claim("a fight fought to the end was entered",
                     all(m["rungs"][F] for m in union.values() if m["rungs"][D]),
                     "fought out %s" % [a for a, m in union.items() if m["rungs"][D]])
-    if "take the compass and enter a battle" in flat:
+    if "two take the compass, enter a battle and finish it" in flat:
         FIGHT, CMP = field.DEFINITION.index("entered\na battle"), field.DEFINITION.index("held the\ncompass")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True and m["rungs"][CMP] is True]
         ok &= claim("two models take the compass and enter a fight", len(past) == 2, "%s" % past)
