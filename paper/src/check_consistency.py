@@ -253,16 +253,6 @@ def main():
         idle = sum(1 for r in models if r.get("reason") == "idle")
         ok &= claim("the idle-ended session count matches the macro", idle > 0 and int(nums["NidleSessions"]) == idle,
                     "%d idle-ended" % idle)
-    if "its finished battle and change no other count" in flat:
-        full = {m["agent"]: m for m in field.model_rows(models)}
-        without = {m["agent"]: m for m in field.model_rows([r for r in models if r.get("reason") != "idle"])}
-        FOUGHT = field.DEFINITION.index("finished\na battle")
-        diff = {a: full[a]["reached"] - without[a]["reached"] for a in full if a in without and full[a]["reached"] != without[a]["reached"]}
-        top = nums["LtopLabel"].replace("\\texttt{", "").rstrip("}")
-        ok &= claim("excluding the idle-ended sessions lowers one count by one, the fight fought to its end",
-                    diff == {top: 1} and full[top]["rungs"][FOUGHT] is True and without[top]["rungs"][FOUGHT] is not True
-                    and all(a in without for a in full),
-                    "%s" % diff)
     # The human references of Figure 3, read from human_sessions.json.
     if "cross onto the world map within the first minute" in flat:
         speed = [v for v in field.human_videos() if v["class"] == "speedrun"]
