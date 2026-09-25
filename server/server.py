@@ -1780,6 +1780,11 @@ async def run_action(request, steps, note, verb="KEY"):
     # an idle animation as readily as on a step, and a model that trusted one
     # counted steps it never took. What happened is read from the picture.
     result = {"ok": True, "action": note, **core_fields()}
+    if warden.ON and warden.ACTIONS > 0:
+        # The clock's remaining seconds ride in /status; under a decision
+        # budget the agent needs the same for decisions, or it cannot plan.
+        result["actions_left"] = warden.actions_left()
+        result["actions_budget"] = warden.ACTIONS
     if image:
         result.update({
             "image_width": image_w, "image_height": image_h,
@@ -2519,6 +2524,36 @@ def operator(request):
         (got or "").encode("utf-8"), want.encode("utf-8"))
 
 
+async def api_end(request):
+    """Hidden. The harness driving a scored run closes it with a reason.
+
+    The server owns the clock and the decision budget; a token budget is
+    counted where the model is called and only the harness sees it spent. The
+    harness also knows when the agent process exited. Both used to leave the
+    run idling to the clock and listed as a stall, indistinguishable from a
+    model that gave up. Operator token only: the agent must not be able to end
+    its own run and choose how it is described.
+    """
+    if not operator(request):
+        raise web.HTTPNotFound()
+    if not warden.ON:
+        return web.json_response({"ok": False, "error": "not a benchmark run"}, status=400)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    reason = str(body.get("reason") or request.query.get("reason") or "")
+    detail = body.get("detail") or request.query.get("detail") or ""
+    try:
+        ended = warden.end_run(reason, detail)
+    except ValueError as exc:
+        return web.json_response({"ok": False, "error": str(exc),
+                                  "hint": "reason is tokens or client_exit"}, status=400)
+    return web.json_response({"ok": True, "ended": ended,
+                              "reason": warden.run["done"],
+                              "actions": warden.run["actions"]})
+
+
 def include_trajectory(request):
     """Only an explicitly authenticated operator may read recorded coordinates.
 
@@ -2721,6 +2756,7 @@ def main():
         web.get("/api/history", api_history),
         web.get("/api/recording", api_recording),
         web.post("/api/reset", api_reset),
+        web.post("/api/end", api_end),
         web.post("/api/snapshot", api_snapshot),
         web.post("/api/key", api_key),
         web.post("/api/save", api_save),

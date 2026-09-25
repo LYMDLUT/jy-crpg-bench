@@ -52,6 +52,12 @@ MAX_MINUTES = int(os.environ.get("QUNXIA_MAX_MINUTES", "1440"))
 # to spend - and a run ends only at its clock or on completion. Set a positive
 # number of seconds to stop a run that has gone that long without a key.
 IDLE_LIMIT = int(os.environ.get("QUNXIA_IDLE_LIMIT", "0"))
+# A decision budget instead of the clock. Models differ in throughput by an
+# order of magnitude, so a clock hands a fast model far more decisions than a
+# slow one. A caller may ask for a run of N decision calls; the clock then
+# only bounds how long the machine is held. Capped so one run cannot hold a
+# machine indefinitely.
+MAX_ACTIONS = int(os.environ.get("QUNXIA_MAX_ACTIONS", "20000"))
 BOOT_WAIT = float(os.environ.get("QUNXIA_BOOT_WAIT", "18"))
 # Authoring is bursty: a few straight attempts, then a pause, then again -
 # until the state exists. A host that is slow today is not a host that is
@@ -456,7 +462,7 @@ def running_count():
                if s["proc"].poll() is None and not result_of(s["id"]))
 
 
-async def start_session(app, agent, budget, publish=True):
+async def start_session(app, agent, budget, publish=True, actions=0):
     global _reservations
     # The check and the hold run on this loop with no await between them, so
     # they are atomic: a burst of concurrent /session calls cannot all read
@@ -474,7 +480,10 @@ async def start_session(app, agent, budget, publish=True):
             content_type="application/json", headers=CORS)
     _reservations += 1
     try:
-        sess = await _start_session(app, agent, budget, publish)
+        # The budget rides as a keyword only when set, so a caller that never
+        # asked for one exercises the call shape that existed before it.
+        sess = await (_start_session(app, agent, budget, publish, actions=actions)
+                      if actions else _start_session(app, agent, budget, publish))
     except BaseException:
         _reservations -= 1
         raise
@@ -483,7 +492,7 @@ async def start_session(app, agent, budget, publish=True):
     return sess
 
 
-async def _start_session(app, agent, budget, publish=True):
+async def _start_session(app, agent, budget, publish=True, actions=0):
     sid = uuid.uuid4().hex[:12]
     port = free_port()
     # Two secrets, two readers. The URL token travels in the session's
@@ -509,6 +518,7 @@ async def _start_session(app, agent, budget, publish=True):
                QUNXIA_BENCH_AGENT=agent,
                QUNXIA_BENCH_SID=sid,
                QUNXIA_BENCH_BUDGET=str(budget),
+               QUNXIA_BENCH_ACTIONS=str(actions),
                QUNXIA_BENCH_IDLE=str(IDLE_LIMIT),
                QUNXIA_RESULT_DIR=str(RESULT_DIR),
                QUNXIA_BENCH_SITE=SITE)
@@ -518,6 +528,7 @@ async def _start_session(app, agent, budget, publish=True):
             # numbers; it never travels in an address an agent holds
             "reset_token": reset_token,
             "proc": proc, "work": WORK / sid, "budget": budget,
+            "actions_budget": actions or None,
             "started": time.time(), "ends_at": time.time() + budget, "started_clock": clock()}
     sessions[sid] = sess
 
@@ -653,11 +664,22 @@ async def api_new(request):
     except (TypeError, ValueError):
         minutes = RUN_SECONDS // 60
     minutes = max(1, min(minutes, MAX_MINUTES))
+    # A decision budget. With one, the clock is the ceiling on how long the
+    # machine is held, and the run ends after this many decision calls.
+    try:
+        actions = int(body.get("actions") or request.query.get("actions") or 0)
+    except (TypeError, ValueError):
+        return web.json_response(
+            {"ok": False, "error": "actions must be an integer"}, status=400)
+    if actions < 0 or actions > MAX_ACTIONS:
+        return web.json_response(
+            {"ok": False, "error": f"actions must be between 1 and {MAX_ACTIONS}"},
+            status=400)
     # A caller can ask to stay out of the catalogue. Smoke tests were landing
     # on the public board, one of them at the top of it.
     publish = body.get("publish", request.query.get("publish")) not in (
         False, "false", "0", 0)
-    sess = await start_session(request.app, agent, minutes * 60, publish)
+    sess = await start_session(request.app, agent, minutes * 60, publish, actions)
     # The URL is the credential: the session's token rides in its path, so
     # this is the only address that can send input to the run. The address
     # without it is what the board links to its viewers, and there only
@@ -667,13 +689,19 @@ async def api_new(request):
         "ok": True, "session": sess["id"], "agent": agent,
         "base_url": base, "help_url": base + "/api/help",
         "seconds": sess["budget"], "minutes": minutes,
+        "actions_budget": sess.get("actions_budget"),
         "max_minutes": MAX_MINUTES, "ends_at": sess["ends_at"],
         "idle_limit": IDLE_LIMIT,
         "spawned_in_game": sess.get("spawned", False),
         "catalog_url": SITE,
-        "message": f"You are in the game as '{agent}'. You have "
-                   f"{minutes} minutes. Read {base}/api/help, then "
-                   f"play with {base}/api/... ."
+        "message": (f"You are in the game as '{agent}'. You have "
+                    f"{actions} decision calls (key submissions and waits); "
+                    f"the machine is released after {minutes} minutes at the "
+                    f"latest. Read {base}/api/help, then play with "
+                    f"{base}/api/... ." if actions else
+                    f"You are in the game as '{agent}'. You have "
+                    f"{minutes} minutes. Read {base}/api/help, then "
+                    f"play with {base}/api/... .")
                    + (f" Keep acting: if no action arrives for "
                       f"{IDLE_LIMIT // 60} minutes the run is stopped early "
                       f"and listed as idle." if IDLE_LIMIT > 0 else ""),

@@ -9,6 +9,26 @@ POST /session {"agent":"your-model"}   ->  base_url, seconds, ends_at
      {"ended": true, "reason", "why", "video_url", "catalog_url"}
 ```
 
+A session may also be bounded by decisions rather than by the clock:
+
+```
+POST /session {"agent":"your-model","actions":1000}   ->  ..., actions_budget
+```
+
+`actions` is a count of decision calls (key submissions and waits). The run
+ends when it is spent, whatever the clock says; `minutes` stays as a ceiling
+on how long the machine is held. The catalogue entry carries `budget_kind`
+(`actions` or `time`), `actions_budget` and `end_detail`. Different models
+make very different numbers of decisions in the same four hours, so a decision
+budget compares what a model does with its turns rather than what the
+provider's latency allows. `QUNXIA_MAX_ACTIONS` (default 20000) caps what may
+be asked for.
+
+An operator may end a run early with `POST <base_url>/api/end
+{"reason":"tokens"|"client_exit","detail":"..."}` and `X-Reset-Token`, which
+is what a harness enforcing a token budget on its own side does; the reason
+is recorded on the run. `nexus-harness/` in this repository is such a harness.
+
 `base_url` is the run's play credential: it carries the session's token in
 its path (`/s/<id>/t/<token>`), and an address without it can watch the run
 but not send input to it.
@@ -261,6 +281,7 @@ service; 24 simultaneous short requests lose none.
 | `QUNXIA_BOARD_ORIGINS` | the site | further origins, comma-separated, whose pages may read the catalogue, the live index, the session list and a spectator's view |
 | `QUNXIA_IDLE_LIMIT` | 0 | seconds without an action before a run is torn down; 0 leaves runs alone |
 | `QUNXIA_MAX_SESSIONS` | 24 | concurrent sessions; configurable for host capacity |
+| `QUNXIA_MAX_ACTIONS` | 20000 | ceiling on the `actions` (decision) budget a session may ask for |
 | `QUNXIA_REAP_GRACE` | 600 | seconds a finished run's entry outlives its process, so late calls - the agent's final 410, a usage report - still find it; a held usage report holds it further until merged or dropped |
 | `QUNXIA_VIDEO_WAIT` | 300 | how long the final reply waits for the video |
 | `QUNXIA_GCS_BUCKET` | | publish videos and the catalogue here |

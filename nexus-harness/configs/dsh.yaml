@@ -1,0 +1,56 @@
+# DeepSeek Harness plays one run, 1000 decisions. DSH has no MCP client, so
+# the task gives it the same two tools as a shell command (cli.py, uploaded
+# next to the MCP server) and says so in the prompt. The game server counts a
+# press the same whichever way it arrives.
+
+imports:
+  - jy_crpg_nexus
+  - nexus.extensions.agents.dsh
+  - nexus.extensions.openai_clients.openai
+  - nexus.runtime.providers.docker
+
+task_name: jy_crpg
+task_config:
+  agent_label: ${oc.env:JY_AGENT_LABEL,"dsh"}
+  cli: dsh
+  cli_version: "0.1.0-rc.6"
+  actions: ${oc.decode:${oc.env:JY_ACTIONS,"1000"}}
+  minutes: ${oc.decode:${oc.env:JY_MINUTES,"240"}}
+  publish: false
+  lockdown_mode: docker_sidecar
+  require_isolation: true
+
+runtime_provider_name: docker
+runtime_provider_config:
+  runtime_image: current
+  print_port_mappings: false
+runtime_configs:
+  main:
+    image: ${oc.env:JY_RUNTIME_IMAGE,"ubuntu:24.04"}
+    extra_args:
+      - --cap-drop=NET_ADMIN
+      - --cap-drop=NET_RAW
+
+agent_name: dsh
+agent_config:
+  # One prompt, one long turn: the game is played inside it. The harness's
+  # own turn cap is not the decision budget; the server's is.
+  max_turns: 1
+  permission_mode: workspace-write
+  permission_policy: allow
+
+openai_clients:
+  main:
+    name: openai
+    config:
+      client_args:
+        api_key__env: JY_API_KEY
+        base_url: ${oc.env:JY_API_BASE}
+        timeout: 900
+        max_retries: 3
+      request_args:
+        model: ${oc.env:JY_MODEL}
+        max_tokens: 32768
+
+runner:
+  timeout: 16200

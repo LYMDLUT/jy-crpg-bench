@@ -24,6 +24,12 @@ AGENT = os.environ.get("QUNXIA_BENCH_AGENT", "agent")
 SID = os.environ.get("QUNXIA_BENCH_SID", "")
 BUDGET = int(os.environ.get("QUNXIA_BENCH_BUDGET", "14400"))
 IDLE = int(os.environ.get("QUNXIA_BENCH_IDLE", "0"))   # 0 or less: no inactivity teardown
+# A decision budget alongside the clock. Models differ in throughput by an
+# order of magnitude, so a fixed wall-clock budget hands a fast model many
+# more decisions than a slow one. With ACTIONS set the run ends after that
+# many decision calls (key submissions and waits alike), and the clock is a
+# safety ceiling rather than the budget. 0 or less: clock only, as before.
+ACTIONS = int(os.environ.get("QUNXIA_BENCH_ACTIONS", "0"))
 BUCKET = os.environ.get("QUNXIA_GCS_BUCKET", "")
 # A run can ask not to be listed. Smoke tests were reaching the public
 # catalogue and ranking above real runs, including one that recorded a crashed
@@ -94,6 +100,8 @@ run = {"playable": None, "first": None, "last": None, "gaps": [], "keys": {},
        "first_saved_at": None,
        # Retained for metrics compatibility; the fixed deadline grants no credit.
        "credit": 0.0,
+       # what the harness said when it closed the run through end_run
+       "end_detail": "",
        "done": None, "result": None}
 
 
@@ -108,6 +116,22 @@ def check_time():
     """End at the fixed monotonic deadline, also from inside an input action."""
     if run["deadline"] is not None and clock() >= run["deadline"] and not run["done"]:
         run["done"] = "time"
+
+
+def actions_left():
+    """Decisions still allowed under the decision budget; None when there is
+    no such budget."""
+    if ACTIONS <= 0:
+        return None
+    return max(0, ACTIONS - run["actions"])
+
+
+def check_actions():
+    """End once the decision budget is spent. Called after a decision is
+    booked, so the last allowed decision still executes and the next request
+    is answered 410 like an expired clock."""
+    if ACTIONS > 0 and run["actions"] >= ACTIONS and not run["done"]:
+        run["done"] = "actions"
 
 
 def note_action(keys, label="", input_frames=0):
@@ -134,10 +158,31 @@ def note_action(keys, label="", input_frames=0):
         # under the name the key is known by, not the spelling that arrived
         k = ALIAS.get(k, k)
         run["keys"][k] = run["keys"].get(k, 0) + 1
+    check_actions()
 
 
 def note_read():
     run["reads"] += 1
+
+
+def end_run(reason, detail=""):
+    """The harness that drives this run says it is over.
+
+    The clock and the decision budget are the server's own; a token budget is
+    counted where the model is called, in the harness, and the server cannot
+    see it. This lets the harness close the run with a reason the catalogue
+    records, instead of the run sitting idle until the clock and being listed
+    as a stall. Reasons: ``tokens`` (the harness's token budget was spent),
+    ``client_exit`` (the agent process ended). Returns False when the run is
+    already over or not yet playable.
+    """
+    if run["done"] or run["playable"] is None:
+        return False
+    if reason not in ("tokens", "client_exit"):
+        raise ValueError(f"unknown end reason {reason!r}")
+    run["done"] = reason
+    run["end_detail"] = str(detail or "")[:200]
+    return True
 
 
 def note_help(lang):
@@ -179,6 +224,14 @@ def human(sec):
 def why_text():
     if run["done"] == "time":
         return f"the full {human(BUDGET)} budget was used"
+    if run["done"] == "actions":
+        return f"the full budget of {ACTIONS} decisions was used"
+    if run["done"] == "tokens":
+        return ("the harness reported that its token budget was used"
+                + (f": {run.get('end_detail')}" if run.get("end_detail") else ""))
+    if run["done"] == "client_exit":
+        return ("the harness reported that the agent process ended"
+                + (f": {run.get('end_detail')}" if run.get("end_detail") else ""))
     idle = human(time.time() - (run["last"] or run["playable"] or time.time()))
     if run["done"] == "never started":
         return f"no action was ever sent - the run sat unplayed for {idle}"
@@ -208,6 +261,8 @@ def timing():
         # process can say how much of it is left
         "remaining": round(max(0.0, run["deadline"] - clock()), 2)
                      if run["deadline"] is not None else None,
+        "actions_budget": ACTIONS if ACTIONS > 0 else None,
+        "actions_left": actions_left(),
         "gap_p50": pct(gaps, 0.5), "gap_p95": pct(gaps, 0.95),
         "reads": run["reads"], "errors": run["errors"],
     }
@@ -220,9 +275,15 @@ def metrics():
     return {
         "id": SID, "agent": AGENT, "started": playable,
         "played": round(played), "budget": BUDGET,
+        # The decision budget, when one was set. A run under a decision
+        # budget is not comparable to one under the clock alone, so the
+        # catalogue carries which it was.
+        "actions_budget": ACTIONS if ACTIONS > 0 else None,
+        "budget_kind": "actions" if ACTIONS > 0 else "time",
         # `actions` is retained for published-schema compatibility. It means
         # model decision/API calls, not uniform emulator steps.
         "actions": n, "decision_calls": n, "reason": run["done"] or "time",
+        "end_detail": run.get("end_detail") or None,
         "key_events": run["key_events"],
         "input_frames": run["input_frames"],
         "wait_calls": run["wait_calls"],

@@ -1,0 +1,58 @@
+# Claude Code under a token budget instead of a decision budget: 2M tokens
+# across the run, counted on the Host at the LLM bridge by the `budgeted`
+# client. `actions: 0` leaves the server's decision budget off, so the run
+# ends on tokens (the harness closes it with reason `tokens`) or at the clock
+# ceiling. Both budgets may be set together; the first to run out ends it.
+
+imports:
+  - jy_crpg_nexus
+  - nexus.extensions.agents.claude_code
+  - nexus.extensions.openai_clients.openai
+  - nexus.runtime.providers.docker
+
+task_name: jy_crpg
+task_config:
+  agent_label: ${oc.env:JY_AGENT_LABEL,"claude-code-2m"}
+  cli: claude_code
+  cli_version: "2.1.153"
+  actions: ${oc.decode:${oc.env:JY_ACTIONS,"0"}}
+  minutes: ${oc.decode:${oc.env:JY_MINUTES,"240"}}
+  publish: false
+  lockdown_mode: docker_sidecar
+  require_isolation: true
+
+runtime_provider_name: docker
+runtime_provider_config:
+  runtime_image: current
+  print_port_mappings: false
+runtime_configs:
+  main:
+    image: ${oc.env:JY_RUNTIME_IMAGE,"ubuntu:24.04"}
+    extra_args:
+      - --cap-drop=NET_ADMIN
+      - --cap-drop=NET_RAW
+
+agent_name: claude_code
+agent_config:
+  pre_start_scripts:
+    - code: mkdir -p /workspace
+
+openai_clients:
+  main:
+    name: budgeted
+    config:
+      client_args:
+        inner: openai
+        token_budget: ${oc.decode:${oc.env:JY_TOKEN_BUDGET,"2000000"}}
+        count: total                    # or prompt_completion
+        inner_client_args:
+          api_key__env: JY_API_KEY
+          base_url: ${oc.env:JY_API_BASE}
+          timeout: 900
+          max_retries: 3
+      request_args:
+        model: ${oc.env:JY_MODEL}
+        max_tokens: 32768
+
+runner:
+  timeout: 16200

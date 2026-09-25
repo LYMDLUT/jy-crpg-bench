@@ -1,0 +1,60 @@
+# Claude Code plays one run, 1000 decisions, in a Docker runtime with its
+# egress closed by the firewall sidecar.
+#
+#   export PYTHONPATH=/path/to/jy-crpg-bench/nexus-harness
+#   export JY_BROKER_URL=http://127.0.0.1:8080 JY_OPERATOR_TOKEN=...
+#   export JY_MODEL=claude-opus-4.1 JY_API_BASE=... JY_API_KEY=...
+#   uv run nexus run-single -o result.json configs/claude_code.yaml
+
+imports:
+  - jy_crpg_nexus
+  - nexus.extensions.agents.claude_code
+  - nexus.extensions.openai_clients.openai
+  - nexus.runtime.providers.docker
+
+task_name: jy_crpg
+task_config:
+  agent_label: ${oc.env:JY_AGENT_LABEL,"claude-code"}
+  cli: claude_code
+  cli_version: "2.1.153"
+  actions: ${oc.decode:${oc.env:JY_ACTIONS,"1000"}}
+  minutes: ${oc.decode:${oc.env:JY_MINUTES,"240"}}
+  publish: false
+  lockdown_mode: docker_sidecar
+  require_isolation: true
+
+runtime_provider_name: docker
+runtime_provider_config:
+  runtime_image: current
+  print_port_mappings: false
+runtime_configs:
+  main:
+    image: ${oc.env:JY_RUNTIME_IMAGE,"ubuntu:24.04"}
+    # No NET_ADMIN: the firewall the sidecar writes cannot be undone from
+    # inside. Docker's default is already this; stated so it stays stated.
+    extra_args:
+      - --cap-drop=NET_ADMIN
+      - --cap-drop=NET_RAW
+
+agent_name: claude_code
+agent_config:
+  pre_start_scripts:
+    - code: mkdir -p /workspace
+  # The task supplies user_prompt, mcp_servers, version, timeout, extra_env.
+
+openai_clients:
+  main:
+    name: openai
+    config:
+      client_args:
+        api_key__env: JY_API_KEY
+        base_url: ${oc.env:JY_API_BASE}
+        timeout: 900
+        max_retries: 3
+      request_args:
+        model: ${oc.env:JY_MODEL}
+        max_tokens: 32768
+
+runner:
+  # The clock is a ceiling, not the budget: minutes + setup + finalization.
+  timeout: 16200

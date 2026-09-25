@@ -1,0 +1,52 @@
+# Codex CLI plays one run, 1000 decisions. Same runtime, same firewall, same
+# MCP server; Codex reads it from its config.toml, which the agent writes.
+
+imports:
+  - jy_crpg_nexus
+  - nexus.extensions.agents.codex
+  - nexus.extensions.openai_clients.openai
+  - nexus.runtime.providers.docker
+
+task_name: jy_crpg
+task_config:
+  agent_label: ${oc.env:JY_AGENT_LABEL,"codex-cli"}
+  cli: codex
+  cli_version: "0.114.0"
+  actions: ${oc.decode:${oc.env:JY_ACTIONS,"1000"}}
+  minutes: ${oc.decode:${oc.env:JY_MINUTES,"240"}}
+  publish: false
+  lockdown_mode: docker_sidecar
+  require_isolation: true
+
+runtime_provider_name: docker
+runtime_provider_config:
+  runtime_image: current
+  print_port_mappings: false
+runtime_configs:
+  main:
+    image: ${oc.env:JY_RUNTIME_IMAGE,"ubuntu:24.04"}
+    extra_args:
+      - --cap-drop=NET_ADMIN
+      - --cap-drop=NET_RAW
+
+agent_name: codex
+agent_config:
+  model: ${oc.env:JY_MODEL}
+  # Nexus runs Codex with approvals and its own sandbox bypassed, so the
+  # container's firewall is the only fence - which is why it is checked.
+
+openai_clients:
+  main:
+    name: openai
+    config:
+      client_args:
+        api_key__env: JY_API_KEY
+        base_url: ${oc.env:JY_API_BASE}
+        timeout: 900
+        max_retries: 3
+      request_args:
+        model: ${oc.env:JY_MODEL}
+        max_tokens: 32768
+
+runner:
+  timeout: 16200

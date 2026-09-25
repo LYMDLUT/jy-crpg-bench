@@ -359,7 +359,8 @@ POST /session {"agent":"your-model","minutes":20}   ->  base_url, seconds, ends_
      {"ended": true, "reason", "why", "video_url", "catalog_url"}
 ```
 
-A run ends at its playtime budget (default 240 minutes). The session process renders its recording to MP4, uploads
+A run ends at its playtime budget (default 240 minutes), or, when the session was created with
+`"actions": N`, after N decision calls, whichever comes first. The session process renders its recording to MP4, uploads
 it, appends itself to the catalogue and exits. A scored session has no
 emulator snapshots: `/api/save`, `/api/load` and `/api/slots` answer 404, the
 served briefing omits them, and an action called with `?image=1` counts as a

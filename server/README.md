@@ -116,6 +116,14 @@ calibration, whose reload of the opening state would undo resumed progress.
 `QUNXIA_BENCH=1` ignores all resume/autosave settings and keeps the normal
 benchmark startup, action limits and save/load restrictions.
 
+A benchmark run is bounded by `QUNXIA_BENCH_SECONDS` and, when set, by
+`QUNXIA_BENCH_ACTIONS`, a count of decision calls (key submissions and
+waits); whichever is spent first ends the run, with reason `time` or
+`actions`. `/api/key` answers carry `actions_left` and `actions_budget` while
+a decision budget is on. An operator (`X-Reset-Token`) may end the run early
+with `POST /api/end {"reason":"tokens"|"client_exit","detail":...}`; the
+reason and detail are recorded in the run's metrics as `end_detail`.
+
 REST actions and browser key holds share one single-player lease, so a browser
 release cannot cancel an API press (or another browser's hold). The queue is
 FIFO. Measured against the deployed e2-micro, each

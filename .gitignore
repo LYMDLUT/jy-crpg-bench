@@ -27,9 +27,10 @@ paper/src/build.log
 node_modules/
 .runs/
 
-# python bytecode
+# python bytecode and local virtualenvs
 __pycache__/
 *.pyc
+.venv/
 
 # native build products
 server/libqunxia.so
