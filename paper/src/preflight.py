@@ -6,7 +6,7 @@ def bad(msg): print("FAIL "+msg)
 # regenerate everything
 # Generators that write their own files, then the two that print their file
 # to stdout, which is written for them: a captured stdout is not a file.
-for cmd in ([sys.executable,"figures/make.py"],[sys.executable,"figures/make_metrics.py"]):
+for cmd in ([sys.executable,"figures/make.py"],[sys.executable,"figures/make_metrics.py"],[sys.executable,"figures/filters.py"]):
     r=subprocess.run(cmd,cwd=SRC,capture_output=True,text=True)
     if r.returncode: bad(" ".join(cmd)+" -> "+r.stderr[-400:]); sys.exit(1)
 for script,target in (("figures/recover_sessions.py","figures/recovered_sessions.json"),

@@ -356,3 +356,63 @@ def battles(row):
                     "actions": len(inside), "keys": len(keys),
                     "confirm": sum(k in CONFIRM for k in keys) / len(keys) if keys else 0.0})
     return out
+
+
+def minutes_of_play(row):
+    """Minute of every action of a session, from its keypress timeline."""
+    t = json.load(open(os.path.join(HERE, "timelines", row["id"] + ".json"), encoding="utf-8"))
+    return [m["t"] * t["speed"] / 60 for m in t["marks"]]
+
+
+def _crossing_minute(row):
+    if not on_map(row):
+        return None
+    if row.get("exit_secs") is not None:
+        return row["exit_secs"] / 60
+    e = row.get("replay") or {}
+    b = e.get("first_black_second")
+    if b is None:
+        return None
+    t = json.load(open(os.path.join(HERE, "timelines", row["id"] + ".json"), encoding="utf-8"))
+    return b * t["speed"] / 60
+
+
+def _first(name):
+    return lambda row: ((row.get("replay") or {}).get(name) or {}).get("first_minute")
+
+
+# The chain of steps every playthrough passes in order, each with the minute a
+# session first passed it, or None.
+CHAIN = (("leave\nhouse", _crossing_minute),
+         ("enter\nlocation", lambda row: ((row.get("replay") or {}).get("scenes") or {}).get("first_minute")),
+         ("reach\nhermit", _first("hermit")),
+         ("enter\nbattle", _first("battle")),
+         ("win\nbattle", _first("won")),
+         ("hold\nbook", lambda row: None))
+
+
+def chain(rows):
+    """Per step of CHAIN: the sessions at risk (those that passed the step
+    before), and for each the minutes from the step before to passing this one
+    (passed) or to its last key (stuck)."""
+    out, prev = [], [(r, 0.0) for r in rows]
+    for name, when in CHAIN:
+        passed, stuck = [], []
+        for r, t0 in prev:
+            t = when(r)
+            if t is not None:
+                passed.append((r, t, t - t0))
+            else:
+                ms = minutes_of_play(r)
+                stuck.append((r, (ms[-1] if ms else t0) - t0))
+        out.append({"step": name, "at_risk": len(prev), "passed": [(r, d) for r, _, d in passed], "stuck": stuck})
+        prev = [(r, t) for r, t, _ in passed]
+    return out
+
+
+def passes_after(step, minutes):
+    """Passes, and hours at risk, once a session had spent `minutes` before the
+    step without passing it."""
+    n = sum(1 for _, d in step["passed"] if d >= minutes)
+    h = (sum(max(0.0, d - minutes) for _, d in step["passed"]) + sum(max(0.0, d - minutes) for _, d in step["stuck"])) / 60
+    return n, h

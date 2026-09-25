@@ -992,6 +992,28 @@ if len(_lost4) != 1 or any(field.battles(r)[-1] != bt for r, bt in _lost4):
 _f3 = _after(_lost4[0][0], _lost4[0][1]["end"])
 emit("PfThreeMin", _f3[0], "minutes it played after the defeat", fmt="%.0f")
 emit("PfThreeActs", _f3[1], "actions it sent after the defeat", fmt="%d")
+# the filters over every model session, hour and four-hour (figures/filters.py)
+_CH = field.chain([r for r in PLAY if not field.is_random(r["agent"])] + LONG)
+_FW = 30
+emit("Nchain", _CH[0]["at_risk"], "model sessions followed along the chain")
+emit("FilterWait", _FW, "minutes before a step after which a filter is passed by no session")
+_st = {s["step"].replace("\n", " "): s for s in _CH}
+_hs, _ws = _st["reach hermit"], _st["win battle"]
+for _s in (_hs, _ws):
+    if field.passes_after(_s, _FW)[0]:
+        sys.exit("the prose says no session passes %s after %d minutes before it" % (_s["step"], _FW))
+for _s in (_st["leave house"], _st["enter location"]):
+    if not field.passes_after(_s, _FW)[0]:
+        sys.exit("the prose says sessions still pass %s after %d minutes" % (_s["step"], _FW))
+emit("NhermitRisk", _hs["at_risk"], "sessions that entered a location")
+emit("NhermitPass", len(_hs["passed"]), "of them that reached the hermit")
+emit("PhermitPassMax", max(d for _, d in _hs["passed"]), "the longest any took to reach him, minutes", fmt="%.0f")
+emit("PhermitLateHours", field.passes_after(_hs, _FW)[1], "hours of play before the hermit past the wait, with no pass", fmt="%.0f")
+emit("NwinRisk", _ws["at_risk"], "sessions that entered a battle")
+emit("PwinLateHours", field.passes_after(_ws, _FW)[1], "hours of play before a win past the wait, with no pass", fmt="%.0f")
+if len(_ws["passed"]) != 1:
+    sys.exit("the prose says one session won a battle")
+
 # after the first hour the four-hour sessions add only items and locations
 for r in LONG:
     for col, name in _el.COLUMNS:
