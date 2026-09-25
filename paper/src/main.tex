@@ -68,7 +68,7 @@ nothing in the environment reports it. The game benchmarks that keep perception 
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/env.pdf}
-\caption{The game as three nested loops, the world map, its locations and their battles, with the frames the model receives, upscaled three times without interpolation, pointing at the steps they show.}
+\caption{The game as a state chart of three states, each repeating the steps it lists, with the transitions between them. Every frame is one the model receives, upscaled three times without interpolation, and points at the state it shows.}
 \label{fig:env}
 \end{figure}
 
