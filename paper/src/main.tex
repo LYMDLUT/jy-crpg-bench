@@ -268,7 +268,20 @@ The second is finding the entrances on the world map, the same problem at a larg
 
 The third is the dialogue of the hermit, where the model must turn what it reads into an action. The instructions name the cabinet beside him, and his conversation names it again. \LhermitLabels{} reach the conversation in \PhermitSessions{} sessions. \PtalkSlowLabel{} pressed through it for \PtalkSlowMin{} minutes at \PtalkSlowPace{} seconds a press and had \PtalkSlowLeftMin{} minutes left, \PtalkFastLabel{} took \PtalkFastMin{} minute, and neither searched the cabinet. \LsecondLabel{} reached him in every one of its \LsecondSessions{} sessions, between minutes \PhermitEveryFirst{} and \PhermitEveryLast{}, and the \LhermitOthers{} other models that reached him did so in at most half of their sessions. The session of \PscenesMaxLabel{} drawn in \cref{fig:world}, which entered \PscenesMax{} distinct locations within the hour, searched the cabinet and then used what it found, opening the item screen \PholderMenuOpens{} times to read its coordinates from the compass.
 
-The fourth is the first battle, where the model has to recover from a defeat. All \PfightSessions{} sessions that entered a battle entered it in the house of Yan Ji. \LsecondLabel{} lost it at minute \PsecondDefeatMin{} in one session and sent its last key at minute \PbattleLastMin{} with it still open in another, and \LtopLabel{} lost it at minute \PtopDefeatMin{}. What separates the one win is what that session did next: it recruited a party member at minute \PrecruitMin{}, returned to Yan Ji at minute \PreturnMin{} and won at minute \PwonMin{}, passing through all three states of \cref{fig:env} towards one goal. No other session that lost a battle returned to it, and \cref{app:battles} compares the battles.
+The fourth is the first battle, where the model has to recover from a defeat. All \PfightSessions{} sessions that entered a battle entered it in the house of Yan Ji. \LsecondLabel{} lost it at minute \PsecondDefeatMin{} in one session and sent its last key at minute \PbattleLastMin{} with it still open in another, and \LtopLabel{} lost it at minute \PtopDefeatMin{}. What separates the one win is what that session did next, as \cref{fig:recovery} shows: it recruited a party member at minute \PrecruitMin{}, returned to Yan Ji at minute \PreturnMin{} and won at minute \PwonMin{}, passing through all three states of \cref{fig:env} towards one goal. No other session that lost a battle returned to it, and \cref{app:battles} compares the battles.
+
+\begin{figure}[!htb]
+\centering
+\setlength{\tabcolsep}{1.5pt}
+\begin{tabular}{@{}cccc@{}}
+\includegraphics[width=0.24\linewidth]{figures/frames/battle/loss-4-defeat.png} &
+\includegraphics[width=0.24\linewidth]{figures/frames/battle/win-1-party.png} &
+\includegraphics[width=0.24\linewidth]{figures/frames/battle/win-3-energy.png} &
+\includegraphics[width=0.24\linewidth]{figures/frames/battle/win-4-won.png} \\
+\end{tabular}
+\caption{The session of \LtopLabel{} that won a battle, from left to right: the defeat of the hero alone, the party chosen on its return with the recruited member, an item that restores internal energy, and the battle won.}
+\label{fig:recovery}
+\end{figure}
 
 
 \subsection{Four-Hour Sessions}
