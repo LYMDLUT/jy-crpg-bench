@@ -103,14 +103,12 @@ def compound_figure():
     pad = 30
     x0, x1 = max(0, int(allp[:, 0].min()) - pad), min(bg.shape[1], int(allp[:, 0].max()) + pad)
     y0, y1 = max(0, int(allp[:, 1].min()) - pad), min(bg.shape[0], int(allp[:, 1].max()) + pad)
-    # three panels to a row, so each is wide enough for a path to be followed,
-    # and the colour bar of the shared minute scale under the last row
-    ncol, gap, head, foot = 3, 0.06, 0.16, 0.5
+    ncol, gap, head = 4, 0.05, 0.15
     nrow = -(-len(models) // ncol)
     w_in = 7.0
     pw = (w_in - gap * (ncol - 1)) / ncol
     ph = pw * (y1 - y0) / (x1 - x0)
-    fig = plt.figure(figsize=(w_in, nrow * (ph + head) + foot))
+    fig = plt.figure(figsize=(w_in, nrow * (ph + head)))
     H = fig.get_figheight()
     for k, m in enumerate(models):
         p = paths[m["agent"]]
@@ -120,10 +118,9 @@ def compound_figure():
         ax.set_xlim(x0, x1)
         ax.set_ylim(y1, y0)
         ax.axis("off")
-        draw_path(ax, p[:, :2], p[:, 2], lw=1.15, arrows=6)
-        ax.set_title(m["agent"], fontsize=7.5, pad=2, color=INK, family="monospace")
-    colorbar(fig, [(w_in / 2 - 1.2) / w_in, 0.3 / H, 2.4 / w_in, 0.09 / H])
-    fig.savefig(os.path.join(HERE, "routes-compound.pdf"), dpi=220)
+        draw_path(ax, p[:, :2], p[:, 2], lw=1.0, arrows=5)
+        ax.set_title(m["agent"], fontsize=6.5, pad=1.5, color=INK, family="monospace")
+    fig.savefig(os.path.join(HERE, "routes-compound.pdf"), dpi=300)
     plt.close(fig)
 
 
@@ -178,21 +175,6 @@ def events(e, track):
     return marks
 
 
-def wrap(text, width):
-    """The line, split after a comma into parts no longer than `width`, the
-    continuation indented under the text of the first."""
-    parts, cur = [], ""
-    for piece in text.split(", "):
-        nxt = piece if not cur else cur + ", " + piece
-        if cur and len(nxt) > width:
-            parts.append(cur + ",")
-            cur = "    " + piece
-        else:
-            cur = nxt
-    parts.append(cur)
-    return parts
-
-
 def smooth(xy, k=3):
     if len(xy) < k + 2:
         return xy
@@ -203,8 +185,8 @@ def smooth(xy, k=3):
 
 
 def world_figure():
-    """One row of three walks, each with the list of its markers beneath it,
-    and the colour bar under the middle list."""
+    """Two by two: the three walks, and in the fourth cell the list of each
+    walk's markers above the colour bar."""
     sess = world_sessions()
     tracks = [load("world", r["id"]) for r, _ in sess]
     pad = 36
@@ -212,15 +194,16 @@ def world_figure():
     bx0, bx1 = int(allp[:, 0].min() - pad), int(allp[:, 0].max() + pad)
     by0, by1 = int(allp[:, 1].min() - pad), int(allp[:, 1].max() + pad)
     crop = faded(Image.open(os.path.join(HERE, "worldmap.png")).crop((bx0, by0, bx1, by1)))
-    w_in, gap, head, line = 7.0, 0.1, 0.16, 0.125
-    pw = (w_in - 2 * gap) / 3
+    w_in, gap, head = 7.0, 0.12, 0.16
+    pw = (w_in - gap) / 2
     ph = pw * (by1 - by0) / (bx1 - bx0)
-    notes_h = 0.2 + 5 * line       # the longest list runs to five lines
-    fig = plt.figure(figsize=(w_in, head + ph + notes_h + 0.42))
+    fig = plt.figure(figsize=(w_in, 2 * (ph + head) + gap))
     H = fig.get_figheight()
-    for k, ((r, e), t) in enumerate(zip(sess, tracks)):
-        x = k * (pw + gap)
-        y = H - head - ph
+    cells = [(0, 0), (1, 0), (0, 1)]
+    notes = []
+    for ((r, e), t), (c, rr) in zip(zip(sess, tracks), cells):
+        x = c * (pw + gap)
+        y = H - (rr + 1) * (ph + head) - rr * gap
         ax = fig.add_axes([x / w_in, y / H, pw / w_in, ph / H])
         ax.imshow(crop, extent=(bx0, bx1, by1, by0), interpolation="nearest")
         ax.set_xlim(bx0, bx1)
@@ -230,20 +213,27 @@ def world_figure():
         for sp in ax.spines.values():
             sp.set_linewidth(0.4)
             sp.set_color(INK)
-        draw_path(ax, smooth(t[:, :2]), t[:, 4], lw=1.1, arrows=9, gaps=JUMP)
+        draw_path(ax, smooth(t[:, :2]), t[:, 4], lw=1.2, arrows=9, gaps=JUMP)
         ax.set_title(r["agent"], fontsize=7.5, pad=2, color=INK, family="monospace")
         lines = []
         for i, (ex, ey, evs) in enumerate(events(e, t), 1):
-            ax.scatter([ex], [ey], s=46, marker="o", color="white", edgecolors=INK, linewidths=0.7, zorder=6)
-            ax.text(ex, ey, str(i), fontsize=5.4, ha="center", va="center", color=INK, zorder=7)
+            ax.scatter([ex], [ey], s=52, marker="o", color="white", edgecolors=INK, linewidths=0.7, zorder=6)
+            ax.text(ex, ey, str(i), fontsize=5.6, ha="center", va="center", color=INK, zorder=7)
             lines.append("%d  %s" % (i, ", ".join("%s %d" % (lab, round(m)) for m, lab in evs)))
-        ty = y - 0.08
-        for ln in lines or ["no location entered"]:
-            # a list longer than the panel is wide wraps after a comma
-            for part in wrap(ln, 46):
-                fig.text((x + 0.04) / w_in, ty / H, part, fontsize=6.5, color=INK, va="top")
-                ty -= line
-    colorbar(fig, [(w_in / 2 - 1.2) / w_in, 0.3 / H, 2.4 / w_in, 0.09 / H])
+        notes.append((r["agent"], lines or ["no location entered"]))
+    # the fourth cell: the markers of each walk, then the colour bar
+    x = pw + gap
+    ty = H - (ph + head) - gap - head
+    fig.text(x / w_in, ty / H, "Markers, with the minute of each event", fontsize=7, color=INK, va="top", style="italic")
+    ty -= 0.2
+    for agent, lines in notes:
+        fig.text(x / w_in, ty / H, agent, fontsize=7.5, color=INK, family="monospace", va="top")
+        ty -= 0.15
+        for ln in lines:
+            fig.text((x + 0.08) / w_in, ty / H, ln, fontsize=7, color=INK, va="top")
+            ty -= 0.13
+        ty -= 0.08
+    colorbar(fig, [(x + 0.08) / w_in, (H - 2 * (ph + head) - gap + 0.24) / H, (pw - 0.5) / w_in, 0.08 / H])
     fig.savefig(os.path.join(HERE, "routes-world.pdf"), dpi=300)
     plt.close(fig)
 
