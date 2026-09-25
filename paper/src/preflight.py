@@ -14,7 +14,8 @@ for script,target in (("figures/recover_sessions.py","figures/recovered_sessions
                                             ("figures/emit_books.py","tables/books.tex"),
                       ("figures/emit_effort.py","tables/effort.tex"),
                       ("figures/emit_milestones.py","tables/milestones.tex"),
-                      ("figures/emit_long.py","tables/long.tex")):
+                      ("figures/emit_long.py","tables/long.tex"),
+                      ("figures/emit_instructions.py","tables/instructions.tex")):
     r=subprocess.run([sys.executable,script],cwd=SRC,capture_output=True,text=True)
     if r.returncode: bad(script+" -> "+r.stderr[-400:]); sys.exit(1)
     open(os.path.join(SRC,target),"w",encoding="utf-8").write(r.stdout)

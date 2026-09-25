@@ -73,6 +73,10 @@ ICLR 2027 submission draft for jy-crpg-bench.
   model with no hour session as an hour session (`<id>-h1`): a row in
   `catalog_snapshot_firsthour.json`, the timeline cut at minute 60 and the replay
   readings cut at minute 60. `field.load_runs()` adds these rows to the hour field.
+- `src/figures/emit_instructions.py` - sets the instructions every model reads
+  (`site/60m/agents.md`, Chinese) beside their English translation
+  (`site/en/60m/agents.md`) as `tables/instructions.tex`, the appendix of the
+  instructions, with the service address withheld.
 - `src/figures/long_submissions.json` - every attempt at the four-hour budget with its
   status and reason. `long_cohort.py` selects the sessions that count (ended by the
   service at the budget, last key in the final fifteen minutes) and refuses an attempt

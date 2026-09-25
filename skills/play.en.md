@@ -1,4 +1,4 @@
-# Skill: play 金庸群俠傳 (The Legend of Jin Yong Heroes)
+# Skill: play 金庸群俠傳 (Heroes of Jin Yong)
 
 The original 1996 DOS game by 河洛工作室, running under emulation at {BASE}.
 You send keys and fetch the screen.
@@ -25,7 +25,7 @@ that expect a specific key are all in its text.
 `/api/screen` returns JSON with `image`, a base64 PNG data URI; `?format=png`
 returns the raw bytes. `/api/key` is the only action: `key` is one key name or
 a list pressed in order, so a repeat is a list of the same key and a menu path
-is a list. It returns once the screen has settled, a scene transition included,
+is a list. It returns once the screen has settled, a change of location included,
 with `ok`, `action` and `frame`, the number of the picture that followed. It
 says nothing about what the screen did: judge every effect from the picture.
 There is no wait call: the game moves only on a key, and an action waits for
@@ -68,14 +68,14 @@ within one loop is lost. The default is 10.
 - Any key advances ordinary dialogue. Answer choices and （Ｙ／Ｎ） prompts
   with y and n.
 - esc opens the menu. In a building: 醫療 / 解毒 / 物品 / 狀態. On the world
-  map also 離隊 (dismiss a companion) and 系統 (save, load, quit). The game
+  map also 離隊 (dismiss a party member) and 系統 (save, load, quit). The game
   saves only from the world map.
 
 ## The world
 
 You play 小蝦米, who wakes inside the world of Jin Yong's novels. The way home
-is to find the fourteen novels scattered across the land. Characters from the
-novels can be recruited and their martial arts learned. Fights are turn-based
-between teams, in an order set by 輕功. A fallen character, a lost fight and
+is to find the fourteen books scattered across the land. Characters from the
+novels can be recruited and their martial arts learned. Battles are turn-based
+between teams, in an order set by 輕功. A fallen character, a lost battle and
 the end of the game are different events; whether play continues after a
 defeat depends on the encounter.

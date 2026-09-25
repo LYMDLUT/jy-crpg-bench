@@ -1,6 +1,6 @@
 # jy-crpg-bench
 
-You are about to play 金庸群俠傳 (The Legend of Jin Yong Heroes), the original
+You are about to play 金庸群俠傳 (Heroes of Jin Yong), the original
 1996 DOS game by 河洛工作室, running unmodified under emulation. You send keys
 and fetch the screen. The game is in Traditional Chinese.
 
@@ -14,12 +14,12 @@ and fetch the screen. The game is in Traditional Chinese.
 the run; this brief is the 240 minute one. The reply carries `base_url`,
 called `$BASE` below. Every call goes there.
 
-You start inside the game, in the opening room, with a character already made
+You start inside the game, in the starting house, with a character already made
 and named. Do not change the name or touch the 注音 input method.
 
 ---
 
-# Skill: play 金庸群俠傳 (The Legend of Jin Yong Heroes)
+# Skill: play 金庸群俠傳 (Heroes of Jin Yong)
 
 The original 1996 DOS game by 河洛工作室, running under emulation at $BASE.
 You send keys and fetch the screen.
@@ -43,7 +43,7 @@ that expect a specific key are all in its text.
 `/api/screen` returns JSON with `image`, a base64 PNG data URI; `?format=png`
 returns the raw bytes. `/api/key` is the only action: `key` is one key name or
 a list pressed in order, so a repeat is a list of the same key and a menu path
-is a list. It returns once the screen has settled, a scene transition included,
+is a list. It returns once the screen has settled, a change of location included,
 with `ok`, `action` and `frame`, the number of the picture that followed. It
 says nothing about what the screen did: judge every effect from the picture.
 There is no wait call: the game moves only on a key, and an action waits for
@@ -86,15 +86,15 @@ within one loop is lost. The default is 10.
 - Any key advances ordinary dialogue. Answer choices and （Ｙ／Ｎ） prompts
   with y and n.
 - esc opens the menu. In a building: 醫療 / 解毒 / 物品 / 狀態. On the world
-  map also 離隊 (dismiss a companion) and 系統 (save, load, quit). The game
+  map also 離隊 (dismiss a party member) and 系統 (save, load, quit). The game
   saves only from the world map.
 
 ## The world
 
 You play 小蝦米, who wakes inside the world of Jin Yong's novels. The way home
-is to find the fourteen novels scattered across the land. Characters from the
-novels can be recruited and their martial arts learned. Fights are turn-based
-between teams, in an order set by 輕功. A fallen character, a lost fight and
+is to find the fourteen books scattered across the land. Characters from the
+novels can be recruited and their martial arts learned. Battles are turn-based
+between teams, in an order set by 輕功. A fallen character, a lost battle and
 the end of the game are different events; whether play continues after a
 defeat depends on the encounter.
 
@@ -102,17 +102,17 @@ defeat depends on the encounter.
 
 ## First: get the compass
 
-Many locations open only after the opening encounter at 南賢居.
+Many locations open only after the opening encounter at 南賢居, the house of the hermit.
 
-1. In the opening room, talk to the 軟體娃娃 until nothing new is said, search
+1. In the starting house, talk to the 軟體娃娃 until nothing new is said, search
    the room, then find the doorway out.
 2. On the world map, follow the small path south to 南賢居, near `[388,325]`.
-   Talk to 南賢, then investigate the cabinet beside him to get the 羅盤
+   Talk to 南賢, the hermit, then investigate the cabinet beside him to get the 羅盤
    (compass).
 3. Highlight the compass in `esc → 物品` to read the coordinates of the party
    and the boat. Use them to check your position whenever the route is unclear.
 
-In the original game, paying the waiter at 河洛客棧 buys directions to 南賢居.
+In the original game, paying the waiter at 河洛客棧, the Heluo Inn, buys directions to 南賢居.
 They are not required to enter.
 
 ## Controls and menus
@@ -121,14 +121,14 @@ They are not required to enter.
   Holding a key keeps sending the same direction without following paths,
   turning or avoiding obstacles.
 - For a person or container, stand adjacent, face the target, and press space
-  or enter. Stepping on a tile can trigger a separate story event. In combat,
+  or enter. Stepping on a tile can trigger a separate story event. In a battle,
   choose commands and targets through its menu.
 - `esc` opens the menu anywhere. Arrows move the highlight, space or enter
   confirms, `esc` backs out.
 - `y` and `n` answer （Ｙ／Ｎ）. Any key advances ordinary dialogue.
 
 The world-map menu holds 醫療 heal, 解毒 cure poison, 物品 items, 狀態 status,
-離隊 dismiss a companion and 系統 system. Inside a scene the first four are
+離隊 dismiss a party member and 系統 system. Inside a location the first four are
 available; saving, loading and dismissal need the world map. Recruitment
 happens through dialogue.
 
@@ -139,18 +139,18 @@ happens through dialogue.
 - 物品: a story item is used on a person or object while standing adjacent
   and facing it; medicines, equipment and manuals choose their user in the
   item menu. Five kinds: story items; pills that restore or raise attributes;
-  hidden weapons, usable only in combat; weapons and armour, equippable by
+  hidden weapons, usable only in battle; weapons and armour, equippable by
   some characters; manuals, which a party member studies to gain attributes or
   a skill.
-- 狀態: health, inner force, stamina, experience and the combat attributes,
+- 狀態: health, internal energy, stamina, experience and the battle attributes,
   with a second page of portrait, equipment and skills. A character learns at
   most ten martial arts, each to level ten, and studies one manual at a time.
 - 系統: three save slots, load, and quit. Save often.
 
-## Combat
+## Battles
 
-Combat is turn-based. Order follows 輕功; waiting moves the current character
-later in the round. Stamina, inner force, ability and remaining movement decide
+Battles are turn-based. Order follows 輕功; waiting moves the current character
+later in the round. Stamina, internal energy, ability and remaining movement decide
 which commands are available; read the menu.
 
 - 移動 move: choose a position in range. The commands that remain afterwards
@@ -163,14 +163,14 @@ which commands are available; read the menu.
   it.
 - 狀態 status: attributes, equipment and martial arts.
 - 休息 rest: end the action and recover some stamina.
-- 自動 auto: the game controls the whole party's combat actions.
+- 自動 auto: the game controls the whole party's battle actions.
 
-A fallen character is not necessarily dead, and a lost fight is not always the
+A fallen character is not necessarily dead, and a lost battle is not always the
 end of the game. Some defeats end the run; read the story and the result.
 
 ## Attributes
 
-Visible: health, inner force, stamina, experience, attack, defence, 輕功,
+Visible: health, internal energy, stamina, experience, attack, defence, 輕功,
 healing, poison, curing and the weapon skills. Base attack, defence and 輕功
 cap at 100; equipment adds on top. Some skills and items need minimum values.
 
@@ -182,7 +182,7 @@ Hidden:
 - 道德 moves with your actions and is read from the mirror in 南賢居 with
   space. Too low and upright characters refuse to join; some paths need a
   specific range.
-- 名望 changes with story events and fights and affects later events.
+- 名望 changes with story events and battles and affects later events.
 
 ## Coordinates from community guides
 
@@ -192,9 +192,9 @@ visible entrance.
 
 | Place | Coordinates |
 |---|---|
-| 主角居 your house | (357,235) |
+| 主角居 the starting house | (357,235) |
 | 河洛客棧 | (359,229) |
-| 南賢居 compass | (388,325) |
+| 南賢居 the house of the hermit | (388,325) |
 | 天寧寺 | (330,237) |
 | 鐵掌山 | (302,343) |
 | 衡山派 | (355,376) |

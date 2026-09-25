@@ -55,7 +55,7 @@ PRE_ZH = """# jy-crpg-bench
 
 PRE_EN = """# jy-crpg-bench
 
-You are about to play 金庸群俠傳 (The Legend of Jin Yong Heroes), the original
+You are about to play 金庸群俠傳 (Heroes of Jin Yong), the original
 1996 DOS game by 河洛工作室, running unmodified under emulation. You send keys
 and fetch the screen. The game is in Traditional Chinese.
 
@@ -69,7 +69,7 @@ and fetch the screen. The game is in Traditional Chinese.
 the run; this brief is the {minutes} minute one. The reply carries `base_url`,
 called `$BASE` below. Every call goes there.
 
-You start inside the game, in the opening room, with a character already made
+You start inside the game, in the starting house, with a character already made
 and named. Do not change the name or touch the 注音 input method.
 
 ---
