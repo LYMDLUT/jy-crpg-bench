@@ -726,6 +726,35 @@ _tian2 = [r for r in _bymodel[_second_agent] if any(x["name"] == _TIAN for x in 
 if any((r["replay"] or {}).get("recruited_minute") is not None and _TIAN in [x["name"] for x in _scenes(r)["entries"]] for r in _tian2):
     sys.exit("the prose says the second model entered the house of Tian Boguang without recruiting him")
 emit("PsecondTianSessions", len(_tian2), "sessions of the second model that entered the house of Tian Boguang")
+
+# Appendix: every battle on record (both budgets), checked by eye against the replay
+import save_state as _ss  # noqa: E402  (on the path through slots.py)
+_BT = [(r, b) for r in PLAY + field.load_long() for b in field.battles(r)]
+_baud = json.load(open(os.path.join(HERE, "battles_audit.json"), encoding="utf-8"))["checked"]
+if sorted((a["session"], a["began_minute"]) for a in _baud) != sorted((r["id"], b["start"]) for r, b in _BT) \
+        or any(a["opponent"] != "閻基" for a in _baud):
+    sys.exit("battles_audit.json must list every battle, each against Yan Ji")
+_alone = [b for r, b in _BT if b["party"] == 1]
+_won = [(r, b) for r, b in _BT if b["outcome"] == "won"]
+if sorted(b["outcome"] for b in _alone) != ["lost"] * (len(_alone) - 1) + ["open"] or len(_won) != 1 or _won[0][1]["party"] != 2:
+    sys.exit("the appendix says the hero alone lost every battle but one left open, and the one win had two in the party")
+emit("Nbattles", len(_BT), "battles on record")
+emit("NbattlesAlone", len(_alone), "battles the hero fought alone")
+emit("NbattlesAloneLost", sum(b["outcome"] == "lost" for b in _alone), "of them lost")
+_wr, _wb = _won[0]
+_team = _ss.from_archive(open(os.path.join(HERE, "slots", _wr["id"] + ".grp"), "rb").read(),
+                         open(os.path.join(HERE, "slots", _wr["id"] + ".idx"), "rb").read())["team"]
+_tian = [m for m in _team if m["name"] == "田伯光"]
+if len(_team) != 2 or not _tian:
+    sys.exit("the appendix says the winning party was the hero and Tian Boguang")
+emit("PtianLevel", _tian[0]["level"], "Tian Boguang's level in the save")
+emit("PtianHealth", _tian[0]["maxhp"], "his health")
+emit("PwinConfirm", 100 * _wb["confirm"], "percent of keys in the won battle that confirm", fmt="%.0f")
+# the other recruitments fought no battle afterwards
+for r in PLAY + field.load_long():
+    rm = (r.get("replay") or {}).get("recruited_minute")
+    if rm is not None and r["id"] != _wr["id"] and any(b["start"] > rm for b in field.battles(r)):
+        sys.exit("the appendix says the other recruitments were followed by no battle")
 _tm = json.load(open(os.path.join(HERE, "templates", "templates.json"), encoding="utf-8"))
 emit("ReplayThreshold", _tm["threshold"], "match threshold of the replay scan", fmt="%.1f")
 import replay_scan as _rs  # noqa: E402

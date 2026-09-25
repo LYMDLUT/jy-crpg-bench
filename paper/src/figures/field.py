@@ -319,3 +319,40 @@ def model_rows(rows):
                     "counts": counts, "crossings": crossings, "cross_keys": cross_keys,
                     "map_actions": min(crossings) if crossings else None})
     return out
+
+
+CONFIRM = ("space", "enter")
+
+
+def battles(row):
+    """The battles of a session, read from the replay: each run of battle-card
+    readings less than three minutes apart is one battle, which ends at the
+    first defeat or battle-won message after it began, or stays open to the
+    last key. Per battle: the minutes it began and ended, the outcome, the
+    party (two when a recruitment came before it), and the actions and keys
+    the model sent while it lasted."""
+    e = row.get("replay")
+    if not e or not e["battle"]["seconds"]:
+        return []
+    tl = json.load(open(os.path.join(HERE, "timelines", row["id"] + ".json"), encoding="utf-8"))
+    sp = tl["speed"]
+    marks = [(m["t"] * sp / 60, m) for m in tl["marks"]]
+    runs = []
+    for m in e["battle"]["minutes"]:
+        if runs and m - runs[-1][-1] < 3:
+            runs[-1].append(m)
+        else:
+            runs.append([m])
+    ends = sorted([(m, "lost") for m in e["defeat"]["minutes"]] + [(m, "won") for m in e["won"]["minutes"]])
+    out = []
+    for run in runs:
+        start = run[0]
+        end, outcome = next(((m, o) for m, o in ends if m >= start), (marks[-1][0], "open"))
+        inside = [m for t, m in marks if start - 0.3 <= t <= end]
+        keys = [k for m in inside for k, _ in m["keys"]]
+        rec = e.get("recruited_minute")
+        out.append({"start": start, "end": end, "outcome": outcome,
+                    "party": 2 if rec is not None and rec < start else 1,
+                    "actions": len(inside), "keys": len(keys),
+                    "confirm": sum(k in CONFIRM for k in keys) / len(keys) if keys else 0.0})
+    return out

@@ -1,0 +1,10 @@
+{
+ "about": "Every battle of the sessions in the paper, checked by eye against the replay: the opponent, and a video second at which he is on screen.",
+ "checked": [
+  {"session": "fd52a5a5f668", "began_minute": 15.2, "opponent": "閻基", "video_second": 116.5},
+  {"session": "fd52a5a5f668", "began_minute": 26.4, "opponent": "閻基", "video_second": 199.5},
+  {"session": "25475f1a2e3d", "began_minute": 26.9, "opponent": "閻基", "video_second": 204.0},
+  {"session": "0aaed52489f6", "began_minute": 39.5, "opponent": "閻基", "video_second": 296.0},
+  {"session": "ac1e0b048aa4", "began_minute": 43.2, "opponent": "閻基", "video_second": 115.0}
+ ]
+}
