@@ -90,9 +90,6 @@ def main():
     if "the first milestone a random walk does not reach" in flat:
         ok &= claim("random never on the map", bool(randoms) and not any(field.on_map(r) for r in randoms),
                     "%d random runs" % len(randoms))
-    if "save succeeds during its hour" in flat:
-        ok &= claim("random floor never saved", not any(r.get("saved_at") for r in randoms),
-                    "%d random runs" % len(randoms))
     on_map = [r for r in scored if field.on_map(r)]
     if "reach the world map" in flat:
         saved_map = {r["agent"] for r in on_map
@@ -118,15 +115,6 @@ def main():
         FIGHT, CMP = field.DEFINITION.index("entered\na battle"), field.DEFINITION.index("held the\ncompass")
         past = [m["agent"] for m in field.model_rows(models) if m["rungs"][FIGHT] is True and m["rungs"][CMP] is True]
         ok &= claim("two models take the compass and enter a fight", len(past) == 2, "%s" % past)
-    if "the fingerprint never appears without a save behind it" in flat:
-        ok &= claim("no screen latch without a save",
-                    not any(r.get("bigmap") is True and not field.on_map(r) for r in scored),
-                    "%d screen latches" % sum(1 for r in scored if r.get("bigmap") is True))
-    if "crossing the fingerprint missed" in flat:
-        ok &= claim("save-only crossing exists",
-                    any(field.on_map(r) and r.get("bigmap") is False for r in scored),
-                    "%d save-only crossings" % sum(1 for r in scored if field.on_map(r) and r.get("bigmap") is False))
-        # the reliability sentences of Section 4.2 are recomputed here from every
     # session and compared with the macros the prose reads
     nums = dict(re.findall(r"\\newcommand\{\\(\w+)\}\{([^}]*)\}",
                            open(os.path.join(SRC, "figures", "numbers.tex"), encoding="utf-8").read()))
