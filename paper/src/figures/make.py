@@ -190,7 +190,7 @@ def figure_ladder():
     boxed = humans + sorted((m for m in models if m["cross_keys"]), key=_field.crossing_order)
     n, nb, span = len(entries), len(boxed), len(DEFINITION)
     # the layout in inches: the milestone panel, its legend, the crossing panel
-    top_pitch, bottom_pitch = 0.21, 0.11
+    top_pitch, bottom_pitch = 0.21, 0.145
     head, legend_h, gap, foot = 0.42, 0.28, 0.12, 0.42
     top_h, bottom_h = top_pitch * n, bottom_pitch * nb
     fig_h = head + top_h + legend_h + gap + bottom_h + foot
@@ -256,9 +256,9 @@ def figure_ladder():
     bx.set_xscale("log")
     bx.set_xlim(ACT_LO, ACT_HI)
     bx.set_xticks(ACT_TICKS)
-    bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=6.6, color=INK)
+    bx.set_xticklabels([str(t) for t in ACT_TICKS], fontsize=7.2, color=INK)
     bx.xaxis.set_minor_locator(mticker.NullLocator())
-    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=6.6, fontfamily="monospace")
+    bx.set_yticks(range(nb), [m["agent"] for m in boxed], fontsize=7.6, fontfamily="monospace")
     bx.set_ylim(nb - 0.5, -0.5)
     bx.tick_params(axis="y", length=0)
     bx.tick_params(axis="x", length=2, color="#c3c3c6")
