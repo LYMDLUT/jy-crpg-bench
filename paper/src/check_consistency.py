@@ -259,7 +259,7 @@ def main():
         ok &= claim("every speedrun crosses within the first minute",
                     bool(speed) and all(v["milestones_min"]["map"] is not None and v["milestones_min"]["map"] < 1 for v in speed),
                     "%s" % [v["milestones_min"]["map"] for v in speed])
-    if "human references read from published videos" in flat:
+    if "human references are read from published videos" in flat:
         vids = field.human_videos()
         ok &= claim("every human video carries a reading for every milestone and its steps",
                     bool(vids) and all(set(v["milestones_min"]) == set(field.HUMAN_KEYS) and v.get("steps_to_map") is not None for v in vids),
