@@ -750,6 +750,17 @@ if len(_team) != 2 or not _tian:
 emit("PtianLevel", _tian[0]["level"], "Tian Boguang's level in the save")
 emit("PtianHealth", _tian[0]["maxhp"], "his health")
 emit("PwinConfirm", 100 * _wb["confirm"], "percent of keys in the won battle that confirm", fmt="%.0f")
+# after a defeat: the winning session returned to the battle, no other session did
+_after = {}
+for r in PLAY + field.load_long():
+    for bt in field.battles(r):
+        if bt["outcome"] == "lost":
+            _after[r["id"]] = (r, bt, [x for x in field.battles(r) if x["start"] > bt["end"]])
+if not _after[_wr["id"]][2] or any(later for sid, (_, _, later) in _after.items() if sid != _wr["id"]):
+    sys.exit("the prose says only the winning session returned to a battle it had lost")
+_moved = [(r, bt) for sid, (r, bt, later) in _after.items() if sid != _wr["id"]]
+emit("NlostNoReturn", len(_moved), "other sessions that lost a battle and never fought again")
+emit("PnoReturnLeftMin", max(r["budget"] / 60 - bt["end"] for r, bt in _moved), "the most budget one of them had left, minutes", fmt="%.0f")
 # the other recruitments fought no battle afterwards
 for r in PLAY + field.load_long():
     rm = (r.get("replay") or {}).get("recruited_minute")
