@@ -179,7 +179,7 @@ def main():
                     bool(hb) and not any(r["world_opened"] and not seen(r, "hermit") for r in hb)
                     and (int(nums["PhermitBoth"]), int(nums["PhermitOpened"])) == (len(hb), sum(1 for r in hb if r["world_opened"])),
                     "%d sessions with both, %d opened" % (len(hb), sum(1 for r in hb if r["world_opened"])))
-    if "the five held panels score at least" in flat:
+    if "the five held templates score at least" in flat:
         ev = [r["replay"] for r in scored if r.get("replay")]
         def span(panels):
             miss = max(e[n]["max"] for e in ev for n in panels if e[n]["seconds"] == 0 and e[n]["max"] is not None)
