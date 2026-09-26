@@ -69,7 +69,7 @@ nothing in the environment reports it. The game benchmarks that keep perception 
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/env.pdf}
-\caption{The game as a state chart of three states, each repeating the steps it lists, with the transitions between them. Every frame is one the model receives, upscaled three times without interpolation, and points at the state it shows.}
+\caption{The game as a state chart of three states, each repeating the steps it lists, with the transitions between them. Every frame is one the model receives, upscaled three times without interpolation, and points at the state it shows, or at the dashed outline when it holds in every state.}
 \label{fig:env}
 \end{figure}
 
@@ -289,7 +289,7 @@ A four-hour session counts when the service ended it at the budget and its last 
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{figures/filters.pdf}
-\caption{All model sessions through the steps a playthrough passes in order. Left, the sessions that passed each step. Right, the minutes from the step before to passing it (filled) or to the last key of a session that did not pass it (open), coloured by model; the dashed line marks \FilterWait{} minutes.}
+\caption{All model sessions through the steps a playthrough passes in order. Left, the sessions that passed each step. Right, the minutes from the step before to passing it (filled) or to the last key of a session that did not pass it (open); the dashed line marks \FilterWait{} minutes.}
 \label{fig:filters}
 \end{figure}
 
