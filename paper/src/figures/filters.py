@@ -40,18 +40,40 @@ def main():
     a.set_ylim(0, 1.0)
     a.set_ylabel("share of %d sessions" % n, color=INK)
     b.set_yscale("log")
+    # the two models that pass the filters in colour, every other model in grey;
+    # the grey sessions that pass a filter are named beside their dot
+    top = {"claude-opus-5.5": "#2F6FB0", "gpt-6-astra": "#C8632A"}
+    filters = {"reach\nhermit", "win\nbattle"}
     for x, s in zip(xs, ch):
-        pd = [max(d, 0.5) for _, d in s["passed"]]
-        sd = [max(d, 0.5) for _, d in s["stuck"]]
-        b.scatter([x - 0.12] * len(pd), pd, s=9, color=INK, zorder=3)
-        b.scatter([x + 0.12] * len(sd), sd, s=9, facecolors="none", edgecolors=INK, linewidths=0.6, zorder=3)
+        for kind, off, pts in (("passed", -0.12, s["passed"]), ("stuck", 0.12, s["stuck"])):
+            for r, d in pts:
+                c = top.get(r["agent"], "#8a8d93")
+                b.scatter([x + off], [max(d, 0.5)], s=10, zorder=3, linewidths=0.7,
+                          color=c if kind == "passed" else "none", edgecolors=c)
     b.axhline(30, color="#8a8d93", lw=0.6, ls=(0, (2, 2)))
+    b.set_ylim(0.35, 400)
+    # the grey sessions that pass a filter, named in a callout in the empty lower right
+    import collections
+    import math
+    for x, s in zip(xs, ch):
+        if s["step"] not in filters:
+            continue
+        grey = [(r, d) for r, d in s["passed"] if r["agent"] not in top]
+        if not grey:
+            continue
+        n = collections.Counter(r["agent"] for r, _ in grey)
+        names = ", ".join("%s%s" % (a_, " (%d)" % k if k > 1 else "") for a_, k in sorted(n.items()))
+        yc = math.exp(sum(math.log(d) for _, d in grey) / len(grey))
+        tx, ty = 4.34, 1.45
+        b.annotate("", xy=(x - 0.18, yc), xytext=(tx - 0.05, ty), arrowprops=dict(arrowstyle="-", color=INK, lw=0.5, shrinkA=0, shrinkB=0))
+        b.text(tx, ty, "also reached the hermit:\n" + names.replace(", ", "\n"), fontsize=5.4, color=INK, va="center", ha="left", linespacing=1.15)
     b.set_xticks(list(xs))
     b.set_xticklabels([s["step"] for s in ch], fontsize=6.2)
     b.set_ylabel("minutes since the step before", color=INK)
-    b.scatter([], [], s=9, color=INK, label="passed")
-    b.scatter([], [], s=9, facecolors="none", edgecolors=INK, linewidths=0.6, label="not passed")
-    b.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, fontsize=6.5, frameon=False, handletextpad=0.2)
+    for name, c in list(top.items()) + [("other models", "#8a8d93")]:
+        b.scatter([], [], s=10, color=c, label=name)
+    b.scatter([], [], s=10, color="none", edgecolors=INK, linewidths=0.7, label="not passed")
+    b.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=4, fontsize=6, frameon=False, handletextpad=0.1, columnspacing=0.8)
     for ax in (a, b):
         ax.tick_params(colors=INK, labelsize=6.5)
         for sp in ("top", "right"):
