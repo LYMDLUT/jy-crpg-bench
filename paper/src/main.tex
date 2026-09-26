@@ -73,7 +73,7 @@ nothing in the environment reports it. The game benchmarks that keep perception 
 \label{fig:env}
 \end{figure}
 
-We present \bench{}, built on Heroes of Jin Yong, a 1996 Chinese role-playing game that we run as its original DOS binary under emulation. Its ending requires recovering the fourteen books of the Jin Yong novels from an open world, and \cref{fig:env} shows how it is played. We chose the game because it tests five capabilities of a frontier model at once.
+We present \bench{}, built on Heroes of Jin Yong, a 1996 Chinese role-playing game that we run unmodified under emulation. Its ending requires recovering the fourteen books of the Jin Yong novels from an open world, and \cref{fig:env} shows how it is played. We chose the game because it tests five capabilities of a frontier model at once.
 \begin{enumerate}[leftmargin=*,topsep=2pt,itemsep=1pt,parsep=0pt]
 \item The model must read the screen. The frame is $320\times200$ pixel art in a $45^\circ$ isometric projection, and every objective, prompt and statistic on it is Traditional Chinese in 16-pixel glyphs, a script that multimodal evaluation has largely neglected \citep{tam2025vistw}. No text is supplied to the model.
 \item The model must bring knowledge the game never states. The world is assembled from the fourteen novels, so who a character is, which faction to join and which storyline leads to a book are known to a reader of the novels and written nowhere on screen.
@@ -177,8 +177,7 @@ set-of-marks overlay or accessibility tree \citep[cf.][]{xie2024osworld}. The fr
 tokens \citep{liu2026vistabench}, and precise spatial reading fails once
 primitives are small or adjacent
 \citep{rahmanzadehgervi2024blind,wang2024spatialeval}. The action space is
-the DOS keyboard, with \MkeyNames{} key names over
-\MkeyCodes{} distinct keys, and \cref{fig:keymap} shows the few the game responds to. Movement runs along the four numpad diagonals, with the arrow
+the keyboard of \MkeyCodes{} keys, and \cref{fig:keymap} shows the few the game responds to. Movement runs along the four numpad diagonals, with the arrow
 keys aliased onto the same axes, so a model that presses \texttt{up} expecting
 to walk up the screen moves up and to the right.
 
@@ -319,7 +318,7 @@ copyrighted games has done \citep{paglieri2025balrog}.
 
 \section{Interface and Session Details}
 \label{app:infra}
-\Cref{tab:api} lists the control surface, and \cref{fig:keymap} shows the keyboard the API exposes. A host of 8 vCPUs and 16\,GiB runs up to 24 concurrent sessions. Emulation is DOSBox Pure through libretro at a fixed 26800 cycles, the speed of a 486DX2-66 of 1996, with no sound card, so the observation is visual only. The published video runs at \DefaultReplaySpeed{} times speed, or faster for long runs, with a strip naming the model, the action number, the keys held and the clock, beside a timeline file with every keypress and its hold.
+\Cref{tab:api} lists the control surface, and \cref{fig:keymap} shows the keyboard the API exposes. A host of 8 vCPUs and 16\,GiB runs up to 24 concurrent sessions. Emulation is DOSBox Pure through libretro at a fixed 26800 cycles with no sound card, so the observation is visual only. The published video runs at \DefaultReplaySpeed{} times speed, or faster for long runs, with a strip naming the model, the action number, the keys held and the clock, beside a timeline file with every keypress and its hold.
 
 Each key is held for a requested number of emulated frames, ten by default, because the game samples its keyboard once per loop. The action returns once the screen has settled: the game has \MsettleReact{} frames to react, and the wait then ends after \MsettleStable{} frames without change, when the picture cycles as in an idle animation, or after \MsettleMax{} frames regardless. A black frame marks a change of location, and the action waits through it and settles once more.
 
