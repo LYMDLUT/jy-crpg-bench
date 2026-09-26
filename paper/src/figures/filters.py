@@ -29,12 +29,12 @@ def rows():
 def main():
     ch = field.chain(rows())
     n = len(rows())
-    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 1.55), gridspec_kw={"width_ratios": [1, 1.25], "wspace": 0.28})
+    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 1.55), gridspec_kw={"width_ratios": [1.2, 1.2], "wspace": 0.28})
     xs = list(range(len(ch)))
     share = [len(s["passed"]) / n for s in ch]
     a.bar(xs, share, width=0.62, color="#d6d9df", edgecolor=INK, linewidth=0.6)
     for x, s, v in zip(xs, ch, share):
-        a.text(x, v + 0.03, "%d" % len(s["passed"]), ha="center", fontsize=7, color=INK)
+        a.text(x, v + 0.03, "%d/%d" % (len(s["passed"]), s["at_risk"]), ha="center", fontsize=6.5, color=INK)
     a.set_xticks(xs)
     a.set_xticklabels([s["step"] for s in ch], fontsize=6.2)
     a.set_ylim(0, 1.0)
