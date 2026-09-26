@@ -44,8 +44,19 @@ def main():
         pd = [max(d, 0.5) for _, d in s["passed"]]
         sd = [max(d, 0.5) for _, d in s["stuck"]]
         b.scatter([x - 0.12] * len(pd), pd, s=9, color=INK, zorder=3)
-        b.scatter([x + 0.12] * len(sd), sd, s=9, facecolors="none", edgecolors=INK, linewidths=0.6, zorder=3)
+        b.scatter([x + 0.12] * len(sd), sd, s=9, facecolors="white", edgecolors=INK, linewidths=0.6, zorder=3)
     b.axhline(30, color="#8a8d93", lw=0.6, ls=(0, (2, 2)))
+    # the session with the most milestones, traced through every step it reached
+    best = max(rows(), key=lambda r: (field.rungs_reached(r), r["id"]))
+    tx, ty = [], []
+    for x, s in zip(xs, ch):
+        for off, pts in ((-0.12, s["passed"]), (0.12, s["stuck"])):
+            for r, d in pts:
+                if r["id"] == best["id"]:
+                    tx.append(x + off)
+                    ty.append(max(d, 0.5))
+    b.plot(tx, ty, color=INK, lw=0.7, ls=(0, (3, 2)), zorder=2)
+    b.text(tx[-1] - 0.05, ty[-1] * 1.45, best["agent"], fontsize=6, color=INK, ha="right", va="bottom")
     b.set_xticks(list(xs))
     b.set_xticklabels([s["step"] for s in ch], fontsize=6.2)
     b.set_ylabel("minutes since the step before", color=INK)
