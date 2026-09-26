@@ -81,9 +81,7 @@ We present \bench{}, built on Heroes of Jin Yong, a 1996 Chinese role-playing ga
 \item The model must act through a keyboard alone, exposed through an API that it calls as a tool. Movement runs along four diagonals, no key moves straight up the screen, and every system of the game is a menu.
 \item The model must win battles. Battles are turn-based on a grid against the AI of the game, with position, range and internal energy to manage, and a party at level one can lose them.
 \end{enumerate}
-The benchmark gives the model only what a person playing the game has, the frame on screen and the keys of the keyboard, with no state interface, text rendering, high-level action or memory built for a model. Its difficulty is that of the game as a person plays it. Together these form one long-horizon task, a persistent world with sparse and delayed reward over thousands of dependent steps.
-
-\Cref{sec:related} reviews related benchmarks, \cref{sec:bench} describes the benchmark, and \cref{sec:results} reports the results.
+The benchmark gives the model only what a person playing the game has, the frame on screen and the keys of the keyboard, with no state interface, text rendering, high-level action or memory built for a model. Its difficulty is that of the game as a person plays it. Together these form one long-horizon task, a persistent world with sparse and delayed reward over thousands of dependent steps. \Cref{sec:related} reviews related benchmarks, \cref{sec:bench} describes the benchmark, and \cref{sec:results} reports the results.
 
 \begin{table}[!htb]
 \centering
